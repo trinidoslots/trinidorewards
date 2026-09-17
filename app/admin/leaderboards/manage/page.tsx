@@ -10,6 +10,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import { DEFAULT_PRESET_ID, PAYOUT_PRESETS, payoutSummary, rankEntries } from "@/lib/leaderboard-payouts"
+import {
+  COMMON_TIMEZONES,
+  DEFAULT_TIMEZONE,
+  leaderboardStatus,
+  utcToZonedInput,
+  zonedInputToUtc,
+} from "@/lib/leaderboard-time"
 import { Trophy, Plus, Trash2, Users, Upload, Download, Edit, Save, X, RefreshCw, ImageIcon } from "lucide-react"
 import { calculateLeaderboardStatus } from "@/lib/leaderboard-utils"
 
@@ -19,6 +27,8 @@ type Leaderboard = {
   subtitle: string | null
   prize_pool: number
   prize_distribution_type: string
+  payout_preset: string | null
+  timezone: string | null
   api_url: string | null
   api_key: string | null
   image_url: string | null
@@ -51,7 +61,8 @@ export default function LeaderboardsManagePage() {
   const [title, setTitle] = useState("")
   const [subtitle, setSubtitle] = useState("")
   const [prizePool, setPrizePool] = useState("")
-  const [prizeDistribution, setPrizeDistribution] = useState("classic")
+  const [prizeDistribution, setPrizeDistribution] = useState(DEFAULT_PRESET_ID)
+  const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
   const [apiUrl, setApiUrl] = useState("")
   const [apiKey, setApiKey] = useState("")
   const [imageUrl, setImageUrl] = useState("")
@@ -72,6 +83,7 @@ export default function LeaderboardsManagePage() {
     subtitle: "",
     prize_pool: "",
     prize_distribution_type: "",
+    timezone: DEFAULT_TIMEZONE,
     api_url: "",
     api_key: "",
     image_url: "",
@@ -127,7 +139,15 @@ export default function LeaderboardsManagePage() {
   async function handleCreateLeaderboard(e: React.FormEvent) {
     e.preventDefault()
 
-    const calculatedStatus = calculateLeaderboardStatus(startDate, endDate)
+    // The inputs are wall-clock time in `timezone`, not UTC and not the
+    // browser's zone — converting here is what stops a board closing early.
+    const startIso = zonedInputToUtc(startDate, timezone)
+    const endIso = zonedInputToUtc(endDate, timezone)
+    if (!startIso || !endIso) {
+      toast({ title: "Error", description: "Enter a valid start and end date.", variant: "destructive" })
+      return
+    }
+    const calculatedStatus = leaderboardStatus(startIso, endIso)
 
     const { error } = await supabase.from("leaderboards").insert([
       {
@@ -135,11 +155,13 @@ export default function LeaderboardsManagePage() {
         subtitle: subtitle || null,
         prize_pool: Number.parseFloat(prizePool),
         prize_distribution_type: prizeDistribution,
+        payout_preset: prizeDistribution,
+        timezone,
         api_url: apiUrl || null,
         api_key: apiKey || null,
         image_url: imageUrl || null,
-        start_date: startDate,
-        end_date: endDate,
+        start_date: startIso,
+        end_date: endIso,
         status: calculatedStatus, // Use calculated status
       },
     ])
@@ -296,52 +318,13 @@ export default function LeaderboardsManagePage() {
     reader.readAsText(file)
   }
 
-  function calculatePrizes(entries: any[], prizePool: number, distributionType: string) {
-    const sorted = [...entries].sort((a, b) => b.wager_amount - a.wager_amount)
-
-    let distribution: { [key: number]: number } = {}
-
-    if (distributionType === "classic") {
-  distribution = { 0: 0.40, 1: 0.25, 2: 0.15, 3: 0.10, 4: 0.05 }
-  for (let i = 5; i < 10; i++) {
-    distribution[i] = 0.05 / 5 // 0.01 each for places 5-9
-    }
-  } else if (distributionType === "balanced") {
-  distribution = { 0: 0.25, 1: 0.20, 2: 0.15, 3: 0.12, 4: 0.10 }
-  for (let i = 5; i < 10; i++) {
-    distribution[i] = 0.10 / 5 // 0.02 each for places 5-9
-    }
-  for (let i = 10; i < 15; i++) {
-    distribution[i] = 0.08 / 5 // 0.016 each for places 10-14
-    }
-  } else if (distributionType === "wide") {
-  distribution = { 0: 0.15, 1: 0.12, 2: 0.10, 3: 0.08, 4: 0.07 }
-  
-  for (let i = 5; i < 10; i++) {
-    distribution[i] = 0.15 / 5 // 0.03 each for places 5-9
-    }
-  for (let i = 10; i < 15; i++) {
-    distribution[i] = 0.12 / 5 // 0.024 each for places 10-14
-    }
-  for (let i = 15; i < 25; i++) {
-    distribution[i] = 0.21 / 10 // 0.021 each for places 15-24
-    }
-  }
-
-    return sorted.map((entry, index) => ({
-      ...entry,
-      rank: index + 1,
-      prize_amount: distribution[index] ? prizePool * distribution[index] : 0,
-    }))
-  }
-
   async function handleCsvUpload() {
     if (!selectedLeaderboard || csvPreview.length === 0) return
 
     const leaderboard = leaderboards.find((lb) => lb.id === selectedLeaderboard)
     if (!leaderboard) return
 
-    const entriesWithPrizes = calculatePrizes(csvPreview, leaderboard.prize_pool, leaderboard.prize_distribution_type)
+    const entriesWithPrizes = rankEntries<{ username: string; wager_amount: number }>(csvPreview, leaderboard.prize_pool, leaderboard.payout_preset ?? leaderboard.prize_distribution_type)
 
     const entries = entriesWithPrizes.map((entry) => ({
       leaderboard_id: selectedLeaderboard,
@@ -395,7 +378,7 @@ export default function LeaderboardsManagePage() {
       const response = await fetch(leaderboard.api_url, { headers })
       const data = await response.json()
 
-      const entriesWithPrizes = calculatePrizes(data, leaderboard.prize_pool, leaderboard.prize_distribution_type)
+      const entriesWithPrizes = rankEntries<{ username: string; wager_amount: number }>(data, leaderboard.prize_pool, leaderboard.payout_preset ?? leaderboard.prize_distribution_type)
 
       const entries = entriesWithPrizes.map((entry) => ({
         leaderboard_id: selectedLeaderboard,
@@ -485,13 +468,21 @@ export default function LeaderboardsManagePage() {
       api_url: lb.api_url || "",
       api_key: lb.api_key || "",
       image_url: lb.image_url || "",
-      start_date: lb.start_date,
-      end_date: lb.end_date,
+      timezone: lb.timezone || DEFAULT_TIMEZONE,
+      start_date: utcToZonedInput(lb.start_date, lb.timezone || DEFAULT_TIMEZONE),
+      end_date: utcToZonedInput(lb.end_date, lb.timezone || DEFAULT_TIMEZONE),
     })
   }
 
   async function saveEditLeaderboard(leaderboardId: string) {
-    const calculatedStatus = calculateLeaderboardStatus(editLeaderboardForm.start_date, editLeaderboardForm.end_date)
+    const editZone = editLeaderboardForm.timezone || DEFAULT_TIMEZONE
+    const startIso = zonedInputToUtc(editLeaderboardForm.start_date, editZone)
+    const endIso = zonedInputToUtc(editLeaderboardForm.end_date, editZone)
+    if (!startIso || !endIso) {
+      toast({ title: "Error", description: "Enter a valid start and end date.", variant: "destructive" })
+      return
+    }
+    const calculatedStatus = leaderboardStatus(startIso, endIso)
 
     const { error } = await supabase
       .from("leaderboards")
@@ -500,11 +491,13 @@ export default function LeaderboardsManagePage() {
         subtitle: editLeaderboardForm.subtitle || null,
         prize_pool: Number.parseFloat(editLeaderboardForm.prize_pool),
         prize_distribution_type: editLeaderboardForm.prize_distribution_type,
+        payout_preset: editLeaderboardForm.prize_distribution_type,
+        timezone: editZone,
         api_url: editLeaderboardForm.api_url || null,
         api_key: editLeaderboardForm.api_key || null,
         image_url: editLeaderboardForm.image_url || null,
-        start_date: editLeaderboardForm.start_date,
-        end_date: editLeaderboardForm.end_date,
+        start_date: startIso,
+        end_date: endIso,
         status: calculatedStatus, // Use calculated status
       })
       .eq("id", leaderboardId)
@@ -624,9 +617,11 @@ export default function LeaderboardsManagePage() {
                       onChange={(e) => setPrizeDistribution(e.target.value)}
                       className="w-full bg-slate-900 border border-slate-700 text-white h-8 text-xs rounded-md px-2"
                     >
-                      <option value="classic">Classic Top-Heavy (Top 10)</option>
-                      <option value="balanced">Balanced Split (Top 15)</option>
-                      <option value="wide">Wide Distribution (Top 25)</option>
+                      {PAYOUT_PRESETS.map((preset) => (
+                        <option key={preset.id} value={preset.id}>
+                          {preset.label} — {preset.shares.length} places
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -681,6 +676,36 @@ export default function LeaderboardsManagePage() {
                     />
                   </div>
                 </div>
+                <div>
+                  <Label htmlFor="timezone" className="text-slate-300 text-xs">
+                    Timezone
+                  </Label>
+                  <select
+                    id="timezone"
+                    value={timezone}
+                    onChange={(e) => setTimezone(e.target.value)}
+                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 text-xs text-white h-8"
+                  >
+                    {COMMON_TIMEZONES.map((zone) => (
+                      <option key={zone} value={zone}>
+                        {zone}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    The dates above are read as wall-clock time in this zone, and shown in it everywhere.
+                  </p>
+                </div>
+                {prizePool && (
+                  <p className="text-[10px] text-slate-400">
+                    {(() => {
+                      const summary = payoutSummary(Number.parseFloat(prizePool) || 0, prizeDistribution)
+                      return `Pays ${summary.places} places${
+                        summary.remainder ? ` · ${summary.remainder} left over after rounding` : ""
+                      }`
+                    })()}
+                  </p>
+                )}
                 <p className="text-[10px] text-slate-400">
                   Status will be automatically calculated based on start and end dates
                 </p>

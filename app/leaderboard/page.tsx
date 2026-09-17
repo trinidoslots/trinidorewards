@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Crown, Medal } from "lucide-react"
 import Link from "next/link"
+import { prizeFor } from "@/lib/leaderboard-payouts"
+import { DEFAULT_TIMEZONE, formatInZone, leaderboardStatus } from "@/lib/leaderboard-time"
 
 type LeaderboardEntry = {
   id: string
@@ -28,6 +30,8 @@ type Leaderboard = {
   how_it_works: any
   announcements: string[] | null
   prize_distribution_type?: string
+  payout_preset?: string
+  timezone?: string
   image_url?: string | null
 }
 
@@ -105,7 +109,7 @@ export default function LeaderboardPage() {
       }
 
       const activeLeaderboards = leaderboardsData.filter((lb) => {
-        const status = calculateLeaderboardStatus(lb.start_date, lb.end_date)
+        const status = leaderboardStatus(lb.start_date, lb.end_date)
         return status === "active"
       })
 
@@ -155,77 +159,9 @@ export default function LeaderboardPage() {
     setLeaderboard(nextLeaderboard)
   }
 
-  function calculatePrize(rank: number, prizePool: number, distributionType = "classic"): number {
-    if (distributionType === "classic") {
-      const distribution: { [key: number]: number } = {
-        1: 0.4,
-        2: 0.25,
-        3: 0.15,
-        4: 0.1,
-        5: 0.05,
-        6: 0.01,
-        7: 0.01,
-        8: 0.01,
-        9: 0.01,
-        10: 0.01,
-      }
-      return Math.round((distribution[rank] || 0) * prizePool)
-    } else if (distributionType === "balanced") {
-      const distribution: { [key: number]: number } = {
-        1: 0.25,
-        2: 0.2,
-        3: 0.15,
-        4: 0.12,
-        5: 0.1,
-        6: 0.02,
-        7: 0.02,
-        8: 0.02,
-        9: 0.02,
-        10: 0.02,
-        11: 0.016,
-        12: 0.016,
-        13: 0.016,
-        14: 0.016,
-        15: 0.016,
-      }
-      return Math.round((distribution[rank] || 0) * prizePool)
-    } else if (distributionType === "wide") {
-      if (rank === 1) return Math.round(prizePool * 0.1) // 10%
-      if (rank === 2) return Math.round(prizePool * 0.08) // 8%
-      if (rank === 3) return Math.round(prizePool * 0.07) // 7%
-      if (rank === 4) return Math.round(prizePool * 0.06) // 6%
-      if (rank === 5) return Math.round(prizePool * 0.055) // 5.5%
-      if (rank === 6) return Math.round(prizePool * 0.05) // 5%
-      if (rank === 7) return Math.round(prizePool * 0.045) // 4.5%
-      if (rank === 8) return Math.round(prizePool * 0.04) // 4%
-      if (rank === 9) return Math.round(prizePool * 0.035) // 3.5%
-      if (rank >= 10 && rank <= 15) return Math.round(prizePool * 0.03) // each 3%
-      if (rank >= 16 && rank <= 20) return Math.round(prizePool * 0.015) // each 1.5%
-      if (rank >= 21 && rank <= 25) return Math.round(prizePool * 0.01) // each 1%
-      return 0
-    }
-    return 0
-  }
-
-  function calculateLeaderboardStatus(startDate: string, endDate: string): string {
-    const now = new Date()
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-
-    if (now < start) {
-      return "upcoming"
-    } else if (now > end) {
-      return "ended"
-    } else {
-      return "active"
-    }
-  }
-
   const allPositions = entries.map((entry) => ({
     ...entry,
-    prize_amount: leaderboard
-      ? calculatePrize(entry.rank, leaderboard.prize_pool, leaderboard.prize_distribution_type)
-      : 0,
+    prize_amount: leaderboard ? prizeFor(entry.rank, leaderboard.prize_pool, leaderboard.payout_preset) : 0,
   }))
 
   const topThree = allPositions.slice(0, 3)
@@ -294,7 +230,7 @@ export default function LeaderboardPage() {
           {/* Timer */}
           <div className="mb-4">
             <p className="text-slate-400 text-xs uppercase tracking-wider mb-2">
-              {new Date(leaderboard.start_date).toLocaleString("en-US", { month: "long" }).toUpperCase()}
+              {formatInZone(leaderboard.start_date, leaderboard.timezone ?? DEFAULT_TIMEZONE, { month: "long" }).toUpperCase()}
             </p>
             <div className="flex items-center justify-center gap-3">
               <div key={`days-${timeRemaining.days}`} className="transition-all duration-300">
