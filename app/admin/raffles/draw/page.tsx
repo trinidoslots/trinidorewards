@@ -6,7 +6,7 @@ import { createBrowserClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel } from "@/components/ui/panel"
 import { RaffleHeader, RaffleRows, RaffleTotals, useAdminRaffles } from "@/components/admin/raffle-list"
 import { RecordWinDialog, WinnerName } from "@/components/admin/record-win-dialog"
-import { RaffleDrawSpinner, weightedNames } from "@/components/raffle-draw-spinner"
+import { RaffleDrawReel, weightedNames } from "@/components/raffle-draw-spinner"
 
 /**
  * Raffles waiting on a draw.
@@ -98,13 +98,21 @@ export default function DrawRafflesPage() {
       )}
 
       {spin && (
-        <Panel accent="purple" className="p-3.5">
+        <Panel accent="blue" className="p-3.5">
           <MonoLabel className="mb-2 block text-white/30">{spin.title}</MonoLabel>
-          <RaffleDrawSpinner
-            names={spin.names}
-            winner={spin.winner}
-            onDone={() => setTimeout(() => setSpin(null), 2500)}
-          />
+          {spin.winner ? (
+            <RaffleDrawReel
+              pool={spin.names}
+              winner={spin.winner}
+              onDone={() => setTimeout(() => setSpin(null), 3500)}
+            />
+          ) : (
+            // The reel needs the name it lands on, so it waits for the server
+            // rather than starting on a strip it would have to rebuild.
+            <div className="flex h-16 items-center justify-center rounded-lg border border-white/[0.08] bg-black/40">
+              <MonoLabel className="animate-pulse text-white/30">Picking a winner</MonoLabel>
+            </div>
+          )}
         </Panel>
       )}
 

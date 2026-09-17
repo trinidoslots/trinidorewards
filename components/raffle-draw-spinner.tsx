@@ -1,104 +1,152 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { Trophy } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { motion } from "framer-motion"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 
 /**
- * The roll, made visible.
+ * The roll, as a reel — the same idea as the giveaway widget: a strip of names
+ * scrolling past a fixed centre marker, decelerating onto the winner.
  *
- * Cycles entrant names fast, then slows to a stop on the winner. Purely
- * theatre — the winner is already decided on the server before this starts, so
- * nothing here can change who wins. It exists because a draw that resolves in
- * 200ms with no animation is impossible to show on stream.
+ * The first version cycled a single line of text, which read as a label
+ * flickering rather than a wheel spinning. It also had a bug that stopped it
+ * cycling at all: the effect listed `onDone` in its dependencies, every caller
+ * passed an inline arrow, so the effect re-ran on each render and reset the
+ * clock before any time could pass. onDone is held in a ref now.
  *
- * Names are cycled weighted by tickets, so someone holding half the tickets
- * flashes past about half the time and the spin looks like the odds are.
+ * Purely theatre. The winner is decided on the server before this mounts;
+ * nothing here can change who wins.
  */
 
-const SPIN_MS = 2600
-/** Fast at the start, crawling at the end. */
-const easeOut = (t: number) => 1 - Math.pow(1 - t, 3)
+const CELL_WIDTH = 132
+const CELL_GAP = 6
+const STRIP_LENGTH = 48
+/** Far enough in that the strip is still moving fast well past the halfway point. */
+const WINNER_INDEX = 40
+const HOLD_MS = 600
 
-export function RaffleDrawSpinner({
-  names,
+export function RaffleDrawReel({
+  pool,
   winner,
+  durationMs = 5200,
   onDone,
 }: {
-  /** One entry per ticket, so the cycle reflects the odds. */
-  names: string[]
-  /** Null while the server is still deciding — the spinner keeps going. */
-  winner: string | null
+  /** Names to fill the strip with, repeated by tickets held. */
+  pool: string[]
+  winner: string
+  durationMs?: number
   onDone?: () => void
 }) {
-  const [shown, setShown] = useState(names[0] ?? "…")
+  const [offset, setOffset] = useState(0)
   const [landed, setLanded] = useState(false)
-  const startedAt = useRef<number | null>(null)
-  const frame = useRef<number | null>(null)
+
+  // Held in a ref so a caller passing an inline arrow — which all of them do —
+  // cannot restart the roll on every render.
+  const done = useRef(onDone)
+  done.current = onDone
+
+  // Built once per winner. A parent re-render must not reshuffle the strip
+  // mid-scroll, or the names would jump under the marker.
+  const strip = useMemo(() => {
+    const names = pool.length > 0 ? pool : [winner]
+    return Array.from({ length: STRIP_LENGTH }, (_, index) =>
+      index === WINNER_INDEX ? winner : names[Math.floor(Math.random() * names.length)],
+    )
+  }, [winner, pool])
 
   useEffect(() => {
-    if (names.length === 0) return
-    startedAt.current = performance.now()
+    setLanded(false)
+    setOffset(0)
 
-    const tick = (now: number) => {
-      const elapsed = now - (startedAt.current ?? now)
-      const progress = Math.min(1, elapsed / SPIN_MS)
+    // A beat of stillness before it goes, so the start of the movement is
+    // visible rather than already underway when you look.
+    const start = setTimeout(() => {
+      setOffset(-(WINNER_INDEX * (CELL_WIDTH + CELL_GAP)))
+    }, HOLD_MS)
 
-      // Only settle once the server has actually answered; if it is slow the
-      // wheel keeps turning rather than landing on a guess.
-      if (progress >= 1 && winner) {
-        setShown(winner)
-        setLanded(true)
-        onDone?.()
-        return
-      }
+    const finish = setTimeout(() => {
+      setLanded(true)
+      done.current?.()
+    }, HOLD_MS + durationMs)
 
-      // Gaps widen as it slows: 25ms at the start, ~320ms at the end.
-      const gap = 25 + easeOut(Math.min(progress, 0.999)) * 300
-      const index = Math.floor(elapsed / gap) % names.length
-      setShown(names[index] ?? "…")
-
-      frame.current = requestAnimationFrame(tick)
-    }
-
-    frame.current = requestAnimationFrame(tick)
     return () => {
-      if (frame.current !== null) cancelAnimationFrame(frame.current)
+      clearTimeout(start)
+      clearTimeout(finish)
     }
-  }, [names, winner, onDone])
+  }, [winner, durationMs])
 
   return (
-    <div
-      className="flex flex-col items-center justify-center gap-2 rounded-lg border px-6 py-8 transition-colors duration-500"
-      style={{
-        borderColor: landed ? `${ACCENTS.amber}55` : "rgba(255,255,255,0.08)",
-        backgroundColor: landed ? `${ACCENTS.amber}0f` : "rgba(255,255,255,0.02)",
-      }}
-    >
-      {landed ? (
-        <Trophy className="h-6 w-6" style={{ color: ACCENTS.amber }} />
-      ) : (
-        <MonoLabel className="text-white/25">Drawing</MonoLabel>
-      )}
+    <div className="w-full">
+      <div className="mb-1.5 text-center">
+        <MonoLabel style={{ color: landed ? ACCENTS.amber : ACCENTS.blue }}>
+          {landed ? "We have a winner" : "Rolling"}
+        </MonoLabel>
+      </div>
+
+      <div className="relative h-16 w-full overflow-hidden rounded-lg border border-white/[0.08] bg-black/40">
+        {/* The marker the strip lands under. */}
+        <div
+          className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-[2px] -translate-x-1/2"
+          style={{
+            backgroundColor: landed ? ACCENTS.amber : ACCENTS.blue,
+            boxShadow: `0 0 10px 2px ${landed ? ACCENTS.amber : ACCENTS.blue}66`,
+          }}
+        />
+
+        {/* Edges faded, so names arrive and leave rather than popping in. */}
+        <div
+          className="pointer-events-none absolute inset-0 z-10"
+          style={{
+            background:
+              "linear-gradient(90deg, rgba(11,11,13,1) 0%, rgba(11,11,13,0) 18%, rgba(11,11,13,0) 82%, rgba(11,11,13,1) 100%)",
+          }}
+        />
+
+        <motion.div
+          className="absolute inset-y-0 left-1/2 flex items-center"
+          style={{ gap: CELL_GAP, marginLeft: -(CELL_WIDTH / 2) }}
+          animate={{ x: offset }}
+          // Slow, long tail: most of the distance goes early, the last few
+          // names crawl past.
+          transition={{ duration: durationMs / 1000, ease: [0.12, 0, 0.12, 1] }}
+        >
+          {strip.map((name, index) => {
+            const isWinner = landed && index === WINNER_INDEX
+            return (
+              <div
+                key={`${name}-${index}`}
+                className="flex h-12 shrink-0 items-center justify-center rounded-md border px-3 transition-colors duration-300"
+                style={{
+                  width: CELL_WIDTH,
+                  borderColor: isWinner ? `${ACCENTS.amber}88` : "rgba(255,255,255,0.07)",
+                  backgroundColor: isWinner ? `${ACCENTS.amber}22` : "rgba(255,255,255,0.03)",
+                }}
+              >
+                <span
+                  className="truncate text-[13px] font-semibold"
+                  style={{ color: isWinner ? ACCENTS.amber : "#C9C9D2" }}
+                >
+                  {name}
+                </span>
+              </div>
+            )
+          })}
+        </motion.div>
+      </div>
 
       <p
-        className="max-w-full truncate text-center text-[26px] font-bold leading-tight tabular-nums transition-transform duration-200"
-        style={{
-          color: landed ? ACCENTS.amber : "#E7E7EA",
-          transform: landed ? "scale(1.06)" : "scale(1)",
-        }}
+        className="mt-2 truncate text-center text-[20px] font-bold leading-tight transition-opacity duration-300"
+        style={{ color: ACCENTS.amber, opacity: landed ? 1 : 0 }}
       >
-        {shown}
+        {winner}
       </p>
-
-      {landed && <MonoLabel style={{ color: ACCENTS.amber }}>Winner</MonoLabel>}
     </div>
   )
 }
 
 /**
  * One name per ticket held, capped so a raffle with tens of thousands of
- * tickets does not build a giant array just to flash names past.
+ * tickets does not build a giant array just to fill a strip.
  */
 export function weightedNames(
   entries: { username: string; tickets_purchased: number }[],
@@ -111,17 +159,10 @@ export function weightedNames(
   const names: string[] = []
 
   for (const entry of entries) {
-    // At least one appearance each: everybody in the raffle should flash past
-    // at least once, however few tickets they hold.
+    // At least one appearance each: everybody in the raffle should go past at
+    // least once, however few tickets they hold.
     const slots = Math.max(1, Math.round((Number(entry.tickets_purchased) || 0) * scale))
     for (let index = 0; index < slots; index++) names.push(entry.username)
-  }
-
-  // Interleaved rather than grouped, so it does not spin through one name
-  // twenty times in a row.
-  for (let index = names.length - 1; index > 0; index--) {
-    const swap = Math.floor(Math.random() * (index + 1))
-    ;[names[index], names[swap]] = [names[swap], names[index]]
   }
   return names
 }

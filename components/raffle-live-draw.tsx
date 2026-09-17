@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Clock, Trophy } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel } from "@/components/ui/panel"
-import { RaffleDrawSpinner, weightedNames } from "@/components/raffle-draw-spinner"
+import { RaffleDrawReel, weightedNames } from "@/components/raffle-draw-spinner"
 
 /**
  * The draw, on the raffle's own page.
@@ -114,12 +114,11 @@ export function RaffleLiveDraw({
 
   if (rolling && winner) {
     return (
-      <Panel accent="purple" className="p-3.5">
-        <MonoLabel className="mb-2 block text-white/30">Drawing the winner</MonoLabel>
-        <RaffleDrawSpinner
-          names={names.current.length > 0 ? names.current : [winner]}
+      <Panel accent="blue" className="p-3.5">
+        <RaffleDrawReel
+          pool={names.current}
           winner={winner}
-          onDone={() => setTimeout(() => setRolling(false), 2500)}
+          onDone={() => setTimeout(() => setRolling(false), 3500)}
         />
       </Panel>
     )
