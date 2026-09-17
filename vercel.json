@@ -1,8 +1,9 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
       "path": "/api/leaderboards/finalize",
-      "schedule": "5 * * * *"
+      "schedule": "5 3 * * *"
     }
   ]
 }

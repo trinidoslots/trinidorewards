@@ -53,6 +53,16 @@ export default function LeaderboardsOverviewPage() {
     setLoading(true)
     const supabase = supabaseRef.current
 
+    // Close anything whose window has passed before reading, so the table never
+    // shows live-sorted ranks for a board that is actually over. Best-effort:
+    // the nightly cron covers it anyway, and a failure here must not stop the
+    // page from rendering.
+    await fetch("/api/leaderboards/finalize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ due: true }),
+    }).catch(() => {})
+
     const { data: rows, error } = await supabase
       .from("leaderboards")
       .select(

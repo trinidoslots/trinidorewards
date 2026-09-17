@@ -30,7 +30,16 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { leaderboardId, force } = await request.json().catch(() => ({}) as Record<string, unknown>)
+  const { leaderboardId, force, due } = await request.json().catch(() => ({}) as Record<string, unknown>)
+
+  // { due: true } sweeps every board whose window has closed. The nightly cron
+  // does the same thing; this is so the admin is never looking at stale ranks
+  // just because the run has not come round yet.
+  if (due === true) {
+    const supabase = await createClient()
+    const finalized = await finalizeDueLeaderboards(supabase)
+    return Response.json({ finalized: finalized.length, leaderboards: finalized })
+  }
 
   if (typeof leaderboardId !== "string" || !leaderboardId) {
     return Response.json({ error: "leaderboardId is required" }, { status: 400 })
