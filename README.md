@@ -94,6 +94,11 @@ Note that 037 adds `transaction_events` to the `supabase_realtime`
 publication. A new table is not in it by default, and without that the widget's
 subscription connects but never fires, so deposits silently never appear.
 
+039 makes `transaction_events` the ledger for deposits and cashouts: one row per
+movement, with the totals derived from it rather than stored. It backfills from
+the old `deposits_withdrawals` totals, so nothing is lost. Add and correct
+movements under Settings → Transactions.
+
 ### Deployment
 
 `main` deploys to production automatically via Vercel — push, and the site

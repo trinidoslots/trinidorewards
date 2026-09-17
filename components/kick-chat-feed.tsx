@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { CHAT_EMOTE_PX, CHAT_FONT_PX, OBS_RADIUS } from "@/lib/obs-theme"
+import { CHAT_EMOTE_PX, CHAT_FONT_PX, OBS, OBS_RADIUS } from "@/lib/obs-theme"
 import { emoteImageUrl, parseMessageContent, type KickBadge, type KickMessage } from "@/lib/kick-chat"
 
 // Kick's own badge palette, so the feed reads as Kick rather than as our theme.
@@ -102,7 +102,8 @@ export function KickChatFeed({ messages, className }: { messages: KickMessage[];
       style={{ fontFamily: "Inter, system-ui, sans-serif", fontSize: CHAT_FONT_PX }}
     >
       {messages.map((message) => (
-        <div key={message.id} className="break-words px-[10px] py-[5px] leading-[1.45] text-[#E8E3F5]">
+        <div key={message.id} className="break-words px-[10px] py-[5px] leading-[1.45]"
+          style={{ color: OBS.chatText }}>
           {message.badges.length > 0 && (
             <span className="mr-[6px] inline-flex items-center gap-[4px] align-middle">
               {message.badges.map((badge, index) => (
@@ -113,7 +114,7 @@ export function KickChatFeed({ messages, className }: { messages: KickMessage[];
           <span className="font-bold" style={{ color: message.color }}>
             {message.username}
           </span>
-          <span className="text-[#9A8CC4]">: </span>
+          <span style={{ color: OBS.muted }}>: </span>
           <MessageContent content={message.content} />
         </div>
       ))}

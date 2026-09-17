@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Loader2, Wallet } from "lucide-react"
 import { AnimatedAmount } from "@/components/animated-amount"
+import { totalsFor } from "@/lib/transactions"
 
 interface CryptoPrice {
   btc: number
@@ -116,7 +117,7 @@ export default function ObsWidget() {
         {
           event: "*",
           schema: "public",
-          table: "deposits_withdrawals",
+          table: "transaction_events",
         },
         (payload) => {
           console.log("[v0] Wallet data changed:", payload)
@@ -336,13 +337,11 @@ export default function ObsWidget() {
   async function fetchWalletStats() {
     try {
       const { data, error } = await supabase
-        .from("deposits_withdrawals")
-        .select("deposit_amount, withdraw_amount")
+        .from("transaction_events")
+        .select("kind, amount")
 
       if (!error && data && data.length > 0) {
-        const totalDeposits = data.reduce((sum, row) => sum + (row.deposit_amount || 0), 0)
-        const totalWithdraws = data.reduce((sum, row) => sum + (row.withdraw_amount || 0), 0)
-        const difference = totalWithdraws - totalDeposits
+        const { deposited: totalDeposits, cashedOut: totalWithdraws, net: difference } = totalsFor(data as any)
 
         console.log("[v0] Wallet Stats - Deposits:", totalDeposits, "Withdraws:", totalWithdraws, "Difference:", difference)
 

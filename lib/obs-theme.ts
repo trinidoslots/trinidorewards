@@ -1,35 +1,36 @@
-// Palette for the /obs/stream column.
+// Palette and metrics for the /obs/stream column.
 //
-// Deliberately NOT the site's blue-grey admin theme: this sits on top of the
-// stream next to the Kick chat, and is styled after the overlay look the
-// channel already uses — a deep violet column with softly lifted cards.
+// Matches the bonus hunt widget (app/obs/bonushunt/page.tsx) so the two sources
+// look like one overlay when they sit on the same scene: #4D84FF on near-black,
+// with #7FB3FF for labels and #B18CFF for the giveaway's highlights.
 //
 // Kept here rather than inline so the event cards, the giveaway card and the
 // chat feed cannot drift apart.
 
 export const OBS = {
   /** The column itself. Translucent so the stream shows through a little. */
-  shell: "rgba(30, 18, 54, 0.90)",
-  shellBorder: "rgba(150, 120, 230, 0.22)",
+  shell: "rgba(11, 14, 19, 0.92)",
 
   /** Event cards lifted off the column. */
-  card: "rgba(62, 47, 110, 0.72)",
-  cardBorder: "rgba(168, 146, 240, 0.20)",
+  card: "rgba(26, 31, 43, 0.88)",
+  cardBorder: "rgba(77, 132, 255, 0.26)",
 
   /** The rounded tile the icon sits in, on the left of every card. */
-  iconTile: "rgba(255, 255, 255, 0.10)",
+  iconTile: "rgba(77, 132, 255, 0.14)",
 
   /** Small uppercase label above the value. */
-  label: "#B4A6E4",
+  label: "#7FB3FF",
   /** The value itself. */
   value: "#FFFFFF",
   /** Supporting line under the value, and timestamps. */
-  muted: "#9A8CC4",
+  muted: "#8296B5",
+  /** Chat body text. */
+  chatText: "#D7E2F2",
   /** Links, e.g. a code-drop URL. */
-  link: "#9BB0FF",
+  link: "#7FB3FF",
 
-  deposit: "#FF6B8A",
-  cashout: "#45E0A8",
+  deposit: "#FB7185",
+  cashout: "#34D399",
 } as const
 
 /**
@@ -44,12 +45,12 @@ export const OBS_RADIUS = {
    * rounding belongs on the cards inside it.
    */
   shell: 0,
-  card: 22,
-  banner: 22,
-  iconTile: 15,
+  card: 12,
+  banner: 12,
+  iconTile: 9,
   /** Inner panels: the keyword box, the roll strip. */
-  panel: 14,
-  badge: 6,
+  panel: 9,
+  badge: 4,
 } as const
 
 /** Chat body size. Bumped from 13px — 13 was too small to read on stream. */

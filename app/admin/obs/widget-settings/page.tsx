@@ -18,13 +18,6 @@ interface Timer {
   data_url?: string
 }
 
-interface WalletRecord {
-  id: string
-  deposit_amount: number
-  withdraw_amount: number
-  created_at: string
-}
-
 interface SpotifyConfig {
   clientId: string
   clientSecret: string
@@ -57,10 +50,6 @@ export default function ObsWidgetSettings() {
     time: true,
   })
 
-  const [walletRecords, setWalletRecords] = useState<WalletRecord[]>([])
-  const [newDeposit, setNewDeposit] = useState("")
-  const [newWithdraw, setNewWithdraw] = useState("")
-  const [loadingWallet, setLoadingWallet] = useState(false)
 
   const [spotifyConfig, setSpotifyConfig] = useState<SpotifyConfig>({
     clientId: "",
@@ -98,7 +87,6 @@ export default function ObsWidgetSettings() {
 
   useEffect(() => {
     loadTimers()
-    loadWalletRecords()
     loadSpotifyConfig()
     loadInfoItems()
   }, [])
@@ -122,83 +110,8 @@ export default function ObsWidgetSettings() {
     }
   }
 
-  async function loadWalletRecords() {
-    try {
-      setLoadingWallet(true)
-      const { data, error } = await supabase
-        .from("deposits_withdrawals")
-        .select("*")
-        .order("created_at", { ascending: false })
 
-      if (!error && data) {
-        setWalletRecords(data)
-      }
-    } catch (error) {
-      console.error("Error loading wallet records:", error)
-    } finally {
-      setLoadingWallet(false)
-    }
-  }
 
-  async function addWalletRecord() {
-    if (!newDeposit && !newWithdraw) {
-      alert("Enter either a deposit or withdrawal amount")
-      return
-    }
-
-    try {
-      setLoadingWallet(true)
-      const deposit = newDeposit ? parseFloat(newDeposit) : 0
-      const withdraw = newWithdraw ? parseFloat(newWithdraw) : 0
-
-      const { data, error } = await supabase
-        .from("deposits_withdrawals")
-        .insert([{ deposit_amount: deposit, withdraw_amount: withdraw }])
-        .select()
-
-      if (!error && data) {
-        // Adding a record here *is* the moment money moved, so this is where the
-        // OBS stream widget's announcement comes from. Best-effort: a failure
-        // must not lose the wallet record that was just saved.
-        const movements: { kind: "deposit" | "cashout"; amount: number }[] = []
-        if (deposit > 0) movements.push({ kind: "deposit", amount: deposit })
-        if (withdraw > 0) movements.push({ kind: "cashout", amount: withdraw })
-
-        if (movements.length > 0) {
-          const { error: eventError } = await supabase.from("transaction_events").insert(movements)
-          if (eventError) console.error("[v0] Error recording transaction event:", eventError)
-        }
-
-        setWalletRecords([data[0], ...walletRecords])
-        setNewDeposit("")
-        setNewWithdraw("")
-      }
-    } catch (error) {
-      console.error("Error adding wallet record:", error)
-      alert("Failed to add wallet record")
-    } finally {
-      setLoadingWallet(false)
-    }
-  }
-
-  async function deleteWalletRecord(id: string) {
-    try {
-      setLoadingWallet(true)
-      const { error } = await supabase
-        .from("deposits_withdrawals")
-        .delete()
-        .eq("id", id)
-
-      if (!error) {
-        setWalletRecords(walletRecords.filter((r) => r.id !== id))
-      }
-    } catch (error) {
-      console.error("Error deleting wallet record:", error)
-      alert("Failed to delete wallet record")
-    } finally {
-      setLoadingWallet(false)
-    }
-  }
 
   function loadSpotifyConfig() {
     const stored = localStorage.getItem("spotifyConfig")
@@ -1113,93 +1026,16 @@ export default function ObsWidgetSettings() {
           </Card>
         </div>
 
-        {/* Wallet Tracker Section */}
+        {/* Transactions moved to /admin/settings — one ledger, one screen. */}
         <div className="mt-12 pt-8 border-t border-slate-700">
-          <h2 className="text-2xl font-bold text-white mb-6">Wallet Tracker</h2>
-
-          {/* Add Wallet Record Form */}
-          <Card className="bg-slate-800/50 border-slate-700 mb-8">
-            <CardHeader>
-              <CardTitle className="text-white">Add Deposit / Withdrawal</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Deposit Amount</label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={newDeposit}
-                    onChange={(e) => setNewDeposit(e.target.value)}
-                    className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Withdrawal Amount</label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={newWithdraw}
-                    onChange={(e) => setNewWithdraw(e.target.value)}
-                    className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
-                  />
-                </div>
-              </div>
-              <Button
-                onClick={addWalletRecord}
-                disabled={loadingWallet}
-                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Record
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Wallet Records */}
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardHeader>
-              <CardTitle className="text-white">All Records ({walletRecords.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {walletRecords.length > 0 ? (
-                <div className="space-y-3 max-h-80 overflow-y-auto">
-                  {walletRecords.map((record) => (
-                    <div key={record.id} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg border border-slate-600/50">
-                      <div className="flex-1">
-                        <div className="flex gap-4 text-sm">
-                          {record.deposit_amount > 0 && (
-                            <span className="text-green-400">
-                              Deposit: <strong>${record.deposit_amount.toFixed(2)}</strong>
-                            </span>
-                          )}
-                          {record.withdraw_amount > 0 && (
-                            <span className="text-red-400">
-                              Withdraw: <strong>${record.withdraw_amount.toFixed(2)}</strong>
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs text-slate-400">
-                          {new Date(record.created_at).toLocaleString()}
-                        </span>
-                      </div>
-                      <Button
-                        onClick={() => deleteWalletRecord(record.id)}
-                        disabled={loadingWallet}
-                        variant="outline"
-                        size="sm"
-                        className="border-red-700/50 hover:bg-red-900/20 text-red-400"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-slate-400 py-4">No records yet</p>
-              )}
-            </CardContent>
-          </Card>
+          <h2 className="mb-2 text-2xl font-bold text-white">Wallet</h2>
+          <p className="text-sm text-slate-400">
+            Deposits and cashouts now live in{" "}
+            <a href="/admin/settings" className="font-semibold text-[#7FB3FF] underline underline-offset-2">
+              Settings &rarr; Transactions
+            </a>
+            , where each movement is its own entry and the totals are worked out from them.
+          </p>
         </div>
       </div>
     </div>

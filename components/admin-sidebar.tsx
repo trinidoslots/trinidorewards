@@ -36,6 +36,7 @@ export default function AdminSidebar({ onCollapse }: { onCollapse?: (collapsed: 
   const [obsExpanded, setObsExpanded] = useState(pathname.startsWith("/admin/obs"))
 
   const navItems = [
+    { href: "/admin", label: "Overview", icon: Home },
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/bonushunt", label: "Bonushunt", icon: Plus },
     { href: "/admin/hunt-source", label: "Hunt Source", icon: Radio },

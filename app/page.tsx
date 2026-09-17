@@ -4,150 +4,253 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import {
   ArrowRight,
-  Award,
-  ChevronRight,
-  Clock3,
-  Crown,
+  Calendar,
   Crosshair,
+  Crown,
   Gift,
-  Instagram,
   Play,
   ShoppingBag,
-  Trophy,
+  Sparkles,
+  Swords,
+  TrendingUp,
   Users,
-  Youtube,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 
-const opportunities = [
+// One accent ramp for the whole page, matching the OBS widgets so the site and
+// the stream overlay read as the same product.
+const ACCENT = "#4D84FF"
+const ACCENT_SOFT = "#7FB3FF"
+const ACCENT_ALT = "#B18CFF"
+
+const WAYS_TO_WIN = [
   {
     href: "/bonushunt",
-    label: "BONUS HUNT",
-    title: "Guess the balance",
-    description: "Follow the hunt, lock in your prediction, and compete for the closest call.",
     icon: Crosshair,
-    accent: "cyan",
+    label: "Bonus hunt",
+    copy: "Follow the hunt live and call the final balance before it opens.",
   },
   {
     href: "/leaderboard",
-    label: "LEADERBOARD",
-    title: "Climb the ranks",
-    description: "Turn your play into progress and see who is leading the community.",
     icon: Crown,
-    accent: "blue",
+    label: "Leaderboard",
+    copy: "Every wager moves you up. The top of the board gets paid.",
   },
+  { href: "/raffles", icon: Gift, label: "Raffles", copy: "Low-entry draws running all month long." },
+  { href: "/tournaments", icon: Swords, label: "Tournaments", copy: "Bracket play against the rest of the community." },
+  { href: "/store", icon: ShoppingBag, label: "Store", copy: "Turn the points you earn watching into real rewards." },
   {
-    href: "/raffles",
-    label: "RAFFLES",
-    title: "More ways to win",
-    description: "Enter community draws and keep an eye on the next reward drop.",
-    icon: Gift,
-    accent: "sky",
+    href: "/advent-calendar",
+    icon: Calendar,
+    label: "Advent calendar",
+    copy: "A new door, a new reward, every day in December.",
   },
 ]
 
-const accentClasses = {
-  cyan: "border-cyan-300/25 bg-cyan-300/10 text-cyan-200 group-hover:border-cyan-200/55",
-  blue: "border-blue-300/25 bg-blue-300/10 text-blue-200 group-hover:border-blue-200/55",
-  sky: "border-sky-300/25 bg-sky-300/10 text-sky-200 group-hover:border-sky-200/55",
-}
-
 export default function LandingPage() {
-  const [totalGivenAway, setTotalGivenAway] = useState("432,565")
-  const [timeLeft, setTimeLeft] = useState("02:14:36")
+  const [totalGivenAway, setTotalGivenAway] = useState<number | null>(null)
 
   useEffect(() => {
-    const fetchTotalGivenAway = async () => {
+    const load = async () => {
       try {
         const supabase = createClient()
-        const { data } = await supabase.from("settings").select("value").eq("key", "total_given_away").single()
-        if (data?.value) setTotalGivenAway(Number.parseInt(data.value).toLocaleString())
+        const { data } = await supabase
+          .from("settings")
+          .select("value")
+          .eq("key", "total_given_away")
+          .maybeSingle()
+        const parsed = Number.parseInt(data?.value ?? "", 10)
+        if (Number.isFinite(parsed)) setTotalGivenAway(parsed)
       } catch (error) {
+        // The hero reads fine without it; never let a stat break the page.
         console.log("[v0] Error fetching total given away:", error)
       }
     }
-
-    fetchTotalGivenAway()
-    const timer = window.setInterval(() => {
-      setTimeLeft((current) => {
-        const parts = current.split(":").map(Number)
-        let seconds = parts[0] * 3600 + parts[1] * 60 + parts[2] - 1
-        if (seconds < 0) seconds = 86399
-        return [Math.floor(seconds / 3600), Math.floor((seconds % 3600) / 60), seconds % 60]
-          .map((value) => String(value).padStart(2, "0"))
-          .join(":")
-      })
-    }, 1000)
-    return () => window.clearInterval(timer)
+    load()
   }, [])
 
   return (
-    <main className="min-h-screen overflow-hidden bg-slate-950 text-slate-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_-10%,rgba(56,189,248,0.16),transparent_36%)]" />
-      <section className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 pb-20 pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:pb-28 lg:pt-24">
-        <div className="[animation-delay:120ms]">
-          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-cyan-200/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
-            <span className="landing-pulse h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,0.9)]" /> The rewards community
-          </div>
-          <h1 className="max-w-3xl text-balance text-4xl font-bold leading-tight tracking-[-0.03em] text-white sm:text-6xl lg:text-7xl">
-            Play more.<br /><span className="text-cyan-300">Get rewarded.</span>
+    <div className="relative overflow-hidden">
+      {/* Aurora — two soft pools of brand colour behind everything */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[720px]"
+        style={{
+          background: `radial-gradient(60% 55% at 22% 0%, ${ACCENT}26 0%, transparent 60%),
+                       radial-gradient(45% 45% at 85% 12%, ${ACCENT_ALT}1f 0%, transparent 65%)`,
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.15]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px)",
+          backgroundSize: "64px 64px",
+          maskImage: "radial-gradient(80% 50% at 50% 0%, #000 0%, transparent 75%)",
+        }}
+      />
+
+      {/* ---------------------------------------------------------------- Hero */}
+      <section className="relative px-5 pb-16 pt-16 lg:px-10 lg:pb-24 lg:pt-24">
+        <div className="mx-auto max-w-6xl">
+          <span
+            className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em]"
+            style={{ borderColor: `${ACCENT}44`, backgroundColor: `${ACCENT}14`, color: ACCENT_SOFT }}
+          >
+            <Sparkles className="h-3 w-3" />
+            The Trinido rewards community
+          </span>
+
+          <h1 className="mt-7 max-w-4xl text-balance text-5xl font-black leading-[0.95] tracking-[-0.04em] text-white sm:text-7xl lg:text-8xl">
+            Watch the hunt.
+            <br />
+            <span
+              style={{
+                background: `linear-gradient(100deg, ${ACCENT_SOFT}, ${ACCENT} 45%, ${ACCENT_ALT})`,
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+                color: "transparent",
+              }}
+            >
+              Take a cut.
+            </span>
           </h1>
-          <p className="mt-7 max-w-xl text-pretty text-base leading-7 text-slate-300 sm:text-lg">
-            Your home for bonus hunts, community competitions, exclusive offers, and rewards worth chasing.
+
+          <p className="mt-7 max-w-xl text-pretty text-lg leading-8 text-slate-400">
+            Predictions, leaderboards, raffles and giveaways — every stream turns into something you can actually win.
+            No deposit needed to play along.
           </p>
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <Link href="/bonushunt" className="group inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-300 px-6 py-3.5 font-bold text-slate-950 shadow-xl shadow-cyan-400/15 transition hover:bg-cyan-200">
-              Explore bonus hunt <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <Link href="/leaderboard" className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-6 py-3.5 font-bold text-slate-100 transition hover:border-cyan-200/40 hover:bg-slate-800">
-              View leaderboard
-            </Link>
-          </div>
-          <div className="mt-12 flex flex-wrap gap-x-8 gap-y-4 text-sm text-slate-400">
-            <span className="inline-flex items-center gap-2"><Users className="h-4 w-4 text-cyan-300" /> 10K+ members</span>
-            <span className="inline-flex items-center gap-2"><Award className="h-4 w-4 text-cyan-300" /> ${totalGivenAway}+ given away</span>
-          </div>
-        </div>
 
-        <div className="relative mx-auto w-full max-w-md">
-          <div className="absolute -inset-5 rounded-[2rem] bg-cyan-300/10 blur-3xl" />
-          <div className="relative rounded-xl border border-cyan-200/20 bg-slate-900/90 p-5 shadow-lg shadow-cyan-950/30 transition duration-300 hover:border-cyan-200/40">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-5">
-              <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Live reward drop</p><p className="mt-1 text-lg font-bold text-white">Monthly leaderboard</p></div>
-              <div className="rounded-lg bg-cyan-300/10 p-2 text-cyan-200"><Trophy className="h-5 w-5" /></div>
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/bonushunt"
+              className="group inline-flex items-center justify-center gap-2 rounded-xl px-7 py-4 text-base font-bold text-slate-950 transition hover:brightness-110"
+              style={{ backgroundColor: ACCENT_SOFT, boxShadow: `0 18px 40px -18px ${ACCENT}` }}
+            >
+              See the live hunt
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+            <a
+              href="https://kick.com/trinidoslots"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/[0.04] px-7 py-4 text-base font-bold text-white backdrop-blur transition hover:border-white/25 hover:bg-white/[0.08]"
+            >
+              <Play className="h-4 w-4 fill-current" />
+              Watch on Kick
+            </a>
+          </div>
+
+          <dl className="mt-16 grid max-w-3xl grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:grid-cols-3">
+            <Stat
+              icon={TrendingUp}
+              label="Given away"
+              value={totalGivenAway === null ? "—" : `$${totalGivenAway.toLocaleString()}`}
+            />
+            <Stat icon={Users} label="Members" value="10K+" />
+            <Stat icon={Gift} label="Entry cost" value="Free" className="col-span-2 sm:col-span-1" />
+          </dl>
+        </div>
+      </section>
+
+      {/* -------------------------------------------------------- Ways to win */}
+      <section className="relative px-5 py-16 lg:px-10 lg:py-24">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex items-end justify-between gap-6">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT_SOFT }}>
+                Ways to win
+              </p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">Pick your lane</h2>
             </div>
-            <div className="space-y-3 py-5">
-              {["Tyceno", "LuckyLeo", "NateWins"].map((name, index) => (
-                <div key={name} className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-3">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-cyan-200">{index + 1}</span>
-                  <span className="flex-1 font-semibold text-slate-200">{name}</span><span className="font-bold text-cyan-200">${[1250, 890, 640][index]}</span>
-                </div>
-              ))}
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-cyan-300/10 px-4 py-3"><span className="text-sm text-slate-300">Next draw in</span><span className="font-mono font-bold text-cyan-200">{timeLeft}</span></div>
+          </div>
+
+          <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {WAYS_TO_WIN.map(({ href, icon: Icon, label, copy }) => (
+              <Link
+                key={href}
+                href={href}
+                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.06]"
+              >
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full opacity-0 blur-3xl transition-opacity duration-300 group-hover:opacity-100"
+                  style={{ backgroundColor: `${ACCENT}33` }}
+                />
+                <span
+                  className="relative flex h-11 w-11 items-center justify-center rounded-xl border"
+                  style={{ borderColor: `${ACCENT}33`, backgroundColor: `${ACCENT}14`, color: ACCENT_SOFT }}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <h3 className="relative mt-6 text-lg font-bold text-white">{label}</h3>
+                <p className="relative mt-2 text-sm leading-6 text-slate-400">{copy}</p>
+                <span
+                  className="relative mt-5 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+                  style={{ color: ACCENT_SOFT }}
+                >
+                  Open
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                </span>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="relative mx-auto max-w-7xl px-5 pb-24 [animation-delay:380ms] lg:px-8">
-        <div className="mb-8 flex items-end justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Your next move</p><h2 className="mt-2 text-3xl font-bold tracking-tight text-white">Find your way in</h2></div><Link href="/bonuses" className="hidden items-center gap-1 text-sm font-semibold text-slate-300 hover:text-cyan-200 sm:flex">All rewards <ChevronRight className="h-4 w-4" /></Link></div>
-        <div className="grid gap-4 md:grid-cols-3">
-          {opportunities.map(({ href, label, title, description, icon: Icon, accent }) => (
-            <Link key={href} href={href} className="group rounded-xl border border-slate-800 bg-slate-900/70 p-6 transition duration-300 ease-out hover:-translate-y-1 hover:border-cyan-200/30 hover:bg-slate-900 hover:shadow-xl hover:shadow-cyan-950/20">
-              <div className={`mb-8 flex h-11 w-11 items-center justify-center rounded-xl border ${accentClasses[accent as keyof typeof accentClasses]}`}><Icon className="h-5 w-5" /></div>
-              <p className="text-xs font-semibold tracking-[0.18em] text-slate-500">{label}</p><h3 className="mt-2 text-xl font-bold text-white">{title}</h3><p className="mt-3 text-sm leading-6 text-slate-400">{description}</p><span className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-cyan-200">Explore <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
-            </Link>
-          ))}
+      {/* -------------------------------------------------------------- Closer */}
+      <section className="relative px-5 pb-24 lg:px-10">
+        <div
+          className="mx-auto max-w-6xl overflow-hidden rounded-3xl border border-white/10 p-10 sm:p-14"
+          style={{
+            background: `linear-gradient(120deg, ${ACCENT}1f 0%, transparent 45%), linear-gradient(300deg, ${ACCENT_ALT}1a 0%, transparent 50%), rgba(255,255,255,0.02)`,
+          }}
+        >
+          <div className="flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">
+            <div>
+              <h2 className="max-w-lg text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                Next giveaway runs on stream.
+              </h2>
+              <p className="mt-4 max-w-md text-base leading-7 text-slate-400">
+                Keyword drops in chat, the wheel spins live, the winner is paid out on the spot. Be there.
+              </p>
+            </div>
+            <a
+              href="https://kick.com/trinidoslots"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl px-7 py-4 text-base font-bold text-slate-950 transition hover:brightness-110"
+              style={{ backgroundColor: ACCENT_SOFT }}
+            >
+              <Play className="h-4 w-4 fill-current" />
+              Join the stream
+            </a>
+          </div>
         </div>
       </section>
-
-      <section className="relative mx-auto grid max-w-7xl gap-5 px-5 pb-24 [animation-delay:520ms] lg:grid-cols-[1.25fr_0.75fr] lg:px-8">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-7 sm:p-9"><div className="flex items-start justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Watch live</p><h2 className="mt-2 text-2xl font-bold text-white">Join the action</h2><p className="mt-2 max-w-md text-sm leading-6 text-slate-400">Catch the stream, follow the hunt, and stay close to the next community reward.</p></div><div className="rounded-xl bg-cyan-300/10 p-3 text-cyan-200"><Play className="h-5 w-5 fill-current" /></div></div><div className="mt-8 flex min-h-32 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/80"><a href="https://kick.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-cyan-300 px-5 py-3 font-bold text-slate-950 transition hover:bg-cyan-200"><Play className="h-4 w-4 fill-current" /> Watch on Kick</a></div></div>
-        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-7 sm:p-9"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Stay connected</p><h2 className="mt-2 text-2xl font-bold text-white">Never miss a drop</h2><p className="mt-3 text-sm leading-6 text-slate-400">Follow along for announcements, winners, and new ways to earn.</p><div className="mt-8 flex gap-3"><a href="https://www.youtube.com" target="_blank" rel="noopener noreferrer" aria-label="YouTube" className="rounded-lg border border-slate-700 p-3 text-slate-300 transition hover:border-cyan-200/40 hover:text-cyan-200"><Youtube className="h-5 w-5" /></a><a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="rounded-lg border border-slate-700 p-3 text-slate-300 transition hover:border-cyan-200/40 hover:text-cyan-200"><Instagram className="h-5 w-5" /></a><Link href="/store" aria-label="Store" className="rounded-lg border border-slate-700 p-3 text-slate-300 transition hover:border-cyan-200/40 hover:text-cyan-200"><ShoppingBag className="h-5 w-5" /></Link></div></div>
-      </section>
-
-      <footer className="border-t border-slate-900 px-5 py-8 lg:px-8"><div className="mx-auto flex max-w-7xl flex-col gap-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"><span>TrinidoRewards © 2026</span><span className="inline-flex items-center gap-2"><Clock3 className="h-4 w-4" /> 18+ only. Play responsibly.</span></div></footer>
-    </main>
+    </div>
   )
 }
 
+function Stat({
+  icon: Icon,
+  label,
+  value,
+  className,
+}: {
+  icon: typeof Users
+  label: string
+  value: string
+  className?: string
+}) {
+  return (
+    <div className={`bg-slate-950/80 px-6 py-5 ${className ?? ""}`}>
+      <dt className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.15em] text-slate-500">
+        <Icon className="h-3.5 w-3.5" style={{ color: ACCENT_SOFT }} />
+        {label}
+      </dt>
+      <dd className="mt-2 text-2xl font-black tabular-nums text-white sm:text-3xl">{value}</dd>
+    </div>
+  )
+}

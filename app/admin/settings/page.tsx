@@ -10,19 +10,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { DollarSign, Gift, Twitch } from "lucide-react"
-
-type DepositsWithdrawals = {
-  id: string
-  deposit_amount: number
-  withdraw_amount: number
-}
+import { Gift, Twitch } from "lucide-react"
+import { TransactionsPanel } from "@/components/admin/transactions-panel"
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [depositAmount, setDepositAmount] = useState("")
-  const [withdrawAmount, setWithdrawAmount] = useState("")
   const [totalGivenAway, setTotalGivenAway] = useState("")
   const [kickMcpClientId, setKickMcpClientId] = useState("")
   const [kickMcpClientSecret, setKickMcpClientSecret] = useState("")
@@ -43,20 +36,8 @@ export default function SettingsPage() {
     } else {
       setUser(user)
       await fetchTotalGivenAway()
-      await fetchDepositsWithdrawals()
       await fetchKickSettings()
       setLoading(false)
-    }
-  }
-
-  async function fetchDepositsWithdrawals() {
-    const { data, error } = await supabase.from("deposits_withdrawals").select("*").limit(1).single()
-
-    if (error) {
-      console.error("[v0] Error fetching deposits/withdrawals:", error)
-    } else if (data) {
-      setDepositAmount(data.deposit_amount?.toString() || "0")
-      setWithdrawAmount(data.withdraw_amount?.toString() || "0")
     }
   }
 
@@ -88,78 +69,6 @@ export default function SettingsPage() {
       if (data) {
         if (key === "kickmcp_client_id") setKickMcpClientId(data.value || "")
         if (key === "kickmcp_client_secret") setKickMcpClientSecret(data.value || "")
-      }
-    }
-  }
-
-  async function handleUpdateDepositsWithdrawals(e: React.FormEvent) {
-    e.preventDefault()
-
-    const deposit = Number.parseFloat(depositAmount)
-    const withdraw = Number.parseFloat(withdrawAmount)
-
-    const { data: existing } = await supabase.from("deposits_withdrawals").select("*").limit(1).single()
-
-    if (existing) {
-      // The totals row alone can't tell the OBS widget that money just moved, so
-      // record the delta against what was stored as its own event. Announcements
-      // are best-effort: a failure here must not block the totals from saving.
-      const movements: { kind: "deposit" | "cashout"; amount: number }[] = []
-      const depositDelta = deposit - (Number(existing.deposit_amount) || 0)
-      const withdrawDelta = withdraw - (Number(existing.withdraw_amount) || 0)
-      if (depositDelta > 0) movements.push({ kind: "deposit", amount: depositDelta })
-      if (withdrawDelta > 0) movements.push({ kind: "cashout", amount: withdrawDelta })
-
-      if (movements.length > 0) {
-        const { error: eventError } = await supabase.from("transaction_events").insert(movements)
-        if (eventError) console.error("[v0] Error recording transaction event:", eventError)
-      }
-
-      const { error } = await supabase
-        .from("deposits_withdrawals")
-        .update({
-          deposit_amount: deposit,
-          withdraw_amount: withdraw,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id)
-
-      if (error) {
-        console.error("[v0] Error updating deposits/withdrawals:", error)
-        toast({
-          title: "Error",
-          description: "Failed to update deposits/withdrawals",
-          variant: "destructive",
-        })
-      } else {
-        toast({
-          title: "Success",
-          description: "Deposits/Withdrawals updated successfully",
-          className: "bg-green-600 text-white",
-        })
-      }
-    } else {
-      const { error } = await supabase.from("deposits_withdrawals").insert([
-        {
-          deposit_amount: deposit,
-          withdraw_amount: withdraw,
-        },
-      ])
-
-      if (error) {
-        console.error("[v0] Error creating deposits/withdrawals:", error)
-        toast({
-          title: "Error",
-          description: "Failed to create deposits/withdrawals",
-          variant: "destructive",
-        })
-      } else {
-        toast({
-          title: "Success",
-          description: "Deposits/Withdrawals created successfully",
-          className: "bg-green-600 text-white",
-        })
-        fetchDepositsWithdrawals()
       }
     }
   }
@@ -355,59 +264,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
-          <CardHeader className="p-3">
-            <CardTitle className="text-white flex items-center gap-2 text-sm">
-              <DollarSign className="w-4 h-4" />
-              Deposits & Withdrawals
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-0">
-            <form onSubmit={handleUpdateDepositsWithdrawals} className="space-y-3">
-              <div>
-                <Label htmlFor="deposit_amount" className="text-slate-300 text-xs">
-                  Deposit Amount ($)
-                </Label>
-                <p className="text-[10px] text-slate-400 mb-1">
-                  The total amount deposited (shown in red on OBS widget).
-                </p>
-                <Input
-                  id="deposit_amount"
-                  type="number"
-                  step="0.01"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  required
-                  className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
-                  placeholder="0.00"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="withdraw_amount" className="text-slate-300 text-xs">
-                  Withdraw Amount ($)
-                </Label>
-                <p className="text-[10px] text-slate-400 mb-1">
-                  The total amount withdrawn (shown in green on OBS widget).
-                </p>
-                <Input
-                  id="withdraw_amount"
-                  type="number"
-                  step="0.01"
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                  required
-                  className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
-                  placeholder="0.00"
-                />
-              </div>
-
-              <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 h-8 text-xs">
-                Update Deposits/Withdrawals
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        <TransactionsPanel />
       </div>
     </div>
   )

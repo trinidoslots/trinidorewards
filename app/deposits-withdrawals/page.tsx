@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Receipt } from "lucide-react"
 import { AnimatedAmount } from "@/components/animated-amount"
+import { totalsFor } from "@/lib/transactions"
 
 export default function DepositsWithdrawalsWidget() {
   const [depositAmount, setDepositAmount] = useState(0)
@@ -12,13 +13,14 @@ export default function DepositsWithdrawalsWidget() {
   const supabase = createClient()
 
   async function fetchDepositsWithdrawals() {
-    const { data, error } = await supabase.from("deposits_withdrawals").select("*").limit(1).single()
+    const { data, error } = await supabase.from("transaction_events").select("kind, amount")
 
     if (error) {
-      console.error("[v0] Error fetching deposits/withdrawals:", error)
-    } else if (data) {
-      setDepositAmount(Number(data.deposit_amount) || 0)
-      setWithdrawAmount(Number(data.withdraw_amount) || 0)
+      console.error("[v0] Error fetching transactions:", error)
+    } else {
+      const totals = totalsFor(data ?? [])
+      setDepositAmount(totals.deposited)
+      setWithdrawAmount(totals.cashedOut)
     }
     setLoading(false)
   }
@@ -33,8 +35,8 @@ export default function DepositsWithdrawalsWidget() {
 
     // Subscribe to real-time changes
     const channel = supabase
-      .channel("deposits_withdrawals_realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "deposits_withdrawals" }, () =>
+      .channel("transactions_realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "transaction_events" }, () =>
         fetchDepositsWithdrawals(),
       )
       .subscribe()
