@@ -11,6 +11,9 @@ import { money, multiplier, roundCount, roundLabel, type Match, type Participant
  * already guarantees that match n and n+1 of a round feed the same match of the
  * next, so the vertical order carries the same information that drawn lines
  * would, and it survives a narrow admin panel.
+ *
+ * Without `onEnterResult` it is read-only, which is how the public tournament
+ * page uses it — the same bracket with no way to touch the results.
  */
 export function TournamentBracketBoard({
   size,
@@ -21,7 +24,7 @@ export function TournamentBracketBoard({
   size: number
   matches: Match[]
   participants: Participant[]
-  onEnterResult: (match: Match) => void
+  onEnterResult?: (match: Match) => void
 }) {
   const byId = new Map(participants.map((participant) => [participant.id, participant]))
   const rounds = Array.from({ length: roundCount(size) }, (_, index) => index + 1)
@@ -40,7 +43,7 @@ export function TournamentBracketBoard({
             {inRound.map((match) => {
               const p1 = match.p1_id ? byId.get(match.p1_id) ?? null : null
               const p2 = match.p2_id ? byId.get(match.p2_id) ?? null : null
-              const playable = !!p1 && !!p2 && !match.winner_participant_id
+              const playable = !!onEnterResult && !!p1 && !!p2 && !match.winner_participant_id
               const done = !!match.winner_participant_id
 
               return (
@@ -56,16 +59,16 @@ export function TournamentBracketBoard({
                   {playable && (
                     <button
                       type="button"
-                      onClick={() => onEnterResult(match)}
+                      onClick={() => onEnterResult?.(match)}
                       className="w-full border-t border-white/[0.08] py-2 font-mono text-[10px] uppercase tracking-[0.12em] text-white/50 transition hover:bg-white/[0.05] hover:text-white"
                     >
                       Enter results
                     </button>
                   )}
-                  {done && (
+                  {done && onEnterResult && (
                     <button
                       type="button"
-                      onClick={() => onEnterResult(match)}
+                      onClick={() => onEnterResult?.(match)}
                       className="w-full border-t border-white/[0.06] py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white/20 transition hover:bg-white/[0.05] hover:text-white/60"
                     >
                       Edit

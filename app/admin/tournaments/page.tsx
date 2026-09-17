@@ -5,7 +5,7 @@ import { Check, Copy, Crown, Monitor, Play, Plus, RotateCcw, Trash2, Trophy, Use
 import { createBrowserClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile } from "@/components/ui/panel"
 import { SlotCombobox } from "@/components/admin/slot-combobox"
-import { TournamentBracketBoard } from "@/components/admin/tournament-bracket-board"
+import { TournamentBracketBoard } from "@/components/tournament-bracket-board"
 import { TournamentResultDialog } from "@/components/admin/tournament-result-dialog"
 import {
   BRACKET_SIZES,
@@ -219,6 +219,24 @@ export default function AdminTournamentsPage() {
       return
     }
 
+    // The bracket overlay shows a slot thumbnail. There is no image in the
+    // slots catalogue, but the same game has usually been hunted before with a
+    // picture attached, so the most recent one is reused. A miss just leaves
+    // the neutral tile.
+    const gameName = form.game_name.trim()
+    let gameImage: string | null = null
+    if (gameName) {
+      const { data: seen } = await supabase
+        .from("hunt_bonuses")
+        .select("image_url")
+        .eq("game_name", gameName)
+        .not("image_url", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      gameImage = seen?.image_url ?? null
+    }
+
     const { data, error } = await supabase
       .from("tournament_participants")
       .insert({
@@ -226,8 +244,9 @@ export default function AdminTournamentsPage() {
         username,
         buy_amount: Number.parseFloat(form.buy_amount) || 0,
         casino: form.casino || null,
-        game_name: form.game_name.trim() || null,
+        game_name: gameName || null,
         game_provider: form.game_provider,
+        game_image_url: gameImage,
         is_super: form.is_super,
       })
       .select("id, username, buy_amount, casino, game_name, game_image_url, is_super, seed, joined_at")
@@ -798,8 +817,8 @@ function ObsLinks({ onClose }: { onClose: () => void }) {
   const [copied, setCopied] = useState<string | null>(null)
   const origin = typeof window === "undefined" ? "" : window.location.origin
   const widgets = [
-    { path: "/obs/tournament/overview", label: "Overview", hint: "Every player, their slot and their best payout" },
-    { path: "/obs/tournament/round", label: "Current round", hint: "The match being opened right now" },
+    { path: "/obs/tournament/overview", label: "Bracket", hint: "Every round, every result — wide source" },
+    { path: "/obs/tournament/round", label: "Current match", hint: "Who is opening right now — small source" },
   ]
 
   return (
@@ -848,6 +867,10 @@ function ObsLinks({ onClose }: { onClose: () => void }) {
           )
         })}
       </ul>
+      <p className="border-t border-white/[0.05] px-3.5 py-2 text-[11px] text-white/25">
+        Neither is required: while a battle is running, the stream column at /obs/stream already carries
+        the current match and the round&rsquo;s results.
+      </p>
     </Panel>
   )
 }

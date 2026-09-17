@@ -13,10 +13,12 @@ import {
   useTransactionEvents,
   type TransactionEvent,
 } from "@/components/obs/stream-event-feed"
+import { TournamentEventCard, useTournamentEvent } from "@/components/obs/tournament-event-card"
 import { KickChatFeed } from "@/components/kick-chat-feed"
 import { useKickChat } from "@/hooks/use-kick-chat"
 import type { KickMessage } from "@/lib/kick-chat"
 import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
+import { PREVIEW_TOURNAMENT } from "@/lib/tournament-preview"
 
 const DEFAULT_SLUG = "trinidoslots"
 
@@ -76,6 +78,7 @@ function StreamWidget() {
   const prediction = usePredictionWindow()
   const giveaway = useGiveawayState()
   const liveTransactions = useTransactionEvents()
+  const liveTournament = useTournamentEvent({ enabled: !isPreview })
   const { messages } = useKickChat({ slug })
 
   const transactions = isPreview ? PREVIEW_EVENTS : liveTransactions
@@ -83,6 +86,12 @@ function StreamWidget() {
   const predictionSeconds = prediction?.secondsLeft ?? (isPreview ? 287 : 0)
   const chatMessages = isPreview && messages.length === 0 ? PREVIEW_MESSAGES : messages
   const giveawayVisible = isGiveawayActive(giveaway)
+
+  // While a battle is running the bracket rides in the column, so the dedicated
+  // tournament sources do not have to sit on the scene the whole stream.
+  const tournament = isPreview
+    ? { ...PREVIEW_TOURNAMENT, visible: true, startedAt: Date.now() - 4 * 60_000 }
+    : liveTournament
 
   // One list, ordered by when each event started, so whatever happened most
   // recently is at the top regardless of what kind of event it is.
@@ -113,6 +122,14 @@ function StreamWidget() {
       // which still orders it correctly against the rest.
       startedAt: startedAtOr(prediction?.window?.opens_at, Date.now() - predictionSeconds * 1000),
       node: <PredictionEventCard secondsLeft={predictionSeconds} />,
+    })
+  }
+
+  if (tournament.visible) {
+    events.push({
+      key: "tournament",
+      startedAt: tournament.startedAt || Date.now(),
+      node: <TournamentEventCard snapshot={tournament} />,
     })
   }
 

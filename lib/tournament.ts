@@ -28,6 +28,8 @@ export type Match = {
   p1_payout: number | null
   p2_payout: number | null
   winner_participant_id: string | null
+  /** When the result was entered. Drives how recent the tournament looks. */
+  played_at?: string | null
 }
 
 /** How many rounds a bracket of this size runs. 8 players -> 3 rounds. */
@@ -179,11 +181,18 @@ export const TOURNAMENT_CASINOS = [
   "Goated",
 ] as const
 
-/** Money as it is spoken on stream: no cents unless there are cents. */
+/**
+ * Money as it is spoken on stream: no cents unless there are cents.
+ *
+ * Pinned to en-US rather than the viewer's locale for two reasons: a dollar
+ * sign next to German grouping reads as "$3.100" for three thousand, and the
+ * server and the browser would otherwise format the same number differently
+ * and trip a hydration mismatch.
+ */
 export function money(value: number | null | undefined): string {
   const amount = Number(value) || 0
   const hasCents = Math.abs(amount % 1) > 0.004
-  return `$${amount.toLocaleString(undefined, {
+  return `$${amount.toLocaleString("en-US", {
     minimumFractionDigits: hasCents ? 2 : 0,
     maximumFractionDigits: 2,
   })}`
@@ -205,4 +214,64 @@ export function roundOnePairs(
     p1: bySeed.get(a) ?? null,
     p2: bySeed.get(b) ?? null,
   }))
+}
+
+export type Standing = {
+  participant: Participant
+  /** Best payout this player recorded in any match they have opened. */
+  bestPayout: number | null
+  /** That payout as a multiple of their buy amount. */
+  bestMultiplier: number | null
+  matchesWon: number
+  /** True once they have lost a match — they are out of the bracket. */
+  eliminated: boolean
+}
+
+/**
+ * The table behind the overlay: who is still in, and what their best result was.
+ *
+ * Ordered by multiplier rather than raw payout, because buy amounts differ
+ * between players and the raw number would just rank whoever bought biggest.
+ * Players with no result yet sort last, ahead of nobody, rather than being
+ * treated as a zero.
+ */
+export function standings(participants: Participant[], matches: Match[]): Standing[] {
+  const rows = participants.map((participant) => {
+    let bestPayout: number | null = null
+    let matchesWon = 0
+    let eliminated = false
+
+    for (const match of matches) {
+      const side = match.p1_id === participant.id ? 1 : match.p2_id === participant.id ? 2 : 0
+      if (!side) continue
+
+      const payout = side === 1 ? match.p1_payout : match.p2_payout
+      if (payout !== null && payout !== undefined) {
+        const value = Number(payout)
+        if (Number.isFinite(value) && (bestPayout === null || value > bestPayout)) bestPayout = value
+      }
+
+      if (match.winner_participant_id) {
+        if (match.winner_participant_id === participant.id) matchesWon++
+        else eliminated = true
+      }
+    }
+
+    return {
+      participant,
+      bestPayout,
+      bestMultiplier: multiplier(bestPayout, Number(participant.buy_amount)),
+      matchesWon,
+      eliminated,
+    }
+  })
+
+  return rows.sort((a, b) => {
+    if (a.bestMultiplier === null && b.bestMultiplier === null) {
+      return (a.participant.seed ?? 0) - (b.participant.seed ?? 0)
+    }
+    if (a.bestMultiplier === null) return 1
+    if (b.bestMultiplier === null) return -1
+    return b.bestMultiplier - a.bestMultiplier
+  })
 }

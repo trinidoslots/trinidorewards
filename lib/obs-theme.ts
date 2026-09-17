@@ -53,7 +53,14 @@ export const OBS_RADIUS = {
   badge: 4,
 } as const
 
-/** Chat body size. Bumped from 13px — 13 was too small to read on stream. */
-export const CHAT_FONT_PX = 15
-/** Emotes ride a little above the cap height, as they do on Kick itself. */
-export const CHAT_EMOTE_PX = 26
+/**
+ * Chat body size. 13 -> 15 -> 18: still too small to read back from a phone at
+ * 15, and the column is narrow enough that 18 is the practical ceiling before
+ * usernames start wrapping.
+ */
+export const CHAT_FONT_PX = 18
+/**
+ * Emotes ride a little above the cap height, as they do on Kick itself. Scaled
+ * with the body text so they keep the same proportion (was 26 at 15px).
+ */
+export const CHAT_EMOTE_PX = 31
