@@ -1,8 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { CreditCard, Link2, Plus, Trash2 } from "lucide-react"
+import { CreditCard, Link2, Plus, Trash2, Trophy } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, Tag } from "@/components/ui/panel"
+import { sourceMeta, winValue } from "@/lib/wins"
 
 /**
  * The two "things you tell us" panels on the profile.
@@ -314,6 +315,85 @@ export function PaymentMethodsPanel() {
       <p className="border-t border-white/[0.05] px-3.5 py-2 text-[11px] text-white/25">
         Only you and the admin can see these — they are not readable from the site itself.
       </p>
+    </Panel>
+  )
+}
+
+type Win = {
+  id: string
+  source: string
+  source_ref: string | null
+  prize: string
+  amount: number | null
+  points: number | null
+  status: string
+  created_at: string
+}
+
+/**
+ * The player's own wins.
+ *
+ * Matched on their username as well as their account id, so a giveaway won
+ * before they ever signed in still shows up here.
+ */
+export function MyWinsPanel() {
+  const [wins, setWins] = useState<Win[]>([])
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const response = await fetch("/api/profile/wins", { cache: "no-store" })
+      if (!response.ok) {
+        if (!cancelled) setLoaded(true)
+        return
+      }
+      const payload = await response.json()
+      if (cancelled) return
+      setWins((payload.wins ?? []) as Win[])
+      setLoaded(true)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Hidden entirely until there is something to show — an empty trophy case on
+  // every profile is just noise.
+  if (!loaded || wins.length === 0) return null
+
+  return (
+    <Panel accent="purple">
+      <PanelHeader
+        title="Your wins"
+        accent="purple"
+        right={<MonoLabel className="text-white/25">{wins.length}</MonoLabel>}
+      />
+      <ul className="divide-y divide-white/[0.05]">
+        {wins.map((win) => {
+          const meta = sourceMeta(win.source)
+          return (
+            <li key={win.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-2.5">
+              <Trophy className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.amber }} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] text-white">{win.prize}</p>
+                <p className="truncate text-[11px] text-white/30">
+                  {[meta.label, win.source_ref].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+              <Tag accent={win.status === "paid" ? "green" : "amber"}>
+                {win.status === "paid" ? "Paid out" : "On the way"}
+              </Tag>
+              <span className="w-24 shrink-0 text-right text-[13px] tabular-nums" style={{ color: ACCENTS.green }}>
+                {winValue(win)}
+              </span>
+              <MonoLabel className="w-20 shrink-0 text-right text-white/20">
+                {new Date(win.created_at).toLocaleDateString()}
+              </MonoLabel>
+            </li>
+          )
+        })}
+      </ul>
     </Panel>
   )
 }

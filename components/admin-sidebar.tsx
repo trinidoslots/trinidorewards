@@ -47,7 +47,17 @@ const NAV: Item[] = [
       { href: "/admin/hunt-source", label: "Hunt Source" },
     ],
   },
-  { kind: "link", href: "/admin/users", label: "Users", icon: Users },
+  {
+    kind: "group",
+    id: "users",
+    label: "Users",
+    icon: Users,
+    match: "/admin/users|/admin/wins",
+    children: [
+      { href: "/admin/users", label: "Users" },
+      { href: "/admin/wins", label: "Winner Logs" },
+    ],
+  },
   { kind: "link", href: "/admin/predictions", label: "Predictions", icon: Trophy },
   { kind: "link", href: "/admin/giveaway", label: "Kick Giveaway", icon: Gift },
   { kind: "link", href: "/admin/bonuses", label: "Bonuses", icon: Gift },

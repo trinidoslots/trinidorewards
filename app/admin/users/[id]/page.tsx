@@ -11,9 +11,11 @@ import {
   Link2,
   Package,
   Ticket,
+  Trophy,
   UserRound,
 } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
+import { sourceMeta, winValue, type WinLog } from "@/lib/wins"
 import { CopyableId } from "@/components/ui/copyable-id"
 
 /**
@@ -48,6 +50,7 @@ type Payload = {
   payments: Payment[]
   redemptions: Redemption[]
   raffleEntries: RaffleEntry[]
+  wins: WinLog[]
   totals: {
     points: number
     spentOnStore: number
@@ -56,10 +59,12 @@ type Payload = {
     redemptions: number
     rafflesEntered: number
     tickets: number
+    wins: number
+    wonCash: number
   }
 }
 
-const TABS = ["overview", "redemptions", "raffles"] as const
+const TABS = ["overview", "wins", "redemptions", "raffles"] as const
 type Tab = (typeof TABS)[number]
 
 const points = (value: number) => Math.round(Number(value) || 0).toLocaleString()
@@ -121,7 +126,7 @@ export default function AdminUserDetailPage() {
     )
   }
 
-  const { user, accounts, payments, redemptions, raffleEntries, totals } = data
+  const { user, accounts, payments, redemptions, raffleEntries, wins, totals } = data
 
   return (
     <div className="space-y-4">
@@ -144,7 +149,12 @@ export default function AdminUserDetailPage() {
         <StatTile label="Points balance" value={points(totals.points)} accent="green" />
         <StatTile label="Spent in store" value={points(totals.spentOnStore)} accent="amber" hint={`${totals.redemptions} redemptions`} />
         <StatTile label="Spent on raffles" value={points(totals.spentOnRaffles)} accent="purple" hint={`${totals.tickets} tickets`} />
-        <StatTile label="Spent in total" value={points(totals.spentTotal)} accent="blue" />
+        <StatTile
+          label="Won"
+          value={totals.wonCash > 0 ? `${Math.round(totals.wonCash).toLocaleString("en-US")}` : String(totals.wins)}
+          accent="purple"
+          hint={`${totals.wins} ${totals.wins === 1 ? "win" : "wins"} logged`}
+        />
       </div>
 
       <nav className="flex gap-1 border-b border-white/[0.08]">
@@ -164,6 +174,7 @@ export default function AdminUserDetailPage() {
             {name === "redemptions" && redemptions.length > 0 && (
               <span className="ml-1.5 text-white/25">{redemptions.length}</span>
             )}
+            {name === "wins" && wins.length > 0 && <span className="ml-1.5 text-white/25">{wins.length}</span>}
           </button>
         ))}
       </nav>
@@ -175,6 +186,7 @@ export default function AdminUserDetailPage() {
         </div>
       )}
 
+      {tab === "wins" && <WinsPanel wins={wins} />}
       {tab === "redemptions" && <RedemptionsPanel redemptions={redemptions} spent={totals.spentOnStore} />}
       {tab === "raffles" && <RafflesPanel entries={raffleEntries} spent={totals.spentOnRaffles} />}
     </div>
@@ -381,6 +393,47 @@ function RafflesPanel({ entries, spent }: { entries: RaffleEntry[]; spent: numbe
               <MonoLabel className="w-36 shrink-0 text-right text-white/20">{when(entry.created_at)}</MonoLabel>
             </li>
           ))}
+        </ul>
+      )}
+    </Panel>
+  )
+}
+
+function WinsPanel({ wins }: { wins: WinLog[] }) {
+  return (
+    <Panel accent="purple">
+      <PanelHeader
+        title="Wins"
+        accent="purple"
+        right={<MonoLabel className="text-white/25">{wins.length} logged</MonoLabel>}
+      />
+      {wins.length === 0 ? (
+        <Empty icon={<Trophy className="h-7 w-7 text-white/10" />} text="Nothing won yet." />
+      ) : (
+        <ul className="divide-y divide-white/[0.05]">
+          {wins.map((win) => {
+            const meta = sourceMeta(win.source)
+            return (
+              <li key={win.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-2.5">
+                <Tag accent={meta.accent}>{meta.label}</Tag>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] text-white">{win.prize}</p>
+                  {(win.source_ref || win.note) && (
+                    <p className="truncate text-[11px] text-white/30">
+                      {[win.source_ref, win.note].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                </div>
+                <Tag accent={win.status === "paid" ? "green" : "amber"}>
+                  {win.status === "paid" ? "Paid" : "Pending"}
+                </Tag>
+                <span className="w-24 shrink-0 text-right text-[13px] tabular-nums" style={{ color: ACCENTS.green }}>
+                  {winValue(win)}
+                </span>
+                <MonoLabel className="w-36 shrink-0 text-right text-white/20">{when(win.created_at)}</MonoLabel>
+              </li>
+            )
+          })}
         </ul>
       )}
     </Panel>

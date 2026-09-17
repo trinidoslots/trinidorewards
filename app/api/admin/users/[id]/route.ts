@@ -32,7 +32,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
   if (!user) return NextResponse.json({ error: "No such user" }, { status: 404 })
 
-  const [accounts, payments, redemptions, raffleEntries] = await Promise.all([
+  const [accounts, payments, redemptions, raffleEntries, wins] = await Promise.all([
     client
       .from("user_site_usernames")
       .select("id, site_name, username, created_at")
@@ -53,6 +53,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       .select("id, raffle_id, tickets_purchased, points_spent, created_at")
       .eq("user_id", id)
       .order("created_at", { ascending: false }),
+    // Matched on the name as well as the id: wins recorded before this account
+    // existed were only ever attached to a username, and they are still theirs.
+    client
+      .from("win_logs")
+      .select("id, username, source, source_ref, prize, amount, points, status, created_at")
+      .or(`user_id.eq.${id},username.ilike.${user.username}`)
+      .order("created_at", { ascending: false }),
   ])
 
   // Raffle rows carry the points but not the prize, so the titles are fetched
@@ -64,7 +71,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const raffleById = new Map((raffles ?? []).map((raffle) => [raffle.id, raffle]))
 
-  for (const result of [accounts, payments, redemptions, raffleEntries]) {
+  for (const result of [accounts, payments, redemptions, raffleEntries, wins]) {
     // A missing optional table should not take the whole page down — the
     // section simply renders empty.
     if (result.error) console.error("[v0] Partial user load:", result.error)
@@ -89,6 +96,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     payments: payments.data ?? [],
     redemptions: redemptionRows,
     raffleEntries: raffleRows,
+    wins: wins.data ?? [],
     totals: {
       points: Number(user.points_balance) || 0,
       spentOnStore,
@@ -97,6 +105,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       redemptions: redemptionRows.length,
       rafflesEntered: raffleRows.length,
       tickets: raffleRows.reduce((sum, row) => sum + (Number(row.tickets_purchased) || 0), 0),
+      wins: (wins.data ?? []).length,
+      wonCash: (wins.data ?? []).reduce((sum, row) => sum + (Number(row.amount) || 0), 0),
     },
   })
 }

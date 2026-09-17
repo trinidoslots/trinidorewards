@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Coins, Package, UserRound } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
 import { CopyableId } from "@/components/ui/copyable-id"
-import { ConnectedAccountsPanel, PaymentMethodsPanel } from "@/components/profile-panels"
+import { ConnectedAccountsPanel, MyWinsPanel, PaymentMethodsPanel } from "@/components/profile-panels"
 
 /**
  * The player's own page: what they have, where they play, and where they want
@@ -141,6 +141,9 @@ export default function ProfilePage() {
           <PaymentMethodsPanel />
         </div>
 
+        <div className="space-y-3">
+        <MyWinsPanel />
+
         <Panel accent="amber">
           <PanelHeader
             title="Redemption history"
@@ -173,6 +176,7 @@ export default function ProfilePage() {
             </ul>
           )}
         </Panel>
+        </div>
       </div>
     </div>
   )

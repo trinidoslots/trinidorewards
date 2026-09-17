@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Crown, Trophy, Users, Play, Square, Shuffle, Tv, XCircle, X, ChevronDown, History, Pencil } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { createClient } from "@/lib/supabase/client"
+import { RecordWinDialog, WinnerName } from "@/components/admin/record-win-dialog"
 
 const PUSHER_URL = "wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false"
 const MOD_TYPES = new Set(["moderator", "broadcaster"])
@@ -121,6 +122,8 @@ export default function GiveawayAdminPage() {
   // widget lands on it.
   const [revealPhase, setRevealPhase] = useState<"idle" | "rolling" | "revealed">("idle")
   const [pastWinners, setPastWinners] = useState<string[]>([])
+  // Clicking a winner opens the win log against their name.
+  const [logWinner, setLogWinner] = useState<string | null>(null)
   // Entrants who have already won during the CURRENT round (since Start, cleared only
   // by Start or End) — kept out of the draw pool so nobody wins twice in one round.
   const [roundWinners, setRoundWinners] = useState<Set<string>>(new Set())
@@ -758,8 +761,14 @@ export default function GiveawayAdminPage() {
                     className="flex flex-col items-center gap-2 text-center"
                   >
                     <Trophy className="size-8 text-amber-400" />
-                    <p className="text-2xl font-bold text-white">{winner}</p>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-white/30">Current winner</p>
+                    <WinnerName
+                      username={winner}
+                      onClick={() => setLogWinner(winner)}
+                      className="text-2xl font-bold text-white"
+                    />
+                    <p className="text-xs font-semibold uppercase tracking-wider text-white/30">
+                      Current winner · click to log it
+                    </p>
                   </motion.div>
                 ) : revealPhase === "rolling" ? (
                   <motion.div
@@ -801,12 +810,12 @@ export default function GiveawayAdminPage() {
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {pastWinners.map((name, index) => (
-                    <span
+                    <WinnerName
                       key={`${name}-${index}`}
-                      className="rounded-full bg-white/[0.06]/70 px-3 py-1 text-xs font-semibold text-white/60"
-                    >
-                      {name}
-                    </span>
+                      username={name}
+                      onClick={() => setLogWinner(name)}
+                      className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-semibold text-white/60 hover:text-white"
+                    />
                   ))}
                 </div>
               )}
@@ -886,6 +895,15 @@ export default function GiveawayAdminPage() {
           </section>
         </div>
       </div>
+
+      {logWinner && (
+        <RecordWinDialog
+          username={logWinner}
+          source="giveaway"
+          sourceRef={keyword || undefined}
+          onClose={() => setLogWinner(null)}
+        />
+      )}
     </main>
   )
 }

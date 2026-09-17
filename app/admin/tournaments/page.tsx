@@ -7,6 +7,7 @@ import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile } from "@/components/u
 import { SlotCombobox } from "@/components/admin/slot-combobox"
 import { TournamentBracketBoard } from "@/components/tournament-bracket-board"
 import { TournamentResultDialog } from "@/components/admin/tournament-result-dialog"
+import { RecordWinDialog, WinnerName } from "@/components/admin/record-win-dialog"
 import {
   BRACKET_SIZES,
   TOURNAMENT_CASINOS,
@@ -74,6 +75,8 @@ export default function AdminTournamentsPage() {
   const [resultMatch, setResultMatch] = useState<Match | null>(null)
   const [showObs, setShowObs] = useState(false)
   const [championSeen, setChampionSeen] = useState(false)
+  // Clicking the champion opens the win log against their name.
+  const [logWinner, setLogWinner] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -747,7 +750,13 @@ export default function AdminTournamentsPage() {
                   accent="purple"
                   right={
                     champion ? (
-                      <MonoLabel style={{ color: ACCENTS.green }}>Champion · {champion.username}</MonoLabel>
+                      <WinnerName
+                        username={champion.username}
+                        onClick={() => setLogWinner(champion.username)}
+                        className="font-mono text-[10px] uppercase leading-none tracking-[0.12em]"
+                      >
+                        <span style={{ color: ACCENTS.green }}>Champion · {champion.username}</span>
+                      </WinnerName>
                     ) : null
                   }
                 />
@@ -795,7 +804,24 @@ export default function AdminTournamentsPage() {
       )}
 
       {champion && !championSeen && (
-        <ChampionDialog champion={champion} totals={totals} onClose={() => setChampionSeen(true)} />
+        <ChampionDialog
+          champion={champion}
+          totals={totals}
+          onClose={() => setChampionSeen(true)}
+          onRecordWin={() => {
+            setChampionSeen(true)
+            setLogWinner(champion.username)
+          }}
+        />
+      )}
+
+      {logWinner && (
+        <RecordWinDialog
+          username={logWinner}
+          source="tournament"
+          sourceRef={tournament?.title}
+          onClose={() => setLogWinner(null)}
+        />
       )}
     </div>
   )
@@ -879,10 +905,12 @@ function ChampionDialog({
   champion,
   totals,
   onClose,
+  onRecordWin,
 }: {
   champion: Participant
   totals: ReturnType<typeof tournamentTotals>
   onClose: () => void
+  onRecordWin: () => void
 }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4" onClick={onClose}>
@@ -912,13 +940,23 @@ function ChampionDialog({
             </div>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-full border-t border-white/[0.08] py-3 font-mono text-[11px] uppercase tracking-[0.12em] text-white/50 transition hover:bg-white/[0.05] hover:text-white"
-        >
-          Close
-        </button>
+        <div className="grid grid-cols-2 border-t border-white/[0.08]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="py-3 font-mono text-[11px] uppercase tracking-[0.12em] text-white/50 transition hover:bg-white/[0.05] hover:text-white"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={onRecordWin}
+            className="border-l border-white/[0.08] py-3 font-mono text-[11px] uppercase tracking-[0.12em] transition hover:bg-white/[0.05]"
+            style={{ color: ACCENTS.amber }}
+          >
+            Record the win
+          </button>
+        </div>
       </div>
     </div>
   )
