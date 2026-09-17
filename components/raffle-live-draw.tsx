@@ -1,9 +1,11 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { AnimatePresence, motion } from "framer-motion"
 import { Clock, Trophy } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel } from "@/components/ui/panel"
+import { AutoHeight } from "@/components/auto-height"
 import { RaffleDrawReel, weightedNames } from "@/components/raffle-draw-spinner"
 
 /**
@@ -23,6 +25,16 @@ type Entry = { username: string; tickets_purchased: number }
 export type DrawStatus = { winner_username: string | null; winner_ticket_number: number | null }
 
 const POLL_MS = 4000
+
+/** How each stage arrives and leaves. Short enough not to feel like waiting. */
+const ENTER = {
+  initial: { opacity: 0, y: 10, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: -10, scale: 0.98 },
+  transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] as const },
+}
+
+
 
 async function readStatus(raffleId: string): Promise<DrawStatus | null> {
   const { data } = await createClient()
@@ -112,47 +124,65 @@ export function RaffleLiveDraw({
     }
   }, [endsAt, check])
 
-  if (rolling && winner) {
-    return (
-      <Panel accent="blue" className="p-3.5">
-        <RaffleDrawReel
-          pool={names.current}
-          winner={winner}
-          onDone={() => setTimeout(() => setRolling(false), 3500)}
-        />
-      </Panel>
-    )
-  }
+  // One stage at a time, handed over rather than swapped: mode="wait" lets the
+  // outgoing stage finish leaving before the next arrives, and the layout
+  // wrapper eases the height between a one-line notice and the reel instead of
+  // snapping the page around it.
+  const stage = rolling && winner ? "rolling" : winner ? "winner" : closed ? "waiting" : null
 
-  if (winner) {
-    return (
-      <Panel accent="amber" className="flex items-center gap-3 px-4 py-3">
-        <Trophy className="h-5 w-5 shrink-0" style={{ color: ACCENTS.amber }} />
-        <div className="min-w-0">
-          <MonoLabel className="block text-white/35">Winner</MonoLabel>
-          <p className="truncate text-[17px] font-semibold text-white">{winner}</p>
-        </div>
-        {ticketNumber != null && (
-          <MonoLabel className="ml-auto shrink-0 text-white/30">Ticket #{ticketNumber}</MonoLabel>
+  return (
+    <AutoHeight>
+      <AnimatePresence mode="wait" initial={false}>
+        {stage === "rolling" && (
+          <motion.div key="rolling" {...ENTER}>
+            <Panel accent="blue" className="p-3.5">
+              <RaffleDrawReel
+                pool={names.current}
+                winner={winner!}
+                onDone={() => setTimeout(() => setRolling(false), 3500)}
+              />
+            </Panel>
+          </motion.div>
         )}
-      </Panel>
-    )
-  }
 
-  // Closed, no winner yet: say so rather than leaving the page looking stuck.
-  if (closed) {
-    return (
-      <Panel accent="blue" className="flex items-center gap-3 px-4 py-3">
-        <Clock className="h-4 w-4 shrink-0 animate-pulse" style={{ color: ACCENTS.blue }} />
-        <div>
-          <MonoLabel className="block text-white/35">Entries closed</MonoLabel>
-          <p className="text-[13px] text-white/60">
-            {entries.length > 0 ? "Drawing the winner…" : "Nobody entered this one."}
-          </p>
-        </div>
-      </Panel>
-    )
-  }
+        {stage === "winner" && (
+          <motion.div key="winner" {...ENTER}>
+            <Panel accent="amber" className="flex items-center gap-3 px-4 py-3">
+              <motion.span
+                // A small flourish as the card takes over from the reel.
+                initial={{ scale: 0.6, rotate: -12 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 320, damping: 16 }}
+                className="shrink-0"
+              >
+                <Trophy className="h-5 w-5" style={{ color: ACCENTS.amber }} />
+              </motion.span>
+              <div className="min-w-0">
+                <MonoLabel className="block text-white/35">Winner</MonoLabel>
+                <p className="truncate text-[17px] font-semibold text-white">{winner}</p>
+              </div>
+              {ticketNumber != null && (
+                <MonoLabel className="ml-auto shrink-0 text-white/30">Ticket #{ticketNumber}</MonoLabel>
+              )}
+            </Panel>
+          </motion.div>
+        )}
 
-  return null
+        {/* Closed, no winner yet: say so rather than looking stuck. */}
+        {stage === "waiting" && (
+          <motion.div key="waiting" {...ENTER}>
+            <Panel accent="blue" className="flex items-center gap-3 px-4 py-3">
+              <Clock className="h-4 w-4 shrink-0 animate-pulse" style={{ color: ACCENTS.blue }} />
+              <div>
+                <MonoLabel className="block text-white/35">Entries closed</MonoLabel>
+                <p className="text-[13px] text-white/60">
+                  {entries.length > 0 ? "Drawing the winner…" : "Nobody entered this one."}
+                </p>
+              </div>
+            </Panel>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </AutoHeight>
+  )
 }

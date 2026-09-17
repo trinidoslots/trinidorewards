@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { motion } from "framer-motion"
+import { AnimatePresence, motion } from "framer-motion"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 
 /**
@@ -77,10 +77,22 @@ export function RaffleDrawReel({
 
   return (
     <div className="w-full">
-      <div className="mb-1.5 text-center">
-        <MonoLabel style={{ color: landed ? ACCENTS.amber : ACCENTS.blue }}>
-          {landed ? "We have a winner" : "Rolling"}
-        </MonoLabel>
+      <div className="mb-1.5 flex h-4 items-center justify-center overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.span
+            // Keyed on the label so the two states hand over rather than the
+            // text changing underneath you.
+            key={landed ? "won" : "rolling"}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <MonoLabel style={{ color: landed ? ACCENTS.amber : ACCENTS.blue }}>
+              {landed ? "We have a winner" : "Rolling"}
+            </MonoLabel>
+          </motion.span>
+        </AnimatePresence>
       </div>
 
       <div className="relative h-16 w-full overflow-hidden rounded-lg border border-white/[0.08] bg-black/40">
@@ -113,8 +125,12 @@ export function RaffleDrawReel({
           {strip.map((name, index) => {
             const isWinner = landed && index === WINNER_INDEX
             return (
-              <div
+              <motion.div
                 key={`${name}-${index}`}
+                // The landed cell swells slightly as it is picked out, so the
+                // stop reads as an arrival rather than the strip just halting.
+                animate={{ scale: isWinner ? 1.08 : 1 }}
+                transition={{ type: "spring", stiffness: 340, damping: 18 }}
                 className="flex h-12 shrink-0 items-center justify-center rounded-md border px-3 transition-colors duration-300"
                 style={{
                   width: CELL_WIDTH,
@@ -128,18 +144,28 @@ export function RaffleDrawReel({
                 >
                   {name}
                 </span>
-              </div>
+              </motion.div>
             )
           })}
         </motion.div>
       </div>
 
-      <p
-        className="mt-2 truncate text-center text-[20px] font-bold leading-tight transition-opacity duration-300"
-        style={{ color: ACCENTS.amber, opacity: landed ? 1 : 0 }}
-      >
-        {winner}
-      </p>
+      {/* Reserved height, so the reel does not jump when the name appears. */}
+      <div className="mt-2 flex h-7 items-center justify-center">
+        <AnimatePresence>
+          {landed && (
+            <motion.p
+              initial={{ opacity: 0, y: 8, scale: 0.92 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 18, delay: 0.1 }}
+              className="max-w-full truncate text-center text-[20px] font-bold leading-tight"
+              style={{ color: ACCENTS.amber }}
+            >
+              {winner}
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   )
 }
