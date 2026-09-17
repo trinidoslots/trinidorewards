@@ -22,19 +22,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_transaction_events_source
   ON transaction_events (source_id, kind)
   WHERE source_id IS NOT NULL;
 
+-- The index above is partial, so every ON CONFLICT below has to repeat its
+-- predicate: Postgres will not infer a partial index from the column list
+-- alone, and fails with "no unique or exclusion constraint matching the
+-- ON CONFLICT specification" if the WHERE is left off.
+
 -- Backfill: every historical deposits_withdrawals row becomes up to two ledger
 -- entries, keeping its original timestamp so the history stays in order.
 INSERT INTO transaction_events (kind, amount, created_at, source_id)
 SELECT 'deposit', deposit_amount, created_at, id
   FROM deposits_withdrawals
  WHERE COALESCE(deposit_amount, 0) > 0
-ON CONFLICT (source_id, kind) DO NOTHING;
+ON CONFLICT (source_id, kind) WHERE source_id IS NOT NULL DO NOTHING;
 
 INSERT INTO transaction_events (kind, amount, created_at, source_id)
 SELECT 'cashout', withdraw_amount, created_at, id
   FROM deposits_withdrawals
  WHERE COALESCE(withdraw_amount, 0) > 0
-ON CONFLICT (source_id, kind) DO NOTHING;
+ON CONFLICT (source_id, kind) WHERE source_id IS NOT NULL DO NOTHING;
 
 -- --- verify ----------------------------------------------------------------
 SELECT
