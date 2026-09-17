@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidatePath } from "next/cache"
 import { createServerClient } from "@/lib/supabase/server"
 import { serviceClient } from "@/lib/supabase/service"
 import { drawWinner } from "@/lib/raffle-utils"
@@ -21,7 +22,10 @@ async function drawOne(client: Client, raffleId: string) {
   const result = drawWinner(entries ?? [])
   if (!result) return { error: "Nobody has entered this raffle" as const }
 
-  const { error: writeError } = await client
+  // Guarded on the winner still being empty. The database cron, a page nudge
+  // and the admin button can all fire at once; without this, the last one to
+  // finish would overwrite the winner everybody already saw.
+  const { data: written, error: writeError } = await client
     .from("raffles")
     .update({
       winner_username: result.username,
@@ -34,11 +38,35 @@ async function drawOne(client: Client, raffleId: string) {
       entrant_count: (entries ?? []).length,
     })
     .eq("id", raffleId)
+    .is("winner_username", null)
+    .select("id, winner_username, winner_ticket_number")
 
   if (writeError) {
     console.error("[v0] Could not record the winner:", writeError)
     return { error: "Could not record the winner" as const }
   }
+
+  if (!written || written.length === 0) {
+    // Somebody got there first. Report theirs, not the one just rolled.
+    const { data: existing } = await client
+      .from("raffles")
+      .select("winner_username, winner_ticket_number")
+      .eq("id", raffleId)
+      .maybeSingle()
+
+    if (existing?.winner_username) {
+      return {
+        result: {
+          username: existing.winner_username,
+          entryId: "",
+          ticketNumber: Number(existing.winner_ticket_number) || result.ticketNumber,
+          totalTickets: result.totalTickets,
+        },
+      }
+    }
+    return { error: "Could not record the winner" as const }
+  }
+
   return { result }
 }
 
@@ -73,6 +101,15 @@ async function sweepDue(client: Client) {
       drawn.push({ id: raffle.id, title: raffle.title, username: outcome.result.username })
     }
   }
+
+  // /raffles is served from a 30-second cache, so without this the winner
+  // would not appear until that expired — on the one page people are watching
+  // for exactly this.
+  if (drawn.length > 0) {
+    revalidatePath("/raffles")
+    for (const raffle of drawn) revalidatePath(`/raffles/${raffle.id}`)
+  }
+
   return drawn
 }
 
@@ -115,6 +152,10 @@ export async function POST(request: Request) {
   if (!raffle) return NextResponse.json({ error: "Raffle not found" }, { status: 404 })
   if (raffle.winner_username && !body?.redraw) {
     return NextResponse.json({ error: "This raffle has already been drawn" }, { status: 400 })
+  }
+
+  if (raffle.winner_username && body?.redraw) {
+    await client.from("raffles").update({ winner_username: null }).eq("id", raffleId)
   }
 
   const outcome = await drawOne(client, raffleId)

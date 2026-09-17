@@ -32,6 +32,8 @@ type Raffle = {
   ticket_price: number
   max_tickets: number | null
   total_tickets_available: number | null
+  auto_draw: boolean | null
+  is_hidden: boolean | null
   tickets_sold: number | null
   entrant_count: number | null
   start_date: string
@@ -52,6 +54,7 @@ async function fetchAll() {
   const { data: raffles, error } = await supabase
     .from("raffles")
     .select("*")
+    .eq("is_hidden", false)
     .order("featured", { ascending: false })
     .order("end_date")
 
@@ -76,6 +79,15 @@ export default async function RafflesPage() {
   const upcoming = withStatus.filter((entry) => entry.status === "upcoming")
   const past = withStatus.filter((entry) => entry.status === "ended" || entry.status === "drawn")
 
+  // The soonest automatic raffle still to close, so the sweeper can wake up
+  // exactly then instead of polling.
+  const nextAutoClose =
+    live
+      .filter((entry) => entry.raffle.auto_draw)
+      .map((entry) => entry.raffle.end_date)
+      .sort()
+      .at(0) ?? null
+
   const totalPrize = raffles.reduce((sum, raffle) => sum + (Number(raffle.prize_value) || 0), 0)
   const totalEntrants = withStatus.reduce((sum, entry) => sum + entry.counts.entrants, 0)
 
@@ -92,8 +104,8 @@ export default async function RafflesPage() {
         <StatTile label="Prize pool listed" value={"$" + points(totalPrize)} accent="amber" />
       </div>
 
-      {/* Draws any automatic raffle whose time is up. Renders nothing. */}
-      <RaffleSweeper />
+      {/* Draws automatic raffles on the second they close. Renders nothing. */}
+      <RaffleSweeper nextCloseAt={nextAutoClose} />
 
       <Section title="Open now" entries={live} empty="No raffles are running right now." />
       <Section title="Coming up" entries={upcoming} empty={null} />

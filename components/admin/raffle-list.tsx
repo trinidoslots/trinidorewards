@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { Gift, Pencil, RefreshCw, Ticket, Trash2, Trophy, Users } from "lucide-react"
+import { Eye, EyeOff, Gift, Pencil, RefreshCw, Ticket, Trash2, Trophy, Users } from "lucide-react"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
 import { calculateRaffleStatus, formatDrawDate } from "@/lib/raffle-utils"
@@ -29,6 +29,7 @@ export type AdminRaffle = {
   max_tickets: number | null
   total_tickets_available: number | null
   auto_draw: boolean | null
+  is_hidden: boolean | null
   tickets_sold: number | null
   entrant_count: number | null
   start_date: string
@@ -147,11 +148,14 @@ export function RaffleRows({
   loading,
   empty,
   onDelete,
+  onToggleHidden,
 }: {
   rows: RaffleRow[]
   loading: boolean
   empty: string
   onDelete?: (row: RaffleRow) => void
+  /** Hiding takes it off the public page but keeps the record of who won. */
+  onToggleHidden?: (row: RaffleRow, hidden: boolean) => void
 }) {
   if (loading) {
     return (
@@ -187,8 +191,13 @@ export function RaffleRows({
           const isFree = Number(raffle.ticket_price) === 0 || raffle.entry_type === "free"
 
           return (
-            <li key={raffle.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-3">
+            <li
+              key={raffle.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-3"
+              style={{ opacity: raffle.is_hidden ? 0.45 : 1 }}
+            >
               <Tag accent={accent}>{row.phase}</Tag>
+              {raffle.is_hidden && <Tag accent="slate">Hidden</Tag>}
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
@@ -229,6 +238,17 @@ export function RaffleRows({
               </MonoLabel>
 
               <div className="flex shrink-0 gap-1">
+                {onToggleHidden && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleHidden(row, !raffle.is_hidden)}
+                    aria-label={(raffle.is_hidden ? "Show " : "Hide ") + raffle.title}
+                    title={raffle.is_hidden ? "Show on the site" : "Hide from the site"}
+                    className="rounded p-1.5 text-white/25 transition hover:bg-white/[0.06] hover:text-white"
+                  >
+                    {raffle.is_hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                )}
                 {row.phase === "drawn" ? (
                   <Trophy className="m-1.5 h-3.5 w-3.5" style={{ color: ACCENTS.amber }} />
                 ) : (

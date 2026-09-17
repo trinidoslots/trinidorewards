@@ -10,6 +10,7 @@ import {
   useAdminRaffles,
   type RaffleRow,
 } from "@/components/admin/raffle-list"
+import { useState } from "react"
 
 /**
  * Raffles that are open, plus the ones about to be.
@@ -19,8 +20,29 @@ import {
  */
 export default function ActiveRafflesPage() {
   const { rows, loading, error, reload, supabase, setRows } = useAdminRaffles()
+  const [problem, setProblem] = useState<string | null>(null)
 
   const live = rows.filter((row) => row.phase === "active" || row.phase === "upcoming")
+
+  async function toggleHidden(row: RaffleRow, hidden: boolean) {
+    const { error: writeError } = await supabase
+      .from("raffles")
+      .update({ is_hidden: hidden })
+      .eq("id", row.raffle.id)
+
+    if (writeError) {
+      setProblem(writeError.message || "Could not update that raffle")
+      return
+    }
+    setProblem(null)
+    setRows((current) =>
+      current.map((entry) =>
+        entry.raffle.id === row.raffle.id
+          ? { ...entry, raffle: { ...entry.raffle, is_hidden: hidden } }
+          : entry,
+      ),
+    )
+  }
 
   async function remove(row: RaffleRow) {
     if (!confirm(`Delete "${row.raffle.title}" and every entry in it?`)) return
@@ -45,14 +67,20 @@ export default function ActiveRafflesPage() {
         </Link>
       </RaffleHeader>
 
-      {error && (
+      {(problem || error) && (
         <Panel accent="red" className="px-3.5 py-2.5 text-[13px]" style={{ color: ACCENTS.red }}>
-          {error}
+          {problem ?? error}
         </Panel>
       )}
 
       <RaffleTotals rows={live} />
-      <RaffleRows rows={live} loading={loading} empty="No raffles are open or scheduled." onDelete={remove} />
+      <RaffleRows
+        rows={live}
+        loading={loading}
+        empty="No raffles are open or scheduled."
+        onDelete={remove}
+        onToggleHidden={toggleHidden}
+      />
     </div>
   )
 }

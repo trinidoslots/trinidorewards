@@ -21,7 +21,8 @@ type Params = { params: Promise<{ id: string }> }
 async function getRaffle(id: string) {
   const supabase = await createServerClient()
   const { data } = await supabase.from("raffles").select("*").eq("id", id).maybeSingle()
-  return data
+  // Hidden means hidden, including from anyone holding the link.
+  return data?.is_hidden ? null : data
 }
 
 async function getEntries(id: string) {
