@@ -14,6 +14,9 @@ import { calculateRaffleStatus, formatDrawDate } from "@/lib/raffle-utils"
  * is only refreshed by an update_raffle_status procedure that may never have
  * run — the Active page filtered on it and could show nothing while a raffle
  * was plainly open.
+ *
+ * Ticket counts come off the raffle row rather than a scan of every entry, for
+ * the same reason as the public page: that scan grows without limit.
  */
 
 export type AdminRaffle = {
@@ -25,6 +28,9 @@ export type AdminRaffle = {
   ticket_price: number
   max_tickets: number | null
   total_tickets_available: number | null
+  auto_draw: boolean | null
+  tickets_sold: number | null
+  entrant_count: number | null
   start_date: string
   end_date: string
   draw_date: string | null
@@ -50,10 +56,10 @@ export function useAdminRaffles() {
     setLoading(true)
     const supabase = supabaseRef.current
 
-    const [{ data: raffles, error: problem }, { data: entries }] = await Promise.all([
-      supabase.from("raffles").select("*").order("created_at", { ascending: false }),
-      supabase.from("raffle_entries").select("raffle_id, tickets_purchased"),
-    ])
+    const { data: raffles, error: problem } = await supabase
+      .from("raffles")
+      .select("*")
+      .order("created_at", { ascending: false })
 
     if (problem) {
       console.error("[v0] Error fetching raffles:", problem)
@@ -62,26 +68,15 @@ export function useAdminRaffles() {
       return
     }
 
-    const counts = new Map<string, { tickets: number; entrants: number }>()
-    for (const entry of entries ?? []) {
-      const current = counts.get(entry.raffle_id) ?? { tickets: 0, entrants: 0 }
-      current.tickets += Number(entry.tickets_purchased) || 0
-      current.entrants += 1
-      counts.set(entry.raffle_id, current)
-    }
-
     setRows(
-      ((raffles ?? []) as AdminRaffle[]).map((raffle) => {
-        const count = counts.get(raffle.id) ?? { tickets: 0, entrants: 0 }
-        return {
-          raffle,
-          phase: raffle.winner_username
-            ? ("drawn" as Phase)
-            : (calculateRaffleStatus(raffle.start_date, raffle.end_date) as Phase),
-          tickets: count.tickets,
-          entrants: count.entrants,
-        }
-      }),
+      ((raffles ?? []) as AdminRaffle[]).map((raffle) => ({
+        raffle,
+        phase: raffle.winner_username
+          ? ("drawn" as Phase)
+          : (calculateRaffleStatus(raffle.start_date, raffle.end_date) as Phase),
+        tickets: Number(raffle.tickets_sold) || 0,
+        entrants: Number(raffle.entrant_count) || 0,
+      })),
     )
     setError(null)
     setLoading(false)
@@ -208,6 +203,7 @@ export function RaffleRows({
                 <p className="truncate text-[11px] text-white/30">
                   {raffle.prize_name}
                   {raffle.winner_username ? " · won by " + raffle.winner_username : ""}
+                  {!raffle.winner_username && raffle.auto_draw ? " · draws itself" : ""}
                 </p>
               </div>
 

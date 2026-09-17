@@ -3,15 +3,24 @@ import { Gift, Ticket, Trophy, Users } from "lucide-react"
 import { createServerClient } from "@/lib/supabase/server"
 import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
 import { RaffleCountdown } from "@/components/raffle-countdown"
+import { RaffleSweeper } from "@/components/raffle-sweeper"
 import { calculateRaffleStatus, formatDrawDate, isEndingSoon } from "@/lib/raffle-utils"
 
 /**
  * Every raffle, live ones first.
  *
- * Ticket counts come from the entries rather than raffles.tickets_sold: nothing
- * maintained that column until the entry route started doing so, and rows from
- * before then still hold a stale zero.
+ * Counts are read off the raffle row, not summed from raffle_entries. This
+ * page used to pull the whole entries table on every load just to add it up —
+ * a full scan that grows forever, on a page anybody can hit. scripts/049
+ * backfilled the counters; the entry route keeps them current.
  */
+
+/**
+ * Re-fetched at most this often. Nothing here is per-visitor, so serving the
+ * same render to everyone for half a minute turns a query per page view into a
+ * query every 30 seconds.
+ */
+export const revalidate = 30
 
 type Raffle = {
   id: string
@@ -23,6 +32,8 @@ type Raffle = {
   ticket_price: number
   max_tickets: number | null
   total_tickets_available: number | null
+  tickets_sold: number | null
+  entrant_count: number | null
   start_date: string
   end_date: string
   draw_date: string | null
@@ -38,31 +49,26 @@ const points = (value: number) => Math.round(Number(value) || 0).toLocaleString(
 async function fetchAll() {
   const supabase = await createServerClient()
 
-  const [{ data: raffles, error }, { data: entries }] = await Promise.all([
-    supabase.from("raffles").select("*").order("featured", { ascending: false }).order("end_date"),
-    supabase.from("raffle_entries").select("raffle_id, tickets_purchased"),
-  ])
+  const { data: raffles, error } = await supabase
+    .from("raffles")
+    .select("*")
+    .order("featured", { ascending: false })
+    .order("end_date")
 
   if (error) console.error("[v0] Error fetching raffles:", error)
 
-  // One pass, instead of a query per raffle.
-  const counts = new Map<string, Counts>()
-  for (const entry of entries ?? []) {
-    const current = counts.get(entry.raffle_id) ?? { tickets: 0, entrants: 0 }
-    current.tickets += Number(entry.tickets_purchased) || 0
-    current.entrants += 1
-    counts.set(entry.raffle_id, current)
-  }
-
-  return { raffles: (raffles ?? []) as Raffle[], counts }
+  return { raffles: (raffles ?? []) as Raffle[] }
 }
 
 export default async function RafflesPage() {
-  const { raffles, counts } = await fetchAll()
+  const { raffles } = await fetchAll()
 
   const withStatus = raffles.map((raffle) => ({
     raffle,
-    counts: counts.get(raffle.id) ?? { tickets: 0, entrants: 0 },
+    counts: {
+      tickets: Number(raffle.tickets_sold) || 0,
+      entrants: Number(raffle.entrant_count) || 0,
+    } as Counts,
     status: raffle.winner_username ? "drawn" : calculateRaffleStatus(raffle.start_date, raffle.end_date),
   }))
 
@@ -85,6 +91,9 @@ export default async function RafflesPage() {
         <StatTile label="Entries placed" value={totalEntrants.toLocaleString()} accent="blue" />
         <StatTile label="Prize pool listed" value={"$" + points(totalPrize)} accent="amber" />
       </div>
+
+      {/* Draws any automatic raffle whose time is up. Renders nothing. */}
+      <RaffleSweeper />
 
       <Section title="Open now" entries={live} empty="No raffles are running right now." />
       <Section title="Coming up" entries={upcoming} empty={null} />

@@ -6,10 +6,17 @@ import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
 /**
  * Tournaments, as the audience sees them.
  *
- * Counts come from the participants rather than tournaments.current_participants,
- * which nothing maintains — the console writes participant rows and never that
- * column, so it reads zero for every battle it created.
+ * Player counts come off the tournament row. This page used to read every
+ * participant row on every load to add them up; scripts/049 backfilled
+ * current_participants and the console keeps it current.
  */
+
+/**
+ * Re-fetched at most this often. Nothing here is per-visitor, so serving the
+ * same render to everyone for half a minute turns a query per page view into a
+ * query every 30 seconds.
+ */
+export const revalidate = 30
 
 type Tournament = {
   id: string
@@ -20,6 +27,7 @@ type Tournament = {
   max_participants: number | null
   bracket_size: number | null
   bracket_status: string | null
+  current_participants: number | null
   tournament_type: string | null
   status: string
   start_date: string
@@ -33,19 +41,15 @@ const money = (value: number) => "$" + Math.round(Number(value) || 0).toLocaleSt
 async function fetchAll() {
   const supabase = await createServerClient()
 
-  const [{ data: tournaments, error }, { data: participants }] = await Promise.all([
-    supabase.from("tournaments").select("*").order("featured", { ascending: false }).order("start_date", { ascending: false }),
-    supabase.from("tournament_participants").select("tournament_id"),
-  ])
+  const { data: tournaments, error } = await supabase
+    .from("tournaments")
+    .select("*")
+    .order("featured", { ascending: false })
+    .order("start_date", { ascending: false })
 
   if (error) console.error("[v0] Error fetching tournaments:", error)
 
-  const counts = new Map<string, number>()
-  for (const row of participants ?? []) {
-    counts.set(row.tournament_id, (counts.get(row.tournament_id) ?? 0) + 1)
-  }
-
-  return { tournaments: (tournaments ?? []) as Tournament[], counts }
+  return { tournaments: (tournaments ?? []) as Tournament[] }
 }
 
 /** Battles run through the console carry their own lifecycle column. */
@@ -61,11 +65,11 @@ function phaseOf(tournament: Tournament): "registration" | "running" | "finished
 }
 
 export default async function TournamentsPage() {
-  const { tournaments, counts } = await fetchAll()
+  const { tournaments } = await fetchAll()
 
   const rows = tournaments.map((tournament) => ({
     tournament,
-    players: counts.get(tournament.id) ?? 0,
+    players: Number(tournament.current_participants) || 0,
     phase: phaseOf(tournament),
   }))
 

@@ -143,13 +143,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Could not enter the raffle" }, { status: 500 })
     }
 
-    // Kept in step with the entries, since the public page reads it for the
-    // progress bar. Nothing was maintaining it before.
-    const { error: soldError } = await client
+    // Kept in step with the entries, because the list pages read these
+    // instead of scanning every row to count them. Nothing maintained either
+    // column before.
+    const { error: countError } = await client
       .from("raffles")
-      .update({ tickets_sold: soldTotal + wanted })
+      .update({
+        tickets_sold: soldTotal + wanted,
+        entrant_count: entries.length + (mine ? 0 : 1),
+      })
       .eq("id", raffleId)
-    if (soldError) console.error("[v0] Could not update tickets_sold:", soldError)
+    if (countError) console.error("[v0] Could not update the raffle counts:", countError)
 
     return NextResponse.json({
       success: true,

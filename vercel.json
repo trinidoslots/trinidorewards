@@ -4,6 +4,10 @@
     {
       "path": "/api/leaderboards/finalize",
       "schedule": "5 3 * * *"
+    },
+    {
+      "path": "/api/raffles/draw",
+      "schedule": "15 3 * * *"
     }
   ]
 }

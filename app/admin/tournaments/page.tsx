@@ -270,7 +270,9 @@ export default function AdminTournamentsPage() {
     }
 
     setNotice(null)
-    setParticipants((current) => [...current, data as Participant])
+    const nextParticipants = [...participants, data as Participant]
+    setParticipants(nextParticipants)
+    await syncPlayerCount(active.id, nextParticipants.length)
     // The casino carries over: a battle usually runs on one.
     setForm({ ...emptyForm, casino: form.casino })
   }
@@ -281,7 +283,22 @@ export default function AdminTournamentsPage() {
       console.error("[v0] Could not remove participant:", error)
       return
     }
-    setParticipants((current) => current.filter((participant) => participant.id !== id))
+    const remaining = participants.filter((participant) => participant.id !== id)
+    setParticipants(remaining)
+    if (tournament) await syncPlayerCount(tournament.id, remaining.length)
+  }
+
+  /**
+   * The public tournaments page reads current_participants rather than counting
+   * participant rows, so it has to be written here. Not fatal if it fails — the
+   * count is a display figure, and the bracket is built from the rows.
+   */
+  async function syncPlayerCount(tournamentId: string, players: number) {
+    const { error } = await supabase
+      .from("tournaments")
+      .update({ current_participants: players })
+      .eq("id", tournamentId)
+    if (error) console.error("[v0] Could not update the player count:", error)
   }
 
   async function startTournament() {
@@ -431,6 +448,7 @@ export default function AdminTournamentsPage() {
     await supabase
       .from("tournaments")
       .update({
+        current_participants: 0,
         bracket_status: "registration",
         started_at: null,
         finished_at: null,

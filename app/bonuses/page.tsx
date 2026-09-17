@@ -4,6 +4,11 @@ import { createServerClient } from "@/lib/supabase/server"
 import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
 import { CopyableId } from "@/components/ui/copyable-id"
 
+/**
+ * Bonus offers change by the week, not the second.
+ */
+export const revalidate = 120
+
 type Bonus = {
   id: string
   title: string

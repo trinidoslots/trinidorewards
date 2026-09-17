@@ -31,6 +31,7 @@ export type RaffleDraft = {
   total_tickets_available: string
   durationAmount: string
   durationUnit: DurationUnit
+  auto_draw: boolean
   featured: boolean
   /** Only set when editing: the raffle keeps the time it actually opened. */
   startedAt?: string
@@ -48,6 +49,9 @@ export const emptyDraft: RaffleDraft = {
   total_tickets_available: "",
   durationAmount: "24",
   durationUnit: "hours",
+  // Off by default: a raffle that picks a winner while nobody is watching is
+  // not what you want mid-stream.
+  auto_draw: false,
   featured: false,
 }
 
@@ -70,6 +74,7 @@ export function draftFrom(row: Record<string, any>): RaffleDraft {
     total_tickets_available: row.total_tickets_available == null ? "" : String(row.total_tickets_available),
     durationAmount: String(duration.amount),
     durationUnit: duration.unit,
+    auto_draw: !!row.auto_draw,
     featured: !!row.featured,
     startedAt: row.start_date ?? undefined,
   }
@@ -134,6 +139,7 @@ export function RaffleForm({ raffleId, initial }: { raffleId?: string; initial?:
         : null,
       start_date: startIso,
       end_date: new Date(start.getTime() + span).toISOString(),
+      auto_draw: draft.auto_draw,
       featured: draft.featured,
     }
 
@@ -350,6 +356,47 @@ export function RaffleForm({ raffleId, initial }: { raffleId?: string; initial?:
           />
           Feature this raffle
         </label>
+      </Panel>
+
+      <Panel accent="purple">
+        <PanelHeader title="Drawing" accent="purple" />
+        <div className="grid gap-2 p-3.5 sm:grid-cols-2">
+          {[
+            {
+              auto: false,
+              title: "I draw it",
+              hint: "It waits on the Draw page until you roll it, so you can do it on stream.",
+            },
+            {
+              auto: true,
+              title: "Draw itself",
+              hint: "A winner is picked as soon as it closes, without anyone watching.",
+            },
+          ].map((option) => {
+            const active = draft.auto_draw === option.auto
+            return (
+              <button
+                key={option.title}
+                type="button"
+                onClick={() => set({ auto_draw: option.auto })}
+                className="rounded-md border p-3 text-left transition"
+                style={
+                  active
+                    ? { borderColor: ACCENTS.purple + "77", backgroundColor: ACCENTS.purple + "14" }
+                    : { borderColor: "rgba(255,255,255,0.08)" }
+                }
+              >
+                <p
+                  className="text-[13px] font-semibold"
+                  style={{ color: active ? ACCENTS.purple : "#E7E7EA" }}
+                >
+                  {option.title}
+                </p>
+                <p className="mt-0.5 text-[11.5px] leading-snug text-white/35">{option.hint}</p>
+              </button>
+            )
+          })}
+        </div>
       </Panel>
 
       <div className="flex justify-end gap-2">

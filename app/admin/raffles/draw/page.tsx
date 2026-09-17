@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Sparkles, Trophy } from "lucide-react"
+import { createBrowserClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel } from "@/components/ui/panel"
 import { RaffleHeader, RaffleRows, RaffleTotals, useAdminRaffles } from "@/components/admin/raffle-list"
 import { RecordWinDialog, WinnerName } from "@/components/admin/record-win-dialog"
+import { RaffleDrawSpinner, weightedNames } from "@/components/raffle-draw-spinner"
 
 /**
  * Raffles waiting on a draw.
@@ -21,8 +23,26 @@ export default function DrawRafflesPage() {
     null,
   )
   const [logWinner, setLogWinner] = useState<{ username: string; title: string } | null>(null)
+  // Names to flash past while the roll plays, and the winner to land on.
+  const [spin, setSpin] = useState<{ title: string; names: string[]; winner: string | null } | null>(null)
 
   const waiting = rows.filter((row) => row.phase === "ended")
+
+  // Automatic raffles that closed while nobody had a page open are drawn here
+  // too, so opening this page catches anything the sweep has not yet.
+  const sweep = useCallback(async () => {
+    const response = await fetch("/api/raffles/draw", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ due: true }),
+    })
+    const data = await response.json().catch(() => null)
+    if (response.ok && (data?.drawn ?? []).length > 0) await reload()
+  }, [reload])
+
+  useEffect(() => {
+    sweep()
+  }, [sweep])
 
   async function draw(raffleId: string, title: string, tickets: number) {
     if (tickets === 0) {
@@ -33,6 +53,16 @@ export default function DrawRafflesPage() {
 
     setBusy(raffleId)
     setProblem(null)
+    setResult(null)
+
+    // The wheel starts before the request, on the names as they stand. The
+    // winner is decided on the server — this only shows it happening.
+    const { data: entries } = await createBrowserClient()
+      .from("raffle_entries")
+      .select("username, tickets_purchased")
+      .eq("raffle_id", raffleId)
+    setSpin({ title, names: weightedNames(entries ?? []), winner: null })
+
     const response = await fetch("/api/raffles/draw", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -42,9 +72,12 @@ export default function DrawRafflesPage() {
     setBusy(null)
 
     if (!response.ok) {
+      setSpin(null)
       setProblem(data?.error ?? "Could not draw a winner")
       return
     }
+    // Handed to the spinner, which lands on it and only then reveals the card.
+    setSpin((current) => (current ? { ...current, winner: data.username } : current))
     setResult(data)
     await reload()
   }
@@ -64,7 +97,18 @@ export default function DrawRafflesPage() {
         </Panel>
       )}
 
-      {result && (
+      {spin && (
+        <Panel accent="purple" className="p-3.5">
+          <MonoLabel className="mb-2 block text-white/30">{spin.title}</MonoLabel>
+          <RaffleDrawSpinner
+            names={spin.names}
+            winner={spin.winner}
+            onDone={() => setTimeout(() => setSpin(null), 2500)}
+          />
+        </Panel>
+      )}
+
+      {result && !spin && (
         <Panel accent="amber" className="flex flex-wrap items-center gap-3 px-4 py-3">
           <Trophy className="h-5 w-5 shrink-0" style={{ color: ACCENTS.amber }} />
           <div className="min-w-0">
