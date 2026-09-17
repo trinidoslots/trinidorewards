@@ -1,349 +1,533 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
-import { Trophy, Users, DollarSign, RefreshCw, Trash2 } from "lucide-react"
-import { calculateLeaderboardStatus, getStatusBadgeClass } from "@/lib/leaderboard-utils"
 import Link from "next/link"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
+import { ChevronDown, Lock, RefreshCw, Search, Trash2, Users } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
+import { CopyableId } from "@/components/ui/copyable-id"
+import { LeaderboardEntriesDialog } from "@/components/admin/leaderboard-entries-dialog"
+import { DEFAULT_TIMEZONE, formatInZone, leaderboardStatus } from "@/lib/leaderboard-time"
+import { paidPlaces } from "@/lib/leaderboard-payouts"
 
-type Leaderboard = {
+type Board = {
   id: string
   title: string
-  subtitle: string | null
+  category: string | null
+  cadence: string | null
   prize_pool: number
+  payout_preset: string | null
+  timezone: string | null
   start_date: string
   end_date: string
-  status: string
   created_at: string
-  prize_distribution_type: string
+  finalized_at: string | null
+  credited: boolean | null
+  credited_at: string | null
+  entryCount: number
+  entryPrize: number
 }
 
-type LeaderboardWithEntries = Leaderboard & {
-  entry_count: number
-  calculated_status: "upcoming" | "active" | "ended"
-}
+type SortKey = "created_at" | "end_date" | "prize_pool" | "entryCount"
+
+const ALL = "all"
 
 export default function LeaderboardsOverviewPage() {
-  const [user, setUser] = useState<any>(null)
+  const [boards, setBoards] = useState<Board[]>([])
   const [loading, setLoading] = useState(true)
-  const [leaderboards, setLeaderboards] = useState<LeaderboardWithEntries[]>([])
-  const [filteredLeaderboards, setFilteredLeaderboards] = useState<LeaderboardWithEntries[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-
+  const [busy, setBusy] = useState<string | null>(null)
+  const [query, setQuery] = useState("")
+  const [category, setCategory] = useState(ALL)
+  const [cadence, setCadence] = useState(ALL)
+  const [active, setActive] = useState(ALL)
+  const [credited, setCredited] = useState(ALL)
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" })
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [entriesFor, setEntriesFor] = useState<Board | null>(null)
   const router = useRouter()
-  const supabase = createClient()
-  const { toast } = useToast()
+  const supabaseRef = useRef(createClient())
 
-  useEffect(() => {
-    checkUser()
-  }, [])
+  const load = useCallback(async () => {
+    setLoading(true)
+    const supabase = supabaseRef.current
 
-  useEffect(() => {
-    filterLeaderboards()
-  }, [leaderboards, searchQuery, statusFilter])
-
-  async function checkUser() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      router.push("/auth/login")
-    } else {
-      setUser(user)
-      await fetchLeaderboards()
-      setLoading(false)
-    }
-  }
-
-  async function fetchLeaderboards() {
-    // Fetch leaderboards
-    const { data: leaderboardsData, error: lbError } = await supabase
+    const { data: rows, error } = await supabase
       .from("leaderboards")
-      .select("*")
+      .select(
+        "id, title, category, cadence, prize_pool, payout_preset, timezone, start_date, end_date, created_at, finalized_at, credited, credited_at",
+      )
       .order("created_at", { ascending: false })
 
-    if (lbError) {
-      console.error("[v0] Error fetching leaderboards:", lbError)
+    if (error) {
+      console.error("[v0] Error loading leaderboards:", error)
+      setLoading(false)
       return
     }
 
-    // Fetch entry counts for each leaderboard
-    const leaderboardsWithCounts = await Promise.all(
-      (leaderboardsData || []).map(async (lb) => {
-        const { count } = await supabase
-          .from("leaderboard_entries")
-          .select("*", { count: "exact", head: true })
-          .eq("leaderboard_id", lb.id)
+    // Counts and prize sums per board, in one query rather than one per row —
+    // the old page issued a request per leaderboard and got slower with every
+    // board that was ever created.
+    const { data: entries, error: entriesError } = await supabase
+      .from("leaderboard_entries")
+      .select("leaderboard_id, prize_amount")
+    if (entriesError) console.error("[v0] Error loading entry totals:", entriesError)
 
-        return {
-          ...lb,
-          entry_count: count || 0,
-          calculated_status: calculateLeaderboardStatus(lb.start_date, lb.end_date),
-        }
-      }),
+    const counts = new Map<string, { count: number; prize: number }>()
+    for (const entry of entries ?? []) {
+      const bucket = counts.get(entry.leaderboard_id) ?? { count: 0, prize: 0 }
+      bucket.count += 1
+      bucket.prize += Number(entry.prize_amount) || 0
+      counts.set(entry.leaderboard_id, bucket)
+    }
+
+    setBoards(
+      (rows ?? []).map((row) => ({
+        ...row,
+        entryCount: counts.get(row.id)?.count ?? 0,
+        entryPrize: counts.get(row.id)?.prize ?? 0,
+      })) as Board[],
     )
+    setLoading(false)
+  }, [])
 
-    setLeaderboards(leaderboardsWithCounts)
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const categories = useMemo(
+    () => Array.from(new Set(boards.map((board) => board.category).filter(Boolean))) as string[],
+    [boards],
+  )
+  const cadences = useMemo(
+    () => Array.from(new Set(boards.map((board) => board.cadence).filter(Boolean))) as string[],
+    [boards],
+  )
+
+  const totals = useMemo(
+    () => ({
+      boards: boards.length,
+      entries: boards.reduce((sum, board) => sum + board.entryCount, 0),
+      prize: boards.reduce((sum, board) => sum + board.entryPrize, 0),
+    }),
+    [boards],
+  )
+
+  const rows = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    const filtered = boards.filter((board) => {
+      const status = leaderboardStatus(board.start_date, board.end_date)
+      if (category !== ALL && board.category !== category) return false
+      if (cadence !== ALL && board.cadence !== cadence) return false
+      if (active !== ALL && (active === "active") !== (status === "active")) return false
+      if (credited !== ALL && (credited === "yes") !== !!board.credited) return false
+      if (needle && !board.title.toLowerCase().includes(needle) && !board.id.toLowerCase().includes(needle)) return false
+      return true
+    })
+
+    const direction = sort.dir === "asc" ? 1 : -1
+    return filtered.sort((a, b) => {
+      const left = sort.key === "created_at" || sort.key === "end_date" ? Date.parse(a[sort.key]) : Number(a[sort.key])
+      const right = sort.key === "created_at" || sort.key === "end_date" ? Date.parse(b[sort.key]) : Number(b[sort.key])
+      return (left - right) * direction
+    })
+  }, [boards, query, category, cadence, active, credited, sort])
+
+  function toggleSort(key: SortKey) {
+    setSort((current) => ({ key, dir: current.key === key && current.dir === "desc" ? "asc" : "desc" }))
   }
 
-  function filterLeaderboards() {
-    let filtered = [...leaderboards]
-
-    // Apply search filter
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (lb) =>
-          lb.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          lb.id.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    }
-
-    // Apply status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((lb) => lb.calculated_status === statusFilter)
-    }
-
-    setFilteredLeaderboards(filtered)
+  async function finalize(board: Board) {
+    setBusy(board.id)
+    const response = await fetch("/api/leaderboards/finalize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ leaderboardId: board.id }),
+    })
+    if (!response.ok) console.error("[v0] Finalise failed:", await response.text())
+    setBusy(null)
+    await load()
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this leaderboard?")) return
-
-    const { error } = await supabase.from("leaderboards").delete().eq("id", id)
-
-    if (error) {
-      console.error("[v0] Error deleting leaderboard:", error)
-      toast({
-        title: "Error",
-        description: "Failed to delete leaderboard",
-        variant: "destructive",
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Leaderboard deleted successfully",
-        className: "bg-green-600 text-white",
-      })
-      fetchLeaderboards()
-    }
+  async function setCredit(board: Board, value: boolean) {
+    setBusy(board.id)
+    const { error } = await supabaseRef.current
+      .from("leaderboards")
+      .update({ credited: value, credited_at: value ? new Date().toISOString() : null })
+      .eq("id", board.id)
+    if (error) console.error("[v0] Could not update credited flag:", error)
+    setBusy(null)
+    await load()
   }
 
-  function toggleSelectAll() {
-    if (selectedIds.size === filteredLeaderboards.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(filteredLeaderboards.map((lb) => lb.id)))
-    }
-  }
-
-  function toggleSelect(id: string) {
-    const newSelected = new Set(selectedIds)
-    if (newSelected.has(id)) {
-      newSelected.delete(id)
-    } else {
-      newSelected.add(id)
-    }
-    setSelectedIds(newSelected)
-  }
-
-  // Calculate statistics
-  const totalLeaderboards = leaderboards.length
-  const totalEntries = leaderboards.reduce((sum, lb) => sum + lb.entry_count, 0)
-  const totalPrize = leaderboards.reduce((sum, lb) => sum + lb.prize_pool, 0)
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-white text-xs">Loading...</p>
-      </div>
-    )
+  async function deleteSelected() {
+    if (selected.size === 0 || !confirm(`Delete ${selected.size} leaderboard(s) and all their entries?`)) return
+    const { error } = await supabaseRef.current.from("leaderboards").delete().in("id", Array.from(selected))
+    if (error) console.error("[v0] Could not delete leaderboards:", error)
+    setSelected(new Set())
+    await load()
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-xs mb-1">Total Leaderboards</p>
-                <p className="text-white text-3xl font-bold">{totalLeaderboards}</p>
-              </div>
-              <div className="bg-cyan-500/20 p-3 rounded-lg">
-                <Trophy className="w-6 h-6 text-cyan-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-4">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-white">Leaderboards</h1>
+          <p className="mt-1 text-[13px] text-white/40">Every board, what it paid, and whether the money went out.</p>
+        </div>
+        <div className="flex gap-2">
+          <Link
+            href="/admin/leaderboards/manage"
+            className="inline-flex h-9 items-center rounded-md border border-white/12 bg-white/[0.06] px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12]"
+          >
+            Manage
+          </Link>
+          <button
+            onClick={load}
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        </div>
+      </header>
 
-        <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-xs mb-1">Total Entries</p>
-                <p className="text-white text-3xl font-bold">{totalEntries.toLocaleString()}</p>
-              </div>
-              <div className="bg-amber-500/20 p-3 rounded-lg">
-                <Users className="w-6 h-6 text-amber-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-xs mb-1">Total Entries Prize</p>
-                <p className="text-white text-3xl font-bold">${totalPrize.toLocaleString()}</p>
-              </div>
-              <div className="bg-red-500/20 p-3 rounded-lg">
-                <DollarSign className="w-6 h-6 text-red-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-2.5 sm:grid-cols-3">
+        <StatTile label="Total leaderboards" value={totals.boards.toLocaleString()} />
+        <StatTile label="Total entries" accent="blue" value={totals.entries.toLocaleString()} />
+        <StatTile label="Total entries prize" accent="green" value={`$${totals.prize.toLocaleString()}`} />
       </div>
 
-      {/* Search & Filter */}
-      <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
-        <CardContent className="p-6">
-          <h2 className="text-white text-lg font-semibold mb-4">Search & Filter</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-slate-800 border border-slate-700 text-white rounded-md px-3 py-2 text-sm"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="upcoming">Upcoming</option>
-              <option value="ended">Ended</option>
-            </select>
+      {/* Filters */}
+      <Panel className="p-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <Select label="Category" value={category} onChange={setCategory} options={categories} allLabel="All categories" />
+          <Select label="Type" value={cadence} onChange={setCadence} options={cadences} allLabel="All types" />
+          <Select
+            label="Active status"
+            value={active}
+            onChange={setActive}
+            options={["active", "inactive"]}
+            allLabel="Any active status"
+          />
+          <Select
+            label="Credited status"
+            value={credited}
+            onChange={setCredited}
+            options={["yes", "no"]}
+            optionLabels={{ yes: "Credited", no: "Not credited" }}
+            allLabel="Any credited status"
+          />
+        </div>
 
-            <div className="md:col-span-2">
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name or ID..."
-                className="bg-slate-800 border-slate-700 text-white"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <Button onClick={() => fetchLeaderboards()} size="sm" className="flex-1 bg-cyan-600 hover:bg-cyan-700">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh
-              </Button>
-            </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="relative min-w-48 flex-1">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/25" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search title or id…"
+              className="h-9 w-full rounded-md border border-white/10 bg-black/40 pl-9 pr-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
+            />
           </div>
-        </CardContent>
-      </Card>
+          <button
+            onClick={deleteSelected}
+            disabled={selected.size === 0}
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-[#E5484D]/40 hover:text-[#E5484D] disabled:opacity-35 disabled:hover:border-white/[0.10] disabled:hover:text-white/50"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete{selected.size > 0 ? ` (${selected.size})` : ""}
+          </button>
+        </div>
+      </Panel>
 
-      {/* Leaderboards Table */}
-      <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-white text-lg font-semibold">Leaderboards</h2>
-            <Link href="/admin/leaderboards/manage">
-              <Button size="sm" className="bg-cyan-600 hover:bg-cyan-700">
-                Manage Leaderboards
-              </Button>
-            </Link>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="text-left py-3 px-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.size === filteredLeaderboards.length && filteredLeaderboards.length > 0}
-                      onChange={toggleSelectAll}
-                      className="rounded border-slate-600 bg-slate-800"
-                    />
-                  </th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase">ID</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase">Name</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase">Type</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase">Status</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase">Entries</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase">Prize</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase">Created</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase">Ends At</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase">Actions</th>
+      {/* Table */}
+      <Panel className="overflow-hidden">
+        <div className="overflow-auto">
+          <table className="w-full min-w-[1040px] border-collapse">
+            <thead className="bg-[#141418]">
+              <tr className="border-b border-white/[0.08] text-left">
+                <th className="w-8 px-2 py-2.5" />
+                <th className="w-10 px-2 py-2.5">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all"
+                    checked={rows.length > 0 && rows.every((row) => selected.has(row.id))}
+                    onChange={() =>
+                      setSelected((current) =>
+                        rows.every((row) => current.has(row.id)) ? new Set() : new Set(rows.map((row) => row.id)),
+                      )
+                    }
+                    className="h-3.5 w-3.5 accent-[#5B8DEF]"
+                  />
+                </th>
+                <Th>Id</Th>
+                <Th>Name</Th>
+                <Th>Category</Th>
+                <Th>Type</Th>
+                <Th>Active</Th>
+                <Th>Credited</Th>
+                <Th sortable onClick={() => toggleSort("prize_pool")} active={sort.key === "prize_pool"} dir={sort.dir}>
+                  Prize
+                </Th>
+                <Th sortable onClick={() => toggleSort("created_at")} active={sort.key === "created_at"} dir={sort.dir}>
+                  Created
+                </Th>
+                <Th sortable onClick={() => toggleSort("end_date")} active={sort.key === "end_date"} dir={sort.dir}>
+                  Ends at
+                </Th>
+                <Th>Actions</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={12} className="py-12 text-center font-mono text-[11px] uppercase tracking-widest text-white/25">
+                    Loading
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filteredLeaderboards.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="py-8 text-center text-slate-500 text-sm">
-                      No leaderboards found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredLeaderboards.map((lb) => (
-                    <tr key={lb.id} className="border-b border-slate-700/50 hover:bg-slate-800/30">
-                      <td className="py-3 px-4">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(lb.id)}
-                          onChange={() => toggleSelect(lb.id)}
-                          className="rounded border-slate-600 bg-slate-800"
-                        />
-                      </td>
-                      <td className="py-3 px-4 text-slate-400 text-xs font-mono">{lb.id.substring(0, 8)}...</td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <p className="text-white text-sm font-medium">{lb.title}</p>
-                          {lb.subtitle && <p className="text-slate-500 text-xs">{lb.subtitle}</p>}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="text-slate-400 text-sm capitalize">{lb.prize_distribution_type}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-medium border ${getStatusBadgeClass(lb.calculated_status)}`}
-                        >
-                          {lb.calculated_status.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-white text-sm">{lb.entry_count}</td>
-                      <td className="py-3 px-4 text-amber-400 text-sm font-medium">
-                        ${lb.prize_pool.toLocaleString()}
-                      </td>
-                      <td className="py-3 px-4 text-slate-400 text-xs">
-                        {new Date(lb.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="py-3 px-4 text-slate-400 text-xs">{new Date(lb.end_date).toLocaleDateString()}</td>
-                      <td className="py-3 px-4">
-                        <Button
-                          onClick={() => handleDelete(lb.id)}
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="py-12 text-center text-[12.5px] text-white/30">
+                    No leaderboards match these filters.
+                  </td>
+                </tr>
+              ) : (
+                rows.map((board) => {
+                  const zone = board.timezone ?? DEFAULT_TIMEZONE
+                  const status = leaderboardStatus(board.start_date, board.end_date)
+                  const isOpen = expanded.has(board.id)
+                  const needsFinalising = status === "ended" && !board.finalized_at
+
+                  return (
+                    <>
+                      <tr key={board.id} className="border-b border-white/[0.05] text-[13px] hover:bg-white/[0.03]">
+                        <td className="px-2 py-2">
+                          <button
+                            onClick={() =>
+                              setExpanded((current) => {
+                                const next = new Set(current)
+                                next.has(board.id) ? next.delete(board.id) : next.add(board.id)
+                                return next
+                              })
+                            }
+                            aria-label={isOpen ? "Collapse" : "Expand"}
+                            className="rounded p-1 text-white/25 transition hover:text-white"
+                          >
+                            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                          </button>
+                        </td>
+                        <td className="px-2 py-2">
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${board.title}`}
+                            checked={selected.has(board.id)}
+                            onChange={() =>
+                              setSelected((current) => {
+                                const next = new Set(current)
+                                next.has(board.id) ? next.delete(board.id) : next.add(board.id)
+                                return next
+                              })
+                            }
+                            className="h-3.5 w-3.5 accent-[#5B8DEF]"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <CopyableId value={board.id} />
+                        </td>
+                        <td className="px-3 py-2 text-white/85">{board.title}</td>
+                        <td className="px-3 py-2 text-white/45">{board.category ?? "—"}</td>
+                        <td className="px-3 py-2 capitalize text-white/45">{board.cadence ?? "—"}</td>
+                        <td className="px-3 py-2">
+                          <Tag accent={status === "active" ? "green" : status === "upcoming" ? "amber" : "slate"}>
+                            {status === "active" ? "Active" : status === "upcoming" ? "Upcoming" : "Inactive"}
+                          </Tag>
+                        </td>
+                        <td className="px-3 py-2">
+                          <Tag accent={board.credited ? "green" : "red"}>
+                            {board.credited ? "Credited" : "Not credited"}
+                          </Tag>
+                        </td>
+                        <td className="px-3 py-2 tabular-nums text-white/70">
+                          {Number(board.prize_pool).toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-[11px] tabular-nums text-white/35">
+                          {formatInZone(board.created_at, zone)}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-[11px] tabular-nums text-white/35">
+                          {formatInZone(board.end_date, zone)}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setEntriesFor(board)}
+                              aria-label={`Open entries for ${board.title}`}
+                              title="Entries"
+                              className="rounded p-1.5 text-white/25 transition hover:bg-white/[0.06] hover:text-white"
+                            >
+                              <Users className="h-3.5 w-3.5" />
+                            </button>
+                            {needsFinalising && (
+                              <button
+                                onClick={() => finalize(board)}
+                                disabled={busy === board.id}
+                                aria-label="Finalise"
+                                title="Freeze ranks and payouts"
+                                className="rounded p-1.5 text-white/25 transition hover:bg-white/[0.06] hover:text-[#E8A33D] disabled:opacity-40"
+                              >
+                                <Lock className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+
+                      {isOpen && (
+                        <tr key={`${board.id}-detail`} className="border-b border-white/[0.05] bg-black/25">
+                          <td colSpan={12} className="px-6 py-3">
+                            <dl className="grid gap-x-8 gap-y-2 text-[12.5px] sm:grid-cols-2 lg:grid-cols-4">
+                              <Detail label="Entries" value={board.entryCount.toLocaleString()} />
+                              <Detail label="Paid places" value={String(paidPlaces(board.payout_preset))} />
+                              <Detail label="Prizes assigned" value={`$${board.entryPrize.toLocaleString()}`} />
+                              <Detail label="Timezone" value={zone} />
+                              <Detail label="Starts" value={formatInZone(board.start_date, zone)} />
+                              <Detail label="Ends" value={formatInZone(board.end_date, zone)} />
+                              <Detail
+                                label="Finalised"
+                                value={board.finalized_at ? formatInZone(board.finalized_at, zone) : "Not yet"}
+                              />
+                              <Detail
+                                label="Credited"
+                                value={board.credited_at ? formatInZone(board.credited_at, zone) : "Not yet"}
+                              />
+                            </dl>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                onClick={() => setEntriesFor(board)}
+                                className="rounded-md border border-white/12 bg-white/[0.06] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12]"
+                              >
+                                View entries
+                              </button>
+                              <button
+                                onClick={() => finalize(board)}
+                                disabled={busy === board.id || !!board.finalized_at}
+                                className="rounded-md border border-white/[0.10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white disabled:opacity-35"
+                              >
+                                {board.finalized_at ? "Finalised" : "Finalise now"}
+                              </button>
+                              <button
+                                onClick={() => setCredit(board, !board.credited)}
+                                disabled={busy === board.id}
+                                className="rounded-md border border-white/[0.10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white disabled:opacity-35"
+                              >
+                                {board.credited ? "Mark not credited" : "Mark credited"}
+                              </button>
+                              <button
+                                onClick={() => router.push("/admin/leaderboards/manage")}
+                                className="rounded-md border border-white/[0.10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
+                              >
+                                Edit board
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      {entriesFor && (
+        <LeaderboardEntriesDialog
+          leaderboard={{
+            id: entriesFor.id,
+            title: entriesFor.title,
+            prize_pool: Number(entriesFor.prize_pool),
+            payout_preset: entriesFor.payout_preset,
+            finalized_at: entriesFor.finalized_at,
+          }}
+          onClose={() => {
+            setEntriesFor(null)
+            load()
+          }}
+        />
+      )}
     </div>
+  )
+}
+
+function Th({
+  children,
+  sortable,
+  onClick,
+  active,
+  dir,
+}: {
+  children: React.ReactNode
+  sortable?: boolean
+  onClick?: () => void
+  active?: boolean
+  dir?: "asc" | "desc"
+}) {
+  return (
+    <th className="px-3 py-2.5 font-normal">
+      {sortable ? (
+        <button onClick={onClick} className="inline-flex items-center gap-1 transition hover:opacity-100">
+          <MonoLabel className={active ? "text-white/70" : "text-white/30"}>{children}</MonoLabel>
+          {active && <span className="text-[9px] text-white/50">{dir === "asc" ? "↑" : "↓"}</span>}
+        </button>
+      ) : (
+        <MonoLabel className="text-white/30">{children}</MonoLabel>
+      )}
+    </th>
+  )
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <MonoLabel className="block text-white/25">{label}</MonoLabel>
+      <dd className="mt-0.5 text-white/70">{value}</dd>
+    </div>
+  )
+}
+
+function Select({
+  label,
+  value,
+  onChange,
+  options,
+  allLabel,
+  optionLabels,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: string[]
+  allLabel: string
+  optionLabels?: Record<string, string>
+}) {
+  return (
+    <label className="block">
+      <MonoLabel className="block text-white/30">{label}</MonoLabel>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 h-9 w-full rounded-md border border-white/10 bg-black/40 px-2.5 text-[13px] text-white outline-none transition focus:border-white/25"
+      >
+        <option value={ALL}>{allLabel}</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {optionLabels?.[option] ?? option}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
