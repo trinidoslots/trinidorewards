@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
-import { Crown, ImageIcon, Sparkles, TrendingUp, Zap } from "lucide-react"
+import { Crown, ImageIcon, Sparkles, TrendingUp } from "lucide-react"
 import type { HuntKpis } from "@/lib/active-hunt"
+import { ACCENTS, MonoLabel, Panel, PanelHeader } from "@/components/ui/panel"
 
 export type HuntBonusRow = {
   id: string
@@ -75,76 +76,107 @@ export function HuntKpiBoard({
   const bestCashWin = usingKpis ? Number(kpis!.best_cash_win) : highestWinLocal.value
   const bestCashWinGame = usingKpis ? kpis!.best_cash_win_game || "" : highestWinLocal.game
 
+  const figures: [string, string, string | undefined][] = [
+    ["Starting balance", money(startingBalanceVal), undefined],
+    ["Opening balance", money(openingBalance), undefined],
+    ["Total won", money(totalWonVal), ACCENTS.blue],
+    [
+      "P / L",
+      `${profitLoss >= 0 ? "+" : "−"}${money(Math.abs(profitLoss))}`,
+      profitLoss >= 0 ? ACCENTS.green : ACCENTS.red,
+    ],
+    ["Average multi", `${averageMultiplier.toFixed(2)}x`, undefined],
+    ["Break even", `${breakEven.toFixed(2)}x`, ACCENTS.amber],
+    ["Average bet", money(averageBet), undefined],
+    ["Remaining", `${remainingCount}`, ACCENTS.purple],
+  ]
+
   return (
-    <div className="flex flex-col gap-6">
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[
-          ["Starting balance", money(startingBalanceVal), "text-white"],
-          ["Opening balance", money(openingBalance), "text-cyan-200"],
-          ["Total won", money(totalWonVal), "text-cyan-200"],
-          ["P / L", `${profitLoss >= 0 ? "+" : "-"}${money(Math.abs(profitLoss))}`, profitLoss >= 0 ? "text-emerald-300" : "text-rose-300"],
-          ["Average multi", `${averageMultiplier.toFixed(2)}x`, "text-white"],
-          ["Break even", `${breakEven.toFixed(2)}x`, "text-amber-200"],
-          ["Average bet", money(averageBet), "text-white"],
-          ["Remaining", `${remainingCount}`, "text-cyan-200"],
-        ].map(([label, value, color]) => (
-          <div key={label} className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 transition hover:-translate-y-0.5 hover:border-cyan-200/25">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
-            <p className={`mt-2 text-xl font-bold ${color}`}>{value}</p>
+    <div className="flex flex-col gap-2.5">
+      {/* Figures lead the page — the numbers are what people come for */}
+      <section className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+        {figures.map(([label, value, color]) => (
+          <div key={label} className="rounded-lg border border-white/[0.08] bg-white/[0.022] px-4 py-3.5">
+            <p
+              className="text-[22px] font-semibold leading-none tabular-nums tracking-tight"
+              style={{ color: color ?? "#E7E7EA" }}
+            >
+              {value}
+            </p>
+            <MonoLabel className="mt-2 block text-white/35">{label}</MonoLabel>
           </div>
         ))}
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <div className="flex items-center gap-4 rounded-2xl border border-amber-200/15 bg-amber-200/[0.06] p-5">
-          <span className="flex size-11 items-center justify-center rounded-xl bg-amber-300/10 text-amber-200"><TrendingUp /></span>
+      {/* The two records worth calling out */}
+      <section className="grid gap-2.5 md:grid-cols-2">
+        <Panel accent="amber" className="flex items-center gap-3.5 p-4">
+          <span
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg"
+            style={{ color: ACCENTS.amber, backgroundColor: `${ACCENTS.amber}1a` }}
+          >
+            <TrendingUp className="size-4" />
+          </span>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Best multiplier</p>
-            <p className="truncate text-lg font-bold text-white">{bestMultiplierGame || "Waiting for results"}</p>
-            <p className="text-2xl font-bold text-amber-200">{bestMultiplier.toFixed(2)}x</p>
+            <MonoLabel className="text-white/35">Best multiplier</MonoLabel>
+            <p className="mt-1 truncate text-[13px] text-white/70">{bestMultiplierGame || "Waiting for results"}</p>
+            <p className="text-[20px] font-semibold tabular-nums" style={{ color: ACCENTS.amber }}>
+              {bestMultiplier.toFixed(2)}x
+            </p>
           </div>
-        </div>
-        <div className="flex items-center gap-4 rounded-2xl border border-cyan-200/15 bg-cyan-200/[0.06] p-5">
-          <span className="flex size-11 items-center justify-center rounded-xl bg-cyan-300/10 text-cyan-200"><Sparkles /></span>
+        </Panel>
+
+        <Panel accent="blue" className="flex items-center gap-3.5 p-4">
+          <span
+            className="flex size-9 shrink-0 items-center justify-center rounded-lg"
+            style={{ color: ACCENTS.blue, backgroundColor: `${ACCENTS.blue}1a` }}
+          >
+            <Sparkles className="size-4" />
+          </span>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Best cash win</p>
-            <p className="truncate text-lg font-bold text-white">{bestCashWinGame || "Waiting for results"}</p>
-            <p className="text-2xl font-bold text-cyan-200">{money(bestCashWin)}</p>
+            <MonoLabel className="text-white/35">Best cash win</MonoLabel>
+            <p className="mt-1 truncate text-[13px] text-white/70">{bestCashWinGame || "Waiting for results"}</p>
+            <p className="text-[20px] font-semibold tabular-nums" style={{ color: ACCENTS.blue }}>
+              {money(bestCashWin)}
+            </p>
           </div>
-        </div>
+        </Panel>
       </section>
 
-      <section className={sidePanel ? "grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start" : "grid gap-6"}>
-        <div className="flex flex-col rounded-xl border border-slate-800 bg-slate-900/70">
-          <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4 sm:px-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">{tableEyebrow}</p>
-              <h3 className="mt-1 text-xl font-bold text-white">{tableTitle}</h3>
-            </div>
-            <Zap className="text-cyan-300" />
-          </div>
+      <section
+        className={sidePanel ? "grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start" : "grid gap-2.5"}
+      >
+        <Panel className="flex flex-col overflow-hidden">
+          <PanelHeader title={tableEyebrow} right={<MonoLabel className="text-white/30">{tableTitle}</MonoLabel>} />
+
           {hunts.length === 0 ? (
-            <p className="p-10 text-center text-slate-400">No bonuses yet. Bonuses will be added shortly.</p>
+            <p className="p-10 text-center text-[12.5px] text-white/30">
+              No bonuses yet. Bonuses will be added shortly.
+            </p>
           ) : (
             <div className="overflow-auto">
-              <table className="w-full min-w-[620px]">
-                <thead className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur">
-                  <tr className="border-b border-slate-800 text-left text-[11px] uppercase tracking-wider text-slate-500">
-                    <th className="px-5 py-4">Game</th>
-                    <th>Provider</th>
-                    <th>Bet</th>
-                    <th>Result</th>
-                    <th>Multi</th>
+              <table className="w-full min-w-[620px] border-collapse">
+                <thead className="sticky top-0 z-10 bg-[#0E0E11]">
+                  <tr className="border-b border-white/[0.08] text-left">
+                    {["Game", "Provider", "Bet", "Result", "Multi"].map((column) => (
+                      <th key={column} className="px-4 py-2.5 font-normal">
+                        <MonoLabel className="text-white/30">{column}</MonoLabel>
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {hunts.map((hunt) => {
                     const multiplier = hunt.result && hunt.bet_size ? Number(hunt.result) / Number(hunt.bet_size) : null
+                    const pending = hunt.result === null
                     return (
-                      <tr key={hunt.id} className="border-b border-slate-800/70 text-sm transition hover:bg-cyan-200/[0.04]">
-                        <td className="px-5 py-4 font-semibold text-white">
+                      <tr
+                        key={hunt.id}
+                        className="border-b border-white/[0.05] text-[13px] transition hover:bg-white/[0.03]"
+                      >
+                        <td className="px-4 py-2.5 text-white/85">
                           <span className="flex items-center gap-2.5">
-                            <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-slate-800 bg-slate-950">
+                            <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded border border-white/[0.08] bg-black/40">
                               {hunt.image_url ? (
                                 // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
                                 <img
@@ -153,17 +185,23 @@ export function HuntKpiBoard({
                                   className="h-full w-full object-cover"
                                 />
                               ) : (
-                                <ImageIcon className="size-3.5 text-slate-600" />
+                                <ImageIcon className="size-3 text-white/20" />
                               )}
                             </span>
-                            {hunt.is_super && <Crown className="size-4 shrink-0 text-amber-300" />}
+                            {hunt.is_super && <Crown className="size-3.5 shrink-0" style={{ color: ACCENTS.amber }} />}
                             <span className="truncate">{hunt.game_name}</span>
                           </span>
                         </td>
-                        <td className="text-slate-400">{hunt.provider || "-"}</td>
-                        <td className="font-medium text-rose-300">{money(Number(hunt.bet_size))}</td>
-                        <td className="font-medium text-emerald-300">{hunt.result !== null ? money(Number(hunt.result)) : "Pending"}</td>
-                        <td className="font-semibold text-amber-200">{multiplier ? `${multiplier.toFixed(2)}x` : "-"}</td>
+                        <td className="text-white/35">{hunt.provider || "—"}</td>
+                        <td className="tabular-nums" style={{ color: ACCENTS.red }}>
+                          {money(Number(hunt.bet_size))}
+                        </td>
+                        <td className="tabular-nums" style={{ color: pending ? "rgba(255,255,255,0.25)" : ACCENTS.green }}>
+                          {pending ? "Pending" : money(Number(hunt.result))}
+                        </td>
+                        <td className="font-semibold tabular-nums" style={{ color: ACCENTS.amber }}>
+                          {multiplier ? `${multiplier.toFixed(2)}x` : "—"}
+                        </td>
                       </tr>
                     )
                   })}
@@ -171,8 +209,8 @@ export function HuntKpiBoard({
               </table>
             </div>
           )}
-        </div>
-        <div className="h-[800px]">{sidePanel}</div>
+        </Panel>
+        {sidePanel && <div className="h-[800px]">{sidePanel}</div>}
       </section>
     </div>
   )

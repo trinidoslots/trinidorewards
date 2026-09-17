@@ -3,12 +3,18 @@
 import type { ReactNode } from "react"
 import { useState } from "react"
 import { HuntRefreshButton } from "@/components/hunt-refresh-button"
+import { MonoLabel } from "@/components/ui/panel"
 
 type BonusHuntTabsProps = {
   initialTab: "current" | "previous"
   currentContent: ReactNode
   previousContent: ReactNode
 }
+
+const TABS = [
+  { id: "current", label: "Current hunt" },
+  { id: "previous", label: "Previous hunts" },
+] as const
 
 export function BonusHuntTabs({ initialTab, currentContent, previousContent }: BonusHuntTabsProps) {
   const [tab, setTab] = useState<"current" | "previous">(initialTab)
@@ -22,40 +28,34 @@ export function BonusHuntTabs({ initialTab, currentContent, previousContent }: B
 
   return (
     <>
-      <section className="mb-8 rounded-3xl border border-cyan-200/15 bg-slate-900/75 p-3 shadow-xl shadow-cyan-950/15 sm:p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex rounded-2xl border border-slate-700/70 bg-slate-950/50 p-1">
+      {/* An underline rail rather than a pill group — quieter, and it reads as
+          part of the page instead of a control floating on top of it. */}
+      <div className="mb-5 flex items-center gap-6 border-b border-white/[0.08]">
+        {TABS.map(({ id, label }) => {
+          const active = tab === id
+          return (
             <button
+              key={id}
               type="button"
-              onClick={() => switchTab("current")}
-              className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition ${
-                tab === "current"
-                  ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-lg shadow-cyan-950/30"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              onClick={() => switchTab(id)}
+              className={`-mb-px border-b px-0.5 pb-2.5 text-[13px] transition ${
+                active
+                  ? "border-[#5B8DEF] text-white"
+                  : "border-transparent text-white/35 hover:text-white/70"
               }`}
             >
-              Current Hunt
+              {label}
             </button>
-            <button
-              type="button"
-              onClick={() => switchTab("previous")}
-              className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition ${
-                tab === "previous"
-                  ? "bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-lg shadow-cyan-950/30"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
-              }`}
-            >
-              Previous Hunts
-            </button>
+          )
+        })}
+
+        {tab === "current" && (
+          <div className="ml-auto flex items-center gap-2.5 pb-2">
+            <MonoLabel className="hidden text-white/25 sm:block">Live data</MonoLabel>
+            <HuntRefreshButton />
           </div>
-          {tab === "current" && (
-            <div className="flex items-center gap-3">
-              <span className="hidden text-xs uppercase tracking-[0.18em] text-slate-500 sm:block">Live data</span>
-              <HuntRefreshButton />
-            </div>
-          )}
-        </div>
-      </section>
+        )}
+      </div>
 
       <div className="relative">
         <div key="current" className={tab === "current" ? "block animate-in fade-in duration-300" : "hidden"}>

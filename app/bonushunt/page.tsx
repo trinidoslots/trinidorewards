@@ -6,6 +6,7 @@ import { getCurrentExternalHuntMapped } from "@/lib/bonushunt-api"
 import { cookies } from "next/headers"
 import { PreviousHuntsPanel } from "@/components/previous-hunts-panel"
 import { BonusHuntTabs } from "@/components/bonus-hunt-tabs"
+import { MonoLabel } from "@/components/ui/panel"
 
 type PageProps = {
   searchParams: Promise<{ tab?: string }>
@@ -156,50 +157,46 @@ export default async function BonusHuntPage({ searchParams }: PageProps) {
   const hasActiveHunt = hunts.length > 0
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(34,211,238,0.12),transparent_28%),radial-gradient(circle_at_88%_10%,rgba(37,99,235,0.12),transparent_24%)]" />
-      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-        <section className="mb-8 overflow-hidden rounded-xl border border-cyan-200/15 bg-slate-900/80 p-5 shadow-lg shadow-cyan-950/20 sm:p-7">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-cyan-200/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
-                <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,0.8)]" /> Live community tracker
-              </div>
-              <h1 className="text-balance text-4xl font-bold tracking-tight text-white sm:text-6xl">Bonus hunts, live.</h1>
-              <p className="mt-3 max-w-2xl text-pretty text-base leading-7 text-slate-300">Follow every hunt, watch the numbers move, and make your next spin count.</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:flex">
-              <div className="rounded-2xl border border-slate-700/70 bg-slate-950/60 px-4 py-3"><p className="text-xs uppercase tracking-wider text-slate-500">Mode</p><p className="mt-1 font-semibold text-cyan-200">Live hunt</p></div>
-              <div className="rounded-2xl border border-slate-700/70 bg-slate-950/60 px-4 py-3"><p className="text-xs uppercase tracking-wider text-slate-500">Updates</p><p className="mt-1 font-semibold text-cyan-200">Realtime</p></div>
-            </div>
-          </div>
-        </section>
-
-        <BonusHuntTabs
-          initialTab={activeTab === "previous" ? "previous" : "current"}
-          currentContent={
-            <>
-              {huntSource === "external" && (
-                <GuessTheBalancePanel
-                  externalHuntId={externalHuntId}
-                  huntTitle={externalHuntTitle}
-                  currentUsername={username}
-                />
-              )}
-              <BonusHuntClient
-                initialHunts={allHunts}
-                activeTab="current"
-                huntSource={huntSource}
-                huntId={externalHuntId}
-                initialStartingBalance={startingBalance}
-                initialKpis={initialKpis}
+    <div className="mx-auto max-w-7xl px-5 py-10 lg:px-8 lg:py-12">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[28px] font-semibold leading-tight tracking-tight text-white">Bonus hunt</h1>
+          <p className="mt-1.5 max-w-xl text-[13px] leading-6 text-white/40">
+            Every bonus as it is collected, the running numbers, and how far the remaining spins have to carry it.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#46C48A] opacity-60" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#46C48A]" />
+          </span>
+          <MonoLabel className="text-white/40">{hasActiveHunt ? "Live" : "Idle"}</MonoLabel>
+        </div>
+      </header>
+      <BonusHuntTabs
+        initialTab={activeTab === "previous" ? "previous" : "current"}
+        currentContent={
+          <>
+            {huntSource === "external" && (
+              <GuessTheBalancePanel
+                externalHuntId={externalHuntId}
+                huntTitle={externalHuntTitle}
                 currentUsername={username}
               />
-            </>
-          }
-          previousContent={<PreviousHuntsPanel />}
-        />
-      </div>
-    </main>
+            )}
+            <BonusHuntClient
+              initialHunts={allHunts}
+              activeTab="current"
+              huntSource={huntSource}
+              huntId={externalHuntId}
+              initialStartingBalance={startingBalance}
+              initialKpis={initialKpis}
+              currentUsername={username}
+            />
+          </>
+        }
+        previousContent={<PreviousHuntsPanel />}
+      />
+    </div>
   )
 }

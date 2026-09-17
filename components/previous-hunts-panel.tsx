@@ -83,18 +83,18 @@ export function PreviousHuntsPanel() {
   const selectedHunt = endedHunts.find((h) => h.hunt_id === selectedHuntId) ?? null
 
   if (loading) {
-    return <div className="p-6 text-slate-400">Loading hunt archive…</div>
+    return <div className="p-6 font-mono text-[11px] uppercase tracking-widest text-white/25">Loading hunt archive</div>
   }
 
   return (
     <>
-      <section className="mb-8 rounded-3xl border border-cyan-200/15 bg-slate-900/75 p-3 shadow-xl shadow-cyan-950/15 sm:p-4">
+      <section className="mb-2.5 rounded-lg border border-white/[0.08] bg-white/[0.022] p-3.5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm text-slate-300">
+            <p className="text-[13px] text-white/60">
               {selectedHunt ? (
                 <>
-                  Viewing <span className="font-semibold text-cyan-200">{selectedHunt.streamer}</span>
+                  Viewing <span className="text-white">{selectedHunt.streamer}</span>
                   {selectedHunt.title ? <> · {selectedHunt.title}</> : null} · {formatDate(selectedHunt.ended_at ?? selectedHunt.created_at)}
                 </>
               ) : (
@@ -105,7 +105,7 @@ export function PreviousHuntsPanel() {
           <button
             type="button"
             onClick={() => setListOpen((v) => !v)}
-            className="flex items-center justify-center gap-2 rounded-xl border border-slate-700/70 bg-slate-950/50 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-cyan-200/40 hover:text-white"
+            className="flex items-center justify-center gap-2 rounded-md border border-white/12 bg-white/[0.06] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12]"
           >
             {listOpen ? "Hide hunt list" : "Browse past hunts"}
             <ChevronDown className={`h-4 w-4 transition-transform ${listOpen ? "rotate-180" : ""}`} />
@@ -113,13 +113,13 @@ export function PreviousHuntsPanel() {
         </div>
 
         {listOpen && (
-          <div className="mt-3 border-t border-slate-800/80 pt-3">
+          <div className="mt-3 border-t border-white/[0.08] pt-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-1 rounded-xl border border-slate-800 bg-slate-950/50 p-1">
+              <div className="flex flex-wrap gap-1 rounded-md border border-white/[0.08] bg-black/30 p-1">
                 <button
                   type="button"
                   onClick={() => setActiveStreamer("ALL")}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${activeStreamer === "ALL" ? "bg-cyan-300 text-slate-950" : "text-slate-400 hover:text-slate-200"}`}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${activeStreamer === "ALL" ? "bg-white/[0.10] text-white" : "text-white/35 hover:text-white/75"}`}
                 >
                   All
                 </button>
@@ -128,31 +128,31 @@ export function PreviousHuntsPanel() {
                     key={streamer}
                     type="button"
                     onClick={() => setActiveStreamer(streamer)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${activeStreamer === streamer ? "bg-cyan-300 text-slate-950" : "text-slate-400 hover:text-slate-200"}`}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${activeStreamer === streamer ? "bg-white/[0.10] text-white" : "text-white/35 hover:text-white/75"}`}
                   >
                     {streamer}
                   </button>
                 ))}
               </div>
               <div className="relative w-full sm:max-w-xs">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/25" />
                 <input
                   aria-label="Search hunts"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search streamer or title"
-                  className="h-10 w-full rounded-lg border border-slate-800 bg-slate-950 pl-9 pr-3 text-sm text-white outline-none focus:border-cyan-300/50"
+                  className="h-9 w-full rounded-md border border-white/10 bg-black/40 pl-9 pr-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
                 />
               </div>
             </div>
 
-            <p className="mt-3 text-xs uppercase tracking-wider text-slate-500">
+            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white/25">
               {filteredHunts.length} ended hunt{filteredHunts.length === 1 ? "" : "s"}
             </p>
 
             <div className="mt-2 max-h-80 space-y-1.5 overflow-y-auto pr-1">
               {filteredHunts.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-slate-800 px-4 py-8 text-center text-sm text-slate-500">No hunts match.</p>
+                <p className="rounded-md border border-dashed border-white/[0.10] px-4 py-8 text-center text-[12.5px] text-white/30">No hunts match.</p>
               ) : (
                 filteredHunts.map((hunt) => (
                   <button
@@ -164,18 +164,18 @@ export function PreviousHuntsPanel() {
                     }}
                     className={`flex w-full items-center justify-between gap-4 rounded-lg border px-4 py-3 text-left text-sm transition ${
                       hunt.hunt_id === selectedHuntId
-                        ? "border-cyan-300/40 bg-cyan-300/[0.08]"
-                        : "border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900"
+                        ? "border-[#5B8DEF]/40 bg-[#5B8DEF]/[0.08]"
+                        : "border-white/[0.08] bg-white/[0.022] hover:border-white/20 hover:bg-white/[0.05]"
                     }`}
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-semibold text-white">
+                      <p className="truncate text-[13px] text-white/85">
                         {hunt.streamer}
-                        {hunt.title ? <span className="text-slate-400"> · {hunt.title}</span> : null}
+                        {hunt.title ? <span className="text-white/35"> · {hunt.title}</span> : null}
                       </p>
-                      <p className="mt-0.5 text-xs text-slate-500">{formatDate(hunt.ended_at ?? hunt.created_at)} · {hunt.total_bonuses} bonuses</p>
+                      <p className="mt-0.5 font-mono text-[10px] text-white/25">{formatDate(hunt.ended_at ?? hunt.created_at)} · {hunt.total_bonuses} bonuses</p>
                     </div>
-                    <p className={`shrink-0 font-semibold ${Number(hunt.total_won) - Number(hunt.starting_balance) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                    <p className={`shrink-0 font-semibold ${Number(hunt.total_won) - Number(hunt.starting_balance) >= 0 ? "text-[#46C48A]" : "text-[#E5484D]"}`}>
                       {Number(hunt.total_won) - Number(hunt.starting_balance) >= 0 ? "+" : "-"}
                       {money(Math.abs(Number(hunt.total_won) - Number(hunt.starting_balance)))}
                     </p>
@@ -188,11 +188,11 @@ export function PreviousHuntsPanel() {
       </section>
 
       {!selectedHunt ? (
-        <div className="rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-12 text-center text-slate-400">
+        <div className="rounded-lg border border-dashed border-white/[0.10] p-12 text-center text-[12.5px] text-white/30">
           No completed hunts yet. Once a hunt ends, it will show up here.
         </div>
       ) : bonusesLoading ? (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center text-slate-400">Loading hunt…</div>
+        <div className="rounded-lg border border-white/[0.08] bg-white/[0.022] p-12 text-center font-mono text-[11px] uppercase tracking-widest text-white/25">Loading hunt…</div>
       ) : (
         <HuntKpiBoard
           hunts={selectedBonuses}
