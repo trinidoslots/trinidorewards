@@ -5,20 +5,14 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Gift, Twitch } from "lucide-react"
 import { TransactionsPanel } from "@/components/admin/transactions-panel"
+import { MonoLabel, Panel, PanelHeader } from "@/components/ui/panel"
 
 export default function SettingsPage() {
-  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [totalGivenAway, setTotalGivenAway] = useState("")
-  const [kickMcpClientId, setKickMcpClientId] = useState("")
-  const [kickMcpClientSecret, setKickMcpClientSecret] = useState("")
+  const [saving, setSaving] = useState(false)
   const router = useRouter()
   const supabase = createClient()
   const { toast } = useToast()
@@ -33,239 +27,77 @@ export default function SettingsPage() {
     } = await supabase.auth.getUser()
     if (!user) {
       router.push("/auth/login")
-    } else {
-      setUser(user)
-      await fetchTotalGivenAway()
-      await fetchKickSettings()
-      setLoading(false)
+      return
     }
+    await fetchTotalGivenAway()
+    setLoading(false)
   }
 
   async function fetchTotalGivenAway() {
-    const { data, error } = await supabase.from("settings").select("*").eq("key", "total_given_away").maybeSingle()
+    const { data, error } = await supabase.from("settings").select("value").eq("key", "total_given_away").maybeSingle()
+    if (error) console.error("[v0] Error fetching total given away:", error)
+    else if (data) setTotalGivenAway(data.value || "0")
+  }
+
+  async function handleUpdateTotalGivenAway(event: React.FormEvent) {
+    event.preventDefault()
+    setSaving(true)
+
+    const { error } = await supabase
+      .from("settings")
+      .upsert(
+        { key: "total_given_away", value: totalGivenAway, updated_at: new Date().toISOString() },
+        { onConflict: "key" },
+      )
 
     if (error) {
-      console.error("[v0] Error fetching total given away:", error)
-    } else if (data) {
-      setTotalGivenAway(data.value || "0")
-    }
-  }
-
-  async function fetchKickSettings() {
-    const keys = ["kickmcp_client_id", "kickmcp_client_secret"]
-
-    for (const key of keys) {
-      const { data, error } = await supabase
-        .from("settings")
-        .select("*")
-        .eq("key", key)
-        .maybeSingle()
-
-      if (error) {
-        console.error(`[v0] Error fetching ${key}:`, error)
-        continue
-      }
-
-      if (data) {
-        if (key === "kickmcp_client_id") setKickMcpClientId(data.value || "")
-        if (key === "kickmcp_client_secret") setKickMcpClientSecret(data.value || "")
-      }
-    }
-  }
-
-  async function handleUpdateKickSettings(e: React.FormEvent) {
-    e.preventDefault()
-
-    const updates = [
-      { key: "kickmcp_client_id", value: kickMcpClientId },
-      { key: "kickmcp_client_secret", value: kickMcpClientSecret },
-    ]
-
-    for (const update of updates) {
-      const { data: existing } = await supabase.from("settings").select("*").eq("key", update.key).maybeSingle()
-
-      if (existing) {
-        const { error } = await supabase
-          .from("settings")
-          .update({
-            value: update.value,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("key", update.key)
-
-        if (error) {
-          console.error("[v0] Error updating KickMCP setting:", error)
-        }
-      } else {
-        const { error } = await supabase.from("settings").insert([{ key: update.key, value: update.value }])
-
-        if (error) {
-          console.error("[v0] Error creating KickMCP setting:", error)
-        }
-      }
-    }
-
-    toast({
-      title: "Success",
-      description: "KickMCP settings updated successfully",
-      className: "bg-green-600 text-white",
-    })
-  }
-
-  async function handleUpdateTotalGivenAway(e: React.FormEvent) {
-    e.preventDefault()
-
-    const { data: existing } = await supabase.from("settings").select("*").eq("key", "total_given_away").maybeSingle()
-
-    if (existing) {
-      const { error } = await supabase
-        .from("settings")
-        .update({
-          value: totalGivenAway,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("key", "total_given_away")
-
-      if (error) {
-        console.error("[v0] Error updating total given away:", error)
-        toast({
-          title: "Error",
-          description: "Failed to update total given away",
-          variant: "destructive",
-        })
-      } else {
-        toast({
-          title: "Success",
-          description: "Total given away updated successfully",
-          className: "bg-green-600 text-white",
-        })
-      }
+      console.error("[v0] Error saving total given away:", error)
+      toast({ title: "Error", description: "Could not save the total.", variant: "destructive" })
     } else {
-      const { error } = await supabase.from("settings").insert([
-        {
-          key: "total_given_away",
-          value: totalGivenAway,
-        },
-      ])
-
-      if (error) {
-        console.error("[v0] Error creating total given away:", error)
-        toast({
-          title: "Error",
-          description: "Failed to create total given away",
-          variant: "destructive",
-        })
-      } else {
-        toast({
-          title: "Success",
-          description: "Total given away created successfully",
-          className: "bg-green-600 text-white",
-        })
-        fetchTotalGivenAway()
-      }
+      toast({ title: "Saved", description: "Total given away updated.", className: "bg-emerald-600 text-white" })
     }
+    setSaving(false)
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-white text-xs">Loading...</p>
-      </div>
-    )
+    return <p className="py-16 text-center font-mono text-[11px] uppercase tracking-widest text-white/30">Loading</p>
   }
 
   return (
-    <div>
-      <div className="max-w-2xl mx-auto space-y-4">
-        <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
-          <CardHeader className="p-3">
-            <CardTitle className="text-white flex items-center gap-2 text-sm">
-              <Twitch className="w-4 h-4" />
-              KickMCP Configuration
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-0">
-            <form onSubmit={handleUpdateKickSettings} className="space-y-3">
-              <div>
-                <Label htmlFor="kickmcp_client_id" className="text-slate-300 text-xs">
-                  Client ID
-                </Label>
-                <p className="text-[10px] text-slate-400 mb-1">Your KickMCP Client ID from Kick Developer Settings</p>
-                <Input
-                  id="kickmcp_client_id"
-                  type="text"
-                  value={kickMcpClientId}
-                  onChange={(e) => setKickMcpClientId(e.target.value)}
-                  className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
-                  placeholder="Your KickMCP Client ID"
-                />
-              </div>
+    <div className="space-y-5">
+      <header>
+        <h1 className="text-xl font-semibold tracking-tight text-white">Settings</h1>
+        <p className="mt-1 text-[13px] text-white/40">Money in and out, and the figure shown on the landing page.</p>
+      </header>
 
-              <div>
-                <Label htmlFor="kickmcp_client_secret" className="text-slate-300 text-xs">
-                  Client Secret
-                </Label>
-                <p className="text-[10px] text-slate-400 mb-1">Your KickMCP Client Secret from Kick Developer Settings</p>
-                <Input
-                  id="kickmcp_client_secret"
-                  type="password"
-                  value={kickMcpClientSecret}
-                  onChange={(e) => setKickMcpClientSecret(e.target.value)}
-                  className="bg-slate-900 border-slate-700 text-white h-8 text-xs font-mono text-[10px]"
-                  placeholder="Your KickMCP Client Secret"
-                />
-              </div>
+      {/* Transactions first — it is the panel that actually gets used daily. */}
+      <TransactionsPanel />
 
-              <div className="bg-cyan-900/20 border border-cyan-600/30 rounded p-2">
-                <p className="text-[10px] text-cyan-300">
-                  <strong>How to get credentials:</strong> Log into your Kick Developer account, create or select an application, and copy the Client ID and Client Secret from the OAuth credentials section.
-                </p>
-              </div>
-
-              <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 h-8 text-xs">
-                Update KickMCP Settings
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
-          <CardHeader className="p-3">
-            <CardTitle className="text-white flex items-center gap-2 text-sm">
-              <Gift className="w-4 h-4" />
-              Total Given Away
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-0">
-            <form onSubmit={handleUpdateTotalGivenAway} className="space-y-3">
-              <div>
-                <Label htmlFor="total_given_away" className="text-slate-300 text-xs">
-                  Total Amount Given Away ($)
-                </Label>
-                <p className="text-[10px] text-slate-400 mb-1">
-                  The total amount given away to the community (shown on main page).
-                </p>
-                <Input
-                  id="total_given_away"
-                  type="number"
-                  step="1"
-                  value={totalGivenAway}
-                  onChange={(e) => setTotalGivenAway(e.target.value)}
-                  required
-                  className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
-                  placeholder="0"
-                />
-              </div>
-
-              <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 h-8 text-xs">
-                Update Total Given Away
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <TransactionsPanel />
-      </div>
+      <Panel>
+        <PanelHeader title="Total given away" accent="purple" />
+        <form onSubmit={handleUpdateTotalGivenAway} className="flex flex-wrap items-end gap-2 p-3.5">
+          <label className="min-w-48 flex-1">
+            <MonoLabel className="block text-white/40">Amount ($)</MonoLabel>
+            <input
+              type="number"
+              step="1"
+              min="0"
+              value={totalGivenAway}
+              onChange={(event) => setTotalGivenAway(event.target.value)}
+              className="mt-1.5 h-9 w-full rounded-md border border-white/10 bg-black/40 px-3 text-[13px] tabular-nums text-white outline-none transition focus:border-white/25"
+              placeholder="0"
+            />
+            <p className="mt-1.5 text-[11px] text-white/30">Shown in the stats row on the landing page.</p>
+          </label>
+          <button
+            type="submit"
+            disabled={saving}
+            className="h-9 rounded-md border border-white/12 bg-white/[0.06] px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12] disabled:opacity-50"
+          >
+            {saving ? "Saving" : "Save"}
+          </button>
+        </form>
+      </Panel>
     </div>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
+import { Target } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { BANNER_ASPECT_RATIO, BANNER_ROTATION_MS, OBS_BANNERS } from "@/lib/obs-banners"
 import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
@@ -244,5 +245,89 @@ export function EventDivider() {
     <div className="shrink-0 px-1 py-2">
       <span className="block h-px w-full" style={{ backgroundColor: OBS.cardBorder }} />
     </div>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Prediction window                                                          */
+/* -------------------------------------------------------------------------- */
+
+export type PredictionWindow = {
+  hunt_id: string
+  status: string
+  opens_at: string | null
+  closes_at: string | null
+}
+
+/**
+ * Watches for an open prediction window and counts it down.
+ *
+ * The admin opens predictions for five minutes; the widget mirrors that so chat
+ * can see how long is left without being told. Polled rather than pushed —
+ * prediction_windows is not in the realtime publication, and a countdown needs
+ * its own per-second tick anyway.
+ */
+export function usePredictionWindow() {
+  const [window_, setWindow] = useState<PredictionWindow | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState(0)
+  const supabaseRef = useRef(createClient())
+
+  useEffect(() => {
+    const fetchWindow = async () => {
+      const { data, error } = await supabaseRef.current
+        .from("prediction_windows")
+        .select("hunt_id, status, opens_at, closes_at")
+        .eq("status", "open")
+        .gt("closes_at", new Date().toISOString())
+        .order("closes_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (error) {
+        console.error("[v0] Error fetching prediction window:", error)
+        return
+      }
+      setWindow((data as PredictionWindow) ?? null)
+    }
+
+    fetchWindow()
+    const poll = setInterval(fetchWindow, 5_000)
+    return () => clearInterval(poll)
+  }, [])
+
+  useEffect(() => {
+    if (!window_?.closes_at) {
+      setSecondsLeft(0)
+      return
+    }
+    const closesAt = new Date(window_.closes_at).getTime()
+    const tick = () => setSecondsLeft(Math.max(0, Math.round((closesAt - Date.now()) / 1000)))
+    tick()
+    const interval = setInterval(tick, 1000)
+    return () => clearInterval(interval)
+  }, [window_?.closes_at])
+
+  // Hide the moment it lapses, without waiting for the next poll.
+  return secondsLeft > 0 ? { window: window_, secondsLeft } : null
+}
+
+export function PredictionEventCard({ secondsLeft }: { secondsLeft: number }) {
+  const minutes = Math.floor(secondsLeft / 60)
+  const seconds = secondsLeft % 60
+
+  return (
+    <EventCard
+      icon={<Target className="h-5 w-5" style={{ color: OBS.label }} />}
+      label="PREDICTIONS OPEN"
+      labelColor={OBS.label}
+      timestamp={`${minutes}:${String(seconds).padStart(2, "0")} left`}
+    >
+      <div className="text-[20px] font-extrabold leading-tight" style={{ color: OBS.value }}>
+        Lock in your guess
+      </div>
+      <div className="text-[11px] leading-snug" style={{ color: OBS.muted }}>
+        Predict the final balance on the site
+      </div>
+    </EventCard>
   )
 }

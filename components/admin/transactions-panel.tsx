@@ -1,8 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ArrowDownLeft, ArrowUpRight, Loader2, Trash2, Wallet } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, Loader2, Trash2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { ACCENTS, MonoLabel, Panel, PanelHeader } from "@/components/ui/panel"
 import {
   formatMoney,
   formatTransactionTime,
@@ -85,44 +86,51 @@ export function TransactionsPanel() {
     }
   }
 
-  return (
-    <section className="rounded-2xl border border-slate-700/50 bg-slate-900/60 backdrop-blur">
-      <header className="flex items-center gap-2 border-b border-slate-700/50 px-4 py-3">
-        <Wallet className="h-4 w-4 text-[#7FB3FF]" />
-        <h2 className="text-sm font-semibold text-white">Transactions</h2>
-        <span className="ml-auto text-[11px] text-slate-400">
-          {transactions.length} {transactions.length === 1 ? "entry" : "entries"}
-        </span>
-      </header>
+  const netColor = totals.net === 0 ? "#E7E7EA" : totals.net > 0 ? ACCENTS.green : ACCENTS.red
 
-      <div className="grid grid-cols-3 gap-px border-b border-slate-700/50 bg-slate-700/50">
-        <Total label="Deposited" value={formatMoney(totals.deposited)} tone="text-red-400" />
-        <Total label="Cashed out" value={formatMoney(totals.cashedOut)} tone="text-emerald-400" />
-        <Total
+  return (
+    <Panel>
+      <PanelHeader
+        title="Transactions"
+        accent="green"
+        right={
+          <MonoLabel className="text-white/30">
+            {transactions.length} {transactions.length === 1 ? "entry" : "entries"}
+          </MonoLabel>
+        }
+      />
+
+      <div className="grid grid-cols-3 divide-x divide-white/[0.08] border-b border-white/[0.08]">
+        <Figure label="Deposited" value={formatMoney(totals.deposited)} color={ACCENTS.red} />
+        <Figure label="Cashed out" value={formatMoney(totals.cashedOut)} color={ACCENTS.green} />
+        <Figure
           label="Net"
-          value={totals.net === 0 ? "-" : `${totals.net > 0 ? "+" : "-"}${formatMoney(totals.net)}`}
-          tone={totals.net === 0 ? "text-white" : totals.net > 0 ? "text-emerald-400" : "text-red-400"}
+          value={totals.net === 0 ? "–" : `${totals.net > 0 ? "+" : "−"}${formatMoney(totals.net)}`}
+          color={netColor}
         />
       </div>
 
-      <form onSubmit={addTransaction} className="flex flex-wrap items-end gap-2 border-b border-slate-700/50 p-3">
-        <div className="flex overflow-hidden rounded-lg border border-slate-700">
-          {(["deposit", "cashout"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setKind(option)}
-              className={`px-3 py-2 text-xs font-semibold transition ${
-                kind === option
-                  ? option === "deposit"
-                    ? "bg-red-500/20 text-red-300"
-                    : "bg-emerald-500/20 text-emerald-300"
-                  : "bg-slate-900 text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              {option === "deposit" ? "Deposit" : "Cashout"}
-            </button>
-          ))}
+      <form onSubmit={addTransaction} className="flex flex-wrap items-center gap-2 border-b border-white/[0.08] p-3">
+        <div className="flex overflow-hidden rounded-md border border-white/10">
+          {(["deposit", "cashout"] as const).map((option) => {
+            const active = kind === option
+            const color = option === "deposit" ? ACCENTS.red : ACCENTS.green
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setKind(option)}
+                className="px-3 py-2 font-mono text-[10px] uppercase tracking-[0.1em] transition"
+                style={
+                  active
+                    ? { color, backgroundColor: `${color}1f` }
+                    : { color: "rgba(255,255,255,0.35)", backgroundColor: "transparent" }
+                }
+              >
+                {option}
+              </button>
+            )
+          })}
         </div>
 
         <input
@@ -133,7 +141,7 @@ export function TransactionsPanel() {
           value={amount}
           onChange={(event) => setAmount(event.target.value)}
           placeholder="Amount"
-          className="h-9 w-32 rounded-lg border border-slate-700 bg-slate-900 px-3 text-xs text-white placeholder:text-slate-500"
+          className="h-9 w-32 rounded-md border border-white/10 bg-black/40 px-3 text-[13px] tabular-nums text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
         />
 
         <input
@@ -141,50 +149,54 @@ export function TransactionsPanel() {
           value={note}
           onChange={(event) => setNote(event.target.value)}
           placeholder="Note (optional)"
-          className="h-9 min-w-40 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 text-xs text-white placeholder:text-slate-500"
+          className="h-9 min-w-40 flex-1 rounded-md border border-white/10 bg-black/40 px-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
         />
 
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#4D84FF] px-4 text-xs font-bold text-white transition hover:bg-[#3D6FE0] disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-2 rounded-md border border-white/12 bg-white/[0.06] px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12] disabled:opacity-50"
         >
           {saving && <Loader2 className="h-3 w-3 animate-spin" />}
           Add
         </button>
       </form>
 
-      {error && <p className="border-b border-slate-700/50 px-4 py-2 text-[11px] text-red-300">{error}</p>}
+      {error && (
+        <p className="border-b border-white/[0.08] px-3.5 py-2 text-[11px]" style={{ color: ACCENTS.red }}>
+          {error}
+        </p>
+      )}
 
       <div className="max-h-96 overflow-y-auto">
         {loading ? (
-          <p className="px-4 py-6 text-center text-xs text-slate-400">Loading…</p>
+          <p className="py-8 text-center font-mono text-[11px] uppercase tracking-widest text-white/25">Loading</p>
         ) : transactions.length === 0 ? (
-          <p className="px-4 py-6 text-center text-xs text-slate-400">
+          <p className="px-4 py-8 text-center text-[12px] text-white/30">
             No transactions yet. Add one above and it shows up on the stream widget.
           </p>
         ) : (
-          <ul className="divide-y divide-slate-800">
+          <ul className="divide-y divide-white/[0.06]">
             {transactions.map((transaction) => {
               const isDeposit = transaction.kind === "deposit"
+              const color = isDeposit ? ACCENTS.red : ACCENTS.green
               return (
-                <li key={transaction.id} className="group flex items-center gap-3 px-4 py-2.5">
+                <li key={transaction.id} className="group flex items-center gap-3 px-3.5 py-2.5">
                   <span
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
-                      isDeposit ? "bg-red-500/15 text-red-400" : "bg-emerald-500/15 text-emerald-400"
-                    }`}
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded"
+                    style={{ color, backgroundColor: `${color}1a` }}
                   >
-                    {isDeposit ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                    {isDeposit ? <ArrowDownLeft className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}
                   </span>
 
-                  <span className={`w-24 shrink-0 text-sm font-bold ${isDeposit ? "text-red-400" : "text-emerald-400"}`}>
-                    {isDeposit ? "-" : "+"}
+                  <span className="w-24 shrink-0 text-[13px] font-semibold tabular-nums" style={{ color }}>
+                    {isDeposit ? "−" : "+"}
                     {formatMoney(Number(transaction.amount))}
                   </span>
 
-                  <span className="min-w-0 flex-1 truncate text-xs text-slate-400">{transaction.note ?? ""}</span>
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-white/40">{transaction.note ?? ""}</span>
 
-                  <time className="shrink-0 text-[11px] tabular-nums text-slate-500">
+                  <time className="shrink-0 font-mono text-[10px] tabular-nums text-white/25">
                     {formatTransactionTime(transaction.created_at)}
                   </time>
 
@@ -192,7 +204,7 @@ export function TransactionsPanel() {
                     type="button"
                     onClick={() => removeTransaction(transaction.id)}
                     aria-label="Delete transaction"
-                    className="shrink-0 rounded-md p-1.5 text-slate-600 opacity-0 transition hover:bg-red-500/15 hover:text-red-400 focus:opacity-100 group-hover:opacity-100"
+                    className="shrink-0 rounded p-1.5 text-white/20 opacity-0 transition hover:text-white/70 focus:opacity-100 group-hover:opacity-100"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -202,15 +214,17 @@ export function TransactionsPanel() {
           </ul>
         )}
       </div>
-    </section>
+    </Panel>
   )
 }
 
-function Total({ label, value, tone }: { label: string; value: string; tone: string }) {
+function Figure({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="bg-slate-900/60 px-4 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className={`mt-0.5 text-lg font-bold tabular-nums ${tone}`}>{value}</p>
+    <div className="px-4 py-3">
+      <p className="text-[22px] font-semibold leading-none tabular-nums tracking-tight" style={{ color }}>
+        {value}
+      </p>
+      <MonoLabel className="mt-2 block text-white/35">{label}</MonoLabel>
     </div>
   )
 }

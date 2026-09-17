@@ -23,7 +23,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${geistSans.className} bg-slate-950 antialiased`}>
+      <body className={`${geistSans.className} bg-[#0B0B0D] antialiased`}>
         <NextTopLoader color="#22d3ee" height={2.5} shadow="0 0 10px rgba(34,211,238,0.6)" showSpinner={false} />
         <ConditionalLayout>{children}</ConditionalLayout>
         <Toaster />

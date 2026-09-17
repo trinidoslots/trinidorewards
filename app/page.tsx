@@ -2,53 +2,72 @@
 
 import Link from "next/link"
 import { useEffect, useState } from "react"
-import {
-  ArrowRight,
-  Calendar,
-  Crosshair,
-  Crown,
-  Gift,
-  Play,
-  ShoppingBag,
-  Sparkles,
-  Swords,
-  TrendingUp,
-  Users,
-} from "lucide-react"
+import { ArrowUpRight, Calendar, Crosshair, Crown, Gift, Play, ShoppingBag, Swords } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { ACCENTS, MonoLabel, Panel, StatTile, type Accent } from "@/components/ui/panel"
 
-// One accent ramp for the whole page, matching the OBS widgets so the site and
-// the stream overlay read as the same product.
-const ACCENT = "#4D84FF"
-const ACCENT_SOFT = "#7FB3FF"
-const ACCENT_ALT = "#B18CFF"
+const KICK_URL = "https://kick.com/trinidoslots"
 
-const WAYS_TO_WIN = [
+const SECTIONS: {
+  href: string
+  code: string
+  accent: Accent
+  icon: typeof Crosshair
+  title: string
+  copy: string
+}[] = [
   {
     href: "/bonushunt",
+    code: "HUNT",
+    accent: "amber",
     icon: Crosshair,
-    label: "Bonus hunt",
-    copy: "Follow the hunt live and call the final balance before it opens.",
+    title: "Bonus hunt",
+    copy: "Follow the bonuses as they are collected, then call the final balance before the opening starts.",
   },
   {
     href: "/leaderboard",
+    code: "BOARD",
+    accent: "blue",
     icon: Crown,
-    label: "Leaderboard",
-    copy: "Every wager moves you up. The top of the board gets paid.",
+    title: "Leaderboard",
+    copy: "Wagering moves you up the table. The top places are paid out at the end of every month.",
   },
-  { href: "/raffles", icon: Gift, label: "Raffles", copy: "Low-entry draws running all month long." },
-  { href: "/tournaments", icon: Swords, label: "Tournaments", copy: "Bracket play against the rest of the community." },
-  { href: "/store", icon: ShoppingBag, label: "Store", copy: "Turn the points you earn watching into real rewards." },
+  {
+    href: "/raffles",
+    code: "RAFFLE",
+    accent: "green",
+    icon: Gift,
+    title: "Raffles",
+    copy: "Low-entry draws running alongside the stream, with winners pulled live.",
+  },
+  {
+    href: "/tournaments",
+    code: "VERSUS",
+    accent: "purple",
+    icon: Swords,
+    title: "Tournaments",
+    copy: "Bracket play against the rest of the community until one name is left.",
+  },
+  {
+    href: "/store",
+    code: "STORE",
+    accent: "pink",
+    icon: ShoppingBag,
+    title: "Store",
+    copy: "Points earned watching the stream convert into rewards you can actually redeem.",
+  },
   {
     href: "/advent-calendar",
+    code: "DEC",
+    accent: "red",
     icon: Calendar,
-    label: "Advent calendar",
-    copy: "A new door, a new reward, every day in December.",
+    title: "Advent calendar",
+    copy: "One door a day through December, each with something behind it.",
   },
 ]
 
 export default function LandingPage() {
-  const [totalGivenAway, setTotalGivenAway] = useState<number | null>(null)
+  const [givenAway, setGivenAway] = useState<number | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -60,9 +79,9 @@ export default function LandingPage() {
           .eq("key", "total_given_away")
           .maybeSingle()
         const parsed = Number.parseInt(data?.value ?? "", 10)
-        if (Number.isFinite(parsed)) setTotalGivenAway(parsed)
+        if (Number.isFinite(parsed)) setGivenAway(parsed)
       } catch (error) {
-        // The hero reads fine without it; never let a stat break the page.
+        // The page reads fine without it; never let one stat break it.
         console.log("[v0] Error fetching total given away:", error)
       }
     }
@@ -70,187 +89,111 @@ export default function LandingPage() {
   }, [])
 
   return (
-    <div className="relative overflow-hidden">
-      {/* Aurora — two soft pools of brand colour behind everything */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[720px]"
-        style={{
-          background: `radial-gradient(60% 55% at 22% 0%, ${ACCENT}26 0%, transparent 60%),
-                       radial-gradient(45% 45% at 85% 12%, ${ACCENT_ALT}1f 0%, transparent 65%)`,
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.15]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
-          maskImage: "radial-gradient(80% 50% at 50% 0%, #000 0%, transparent 75%)",
-        }}
-      />
-
-      {/* ---------------------------------------------------------------- Hero */}
-      <section className="relative px-5 pb-16 pt-16 lg:px-10 lg:pb-24 lg:pt-24">
-        <div className="mx-auto max-w-6xl">
-          <span
-            className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em]"
-            style={{ borderColor: `${ACCENT}44`, backgroundColor: `${ACCENT}14`, color: ACCENT_SOFT }}
-          >
-            <Sparkles className="h-3 w-3" />
-            The Trinido rewards community
-          </span>
-
-          <h1 className="mt-7 max-w-4xl text-balance text-5xl font-black leading-[0.95] tracking-[-0.04em] text-white sm:text-7xl lg:text-8xl">
-            Watch the hunt.
-            <br />
-            <span
-              style={{
-                background: `linear-gradient(100deg, ${ACCENT_SOFT}, ${ACCENT} 45%, ${ACCENT_ALT})`,
-                WebkitBackgroundClip: "text",
-                backgroundClip: "text",
-                color: "transparent",
-              }}
-            >
-              Take a cut.
-            </span>
+    <div className="mx-auto max-w-6xl px-5 py-10 lg:px-8 lg:py-14">
+      {/* ------------------------------------------------------------ Header */}
+      <header className="flex flex-wrap items-start justify-between gap-6">
+        <div className="max-w-2xl">
+          <h1 className="text-[28px] font-semibold leading-tight tracking-tight text-white sm:text-[34px]">
+            TrinidoRewards
           </h1>
-
-          <p className="mt-7 max-w-xl text-pretty text-lg leading-8 text-slate-400">
-            Predictions, leaderboards, raffles and giveaways — every stream turns into something you can actually win.
-            No deposit needed to play along.
+          <p className="mt-2 text-[13px] leading-6 text-white/45">
+            Everything running alongside the stream — <span className="text-white/70">bonus hunts</span>,{" "}
+            <span className="text-white/70">predictions</span>, <span className="text-white/70">leaderboards</span>,{" "}
+            <span className="text-white/70">raffles</span> and <span className="text-white/70">giveaways</span>. Free to
+            take part in. Pick a section below.
           </p>
-
-          <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/bonushunt"
-              className="group inline-flex items-center justify-center gap-2 rounded-xl px-7 py-4 text-base font-bold text-slate-950 transition hover:brightness-110"
-              style={{ backgroundColor: ACCENT_SOFT, boxShadow: `0 18px 40px -18px ${ACCENT}` }}
-            >
-              See the live hunt
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-            <a
-              href="https://kick.com/trinidoslots"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/12 bg-white/[0.04] px-7 py-4 text-base font-bold text-white backdrop-blur transition hover:border-white/25 hover:bg-white/[0.08]"
-            >
-              <Play className="h-4 w-4 fill-current" />
-              Watch on Kick
-            </a>
-          </div>
-
-          <dl className="mt-16 grid max-w-3xl grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:grid-cols-3">
-            <Stat
-              icon={TrendingUp}
-              label="Given away"
-              value={totalGivenAway === null ? "—" : `$${totalGivenAway.toLocaleString()}`}
-            />
-            <Stat icon={Users} label="Members" value="10K+" />
-            <Stat icon={Gift} label="Entry cost" value="Free" className="col-span-2 sm:col-span-1" />
-          </dl>
         </div>
-      </section>
 
-      {/* -------------------------------------------------------- Ways to win */}
-      <section className="relative px-5 py-16 lg:px-10 lg:py-24">
-        <div className="mx-auto max-w-6xl">
-          <div className="flex items-end justify-between gap-6">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: ACCENT_SOFT }}>
-                Ways to win
-              </p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">Pick your lane</h2>
-            </div>
-          </div>
-
-          <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {WAYS_TO_WIN.map(({ href, icon: Icon, label, copy }) => (
-              <Link
-                key={href}
-                href={href}
-                className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition duration-300 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.06]"
-              >
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full opacity-0 blur-3xl transition-opacity duration-300 group-hover:opacity-100"
-                  style={{ backgroundColor: `${ACCENT}33` }}
-                />
-                <span
-                  className="relative flex h-11 w-11 items-center justify-center rounded-xl border"
-                  style={{ borderColor: `${ACCENT}33`, backgroundColor: `${ACCENT}14`, color: ACCENT_SOFT }}
-                >
-                  <Icon className="h-5 w-5" />
-                </span>
-                <h3 className="relative mt-6 text-lg font-bold text-white">{label}</h3>
-                <p className="relative mt-2 text-sm leading-6 text-slate-400">{copy}</p>
-                <span
-                  className="relative mt-5 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
-                  style={{ color: ACCENT_SOFT }}
-                >
-                  Open
-                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-                </span>
-              </Link>
-            ))}
-          </div>
+        <div className="flex shrink-0 gap-2">
+          <Link
+            href="/bonushunt"
+            className="rounded-md border border-white/12 bg-white/[0.06] px-3.5 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12]"
+          >
+            Live hunt
+          </Link>
+          <a
+            href={KICK_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md border border-white/12 px-3.5 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-white/60 transition hover:border-white/25 hover:text-white"
+          >
+            <Play className="h-3 w-3 fill-current" />
+            Kick
+          </a>
         </div>
-      </section>
+      </header>
 
-      {/* -------------------------------------------------------------- Closer */}
-      <section className="relative px-5 pb-24 lg:px-10">
-        <div
-          className="mx-auto max-w-6xl overflow-hidden rounded-3xl border border-white/10 p-10 sm:p-14"
-          style={{
-            background: `linear-gradient(120deg, ${ACCENT}1f 0%, transparent 45%), linear-gradient(300deg, ${ACCENT_ALT}1a 0%, transparent 50%), rgba(255,255,255,0.02)`,
-          }}
+      {/* ------------------------------------------------------------- Stats */}
+      <div className="mt-8 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+        <StatTile
+          label="Given away"
+          accent="green"
+          value={givenAway === null ? "—" : `$${givenAway.toLocaleString()}`}
+        />
+        <StatTile label="Members" value="10K+" />
+        <StatTile label="Entry cost" accent="blue" value="Free" hint="No deposit to take part" />
+        <StatTile label="Sections" accent="purple" value={SECTIONS.length} />
+      </div>
+
+      {/* ---------------------------------------------------------- Sections */}
+      <div className="mt-10 flex items-center gap-3">
+        <MonoLabel className="text-white/35">Sections</MonoLabel>
+        <span className="h-px flex-1 bg-white/[0.08]" />
+      </div>
+
+      <div className="mt-4 grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+        {SECTIONS.map(({ href, code, accent, icon: Icon, title, copy }) => (
+          <Link key={href} href={href} className="group block">
+            <Panel
+              accent={accent}
+              className="h-full p-4 transition hover:border-white/20 hover:bg-white/[0.05]"
+            >
+              <div className="flex items-center gap-2">
+                <Icon className="h-3.5 w-3.5" style={{ color: ACCENTS[accent] }} />
+                <MonoLabel style={{ color: ACCENTS[accent] }}>{code}</MonoLabel>
+                <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-white/20 transition group-hover:text-white/60" />
+              </div>
+              <h2 className="mt-3 text-[15px] font-semibold text-white">{title}</h2>
+              <p className="mt-1.5 text-[12.5px] leading-[1.6] text-white/40">{copy}</p>
+            </Panel>
+          </Link>
+        ))}
+      </div>
+
+      {/* ------------------------------------------------------------- Live */}
+      <div className="mt-10 flex items-center gap-3">
+        <MonoLabel className="text-white/35">Live</MonoLabel>
+        <span className="h-px flex-1 bg-white/[0.08]" />
+      </div>
+
+      <Panel className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-4 p-5">
+        <span className="relative flex h-2 w-2 shrink-0">
+          <span
+            className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60"
+            style={{ backgroundColor: ACCENTS.red }}
+          />
+          <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: ACCENTS.red }} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] font-semibold text-white">Giveaways run on stream</p>
+          <p className="mt-1 text-[12.5px] leading-6 text-white/40">
+            A keyword drops in chat, the wheel spins live, the winner is paid on the spot.
+          </p>
+        </div>
+        <a
+          href={KICK_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/12 bg-white/[0.06] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12]"
         >
-          <div className="flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-center">
-            <div>
-              <h2 className="max-w-lg text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                Next giveaway runs on stream.
-              </h2>
-              <p className="mt-4 max-w-md text-base leading-7 text-slate-400">
-                Keyword drops in chat, the wheel spins live, the winner is paid out on the spot. Be there.
-              </p>
-            </div>
-            <a
-              href="https://kick.com/trinidoslots"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl px-7 py-4 text-base font-bold text-slate-950 transition hover:brightness-110"
-              style={{ backgroundColor: ACCENT_SOFT }}
-            >
-              <Play className="h-4 w-4 fill-current" />
-              Join the stream
-            </a>
-          </div>
-        </div>
-      </section>
-    </div>
-  )
-}
+          <Play className="h-3 w-3 fill-current" />
+          Watch
+        </a>
+      </Panel>
 
-function Stat({
-  icon: Icon,
-  label,
-  value,
-  className,
-}: {
-  icon: typeof Users
-  label: string
-  value: string
-  className?: string
-}) {
-  return (
-    <div className={`bg-slate-950/80 px-6 py-5 ${className ?? ""}`}>
-      <dt className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.15em] text-slate-500">
-        <Icon className="h-3.5 w-3.5" style={{ color: ACCENT_SOFT }} />
-        {label}
-      </dt>
-      <dd className="mt-2 text-2xl font-black tabular-nums text-white sm:text-3xl">{value}</dd>
+      <p className="mt-10 font-mono text-[10px] uppercase tracking-[0.12em] text-white/20">
+        18+ · Play responsibly
+      </p>
     </div>
   )
 }

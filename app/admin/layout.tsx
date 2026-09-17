@@ -22,9 +22,9 @@ export default function AdminLayout({
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div className="min-h-screen bg-[#0B0B0D]">
       <AdminSidebar onCollapse={setCollapsed} />
-      <div className={`p-3 transition-all duration-300 ${collapsed ? "ml-14" : "ml-56"}`}>
+      <div className={`p-5 transition-all duration-300 ${collapsed ? "ml-14" : "ml-56"}`}>
         <div className="container mx-auto max-w-7xl">{children}</div>
       </div>
     </div>

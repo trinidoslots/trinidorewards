@@ -7,7 +7,9 @@ import { GiveawayCard, isGiveawayActive, useGiveawayState } from "@/components/o
 import {
   BannerRotator,
   EventDivider,
+  PredictionEventCard,
   TransactionEventCard,
+  usePredictionWindow,
   useTransactionEvents,
   type TransactionEvent,
 } from "@/components/obs/stream-event-feed"
@@ -71,11 +73,14 @@ function StreamWidget() {
 
   const isPreview = searchParams.get("preview") === "1"
 
+  const prediction = usePredictionWindow()
   const giveaway = useGiveawayState()
   const liveTransactions = useTransactionEvents()
   const { messages } = useKickChat({ slug })
 
   const transactions = isPreview ? PREVIEW_EVENTS : liveTransactions
+  // In preview the countdown is faked so the card can be positioned off-stream.
+  const predictionSeconds = prediction?.secondsLeft ?? (isPreview ? 287 : 0)
   const chatMessages = isPreview && messages.length === 0 ? PREVIEW_MESSAGES : messages
   const giveawayVisible = isGiveawayActive(giveaway)
 
@@ -99,6 +104,20 @@ function StreamWidget() {
                 className="overflow-hidden"
               >
                 <GiveawayCard state={giveaway} showElapsed fullWidth />
+              </motion.div>
+            )}
+
+            {predictionSeconds > 0 && (
+              <motion.div
+                key="prediction"
+                layout
+                initial={{ opacity: 0, y: -8, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: "auto" }}
+                exit={{ opacity: 0, y: -8, height: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="overflow-hidden"
+              >
+                <PredictionEventCard secondsLeft={predictionSeconds} />
               </motion.div>
             )}
 

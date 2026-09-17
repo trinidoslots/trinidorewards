@@ -16,10 +16,10 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
 
   // OBS browser sources need a truly transparent page so the stream
   // compositor shows through. The root layout's <body> always carries
-  // bg-slate-950, which paints an opaque color behind these widgets, so we
+  // bg-[#0B0B0D], which paints an opaque color behind these widgets, so we
   // strip it here rather than in the (server-only) root layout.
   useEffect(() => {
-    document.body.classList.toggle("bg-slate-950", !isOBSPage)
+    document.body.classList.toggle("bg-[#0B0B0D]", !isOBSPage)
     document.body.classList.toggle("bg-transparent", isOBSPage)
   }, [isOBSPage])
 
