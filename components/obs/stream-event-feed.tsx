@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { createClient } from "@/lib/supabase/client"
 import { BANNER_ASPECT_RATIO, BANNER_ROTATION_MS, OBS_BANNERS } from "@/lib/obs-banners"
-import { OBS } from "@/lib/obs-theme"
+import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
 
 export type TransactionKind = "deposit" | "cashout"
 
@@ -145,12 +145,12 @@ export function EventCard({
 }) {
   return (
     <div
-      className="flex items-start gap-3 rounded-2xl border px-3 py-2.5 shadow-lg backdrop-blur-sm"
-      style={{ backgroundColor: OBS.card, borderColor: OBS.cardBorder }}
+      className="flex items-start gap-3 border px-3 py-2.5 shadow-lg backdrop-blur-sm"
+      style={{ backgroundColor: OBS.card, borderColor: OBS.cardBorder, borderRadius: OBS_RADIUS.card }}
     >
       <div
-        className="mt-[2px] flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-        style={{ backgroundColor: OBS.iconTile }}
+        className="mt-[2px] flex h-9 w-9 shrink-0 items-center justify-center"
+        style={{ backgroundColor: OBS.iconTile, borderRadius: OBS_RADIUS.iconTile }}
       >
         {icon}
       </div>
@@ -212,8 +212,13 @@ export function BannerRotator() {
 
   return (
     <div
-      style={{ aspectRatio: BANNER_ASPECT_RATIO, backgroundColor: OBS.card, borderColor: OBS.cardBorder }}
-      className="relative w-full overflow-hidden rounded-2xl border shadow-lg"
+      style={{
+        aspectRatio: BANNER_ASPECT_RATIO,
+        backgroundColor: OBS.card,
+        borderColor: OBS.cardBorder,
+        borderRadius: OBS_RADIUS.banner,
+      }}
+      className="relative w-full overflow-hidden border shadow-lg"
     >
       <AnimatePresence mode="wait">
         <motion.img

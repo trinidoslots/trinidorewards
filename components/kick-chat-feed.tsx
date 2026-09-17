@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { CHAT_EMOTE_PX, CHAT_FONT_PX } from "@/lib/obs-theme"
+import { CHAT_EMOTE_PX, CHAT_FONT_PX, OBS_RADIUS } from "@/lib/obs-theme"
 import { emoteImageUrl, parseMessageContent, type KickBadge, type KickMessage } from "@/lib/kick-chat"
 
 // Kick's own badge palette, so the feed reads as Kick rather than as our theme.
@@ -44,8 +44,8 @@ function BadgeTile({ badge }: { badge: KickBadge }) {
   return (
     <span
       title={badge.text ?? badge.type}
-      className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-[5px] px-[4px] text-[11px] font-extrabold leading-none text-white"
-      style={{ backgroundColor: badgeColor(badge) }}
+      className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center px-[4px] text-[11px] font-extrabold leading-none text-white"
+      style={{ backgroundColor: badgeColor(badge), borderRadius: OBS_RADIUS.badge }}
     >
       {label}
     </span>

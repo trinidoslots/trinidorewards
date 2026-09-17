@@ -32,6 +32,26 @@ export const OBS = {
   cashout: "#45E0A8",
 } as const
 
+/**
+ * Corner radii, in pixels. Kept together because the column, the cards and the
+ * tile inside each card have to stay in proportion — bumping one alone makes
+ * the stack look uneven.
+ */
+export const OBS_RADIUS = {
+  /**
+   * Square. The column is a browser source butted against the edge of a scene,
+   * so rounding it would just cut the background away at the corners — the
+   * rounding belongs on the cards inside it.
+   */
+  shell: 0,
+  card: 22,
+  banner: 22,
+  iconTile: 15,
+  /** Inner panels: the keyword box, the roll strip. */
+  panel: 14,
+  badge: 6,
+} as const
+
 /** Chat body size. Bumped from 13px — 13 was too small to read on stream. */
 export const CHAT_FONT_PX = 15
 /** Emotes ride a little above the cap height, as they do on Kick itself. */

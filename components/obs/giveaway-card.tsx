@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Gift, Trophy, Users, User, Timer } from "lucide-react"
 import { formatElapsed, formatKeywordForDisplay } from "@/lib/kick-chat"
-import { OBS } from "@/lib/obs-theme"
+import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
 
 export type GiveawayStatus = "idle" | "open" | "closed" | "rolling" | "finished"
 
@@ -199,8 +199,9 @@ export function GiveawayCard({
         height: GIVEAWAY_CARD_HEIGHT,
         backgroundColor: OBS.card,
         borderColor: OBS.cardBorder,
+        borderRadius: OBS_RADIUS.card,
       }}
-      className={`flex flex-col overflow-hidden rounded-2xl border shadow-lg backdrop-blur-sm ${className ?? ""}`}
+      className={`flex flex-col overflow-hidden border shadow-lg backdrop-blur-sm ${className ?? ""}`}
     >
       {/* Header — fixed, never grows or shrinks */}
       <div className="flex flex-shrink-0 items-center justify-between px-2.5 pt-2 pb-1">
@@ -262,7 +263,7 @@ export function GiveawayCard({
                 <span className="text-[9px] font-semibold uppercase tracking-wide text-[#B4A6E4]">
                   Active Keyword
                 </span>
-                <div className="flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] px-2.5 py-1.5">
+                <div className="flex items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.06] px-2.5 py-1.5">
                   <span
                     className={`text-balance break-words text-center font-bold leading-tight text-white ${keywordTextSizeClass(
                       formatKeywordForDisplay(state?.keyword),
@@ -294,7 +295,7 @@ export function GiveawayCard({
                 <span className="text-[9px] font-semibold uppercase tracking-wide text-[#B4A6E4]">
                   Active Keyword
                 </span>
-                <div className="flex flex-col items-center justify-center gap-0 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-center">
+                <div className="flex flex-col items-center justify-center gap-0 rounded-[14px] border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-center">
                   <span className="text-xs font-bold text-white">Entries stopped</span>
                   <span className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
                     Awaiting roll
@@ -322,7 +323,7 @@ export function GiveawayCard({
               <div className="text-center text-[9px] font-semibold uppercase tracking-wide text-[#B4A6E4]">
                 {rollComplete ? "We have a winner!" : "Rolling"}
               </div>
-              <div className="relative mx-auto h-10 w-full overflow-hidden rounded-lg border border-white/10 bg-black/30">
+              <div className="relative mx-auto h-10 w-full overflow-hidden rounded-[14px] border border-white/10 bg-black/30">
                 <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-[2px] -translate-x-1/2 bg-[#B18CFF] shadow-[0_0_8px_2px_rgba(177,140,255,0.6)]" />
                 <motion.div
                   className="absolute inset-y-0 left-1/2 flex items-center gap-1 py-1"
@@ -354,7 +355,7 @@ export function GiveawayCard({
               <div className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-[#B4A6E4]">
                 <Trophy className="h-3 w-3 text-[#B18CFF]" /> Winner
               </div>
-              <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 py-1.5">
+              <div className="flex items-center gap-2 rounded-[14px] border border-white/10 bg-white/[0.06] px-2.5 py-1.5">
                 <AvatarImage username={state.winner} avatar={avatars[state.winner] ?? null} size={22} />
                 <span className="text-balance text-sm font-bold text-white">{state.winner}</span>
               </div>

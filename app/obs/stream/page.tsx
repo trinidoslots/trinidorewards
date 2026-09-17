@@ -14,7 +14,7 @@ import {
 import { KickChatFeed } from "@/components/kick-chat-feed"
 import { useKickChat } from "@/hooks/use-kick-chat"
 import type { KickMessage } from "@/lib/kick-chat"
-import { OBS } from "@/lib/obs-theme"
+import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
 
 const DEFAULT_SLUG = "trinidoslots"
 
@@ -80,10 +80,10 @@ function StreamWidget() {
   const giveawayVisible = isGiveawayActive(giveaway)
 
   return (
-    <div className="h-screen w-full bg-transparent p-2">
+    <div className="h-screen w-full bg-transparent">
       <div
-        className="flex h-full w-full flex-col overflow-hidden rounded-2xl border p-2 shadow-2xl backdrop-blur-sm"
-        style={{ backgroundColor: OBS.shell, borderColor: OBS.shellBorder }}
+        className="flex h-full w-full flex-col overflow-hidden p-2 shadow-2xl backdrop-blur-sm"
+        style={{ backgroundColor: OBS.shell, borderRadius: OBS_RADIUS.shell }}
       >
         {/* Events — sized by their content so the chat keeps the rest of the column */}
         <div className="flex shrink-0 flex-col gap-2">
