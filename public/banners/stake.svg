@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Stake banner for the OBS stream widget.
+
+  Sized 1530x660 to match the EarnLab banners on cdn.earnlab.com so the rotation
+  never changes shape. Self-contained: no external fonts or images, because an
+  SVG loaded through <img> cannot fetch anything.
+
+  Type is scaled for how this is actually seen — about 324px wide in the widget
+  column, where the whole canvas is ~140px tall. Anything under ~45px here
+  becomes unreadable on stream.
+
+  TO ADD YOUR REFERRAL CODE: replace the text in the element marked
+  "referral slot" below. It currently shows the channel name.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1530 660" width="1530" height="660" role="img" aria-label="Stake.com">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#132B3C"/>
+      <stop offset="55%" stop-color="#0F212E"/>
+      <stop offset="100%" stop-color="#0A1822"/>
+    </linearGradient>
+
+    <radialGradient id="glow" cx="0.80" cy="0.20" r="0.75">
+      <stop offset="0%" stop-color="#1475E1" stop-opacity="0.42"/>
+      <stop offset="55%" stop-color="#1475E1" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#1475E1" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#2B8FFF"/>
+      <stop offset="100%" stop-color="#2B8FFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="chip" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2B8FFF"/>
+      <stop offset="100%" stop-color="#0E5BB5"/>
+    </linearGradient>
+
+    <pattern id="grid" width="56" height="56" patternUnits="userSpaceOnUse" patternTransform="rotate(30)">
+      <path d="M0 0 H56" stroke="#4D9BFF" stroke-opacity="0.05" stroke-width="2"/>
+    </pattern>
+  </defs>
+
+  <rect width="1530" height="660" fill="url(#bg)"/>
+  <rect width="1530" height="660" fill="url(#grid)"/>
+  <rect width="1530" height="660" fill="url(#glow)"/>
+
+  <!-- Decorative chips, pushed right so they never crowd the wordmark -->
+  <g transform="translate(1272 330)">
+    <g transform="rotate(-18)">
+      <rect x="-132" y="-132" width="264" height="264" rx="64" fill="url(#chip)" opacity="0.20"/>
+      <rect x="-96" y="-96" width="192" height="192" rx="48" fill="none" stroke="#2B8FFF" stroke-opacity="0.55" stroke-width="8"/>
+      <circle cx="0" cy="0" r="52" fill="#2B8FFF" opacity="0.32"/>
+      <circle cx="0" cy="-132" r="14" fill="#5BAEFF" opacity="0.85"/>
+      <circle cx="0" cy="132" r="14" fill="#5BAEFF" opacity="0.85"/>
+      <circle cx="-132" cy="0" r="14" fill="#5BAEFF" opacity="0.85"/>
+      <circle cx="132" cy="0" r="14" fill="#5BAEFF" opacity="0.85"/>
+    </g>
+  </g>
+
+  <g opacity="0.5" transform="translate(1090 132) rotate(14)">
+    <rect x="-56" y="-56" width="112" height="112" rx="28" fill="none" stroke="#2B8FFF" stroke-opacity="0.65" stroke-width="7"/>
+    <circle cx="-22" cy="-22" r="10" fill="#5BAEFF"/>
+    <circle cx="22" cy="22" r="10" fill="#5BAEFF"/>
+  </g>
+
+  <g font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <!-- Wordmark -->
+    <text x="104" y="286" fill="#FFFFFF" font-size="196" font-weight="800" letter-spacing="-5">Stake</text>
+    <text x="632" y="286" fill="#2B8FFF" font-size="196" font-weight="800" letter-spacing="-5">.com</text>
+
+    <rect x="108" y="336" width="520" height="9" rx="5" fill="url(#rule)"/>
+
+    <!-- referral slot — swap this text for your code, e.g. "CODE: TRINIDO" -->
+    <text x="108" y="452" fill="#CFE0EC" font-size="82" font-weight="700" letter-spacing="12">TRINIDOSLOTS</text>
+
+    <!-- 18+ mark and the responsible-play line share a baseline so both stay
+         legible at column size instead of shrinking into the corner. -->
+    <g transform="translate(108 512)">
+      <rect x="0" y="0" width="118" height="66" rx="18" fill="none" stroke="#7E94A6" stroke-width="5"/>
+      <text x="59" y="48" fill="#CFE0EC" font-size="40" font-weight="800" text-anchor="middle">18+</text>
+    </g>
+    <text x="252" y="560" fill="#8AA2B4" font-size="46" font-weight="600" letter-spacing="2">Play responsibly</text>
+  </g>
+
+  <rect x="3" y="3" width="1524" height="654" rx="54" fill="none" stroke="#4D84FF" stroke-opacity="0.55" stroke-width="6"/>
+</svg>

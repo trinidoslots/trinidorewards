@@ -105,8 +105,18 @@ export default function DepositsWithdrawalsWidget() {
             </div>
           </div>
           <div className="flex justify-between">
-            <AnimatedAmount value={depositAmount} sign="-" className="text-red-400 font-bold text-xl" />
-            <AnimatedAmount value={withdrawAmount} sign="+" className="text-emerald-400 font-bold text-xl" />
+            <AnimatedAmount
+              value={depositAmount}
+              sign="-"
+              className="text-red-400 font-bold text-xl transition-[filter] duration-300"
+              pulseClassName="drop-shadow-[0_0_10px_rgba(251,113,133,0.9)]"
+            />
+            <AnimatedAmount
+              value={withdrawAmount}
+              sign="+"
+              className="text-emerald-400 font-bold text-xl transition-[filter] duration-300"
+              pulseClassName="drop-shadow-[0_0_10px_rgba(52,211,153,0.9)]"
+            />
           </div>
         </div>
       </div>

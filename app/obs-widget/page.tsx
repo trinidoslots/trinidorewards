@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Loader2, Wallet } from "lucide-react"
+import { AnimatedAmount } from "@/components/animated-amount"
 
 interface CryptoPrice {
   btc: number
@@ -396,11 +397,6 @@ export default function ObsWidget() {
     return `$${Math.round(price).toLocaleString()}`
   }
 
-  const formatDifference = (value: number) => {
-    if (value >= 0) return `+$${Math.abs(value).toLocaleString()}`
-    return `-$${Math.abs(value).toLocaleString()}`
-  }
-
   const diffColor = walletStats.difference >= 0 ? "text-green-400" : "text-red-400"
 
   return (
@@ -500,7 +496,7 @@ export default function ObsWidget() {
         {/* Wallet Difference */}
         <div className="flex items-center gap-1 text-white">
           <Wallet className="w-4 h-4 text-[#7FB3FF]" />
-          <span className="text-white font-bold">{formatDifference(walletStats.difference)}</span>
+          <AnimatedAmount value={walletStats.difference} className={`font-bold ${diffColor}`} />
         </div>
 
         {/* BTC Price */}

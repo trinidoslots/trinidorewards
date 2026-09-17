@@ -822,16 +822,34 @@ export default function GiveawayAdminPage() {
                 <ChevronDown className={`size-4 transition-transform ${obsExpanded ? "rotate-180" : ""}`} />
               </button>
               {obsExpanded && (
-                <div className="flex items-center justify-between gap-3 border-t border-slate-800 px-5 py-4">
-                  <p className="text-sm text-slate-400">Add this URL as an OBS browser source.</p>
-                  <a
-                    href="/obs/giveaway"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-2 whitespace-nowrap rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800"
-                  >
-                    <Tv className="size-3.5" /> Open widget
-                  </a>
+                <div className="flex flex-col gap-3 border-t border-slate-800 px-5 py-4">
+                  {[
+                    {
+                      href: "/obs/giveaway",
+                      label: "Giveaway only",
+                      hint: "Just this giveaway card — 300x120.",
+                    },
+                    {
+                      href: "/obs/stream",
+                      label: "Stream column",
+                      hint: "Giveaway, deposits/cashouts, banners and Kick chat in one narrow column (~340px wide).",
+                    },
+                  ].map((widget) => (
+                    <div key={widget.href} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-200">{widget.label}</p>
+                        <p className="text-xs text-slate-400">{widget.hint}</p>
+                      </div>
+                      <a
+                        href={widget.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 whitespace-nowrap rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                      >
+                        <Tv className="size-3.5" /> Open widget
+                      </a>
+                    </div>
+                  ))}
                 </div>
               )}
             </section>

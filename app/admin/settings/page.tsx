@@ -101,6 +101,20 @@ export default function SettingsPage() {
     const { data: existing } = await supabase.from("deposits_withdrawals").select("*").limit(1).single()
 
     if (existing) {
+      // The totals row alone can't tell the OBS widget that money just moved, so
+      // record the delta against what was stored as its own event. Announcements
+      // are best-effort: a failure here must not block the totals from saving.
+      const movements: { kind: "deposit" | "cashout"; amount: number }[] = []
+      const depositDelta = deposit - (Number(existing.deposit_amount) || 0)
+      const withdrawDelta = withdraw - (Number(existing.withdraw_amount) || 0)
+      if (depositDelta > 0) movements.push({ kind: "deposit", amount: depositDelta })
+      if (withdrawDelta > 0) movements.push({ kind: "cashout", amount: withdrawDelta })
+
+      if (movements.length > 0) {
+        const { error: eventError } = await supabase.from("transaction_events").insert(movements)
+        if (eventError) console.error("[v0] Error recording transaction event:", eventError)
+      }
+
       const { error } = await supabase
         .from("deposits_withdrawals")
         .update({
