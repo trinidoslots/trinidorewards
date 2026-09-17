@@ -169,7 +169,7 @@ export default function AdminBonusesPage() {
   if (loading) {
     return (
       <div className="p-6">
-        <p className="text-slate-400 text-sm">Loading bonuses...</p>
+        <p className="text-white/40 text-sm">Loading bonuses...</p>
       </div>
     )
   }
@@ -182,12 +182,12 @@ export default function AdminBonusesPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-white">Manage Bonuses</h1>
-          <p className="text-slate-400 text-sm">Create and manage bonus offers</p>
+          <p className="text-white/40 text-sm">Create and manage bonus offers</p>
         </div>
       </div>
 
       {/* Add/Edit Form */}
-      <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
+      <Card className="bg-white/[0.022] backdrop-blur border-white/[0.08]">
         <CardHeader>
           <CardTitle className="text-white text-base">{editingId ? "Edit Bonus" : "Add New Bonus"}</CardTitle>
         </CardHeader>
@@ -195,86 +195,86 @@ export default function AdminBonusesPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="casino_name" className="text-slate-300 text-xs">
+                <Label htmlFor="casino_name" className="text-white/60 text-xs">
                   Casino Name
                 </Label>
                 <Input
                   id="casino_name"
                   value={formData.casino_name}
                   onChange={(e) => setFormData({ ...formData, casino_name: e.target.value })}
-                  className="bg-slate-800/50 border-slate-700 text-white text-sm h-8"
+                  className="bg-white/[0.04] border-white/[0.10] text-white text-sm h-8"
                   placeholder="e.g., Stake Casino"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="title" className="text-slate-300 text-xs">
+                <Label htmlFor="title" className="text-white/60 text-xs">
                   Bonus Title *
                 </Label>
                 <Input
                   id="title"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="bg-slate-800/50 border-slate-700 text-white text-sm h-8"
+                  className="bg-white/[0.04] border-white/[0.10] text-white text-sm h-8"
                   placeholder="e.g., Welcome Bonus"
                   required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="value" className="text-slate-300 text-xs">
+                <Label htmlFor="value" className="text-white/60 text-xs">
                   Bonus Value
                 </Label>
                 <Input
                   id="value"
                   value={formData.value}
                   onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                  className="bg-slate-800/50 border-slate-700 text-white text-sm h-8"
+                  className="bg-white/[0.04] border-white/[0.10] text-white text-sm h-8"
                   placeholder="e.g., 100% up to $500"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="code" className="text-slate-300 text-xs">
+                <Label htmlFor="code" className="text-white/60 text-xs">
                   Bonus Code
                 </Label>
                 <Input
                   id="code"
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  className="bg-slate-800/50 border-slate-700 text-white text-sm h-8"
+                  className="bg-white/[0.04] border-white/[0.10] text-white text-sm h-8"
                   placeholder="e.g., WELCOME100"
                 />
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="description" className="text-slate-300 text-xs">
+                <Label htmlFor="description" className="text-white/60 text-xs">
                   Description
                 </Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="bg-slate-800/50 border-slate-700 text-white text-sm min-h-[60px]"
+                  className="bg-white/[0.04] border-white/[0.10] text-white text-sm min-h-[60px]"
                   placeholder="Describe the bonus offer..."
                 />
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="terms" className="text-slate-300 text-xs">
+                <Label htmlFor="terms" className="text-white/60 text-xs">
                   Terms & Conditions
                 </Label>
                 <Textarea
                   id="terms"
                   value={formData.terms}
                   onChange={(e) => setFormData({ ...formData, terms: e.target.value })}
-                  className="bg-slate-800/50 border-slate-700 text-white text-sm min-h-[60px]"
+                  className="bg-white/[0.04] border-white/[0.10] text-white text-sm min-h-[60px]"
                   placeholder="e.g., 40x wagering requirement, 18+"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="casino_url" className="text-slate-300 text-xs">
+                <Label htmlFor="casino_url" className="text-white/60 text-xs">
                   Casino URL
                 </Label>
                 <Input
@@ -282,13 +282,13 @@ export default function AdminBonusesPage() {
                   type="url"
                   value={formData.casino_url}
                   onChange={(e) => setFormData({ ...formData, casino_url: e.target.value })}
-                  className="bg-slate-800/50 border-slate-700 text-white text-sm h-8"
+                  className="bg-white/[0.04] border-white/[0.10] text-white text-sm h-8"
                   placeholder="https://..."
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="image_url" className="text-slate-300 text-xs">
+                <Label htmlFor="image_url" className="text-white/60 text-xs">
                   Image URL
                 </Label>
                 <Input
@@ -296,7 +296,7 @@ export default function AdminBonusesPage() {
                   type="url"
                   value={formData.image_url}
                   onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  className="bg-slate-800/50 border-slate-700 text-white text-sm h-8"
+                  className="bg-white/[0.04] border-white/[0.10] text-white text-sm h-8"
                   placeholder="https://..."
                 />
               </div>
@@ -307,9 +307,9 @@ export default function AdminBonusesPage() {
                     type="checkbox"
                     checked={formData.is_active}
                     onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-cyan-600 focus:ring-cyan-600"
+                    className="w-4 h-4 rounded border-white/[0.10] bg-white/[0.06] text-[#5B8DEF] focus:ring-[#5B8DEF]"
                   />
-                  <span className="text-slate-300 text-xs">Active</span>
+                  <span className="text-white/60 text-xs">Active</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -317,9 +317,9 @@ export default function AdminBonusesPage() {
                     type="checkbox"
                     checked={formData.featured}
                     onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
-                    className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-amber-600 focus:ring-amber-600"
+                    className="w-4 h-4 rounded border-white/[0.10] bg-white/[0.06] text-amber-600 focus:ring-amber-600"
                   />
-                  <span className="text-slate-300 text-xs flex items-center gap-1">
+                  <span className="text-white/60 text-xs flex items-center gap-1">
                     <Star className="w-3 h-3" />
                     Featured
                   </span>
@@ -330,7 +330,7 @@ export default function AdminBonusesPage() {
             <div className="flex gap-2">
               <Button
                 type="submit"
-                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white h-8 text-xs"
+                className="bg-[#5B8DEF] hover:bg-[#4A7AD8] text-white h-8 text-xs"
               >
                 {editingId ? "Update Bonus" : "Add Bonus"}
                 <Plus className="w-3 h-3 ml-1" />
@@ -340,7 +340,7 @@ export default function AdminBonusesPage() {
                   type="button"
                   onClick={resetForm}
                   variant="outline"
-                  className="border-slate-700 text-slate-300 hover:bg-slate-800 h-8 text-xs bg-transparent"
+                  className="border-white/[0.10] text-white/60 hover:bg-white/[0.06] h-8 text-xs bg-transparent"
                 >
                   Cancel
                 </Button>
@@ -351,19 +351,19 @@ export default function AdminBonusesPage() {
       </Card>
 
       {/* Bonuses List */}
-      <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
+      <Card className="bg-white/[0.022] backdrop-blur border-white/[0.08]">
         <CardHeader>
           <CardTitle className="text-white text-base">All Bonuses ({bonuses.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {bonuses.length === 0 ? (
-            <p className="text-slate-400 text-center py-6 text-xs">No bonuses created yet</p>
+            <p className="text-white/40 text-center py-6 text-xs">No bonuses created yet</p>
           ) : (
             <div className="space-y-3">
               {bonuses.map((bonus) => (
                 <div
                   key={bonus.id}
-                  className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 flex items-start justify-between gap-3"
+                  className="bg-white/[0.04] border border-white/[0.10] rounded-lg p-3 flex items-start justify-between gap-3"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -372,17 +372,17 @@ export default function AdminBonusesPage() {
                         {bonus.casino_name && `${bonus.casino_name} - `}
                         {bonus.title}
                       </h3>
-                      {!bonus.is_active && <span className="text-slate-500 text-xs">(Inactive)</span>}
+                      {!bonus.is_active && <span className="text-white/30 text-xs">(Inactive)</span>}
                     </div>
-                    {bonus.value && <p className="text-cyan-400 text-xs font-medium mb-1">{bonus.value}</p>}
-                    {bonus.description && <p className="text-slate-400 text-xs line-clamp-2">{bonus.description}</p>}
+                    {bonus.value && <p className="text-[#5B8DEF] text-xs font-medium mb-1">{bonus.value}</p>}
+                    {bonus.description && <p className="text-white/40 text-xs line-clamp-2">{bonus.description}</p>}
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <Button
                       onClick={() => handleEdit(bonus)}
                       variant="ghost"
                       size="sm"
-                      className="h-7 w-7 p-0 text-slate-400 hover:text-cyan-400 hover:bg-slate-700"
+                      className="h-7 w-7 p-0 text-white/40 hover:text-[#5B8DEF] hover:bg-white/[0.08]"
                     >
                       <Edit2 className="w-3 h-3" />
                     </Button>
@@ -390,7 +390,7 @@ export default function AdminBonusesPage() {
                       onClick={() => handleDelete(bonus.id)}
                       variant="ghost"
                       size="sm"
-                      className="h-7 w-7 p-0 text-slate-400 hover:text-red-400 hover:bg-slate-700"
+                      className="h-7 w-7 p-0 text-white/40 hover:text-red-400 hover:bg-white/[0.08]"
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>

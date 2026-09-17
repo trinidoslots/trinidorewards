@@ -63,7 +63,7 @@ export default function DepositsWithdrawalsWidget() {
 
   return (
     <div className="min-h-screen bg-transparent p-4">
-      <div className="w-[320px] bg-gradient-to-b from-[#1A1F2B]/95 to-[#0B0E13]/95 backdrop-blur-sm rounded-xl shadow-2xl border border-[#4D84FF]/30 overflow-hidden relative">
+      <div className="w-[320px] bg-gradient-to-b from-[#1A1F2B]/95 to-[#0B0E13]/95 rounded-xl shadow-2xl border border-[#4D84FF]/30 overflow-hidden relative">
         {/* Background accents */}
         <div
           className="absolute bottom-0 left-0 w-64 h-64 pointer-events-none opacity-60"

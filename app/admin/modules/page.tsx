@@ -87,35 +87,35 @@ export default function ModulesPage() {
   }))
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-400">Loading modules...</div>
+    return <div className="p-8 text-center text-white/40">Loading modules...</div>
   }
 
   return (
     <div className="flex-1 p-8">
       <div className="max-w-4xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-50 mb-2">Feature Modules</h1>
-          <p className="text-slate-400">Enable or disable features across the platform</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Feature Modules</h1>
+          <p className="text-white/40">Enable or disable features across the platform</p>
         </div>
 
         <div className="space-y-8">
           {groupedModules.map(category => (
             <div key={category.key}>
-              <h2 className="text-lg font-semibold text-slate-200 mb-4">{category.label}</h2>
+              <h2 className="text-lg font-semibold text-white/80 mb-4">{category.label}</h2>
               
               {category.modules.length === 0 ? (
-                <p className="text-slate-500 text-sm">No modules in this category</p>
+                <p className="text-white/30 text-sm">No modules in this category</p>
               ) : (
                 <div className="grid gap-3">
                   {category.modules.map(module => (
                     <Card
                       key={module.id}
-                      className="p-4 bg-slate-900 border-slate-800 hover:border-slate-700 transition-colors"
+                      className="p-4 bg-[#101014] border-white/[0.06] hover:border-white/[0.10] transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <h3 className="font-medium text-slate-50">{module.display_name}</h3>
-                          <p className="text-sm text-slate-400 mt-1">{module.description}</p>
+                          <h3 className="font-medium text-white">{module.display_name}</h3>
+                          <p className="text-sm text-white/40 mt-1">{module.description}</p>
                         </div>
                         <Switch
                           checked={module.is_enabled}

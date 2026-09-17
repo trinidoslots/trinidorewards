@@ -191,25 +191,25 @@ export default function AdminAdventCalendarPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 p-8">
+      <div className="min-h-screen bg-[#0B0B0D] p-8">
         <div className="text-white text-center">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-8">
+    <div className="min-h-screen bg-[#0B0B0D] p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Advent Calendar Management</h1>
-          <p className="text-slate-400">Manage daily rewards with randomized probabilities</p>
+          <p className="text-white/40">Manage daily rewards with randomized probabilities</p>
         </div>
 
         {/* Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="bg-slate-900 border-slate-800">
+          <Card className="bg-[#101014] border-white/[0.06]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm text-slate-400 flex items-center gap-2">
+              <CardTitle className="text-sm text-white/40 flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
                 Total Days
               </CardTitle>
@@ -219,9 +219,9 @@ export default function AdminAdventCalendarPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900 border-slate-800">
+          <Card className="bg-[#101014] border-white/[0.06]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm text-slate-400 flex items-center gap-2">
+              <CardTitle className="text-sm text-white/40 flex items-center gap-2">
                 <Gift className="w-4 h-4" />
                 Total Claims
               </CardTitle>
@@ -231,9 +231,9 @@ export default function AdminAdventCalendarPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900 border-slate-800">
+          <Card className="bg-[#101014] border-white/[0.06]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm text-slate-400 flex items-center gap-2">
+              <CardTitle className="text-sm text-white/40 flex items-center gap-2">
                 <Users className="w-4 h-4" />
                 Total Rewards
               </CardTitle>
@@ -250,7 +250,7 @@ export default function AdminAdventCalendarPage() {
             const dayRewards = rewardsByDay[dayNumber] || []
 
             return (
-              <Card key={dayNumber} className="bg-slate-900 border-slate-800">
+              <Card key={dayNumber} className="bg-[#101014] border-white/[0.06]">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center justify-between">
                     <span>Day {dayNumber}</span>
@@ -258,7 +258,7 @@ export default function AdminAdventCalendarPage() {
                       size="sm"
                       variant="ghost"
                       onClick={() => handleEdit(dayNumber)}
-                      className="text-slate-400 hover:text-white"
+                      className="text-white/40 hover:text-white"
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
@@ -268,9 +268,9 @@ export default function AdminAdventCalendarPage() {
                   {editingDay === dayNumber ? (
                     <div className="space-y-4">
                       {editRewards.map((reward, index) => (
-                        <div key={index} className="p-3 bg-slate-800 rounded-lg space-y-2">
+                        <div key={index} className="p-3 bg-white/[0.06] rounded-lg space-y-2">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs text-slate-400">Reward {index + 1}</span>
+                            <span className="text-xs text-white/40">Reward {index + 1}</span>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -283,15 +283,15 @@ export default function AdminAdventCalendarPage() {
 
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <Label className="text-slate-400 text-xs">Icon</Label>
+                              <Label className="text-white/40 text-xs">Icon</Label>
                               <Input
                                 value={reward.icon}
                                 onChange={(e) => handleUpdateReward(index, "icon", e.target.value)}
-                                className="bg-slate-700 border-slate-600 text-white h-8"
+                                className="bg-white/[0.08] border-white/[0.12] text-white h-8"
                               />
                             </div>
                             <div>
-                              <Label className="text-slate-400 text-xs">Probability %</Label>
+                              <Label className="text-white/40 text-xs">Probability %</Label>
                               <Input
                                 type="number"
                                 min="0"
@@ -301,36 +301,36 @@ export default function AdminAdventCalendarPage() {
                                 onChange={(e) =>
                                   handleUpdateReward(index, "probability", Number.parseFloat(e.target.value) || 0)
                                 }
-                                className="bg-slate-700 border-slate-600 text-white h-8"
+                                className="bg-white/[0.08] border-white/[0.12] text-white h-8"
                               />
                             </div>
                           </div>
 
                           <div>
-                            <Label className="text-slate-400 text-xs">Title</Label>
+                            <Label className="text-white/40 text-xs">Title</Label>
                             <Input
                               value={reward.title}
                               onChange={(e) => handleUpdateReward(index, "title", e.target.value)}
-                              className="bg-slate-700 border-slate-600 text-white h-8"
+                              className="bg-white/[0.08] border-white/[0.12] text-white h-8"
                             />
                           </div>
 
                           <div>
-                            <Label className="text-slate-400 text-xs">Description</Label>
+                            <Label className="text-white/40 text-xs">Description</Label>
                             <Textarea
                               value={reward.description}
                               onChange={(e) => handleUpdateReward(index, "description", e.target.value)}
-                              className="bg-slate-700 border-slate-600 text-white"
+                              className="bg-white/[0.08] border-white/[0.12] text-white"
                               rows={2}
                             />
                           </div>
 
                           <div>
-                            <Label className="text-slate-400 text-xs">Reward Value</Label>
+                            <Label className="text-white/40 text-xs">Reward Value</Label>
                             <Input
                               value={reward.reward_value}
                               onChange={(e) => handleUpdateReward(index, "reward_value", e.target.value)}
-                              className="bg-slate-700 border-slate-600 text-white h-8"
+                              className="bg-white/[0.08] border-white/[0.12] text-white h-8"
                             />
                           </div>
                         </div>
@@ -361,7 +361,7 @@ export default function AdminAdventCalendarPage() {
                   ) : (
                     <div className="space-y-2">
                       {dayRewards.length === 0 ? (
-                        <p className="text-slate-500 text-sm">No rewards configured</p>
+                        <p className="text-white/30 text-sm">No rewards configured</p>
                       ) : (
                         dayRewards.map((reward, index) => (
                           <div key={reward.id} className="text-sm">
@@ -374,8 +374,8 @@ export default function AdminAdventCalendarPage() {
                           </div>
                         ))
                       )}
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                        <span className="text-slate-500 text-xs">Claims</span>
+                      <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
+                        <span className="text-white/30 text-xs">Claims</span>
                         <span className="text-green-400 font-semibold">{getClaimCount(dayNumber)}</span>
                       </div>
                     </div>

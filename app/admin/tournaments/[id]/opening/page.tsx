@@ -102,9 +102,9 @@ export default function TournamentOpeningMode() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 p-8">
+      <div className="min-h-screen bg-gradient-to-b from-[#0B0B0D] to-[#101014] p-8">
         <div className="flex items-center justify-center h-screen">
-          <div className="text-slate-400">Loading tournament...</div>
+          <div className="text-white/40">Loading tournament...</div>
         </div>
       </div>
     )
@@ -112,11 +112,11 @@ export default function TournamentOpeningMode() {
 
   if (!tournament || matches.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 p-8">
+      <div className="min-h-screen bg-gradient-to-b from-[#0B0B0D] to-[#101014] p-8">
         <Button
           onClick={() => router.back()}
           variant="outline"
-          className="mb-4 border-slate-700 hover:bg-slate-800"
+          className="mb-4 border-white/[0.10] hover:bg-white/[0.06]"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
@@ -133,7 +133,7 @@ export default function TournamentOpeningMode() {
   const currentRound = matches[currentIndex]?.round_number
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 p-8">
+    <div className="min-h-screen bg-gradient-to-b from-[#0B0B0D] to-[#101014] p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -141,65 +141,65 @@ export default function TournamentOpeningMode() {
             <Button
               onClick={() => router.back()}
               variant="outline"
-              className="border-slate-700 hover:bg-slate-800"
+              className="border-white/[0.10] hover:bg-white/[0.06]"
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
               <h1 className="text-3xl font-bold text-white">{tournament.title}</h1>
-              <p className="text-slate-400">Round {currentRound} - Match {currentMatch.match_number}</p>
+              <p className="text-white/40">Round {currentRound} - Match {currentMatch.match_number}</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-cyan-400">{completedCount}/{matches.length}</p>
-            <p className="text-sm text-slate-400">Matches Decided</p>
+            <p className="text-2xl font-bold text-[#5B8DEF]">{completedCount}/{matches.length}</p>
+            <p className="text-sm text-white/40">Matches Decided</p>
           </div>
         </div>
 
         {/* Current Match Card */}
-        <Card className="bg-gradient-to-b from-slate-800/50 to-slate-900/50 backdrop-blur border-slate-700/50 p-8 mb-8">
+        <Card className="bg-white/[0.03] backdrop-blur border-white/[0.08] p-8 mb-8">
           <div className="space-y-8">
             {/* Slot 1 */}
             <div className="space-y-2">
-              <p className="text-slate-400 text-sm uppercase">Slot 1</p>
+              <p className="text-white/40 text-sm uppercase">Slot 1</p>
               <Button
                 onClick={() => setWinner(currentMatch.id, 1)}
                 disabled={currentMatch.status === "completed" && currentMatch.winner_slot !== 1}
                 className={`w-full py-6 text-xl font-bold ${
                   currentMatch.winner_slot === 1
                     ? "bg-green-600 hover:bg-green-700 text-white"
-                    : "bg-slate-700 hover:bg-slate-600 text-white"
+                    : "bg-white/[0.08] hover:bg-white/[0.10] text-white"
                 }`}
               >
                 <Trophy className="w-5 h-5 mr-2" />
                 {currentMatch.slot1_name || "TBD"}
               </Button>
-              <p className="text-xs text-slate-400">{currentMatch.slot1_provider}</p>
+              <p className="text-xs text-white/40">{currentMatch.slot1_provider}</p>
             </div>
 
             {/* VS Divider */}
             <div className="flex items-center justify-center">
-              <div className="flex-1 h-px bg-slate-700"></div>
-              <span className="px-4 text-slate-400 font-semibold">VS</span>
-              <div className="flex-1 h-px bg-slate-700"></div>
+              <div className="flex-1 h-px bg-white/[0.08]"></div>
+              <span className="px-4 text-white/40 font-semibold">VS</span>
+              <div className="flex-1 h-px bg-white/[0.08]"></div>
             </div>
 
             {/* Slot 2 */}
             <div className="space-y-2">
-              <p className="text-slate-400 text-sm uppercase">Slot 2</p>
+              <p className="text-white/40 text-sm uppercase">Slot 2</p>
               <Button
                 onClick={() => setWinner(currentMatch.id, 2)}
                 disabled={currentMatch.status === "completed" && currentMatch.winner_slot !== 2}
                 className={`w-full py-6 text-xl font-bold ${
                   currentMatch.winner_slot === 2
                     ? "bg-green-600 hover:bg-green-700 text-white"
-                    : "bg-slate-700 hover:bg-slate-600 text-white"
+                    : "bg-white/[0.08] hover:bg-white/[0.10] text-white"
                 }`}
               >
                 <Trophy className="w-5 h-5 mr-2" />
                 {currentMatch.slot2_name || "TBD"}
               </Button>
-              <p className="text-xs text-slate-400">{currentMatch.slot2_provider}</p>
+              <p className="text-xs text-white/40">{currentMatch.slot2_provider}</p>
             </div>
           </div>
         </Card>
@@ -210,19 +210,19 @@ export default function TournamentOpeningMode() {
             onClick={openPreviousMatch}
             disabled={currentIndex === 0}
             variant="outline"
-            className="flex-1 border-slate-700 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 border-white/[0.10] hover:bg-white/[0.06] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             ← Previous Match
           </Button>
 
-          <div className="text-center text-slate-400">
+          <div className="text-center text-white/40">
             Match {currentIndex + 1} / {matches.length}
           </div>
 
           <Button
             onClick={openNextMatch}
             disabled={currentIndex === matches.length - 1}
-            className="flex-1 bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 bg-[#5B8DEF] hover:bg-[#4A7AD8] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next Match →
           </Button>
@@ -238,14 +238,14 @@ export default function TournamentOpeningMode() {
                 onClick={() => setCurrentIndex(index)}
                 className={`p-3 rounded-lg text-left transition-all ${
                   index === currentIndex
-                    ? "bg-cyan-600/30 border border-cyan-500 text-white"
+                    ? "bg-[#5B8DEF]/30 border border-[#5B8DEF] text-white"
                     : match.winner_slot
-                    ? "bg-slate-800/50 border border-slate-700 text-slate-300 hover:bg-slate-700/50"
-                    : "bg-slate-800/30 border border-slate-700/50 text-slate-400 hover:bg-slate-800/50"
+                    ? "bg-white/[0.04] border border-white/[0.10] text-white/60 hover:bg-white/[0.06]"
+                    : "bg-white/[0.06]/30 border border-white/[0.08] text-white/40 hover:bg-white/[0.04]"
                 }`}
               >
                 <div className="text-sm font-medium">Round {match.round_number} - Match {match.match_number}</div>
-                <div className="text-xs text-slate-400 truncate">
+                <div className="text-xs text-white/40 truncate">
                   {match.slot1_name && match.slot2_name
                     ? `${match.slot1_name} vs ${match.slot2_name}`
                     : match.winner_slot

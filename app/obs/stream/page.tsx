@@ -84,18 +84,54 @@ function StreamWidget() {
   const chatMessages = isPreview && messages.length === 0 ? PREVIEW_MESSAGES : messages
   const giveawayVisible = isGiveawayActive(giveaway)
 
+  // One list, ordered by when each event started, so whatever happened most
+  // recently is at the top regardless of what kind of event it is.
+  const events: { key: string; startedAt: number; node: React.ReactNode }[] = []
+
+  if (giveawayVisible) {
+    events.push({
+      key: "giveaway",
+      startedAt: giveaway.started_at ? Date.parse(giveaway.started_at) : 0,
+      node: <GiveawayCard state={giveaway} showElapsed fullWidth />,
+    })
+  }
+
+  if (predictionSeconds > 0) {
+    events.push({
+      key: "prediction",
+      // Falls back to "now minus what is left" when the window has no opens_at,
+      // which still orders it correctly against the rest.
+      startedAt: prediction?.window?.opens_at
+        ? Date.parse(prediction.window.opens_at)
+        : Date.now() - predictionSeconds * 1000,
+      node: <PredictionEventCard secondsLeft={predictionSeconds} />,
+    })
+  }
+
+  for (const transaction of transactions) {
+    events.push({
+      key: transaction.id,
+      startedAt: Date.parse(transaction.created_at),
+      node: <TransactionEventCard event={transaction} />,
+    })
+  }
+
+  events.sort((a, b) => b.startedAt - a.startedAt)
+
   return (
     <div className="h-screen w-full bg-transparent">
       <div
-        className="flex h-full w-full flex-col overflow-hidden p-2 shadow-2xl backdrop-blur-sm"
+        className="flex h-full w-full flex-col overflow-hidden p-2 shadow-2xl"
         style={{ backgroundColor: OBS.shell, borderRadius: OBS_RADIUS.shell }}
       >
-        {/* Events — sized by their content so the chat keeps the rest of the column */}
+        {/* Events, newest first. They were stacked by type before — giveaway,
+            then prediction, then transactions — so a deposit that had just
+            landed appeared below a giveaway that had been running for hours. */}
         <div className="flex shrink-0 flex-col gap-2">
           <AnimatePresence initial={false}>
-            {giveawayVisible && (
+            {events.map((event) => (
               <motion.div
-                key="giveaway"
+                key={event.key}
                 layout
                 initial={{ opacity: 0, y: -8, height: 0 }}
                 animate={{ opacity: 1, y: 0, height: "auto" }}
@@ -103,35 +139,7 @@ function StreamWidget() {
                 transition={{ duration: 0.3, ease: "easeOut" }}
                 className="overflow-hidden"
               >
-                <GiveawayCard state={giveaway} showElapsed fullWidth />
-              </motion.div>
-            )}
-
-            {predictionSeconds > 0 && (
-              <motion.div
-                key="prediction"
-                layout
-                initial={{ opacity: 0, y: -8, height: 0 }}
-                animate={{ opacity: 1, y: 0, height: "auto" }}
-                exit={{ opacity: 0, y: -8, height: 0 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className="overflow-hidden"
-              >
-                <PredictionEventCard secondsLeft={predictionSeconds} />
-              </motion.div>
-            )}
-
-            {transactions.map((event) => (
-              <motion.div
-                key={event.id}
-                layout
-                initial={{ opacity: 0, y: -8, height: 0 }}
-                animate={{ opacity: 1, y: 0, height: "auto" }}
-                exit={{ opacity: 0, y: -8, height: 0 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className="overflow-hidden"
-              >
-                <TransactionEventCard event={event} />
+                {event.node}
               </motion.div>
             ))}
           </AnimatePresence>

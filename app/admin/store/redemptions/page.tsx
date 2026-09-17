@@ -157,17 +157,17 @@ export default function StoreRedemptionsPage() {
   }
 
   return (
-    <div className="p-4 min-h-screen bg-slate-950">
+    <div className="p-4 min-h-screen bg-[#0B0B0D]">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-white mb-2">Store Redemptions</h1>
-              <p className="text-slate-400">Manage user purchases and redemptions</p>
+              <p className="text-white/40">Manage user purchases and redemptions</p>
             </div>
             <Link href="/admin/store">
-              <Button variant="outline" className="bg-transparent border-slate-600 hover:bg-slate-800 text-white">
+              <Button variant="outline" className="bg-transparent border-white/[0.12] hover:bg-white/[0.06] text-white">
                 Back to Store
               </Button>
             </Link>
@@ -177,18 +177,18 @@ export default function StoreRedemptionsPage() {
         {/* Search and Filters */}
         <div className="flex items-center gap-3 mb-6">
           <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-slate-800 border-slate-700 text-white pl-10 h-10"
+              className="bg-white/[0.06] border-white/[0.10] text-white pl-10 h-10"
               placeholder="Search by item or user..."
             />
           </div>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-800 border-slate-700 text-white rounded-md h-10 px-3"
+            className="bg-white/[0.06] border-white/[0.10] text-white rounded-md h-10 px-3"
           >
             <option value="all">All Status</option>
             <option value="pending">Pending</option>
@@ -199,7 +199,7 @@ export default function StoreRedemptionsPage() {
           <Button
             onClick={fetchRedemptions}
             variant="outline"
-            className="bg-transparent border-slate-600 hover:bg-slate-800 text-white h-10"
+            className="bg-transparent border-white/[0.12] hover:bg-white/[0.06] text-white h-10"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             REFRESH
@@ -208,24 +208,24 @@ export default function StoreRedemptionsPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4">
-            <p className="text-slate-400 text-sm mb-1">Total Redemptions</p>
+          <div className="bg-white/[0.022] backdrop-blur border border-white/[0.06] rounded-lg p-4">
+            <p className="text-white/40 text-sm mb-1">Total Redemptions</p>
             <p className="text-2xl font-bold text-white">{redemptions.length}</p>
           </div>
-          <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4">
-            <p className="text-slate-400 text-sm mb-1">Pending</p>
+          <div className="bg-white/[0.022] backdrop-blur border border-white/[0.06] rounded-lg p-4">
+            <p className="text-white/40 text-sm mb-1">Pending</p>
             <p className="text-2xl font-bold text-yellow-500">
               {redemptions.filter((r) => r.status === "pending").length}
             </p>
           </div>
-          <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4">
-            <p className="text-slate-400 text-sm mb-1">Completed</p>
+          <div className="bg-white/[0.022] backdrop-blur border border-white/[0.06] rounded-lg p-4">
+            <p className="text-white/40 text-sm mb-1">Completed</p>
             <p className="text-2xl font-bold text-green-500">
               {redemptions.filter((r) => r.status === "completed").length}
             </p>
           </div>
-          <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg p-4">
-            <p className="text-slate-400 text-sm mb-1">Total Points Spent</p>
+          <div className="bg-white/[0.022] backdrop-blur border border-white/[0.06] rounded-lg p-4">
+            <p className="text-white/40 text-sm mb-1">Total Points Spent</p>
             <p className="text-2xl font-bold text-white">
               {redemptions.reduce((sum, r) => sum + r.cost, 0).toLocaleString()}
             </p>
@@ -233,25 +233,25 @@ export default function StoreRedemptionsPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg overflow-hidden">
+        <div className="bg-white/[0.022] backdrop-blur border border-white/[0.06] rounded-lg overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-slate-800">
-                <th className="text-left p-4 text-slate-400 font-semibold text-sm uppercase tracking-wider">USER</th>
-                <th className="text-left p-4 text-slate-400 font-semibold text-sm uppercase tracking-wider">ITEM</th>
-                <th className="text-left p-4 text-slate-400 font-semibold text-sm uppercase tracking-wider">COST</th>
-                <th className="text-left p-4 text-slate-400 font-semibold text-sm uppercase tracking-wider">STATUS</th>
-                <th className="text-left p-4 text-slate-400 font-semibold text-sm uppercase tracking-wider">DATE</th>
-                <th className="text-left p-4 text-slate-400 font-semibold text-sm uppercase tracking-wider">ACTIONS</th>
+              <tr className="border-b border-white/[0.06]">
+                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">USER</th>
+                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">ITEM</th>
+                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">COST</th>
+                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">STATUS</th>
+                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">DATE</th>
+                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {filteredRedemptions.map((redemption) => (
-                <tr key={redemption.id} className="border-b border-slate-800 hover:bg-slate-800/30 transition-colors">
+                <tr key={redemption.id} className="border-b border-white/[0.06] hover:bg-white/[0.06]/30 transition-colors">
                   <td className="p-4">
                     <div className="flex flex-col">
                       <span className="text-white font-medium">{redemption.user?.username || "Unknown"}</span>
-                      <span className="text-slate-500 text-xs">ID: {redemption.user?.kick_id || "N/A"}</span>
+                      <span className="text-white/30 text-xs">ID: {redemption.user?.kick_id || "N/A"}</span>
                     </div>
                   </td>
                   <td className="p-4">
@@ -267,7 +267,7 @@ export default function StoreRedemptionsPage() {
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className="text-slate-400 text-sm">
+                    <span className="text-white/40 text-sm">
                       {new Date(redemption.created_at).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
@@ -302,7 +302,7 @@ export default function StoreRedemptionsPage() {
                           onClick={() => updateRedemptionStatus(redemption.id, "pending")}
                           size="sm"
                           variant="outline"
-                          className="bg-transparent border-slate-600 hover:bg-slate-800 text-white"
+                          className="bg-transparent border-white/[0.12] hover:bg-white/[0.06] text-white"
                         >
                           Reset
                         </Button>
@@ -316,7 +316,7 @@ export default function StoreRedemptionsPage() {
 
           {filteredRedemptions.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-slate-400">No redemptions found</p>
+              <p className="text-white/40">No redemptions found</p>
             </div>
           )}
         </div>

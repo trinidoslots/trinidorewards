@@ -15,7 +15,7 @@ export default async function EditRafflePage({ params }: { params: { id: string 
     <div className="p-8 space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-white mb-2">Edit Raffle</h1>
-        <p className="text-slate-400">Update raffle details and settings</p>
+        <p className="text-white/40">Update raffle details and settings</p>
       </div>
 
       <RaffleEditForm raffle={raffle} />

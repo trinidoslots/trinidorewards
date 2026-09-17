@@ -46,25 +46,25 @@ export default function RaffleHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-8">
+    <div className="min-h-screen bg-[#0B0B0D] p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         <div>
           <h1 className="text-3xl font-bold text-white">Raffle History</h1>
-          <p className="text-slate-400 mt-1">View all drawn raffles and their winners</p>
+          <p className="text-white/40 mt-1">View all drawn raffles and their winners</p>
         </div>
 
         {loading ? (
-          <Card className="border-slate-700 bg-slate-800/50">
-            <CardContent className="py-8 text-center text-slate-400">Loading history...</CardContent>
+          <Card className="border-white/[0.10] bg-white/[0.04]">
+            <CardContent className="py-8 text-center text-white/40">Loading history...</CardContent>
           </Card>
         ) : raffles.length === 0 ? (
-          <Card className="border-slate-700 bg-slate-800/50">
-            <CardContent className="py-8 text-center text-slate-400">No drawn raffles yet.</CardContent>
+          <Card className="border-white/[0.10] bg-white/[0.04]">
+            <CardContent className="py-8 text-center text-white/40">No drawn raffles yet.</CardContent>
           </Card>
         ) : (
           <div className="grid gap-4">
             {raffles.map((raffle) => (
-              <Card key={raffle.id} className="border-slate-700 bg-slate-800/50">
+              <Card key={raffle.id} className="border-white/[0.10] bg-white/[0.04]">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 space-y-3">
@@ -73,15 +73,15 @@ export default function RaffleHistoryPage() {
                         <h3 className="text-lg font-bold text-white">{raffle.title}</h3>
                         <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">Drawn</Badge>
                       </div>
-                      <p className="text-slate-400">{raffle.description}</p>
+                      <p className="text-white/40">{raffle.description}</p>
                       <div className="flex items-center gap-6 text-sm">
                         <div className="flex items-center gap-2">
-                          <Ticket className="w-4 h-4 text-cyan-400" />
-                          <span className="text-slate-300">{raffle.ticket_price} pts/ticket</span>
+                          <Ticket className="w-4 h-4 text-[#5B8DEF]" />
+                          <span className="text-white/60">{raffle.ticket_price} pts/ticket</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Users className="w-4 h-4 text-purple-400" />
-                          <span className="text-slate-300">Total Tickets: {raffle.tickets_sold}</span>
+                          <span className="text-white/60">Total Tickets: {raffle.tickets_sold}</span>
                         </div>
                         {raffle.prize_value && (
                           <div className="text-green-400 font-medium">${raffle.prize_value.toFixed(2)}</div>
@@ -91,7 +91,7 @@ export default function RaffleHistoryPage() {
                         <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-lg">
                           <Sparkles className="w-4 h-4 text-amber-400" />
                           <span className="text-white font-medium">Winner: {raffle.winner_username}</span>
-                          <span className="text-slate-400 text-sm">Ticket #{raffle.winner_ticket_number}</span>
+                          <span className="text-white/40 text-sm">Ticket #{raffle.winner_ticket_number}</span>
                         </div>
                       )}
                     </div>

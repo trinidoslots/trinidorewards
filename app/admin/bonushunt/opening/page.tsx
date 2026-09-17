@@ -322,19 +322,19 @@ export default function OpeningModePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <p className="text-slate-300">Loading...</p>
+      <div className="flex min-h-screen items-center justify-center bg-[#0B0B0D]">
+        <p className="text-white/60">Loading...</p>
       </div>
     )
   }
 
   if (openingBonuses.length === 0) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4">
-        <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-center">
+      <div className="flex min-h-screen items-center justify-center bg-[#0B0B0D] p-4">
+        <div className="w-full max-w-md rounded-2xl border border-white/[0.06] bg-white/[0.022] p-8 text-center">
           <h2 className="mb-4 text-2xl font-bold text-white">No Bonuses to Open</h2>
-          <p className="mb-6 text-slate-400">Add bonuses to your hunt first</p>
-          <Button onClick={() => router.push("/admin/bonushunt")} className="bg-cyan-600 hover:bg-cyan-700">
+          <p className="mb-6 text-white/40">Add bonuses to your hunt first</p>
+          <Button onClick={() => router.push("/admin/bonushunt")} className="bg-[#5B8DEF] hover:bg-[#4A7AD8]">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Bonus Hunt
           </Button>
@@ -384,7 +384,7 @@ export default function OpeningModePage() {
   ]
 
   return (
-    <div className="min-h-screen bg-slate-950 p-4 sm:p-6">
+    <div className="min-h-screen bg-[#0B0B0D] p-4 sm:p-6">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
         <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
@@ -393,7 +393,7 @@ export default function OpeningModePage() {
               {activeHunt?.streamer || "Bonus Hunt"}
               {activeHunt?.title ? ` — ${activeHunt.title}` : ""}
             </h1>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-white/30">
               {activeHunt?.created_at
                 ? new Date(activeHunt.created_at).toLocaleDateString(undefined, {
                     month: "2-digit",
@@ -409,8 +409,8 @@ export default function OpeningModePage() {
               size="sm"
               className={
                 obsViewMode === "opening"
-                  ? "bg-cyan-600 text-white hover:bg-cyan-500"
-                  : "bg-slate-800 text-slate-200 hover:bg-slate-700"
+                  ? "bg-[#5B8DEF] text-white hover:bg-[#5B8DEF]"
+                  : "bg-white/[0.06] text-white/80 hover:bg-white/[0.08]"
               }
               title={obsViewMode === "opening" ? "Switch OBS to normal view" : "Switch OBS to opening view"}
             >
@@ -431,13 +431,13 @@ export default function OpeningModePage() {
           {kpis.map(({ label, value, icon: Icon, accent }) => (
             <div
               key={label}
-              className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/70 p-3.5 transition hover:-translate-y-0.5 hover:border-cyan-200/25"
+              className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.022] p-3.5 transition hover:-translate-y-0.5 hover:border-[#5B8DEF]/25"
             >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-cyan-300/10 text-cyan-200">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#5B8DEF]/10 text-[#7FA8F5]">
                 <Icon className="h-4 w-4" />
               </span>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">{label}</p>
                 <p
                   className={`truncate text-base font-bold ${
                     accent === "up" ? "text-emerald-400" : accent === "down" ? "text-rose-400" : "text-white"
@@ -454,13 +454,13 @@ export default function OpeningModePage() {
         <div className="mb-4 flex items-center justify-between">
           <button
             onClick={() => router.push("/admin/bonushunt")}
-            className="flex items-center gap-1.5 text-sm text-slate-400 transition hover:text-white"
+            className="flex items-center gap-1.5 text-sm text-white/40 transition hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Hunt
           </button>
           <div
-            className="flex items-center gap-1.5 text-sm text-slate-500"
+            className="flex items-center gap-1.5 text-sm text-white/30"
             title="Enter = Save &amp; continue · Esc = Exit opening mode"
           >
             <Keyboard className="h-4 w-4" />
@@ -469,10 +469,10 @@ export default function OpeningModePage() {
         </div>
 
         {/* Main opening card */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 sm:p-6">
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.022] p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
+              <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.06] bg-[#0B0B0D]">
                 {currentBonus.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
                   <img
@@ -481,7 +481,7 @@ export default function OpeningModePage() {
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <ImageIcon className="h-5 w-5 text-slate-600" />
+                  <ImageIcon className="h-5 w-5 text-white/20" />
                 )}
               </div>
               <div>
@@ -493,12 +493,12 @@ export default function OpeningModePage() {
                     </span>
                   )}
                   {currentBonus.provider && (
-                    <span className="rounded-full border border-slate-700 bg-slate-800/80 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
+                    <span className="rounded-full border border-white/[0.10] bg-white/[0.06]/80 px-2 py-0.5 text-[10px] font-semibold text-white/40">
                       {currentBonus.provider}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-white/30">
                   Game {progress} / {total}
                 </p>
               </div>
@@ -508,14 +508,14 @@ export default function OpeningModePage() {
               <button
                 onClick={goBackBonus}
                 disabled={currentOpeningIndex === 0}
-                className="flex size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition hover:border-cyan-200/30 hover:text-white disabled:opacity-30 disabled:hover:border-slate-800 disabled:hover:text-slate-400"
+                className="flex size-8 items-center justify-center rounded-lg border border-white/[0.06] text-white/40 transition hover:border-[#5B8DEF]/30 hover:text-white disabled:opacity-30 disabled:hover:border-white/[0.06] disabled:hover:text-white/40"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
               <button
                 onClick={goForwardBonus}
                 disabled={currentOpeningIndex === total - 1}
-                className="flex size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition hover:border-cyan-200/30 hover:text-white disabled:opacity-30 disabled:hover:border-slate-800 disabled:hover:text-slate-400"
+                className="flex size-8 items-center justify-center rounded-lg border border-white/[0.06] text-white/40 transition hover:border-[#5B8DEF]/30 hover:text-white disabled:opacity-30 disabled:hover:border-white/[0.06] disabled:hover:text-white/40"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -524,7 +524,7 @@ export default function OpeningModePage() {
 
           <button
             onClick={copySlotName}
-            className="mt-4 flex items-center gap-1.5 rounded-lg border border-slate-800 px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:border-cyan-200/25 hover:text-white"
+            className="mt-4 flex items-center gap-1.5 rounded-lg border border-white/[0.06] px-3 py-1.5 text-xs font-medium text-white/40 transition hover:border-[#5B8DEF]/25 hover:text-white"
           >
             <Copy className="h-3.5 w-3.5" />
             Copy Slot Name
@@ -532,7 +532,7 @@ export default function OpeningModePage() {
 
           <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <Label htmlFor="betsize_input" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <Label htmlFor="betsize_input" className="text-xs font-semibold uppercase tracking-wide text-white/30">
                 Bet Size (CAD)
               </Label>
               <Input
@@ -541,12 +541,12 @@ export default function OpeningModePage() {
                 step="0.01"
                 value={currentBonus.bet_size}
                 disabled
-                className="mt-1.5 h-11 rounded-xl border-slate-800 bg-slate-950 text-white disabled:opacity-70"
+                className="mt-1.5 h-11 rounded-xl border-white/[0.06] bg-[#0B0B0D] text-white disabled:opacity-70"
               />
             </div>
 
             <div>
-              <Label htmlFor="payout_input" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <Label htmlFor="payout_input" className="text-xs font-semibold uppercase tracking-wide text-white/30">
                 Payout (CAD)
               </Label>
               <Input
@@ -565,7 +565,7 @@ export default function OpeningModePage() {
                   if (e.key === "Enter") saveAndNextOpening()
                   if (e.key === "Escape") exitOpeningMode()
                 }}
-                className="mt-1.5 h-11 rounded-xl border-slate-800 bg-slate-950 text-white focus-visible:ring-cyan-200/40"
+                className="mt-1.5 h-11 rounded-xl border-white/[0.06] bg-[#0B0B0D] text-white focus-visible:ring-white/20"
                 placeholder="0.00"
                 autoFocus
               />
@@ -574,7 +574,7 @@ export default function OpeningModePage() {
             <div>
               <Label
                 htmlFor="multiplier_input"
-                className="text-xs font-semibold uppercase tracking-wide text-slate-500"
+                className="text-xs font-semibold uppercase tracking-wide text-white/30"
               >
                 Multiplier
               </Label>
@@ -584,14 +584,14 @@ export default function OpeningModePage() {
                 step="0.01"
                 value={multiplier}
                 onChange={(e) => setMultiplier(e.target.value)}
-                className="mt-1.5 h-11 rounded-xl border-slate-800 bg-slate-950 text-white focus-visible:ring-cyan-200/40"
+                className="mt-1.5 h-11 rounded-xl border-white/[0.06] bg-[#0B0B0D] text-white focus-visible:ring-white/20"
                 placeholder="0.00x"
               />
             </div>
           </div>
 
           <div className="mt-4">
-            <Label htmlFor="notes_input" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <Label htmlFor="notes_input" className="text-xs font-semibold uppercase tracking-wide text-white/30">
               Notes
             </Label>
             <Input
@@ -599,24 +599,24 @@ export default function OpeningModePage() {
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="mt-1.5 h-11 rounded-xl border-slate-800 bg-slate-950 text-white focus-visible:ring-cyan-200/40"
+              className="mt-1.5 h-11 rounded-xl border-white/[0.06] bg-[#0B0B0D] text-white focus-visible:ring-white/20"
               placeholder="Type a note..."
             />
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-5">
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-5">
             <Button
               onClick={exitOpeningMode}
               variant="outline"
-              className="border-slate-700 bg-transparent text-slate-300 hover:bg-slate-800 hover:text-white"
+              className="border-white/[0.10] bg-transparent text-white/60 hover:bg-white/[0.06] hover:text-white"
             >
               Cancel
             </Button>
 
             {nextBonus ? (
-              <div className="flex items-center gap-2 text-sm text-slate-500">
+              <div className="flex items-center gap-2 text-sm text-white/30">
                 <span>Next Game:</span>
-                <span className="flex size-6 items-center justify-center overflow-hidden rounded-md border border-slate-800 bg-slate-950">
+                <span className="flex size-6 items-center justify-center overflow-hidden rounded-md border border-white/[0.06] bg-[#0B0B0D]">
                   {nextBonus.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
                     <img
@@ -625,16 +625,16 @@ export default function OpeningModePage() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <ImageIcon className="h-3 w-3 text-slate-600" />
+                    <ImageIcon className="h-3 w-3 text-white/20" />
                   )}
                 </span>
                 <span className="font-semibold text-white">{nextBonus.game_name}</span>
               </div>
             ) : (
-              <span className="text-sm text-slate-500">Last bonus in this hunt</span>
+              <span className="text-sm text-white/30">Last bonus in this hunt</span>
             )}
 
-            <Button onClick={saveAndNextOpening} className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+            <Button onClick={saveAndNextOpening} className="bg-[#5B8DEF] text-[#0B0B0D] hover:bg-[#4A7AD8]">
               Continue
               <ChevronRight className="ml-1.5 h-4 w-4" />
             </Button>
@@ -643,7 +643,7 @@ export default function OpeningModePage() {
 
         {/* Bonus grid */}
         <div className="mt-6">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">All Bonuses</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/30">All Bonuses</h2>
           <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-6 md:grid-cols-8">
             {openingBonuses.map((bonus, index) => {
               const isOpened = bonus.result !== null
@@ -655,11 +655,11 @@ export default function OpeningModePage() {
                   onClick={() => selectBonusInOpening(index)}
                   className={`relative aspect-square overflow-hidden rounded-lg border-2 transition-all ${
                     isCurrent
-                      ? "border-cyan-300 bg-slate-800"
+                      ? "border-[#5B8DEF] bg-white/[0.06]"
                       : isOpened
-                        ? "border-slate-800 bg-slate-900/50"
-                        : "border-slate-800 bg-slate-950"
-                  } hover:border-cyan-200/40`}
+                        ? "border-white/[0.06] bg-white/[0.022]"
+                        : "border-white/[0.06] bg-[#0B0B0D]"
+                  } hover:border-[#5B8DEF]/40`}
                 >
                   {bonus.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
@@ -673,7 +673,7 @@ export default function OpeningModePage() {
                       <p className="line-clamp-2 text-center text-[10px] font-medium text-white">
                         {bonus.game_name}
                       </p>
-                      <p className="text-[10px] text-slate-500">${bonus.bet_size.toFixed(0)}</p>
+                      <p className="text-[10px] text-white/30">${bonus.bet_size.toFixed(0)}</p>
                     </div>
                   )}
 
@@ -683,8 +683,8 @@ export default function OpeningModePage() {
                     </div>
                   )}
                   {isOpened && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60">
-                      <span className="rounded-md bg-slate-950/80 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                      <span className="rounded-md bg-black/40 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
                         ${bonus.result?.toFixed(0)}
                       </span>
                     </div>

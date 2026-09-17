@@ -134,7 +134,7 @@ export default function SlotsPage() {
   return (
     <div className="p-3">
       <div className="mt-3">
-        <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
+        <Card className="bg-white/[0.022] backdrop-blur border-white/[0.08]">
           <CardHeader className="p-3">
             <CardTitle className="text-white flex items-center gap-2 text-sm">
               <Gamepad2 className="w-4 h-4" />
@@ -145,33 +145,33 @@ export default function SlotsPage() {
             <form onSubmit={handleAddSlot} className="space-y-2 mb-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                  <Label htmlFor="new_slot_name" className="text-slate-300 text-xs">
+                  <Label htmlFor="new_slot_name" className="text-white/60 text-xs">
                     Slot Name
                   </Label>
                   <Input
                     id="new_slot_name"
                     value={newSlotName}
                     onChange={(e) => setNewSlotName(e.target.value)}
-                    className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                    className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                     placeholder="Enter slot name"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="new_slot_provider" className="text-slate-300 text-xs">
+                  <Label htmlFor="new_slot_provider" className="text-white/60 text-xs">
                     Provider
                   </Label>
                   <Input
                     id="new_slot_provider"
                     value={newSlotProvider}
                     onChange={(e) => setNewSlotProvider(e.target.value)}
-                    className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                    className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                     placeholder="Enter provider"
                   />
                 </div>
               </div>
               <Button
                 type="submit"
-                className="w-full bg-cyan-600 hover:bg-cyan-700 flex items-center gap-2 h-8 text-xs"
+                className="w-full bg-[#5B8DEF] hover:bg-[#4A7AD8] flex items-center gap-2 h-8 text-xs"
               >
                 <Plus className="w-3 h-3" />
                 Add Slot to Database
@@ -179,17 +179,17 @@ export default function SlotsPage() {
             </form>
 
             <div className="space-y-1 max-h-[500px] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4 font-semibold text-slate-300 pb-2 border-b border-slate-700 sticky top-0 bg-slate-900/60 backdrop-blur text-xs">
+              <div className="grid grid-cols-2 gap-4 font-semibold text-white/60 pb-2 border-b border-white/[0.10] sticky top-0 bg-white/[0.022] backdrop-blur text-xs">
                 <div>Slot</div>
                 <div>Provider</div>
               </div>
               {slots.map((slot) => (
                 <div
                   key={slot.id}
-                  className="grid grid-cols-2 gap-4 text-white py-2 border-b border-slate-700/50 hover:bg-slate-900/30 transition-colors text-xs"
+                  className="grid grid-cols-2 gap-4 text-white py-2 border-b border-white/[0.08] hover:bg-[#101014]/30 transition-colors text-xs"
                 >
                   <div>{slot.game_name}</div>
-                  <div className="text-slate-400">{slot.provider}</div>
+                  <div className="text-white/40">{slot.provider}</div>
                 </div>
               ))}
             </div>

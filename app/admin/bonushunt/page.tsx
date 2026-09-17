@@ -70,38 +70,38 @@ function SortableBonusItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-slate-800/50 border rounded-lg p-4 flex items-center justify-between ${bonus.is_super ? "border-amber-500/50 bg-amber-900/10" : "border-slate-700"}`}
+      className={`bg-white/[0.04] border rounded-lg p-4 flex items-center justify-between ${bonus.is_super ? "border-amber-500/50 bg-amber-900/10" : "border-white/[0.10]"}`}
     >
       <div className="flex items-center gap-3 flex-1">
         <button
           type="button"
           {...attributes}
           {...listeners}
-          className="text-slate-400 hover:text-slate-300 cursor-grab active:cursor-grabbing"
+          className="text-white/40 hover:text-white/60 cursor-grab active:cursor-grabbing"
         >
           <GripVertical className="w-5 h-5" />
         </button>
-        <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-slate-700 bg-slate-950">
+        <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/[0.10] bg-[#0B0B0D]">
           {bonus.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
             <img src={bonus.image_url || "/placeholder.svg"} alt="" className="h-full w-full object-cover" />
           ) : (
-            <div className="size-2 rounded-full bg-slate-600" />
+            <div className="size-2 rounded-full bg-white/[0.10]" />
           )}
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             {bonus.is_super && <Crown className="w-4 h-4 text-amber-400" />}
-            <div className={`w-2 h-2 rounded-full ${bonus.is_super ? "bg-amber-400" : "bg-cyan-400"}`}></div>
+            <div className={`w-2 h-2 rounded-full ${bonus.is_super ? "bg-amber-400" : "bg-[#5B8DEF]"}`}></div>
             <h3 className="text-white font-semibold">{bonus.game_name}</h3>
           </div>
           <div className="flex items-center gap-4 text-sm">
             <div>
-              <span className="text-slate-400">Bet</span>
+              <span className="text-white/40">Bet</span>
               <span className="text-red-400 ml-2 font-semibold">${bonus.bet_size.toFixed(2)}</span>
             </div>
             <div>
-              <span className="text-slate-400">Result</span>
+              <span className="text-white/40">Result</span>
               <span className="text-white ml-2 font-semibold">
                 {bonus.result !== null ? `$${bonus.result.toFixed(2)}` : "-"}
               </span>
@@ -114,7 +114,7 @@ function SortableBonusItem({
           onClick={() => onToggleSuper(bonus.id, !bonus.is_super)}
           variant="ghost"
           size="sm"
-          className={`${bonus.is_super ? "text-amber-400 hover:text-amber-300 hover:bg-amber-900/20" : "text-slate-500 hover:text-amber-400 hover:bg-amber-900/20"}`}
+          className={`${bonus.is_super ? "text-amber-400 hover:text-amber-300 hover:bg-amber-900/20" : "text-white/30 hover:text-amber-400 hover:bg-amber-900/20"}`}
           title={bonus.is_super ? "Remove Super" : "Mark as Super"}
         >
           <Crown className="w-4 h-4" />
@@ -479,47 +479,47 @@ export default function AdminBonusHuntPage() {
   if (!activeHunt) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="bg-slate-900/60 backdrop-blur border border-slate-700/50 rounded-2xl p-8 max-w-md w-full text-center">
+        <div className="bg-white/[0.022] backdrop-blur border border-white/[0.08] rounded-2xl p-8 max-w-md w-full text-center">
           <h2 className="text-white text-2xl font-bold mb-4">No Active Bonus Hunt</h2>
-          <p className="text-slate-400 mb-6">Create a new bonus hunt to get started</p>
-          <Button onClick={() => setShowCreateModal(true)} className="bg-cyan-600 hover:bg-cyan-700">
+          <p className="text-white/40 mb-6">Create a new bonus hunt to get started</p>
+          <Button onClick={() => setShowCreateModal(true)} className="bg-[#5B8DEF] hover:bg-[#4A7AD8]">
             <Plus className="w-4 h-4 mr-2" />
             Create Bonus Hunt
           </Button>
         </div>
 
         <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-          <DialogContent className="bg-slate-900 border-slate-700 text-white">
+          <DialogContent className="bg-[#101014] border-white/[0.10] text-white">
             <DialogHeader>
               <DialogTitle>Create New Bonus Hunt</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="streamer" className="text-slate-300">
+                <Label htmlFor="streamer" className="text-white/60">
                   Streamer
                 </Label>
                 <Input
                   id="streamer"
                   value={streamer}
                   onChange={(e) => setStreamer(e.target.value)}
-                  className="bg-slate-800 border-slate-700 text-white"
+                  className="bg-white/[0.06] border-white/[0.10] text-white"
                   placeholder="e.g., Syztmz"
                 />
               </div>
               <div>
-                <Label htmlFor="title" className="text-slate-300">
-                  Title <span className="text-slate-500">(optional)</span>
+                <Label htmlFor="title" className="text-white/60">
+                  Title <span className="text-white/30">(optional)</span>
                 </Label>
                 <Input
                   id="title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="bg-slate-800 border-slate-700 text-white"
+                  className="bg-white/[0.06] border-white/[0.10] text-white"
                   placeholder="e.g., Friday Night Hunt"
                 />
               </div>
               <div>
-                <Label htmlFor="starting_balance" className="text-slate-300">
+                <Label htmlFor="starting_balance" className="text-white/60">
                   Starting Balance ($)
                 </Label>
                 <Input
@@ -528,11 +528,11 @@ export default function AdminBonusHuntPage() {
                   step="0.01"
                   value={startingBalance}
                   onChange={(e) => setStartingBalance(e.target.value)}
-                  className="bg-slate-800 border-slate-700 text-white"
+                  className="bg-white/[0.06] border-white/[0.10] text-white"
                   placeholder="0.00"
                 />
               </div>
-              <Button onClick={handleCreateHunt} className="w-full bg-cyan-600 hover:bg-cyan-700">
+              <Button onClick={handleCreateHunt} className="w-full bg-[#5B8DEF] hover:bg-[#4A7AD8]">
                 Create Hunt
               </Button>
             </div>
@@ -546,7 +546,7 @@ export default function AdminBonusHuntPage() {
     <div className="p-4 min-h-screen">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-slate-900/80 backdrop-blur border border-slate-700/50 rounded-2xl p-6">
+          <div className="bg-white/[0.03] backdrop-blur border border-white/[0.08] rounded-2xl p-6">
             <h2 className="text-white text-xl font-bold mb-6 flex items-center gap-2">
               <Plus className="w-5 h-5" />
               Add to Bonus Hunt
@@ -554,21 +554,21 @@ export default function AdminBonusHuntPage() {
 
             <form onSubmit={handleAddBonus} className="space-y-4">
               <div>
-                <Label htmlFor="game_name" className="text-slate-300 text-sm">
+                <Label htmlFor="game_name" className="text-white/60 text-sm">
                   Game Name
                 </Label>
                 <Input
                   id="game_name"
                   value={formData.game_name}
                   onChange={(e) => setFormData({ ...formData, game_name: e.target.value })}
-                  className="bg-slate-800 border-slate-700 text-white"
+                  className="bg-white/[0.06] border-white/[0.10] text-white"
                   placeholder="Search or type game name..."
                   required
                 />
               </div>
 
               <div>
-                <Label htmlFor="bet_size" className="text-slate-300 text-sm">
+                <Label htmlFor="bet_size" className="text-white/60 text-sm">
                   Bet Size ($)
                 </Label>
                 <Input
@@ -577,29 +577,29 @@ export default function AdminBonusHuntPage() {
                   step="0.01"
                   value={formData.bet_size}
                   onChange={(e) => setFormData({ ...formData, bet_size: e.target.value })}
-                  className="bg-slate-800 border-slate-700 text-white"
+                  className="bg-white/[0.06] border-white/[0.10] text-white"
                   placeholder="0.00"
                   required
                 />
               </div>
 
               <div>
-                <Label htmlFor="result" className="text-slate-300 text-sm">
+                <Label htmlFor="result" className="text-white/60 text-sm">
                   Result Amount ($)
                 </Label>
-                <p className="text-xs text-slate-400 mb-2">Optional</p>
+                <p className="text-xs text-white/40 mb-2">Optional</p>
                 <Input
                   id="result"
                   type="number"
                   step="0.01"
                   value={formData.result}
                   onChange={(e) => setFormData({ ...formData, result: e.target.value })}
-                  className="bg-slate-800 border-slate-700 text-white"
+                  className="bg-white/[0.06] border-white/[0.10] text-white"
                   placeholder="0.00 (optional)"
                 />
               </div>
 
-              <Button type="submit" className="w-full bg-slate-700 hover:bg-slate-600">
+              <Button type="submit" className="w-full bg-white/[0.08] hover:bg-white/[0.10]">
                 Add Bonus Hunt
               </Button>
             </form>
@@ -607,11 +607,11 @@ export default function AdminBonusHuntPage() {
             <div className="mt-6">
               <h3 className="text-white font-semibold mb-3">Available Slots</h3>
               <div className="relative mb-3">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-slate-800 border-slate-700 text-white pl-10"
+                  className="bg-white/[0.06] border-white/[0.10] text-white pl-10"
                   placeholder="Search slots..."
                 />
               </div>
@@ -626,7 +626,7 @@ export default function AdminBonusHuntPage() {
                           key={slot.id}
                           type="button"
                           onClick={() => selectSlot(slot)}
-                          className="text-slate-300 hover:text-white text-sm block w-full text-left py-1 px-2 rounded hover:bg-slate-800 transition-colors"
+                          className="text-white/60 hover:text-white text-sm block w-full text-left py-1 px-2 rounded hover:bg-white/[0.06] transition-colors"
                         >
                           {slot.game_name}
                         </button>
@@ -638,11 +638,11 @@ export default function AdminBonusHuntPage() {
             </div>
           </div>
 
-          <div className="bg-slate-900/80 backdrop-blur border border-slate-700/50 rounded-2xl p-6">
+          <div className="bg-white/[0.03] backdrop-blur border border-white/[0.08] rounded-2xl p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-white text-xl font-bold">Current Hunt</h2>
-                <p className="text-slate-400 text-sm">
+                <p className="text-white/40 text-sm">
                   {activeHunt.streamer}
                   {activeHunt.title ? ` · ${activeHunt.title}` : ""} · ${activeHunt.starting_balance.toFixed(2)} start
                 </p>
@@ -663,7 +663,7 @@ export default function AdminBonusHuntPage() {
                 </Button>
                 <Button
                   onClick={() => router.push("/admin/bonushunt/opening")}
-                  className="bg-cyan-600 hover:bg-cyan-700"
+                  className="bg-[#5B8DEF] hover:bg-[#4A7AD8]"
                   size="sm"
                 >
                   <Play className="w-4 h-4 mr-2" />
@@ -673,7 +673,7 @@ export default function AdminBonusHuntPage() {
             </div>
 
             {bonuses.length === 0 ? (
-              <p className="text-slate-400 text-center py-8">No bonuses added yet</p>
+              <p className="text-white/40 text-center py-8">No bonuses added yet</p>
             ) : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={bonuses.map((b) => b.id)} strategy={verticalListSortingStrategy}>

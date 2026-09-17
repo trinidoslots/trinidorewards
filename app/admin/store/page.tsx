@@ -77,7 +77,7 @@ export default function AdminStorePage() {
   }
 
   return (
-    <div className="p-4 min-h-screen bg-slate-950">
+    <div className="p-4 min-h-screen bg-[#0B0B0D]">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
@@ -87,18 +87,18 @@ export default function AdminStorePage() {
         {/* Search and Actions */}
         <div className="flex items-center gap-3 mb-6">
           <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-slate-800 border-slate-700 text-white pl-10 h-10"
+              className="bg-white/[0.06] border-white/[0.10] text-white pl-10 h-10"
               placeholder="Search"
             />
           </div>
-          <Button variant="ghost" size="sm" className="bg-slate-700 hover:bg-slate-600 text-white h-10 px-4">
+          <Button variant="ghost" size="sm" className="bg-white/[0.08] hover:bg-white/[0.10] text-white h-10 px-4">
             <Filter className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="bg-cyan-500 hover:bg-cyan-600 text-white h-10 px-4">
+          <Button variant="ghost" size="sm" className="bg-[#5B8DEF] hover:bg-[#5B8DEF] text-white h-10 px-4">
             <Search className="w-4 h-4" />
           </Button>
           <div className="flex-1"></div>
@@ -109,7 +109,7 @@ export default function AdminStorePage() {
             </Button>
           </Link>
           <Link href="/admin/store/add">
-            <Button className="bg-cyan-500 hover:bg-cyan-600 text-white h-10">
+            <Button className="bg-[#5B8DEF] hover:bg-[#5B8DEF] text-white h-10">
               <Plus className="w-4 h-4 mr-2" />
               ADD
             </Button>
@@ -117,7 +117,7 @@ export default function AdminStorePage() {
           <Button
             onClick={fetchItems}
             variant="outline"
-            className="bg-transparent border-slate-600 hover:bg-slate-800 text-white h-10"
+            className="bg-transparent border-white/[0.12] hover:bg-white/[0.06] text-white h-10"
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             REFRESH
@@ -125,30 +125,30 @@ export default function AdminStorePage() {
         </div>
 
         {/* Table */}
-        <div className="bg-slate-900/50 backdrop-blur border border-slate-800 rounded-lg overflow-hidden">
+        <div className="bg-white/[0.022] backdrop-blur border border-white/[0.06] rounded-lg overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-slate-800">
-                <th className="text-left p-4 text-slate-400 font-semibold text-sm">
-                  <input type="checkbox" className="rounded border-slate-600" />
+              <tr className="border-b border-white/[0.06]">
+                <th className="text-left p-4 text-white/40 font-semibold text-sm">
+                  <input type="checkbox" className="rounded border-white/[0.12]" />
                 </th>
-                <th className="text-left p-4 text-slate-400 font-semibold text-sm uppercase tracking-wider">ITEM</th>
-                <th className="text-left p-4 text-slate-400 font-semibold text-sm uppercase tracking-wider">PRICE</th>
-                <th className="text-left p-4 text-slate-400 font-semibold text-sm uppercase tracking-wider">
+                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">ITEM</th>
+                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">PRICE</th>
+                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">
                   CREATED ↓
                 </th>
-                <th className="text-left p-4 text-slate-400 font-semibold text-sm uppercase tracking-wider">ACTIONS</th>
+                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {filteredItems.map((item) => (
-                <tr key={item.id} className="border-b border-slate-800 hover:bg-slate-800/30 transition-colors">
+                <tr key={item.id} className="border-b border-white/[0.06] hover:bg-white/[0.06]/30 transition-colors">
                   <td className="p-4">
-                    <input type="checkbox" className="rounded border-slate-600" />
+                    <input type="checkbox" className="rounded border-white/[0.12]" />
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="text-slate-500 text-xs font-mono">{item.id.slice(0, 12)}...</div>
+                      <div className="text-white/30 text-xs font-mono">{item.id.slice(0, 12)}...</div>
                       {item.icon && (
                         <img
                           src={item.icon || "/placeholder.svg"}
@@ -163,7 +163,7 @@ export default function AdminStorePage() {
                     <span className="text-white">{item.cost.toLocaleString()}</span>
                   </td>
                   <td className="p-4">
-                    <span className="text-slate-400 text-sm">
+                    <span className="text-white/40 text-sm">
                       {new Date(item.created_at).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
@@ -175,7 +175,7 @@ export default function AdminStorePage() {
                   </td>
                   <td className="p-4">
                     <Link href={`/admin/store/edit/${item.id}`}>
-                      <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
+                      <Button variant="ghost" size="sm" className="text-white/40 hover:text-white">
                         <Pencil className="w-4 h-4" />
                       </Button>
                     </Link>
@@ -187,7 +187,7 @@ export default function AdminStorePage() {
 
           {filteredItems.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-slate-400">No items found</p>
+              <p className="text-white/40">No items found</p>
             </div>
           )}
         </div>

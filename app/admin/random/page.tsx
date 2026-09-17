@@ -117,7 +117,7 @@ export default function RandomSlotPage() {
   return (
     <div>
       <div className="max-w-2xl mx-auto">
-        <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
+        <Card className="bg-white/[0.022] backdrop-blur border-white/[0.08]">
           <CardHeader className="p-3">
             <CardTitle className="text-white flex items-center gap-2 text-sm">
               <Shuffle className="w-4 h-4" />
@@ -126,7 +126,7 @@ export default function RandomSlotPage() {
           </CardHeader>
           <CardContent className="p-3 pt-0 space-y-4">
             <div className="text-center">
-              <p className="text-slate-400 mb-3 text-xs">Generate a random slot from your database</p>
+              <p className="text-white/40 mb-3 text-xs">Generate a random slot from your database</p>
               <Button
                 onClick={handleRandomize}
                 disabled={isSpinning || slots.length === 0}
@@ -140,14 +140,14 @@ export default function RandomSlotPage() {
             {randomSlot && (
               <div className="mt-6 p-6 bg-gradient-to-br from-purple-900/30 to-amber-900/30 rounded-lg border-2 border-purple-500/50">
                 <div className="text-center">
-                  <p className="text-slate-400 text-xs mb-2">Selected Slot</p>
+                  <p className="text-white/40 text-xs mb-2">Selected Slot</p>
                   <h2 className="text-2xl font-bold text-white mb-2">{randomSlot.game_name}</h2>
                   <p className="text-amber-400 text-sm">{randomSlot.provider}</p>
                 </div>
               </div>
             )}
 
-            <div className="text-center text-[10px] text-slate-400">Total slots in database: {slots.length}</div>
+            <div className="text-center text-[10px] text-white/40">Total slots in database: {slots.length}</div>
           </CardContent>
         </Card>
       </div>

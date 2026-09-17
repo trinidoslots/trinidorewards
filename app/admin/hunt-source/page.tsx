@@ -111,7 +111,7 @@ export default function HuntSourcePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#5B8DEF] animate-spin" />
       </div>
     )
   }
@@ -120,12 +120,12 @@ export default function HuntSourcePage() {
     <div className="max-w-5xl mx-auto space-y-8 p-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="bg-cyan-600/20 border border-cyan-600/30 rounded-xl p-3">
-          <Radio className="w-6 h-6 text-cyan-400" />
+        <div className="bg-[#5B8DEF]/20 border border-[#5B8DEF]/30 rounded-xl p-3">
+          <Radio className="w-6 h-6 text-[#5B8DEF]" />
         </div>
         <div>
           <h1 className="text-white text-3xl font-bold">Hunt Source</h1>
-          <p className="text-slate-400">Choose where the public bonus hunt page pulls its data from.</p>
+          <p className="text-white/40">Choose where the public bonus hunt page pulls its data from.</p>
         </div>
       </div>
 
@@ -136,16 +136,16 @@ export default function HuntSourcePage() {
           disabled={saving}
           className={`text-left rounded-2xl border p-6 transition-all ${
             source === "integrated"
-              ? "bg-cyan-600/15 border-cyan-500/50 ring-1 ring-cyan-500/40"
-              : "bg-white/5 border-slate-700/50 hover:bg-white/10"
+              ? "bg-[#5B8DEF]/15 border-[#5B8DEF]/50 ring-1 ring-[#5B8DEF]/40"
+              : "bg-white/5 border-white/[0.08] hover:bg-white/10"
           }`}
         >
           <div className="flex items-center justify-between mb-3">
-            <Database className={`w-6 h-6 ${source === "integrated" ? "text-cyan-400" : "text-slate-400"}`} />
-            {source === "integrated" && <CheckCircle2 className="w-5 h-5 text-cyan-400" />}
+            <Database className={`w-6 h-6 ${source === "integrated" ? "text-[#5B8DEF]" : "text-white/40"}`} />
+            {source === "integrated" && <CheckCircle2 className="w-5 h-5 text-[#5B8DEF]" />}
           </div>
           <h3 className="text-white font-bold text-lg mb-1">Integrated Hunts</h3>
-          <p className="text-slate-400 text-sm">Use hunts managed inside this dashboard (local database).</p>
+          <p className="text-white/40 text-sm">Use hunts managed inside this dashboard (local database).</p>
         </button>
 
         <button
@@ -153,27 +153,27 @@ export default function HuntSourcePage() {
           disabled={saving}
           className={`text-left rounded-2xl border p-6 transition-all ${
             source === "external"
-              ? "bg-cyan-600/15 border-cyan-500/50 ring-1 ring-cyan-500/40"
-              : "bg-white/5 border-slate-700/50 hover:bg-white/10"
+              ? "bg-[#5B8DEF]/15 border-[#5B8DEF]/50 ring-1 ring-[#5B8DEF]/40"
+              : "bg-white/5 border-white/[0.08] hover:bg-white/10"
           }`}
         >
           <div className="flex items-center justify-between mb-3">
-            <Globe className={`w-6 h-6 ${source === "external" ? "text-cyan-400" : "text-slate-400"}`} />
-            {source === "external" && <CheckCircle2 className="w-5 h-5 text-cyan-400" />}
+            <Globe className={`w-6 h-6 ${source === "external" ? "text-[#5B8DEF]" : "text-white/40"}`} />
+            {source === "external" && <CheckCircle2 className="w-5 h-5 text-[#5B8DEF]" />}
           </div>
           <h3 className="text-white font-bold text-lg mb-1">bonushunt.gg API</h3>
-          <p className="text-slate-400 text-sm">Pull the latest opening hunt directly from bonushunt.gg.</p>
+          <p className="text-white/40 text-sm">Pull the latest opening hunt directly from bonushunt.gg.</p>
         </button>
       </div>
 
       {/* Connection status */}
-      <div className="bg-white/5 backdrop-blur border border-slate-700/50 rounded-2xl p-6">
+      <div className="bg-white/5 backdrop-blur border border-white/[0.08] rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-white text-xl font-bold">API Connection</h2>
           <Button
             onClick={testConnection}
             disabled={connectionStatus === "checking"}
-            className="bg-slate-700/50 hover:bg-slate-600 text-white gap-2"
+            className="bg-white/[0.06] hover:bg-white/[0.10] text-white gap-2"
           >
             <RefreshCw className={`w-4 h-4 ${connectionStatus === "checking" ? "animate-spin" : ""}`} />
             Test Connection
@@ -195,25 +195,25 @@ export default function HuntSourcePage() {
           )}
           {connectionStatus === "checking" && (
             <>
-              <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
-              <span className="text-slate-400 font-medium">Checking connection...</span>
+              <Loader2 className="w-5 h-5 text-[#5B8DEF] animate-spin" />
+              <span className="text-white/40 font-medium">Checking connection...</span>
             </>
           )}
         </div>
 
-        <p className="text-slate-500 text-sm">Rate limits: 100 requests/minute, 1000 requests/hour.</p>
+        <p className="text-white/30 text-sm">Rate limits: 100 requests/minute, 1000 requests/hour.</p>
       </div>
 
       {/* Currently displayed hunt (external) */}
       {source === "external" && (
-        <div className="bg-white/5 backdrop-blur border border-slate-700/50 rounded-2xl p-6">
+        <div className="bg-white/5 backdrop-blur border border-white/[0.08] rounded-2xl p-6">
           <h2 className="text-white text-xl font-bold mb-4">Currently Displayed Hunt</h2>
           {loadingHunts ? (
-            <div className="flex items-center gap-2 text-slate-400">
+            <div className="flex items-center gap-2 text-white/40">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading hunts...
             </div>
           ) : openingHunt ? (
-            <div className="bg-slate-800/50 rounded-lg p-5">
+            <div className="bg-white/[0.04] rounded-lg p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
@@ -222,36 +222,36 @@ export default function HuntSourcePage() {
                       <span className="text-xs bg-green-600/20 text-green-400 px-2 py-0.5 rounded-full">Opening</span>
                     )}
                   </div>
-                  <p className="text-slate-400 text-sm">
+                  <p className="text-white/40 text-sm">
                     {openingHunt.casino} · Start ${Number(openingHunt.startCost).toFixed(2)}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-cyan-400 font-bold">{openingHunt.stats?.bonusCount ?? 0} bonuses</p>
-                  <p className="text-slate-400 text-sm">ID: {openingHunt.id}</p>
+                  <p className="text-[#5B8DEF] font-bold">{openingHunt.stats?.bonusCount ?? 0} bonuses</p>
+                  <p className="text-white/40 text-sm">ID: {openingHunt.id}</p>
                 </div>
               </div>
             </div>
           ) : (
-            <p className="text-slate-400">No hunts found on bonushunt.gg.</p>
+            <p className="text-white/40">No hunts found on bonushunt.gg.</p>
           )}
         </div>
       )}
 
       {/* All external hunts */}
       {source === "external" && hunts.length > 0 && (
-        <div className="bg-white/5 backdrop-blur border border-slate-700/50 rounded-2xl p-6">
+        <div className="bg-white/5 backdrop-blur border border-white/[0.08] rounded-2xl p-6">
           <h2 className="text-white text-xl font-bold mb-4">All Hunts ({hunts.length})</h2>
           <div className="space-y-2 max-h-80 overflow-y-auto">
             {hunts.map((h) => (
-              <div key={h.id} className="flex items-center justify-between bg-slate-800/40 rounded-lg p-3">
+              <div key={h.id} className="flex items-center justify-between bg-white/[0.035] rounded-lg p-3">
                 <div className="flex items-center gap-2">
                   <span className="text-white font-medium">{h.title}</span>
                   {h.isOpening && (
                     <span className="text-xs bg-green-600/20 text-green-400 px-2 py-0.5 rounded-full">Opening</span>
                   )}
                 </div>
-                <span className="text-slate-400 text-sm">{h.casino}</span>
+                <span className="text-white/40 text-sm">{h.casino}</span>
               </div>
             ))}
           </div>
@@ -259,11 +259,11 @@ export default function HuntSourcePage() {
       )}
 
       {/* Endpoints reference */}
-      <div className="bg-white/5 backdrop-blur border border-slate-700/50 rounded-2xl p-6">
+      <div className="bg-white/5 backdrop-blur border border-white/[0.08] rounded-2xl p-6">
         <h2 className="text-white text-xl font-bold mb-4">Available Endpoints</h2>
         <div className="space-y-2">
           {ENDPOINTS.map((ep) => (
-            <div key={ep.path} className="flex items-center gap-3 bg-slate-800/40 rounded-lg p-3">
+            <div key={ep.path} className="flex items-center gap-3 bg-white/[0.035] rounded-lg p-3">
               <span
                 className={`text-xs font-bold px-2 py-1 rounded ${
                   ep.method === "GET" ? "bg-blue-600/20 text-blue-400" : "bg-green-600/20 text-green-400"
@@ -271,8 +271,8 @@ export default function HuntSourcePage() {
               >
                 {ep.method}
               </span>
-              <code className="text-slate-300 text-sm">{ep.path}</code>
-              <span className="text-slate-500 text-sm ml-auto">{ep.label}</span>
+              <code className="text-white/60 text-sm">{ep.path}</code>
+              <span className="text-white/30 text-sm ml-auto">{ep.label}</span>
             </div>
           ))}
         </div>

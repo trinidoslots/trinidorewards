@@ -140,17 +140,17 @@ export default function AdminHistoryPage() {
   }
 
   if (loading) {
-    return <p className="text-slate-400 text-xs">Loading hunt history…</p>
+    return <p className="text-white/40 text-xs">Loading hunt history…</p>
   }
 
   return (
     <div className="space-y-3">
       <div>
         <h1 className="text-xl font-bold text-white mb-1">Hunt History</h1>
-        <p className="text-xs text-slate-400">View, edit, and permanently delete past bonus hunts</p>
+        <p className="text-xs text-white/40">View, edit, and permanently delete past bonus hunts</p>
       </div>
 
-      <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
+      <Card className="bg-white/[0.022] backdrop-blur border-white/[0.08]">
         <CardHeader className="p-3">
           <CardTitle className="text-white flex items-center gap-2 text-sm">
             <History className="w-4 h-4" />
@@ -159,7 +159,7 @@ export default function AdminHistoryPage() {
         </CardHeader>
         <CardContent className="p-3 pt-0">
           {pastHunts.length === 0 ? (
-            <p className="text-slate-400 text-center py-6 text-xs">No past hunts yet</p>
+            <p className="text-white/40 text-center py-6 text-xs">No past hunts yet</p>
           ) : (
             <div className="space-y-2">
               {pastHunts.map((hunt) => {
@@ -172,44 +172,44 @@ export default function AdminHistoryPage() {
                 return (
                   <div
                     key={hunt.hunt_id}
-                    className="bg-slate-800/50 rounded-lg border border-slate-700 hover:border-cyan-500/50 transition-colors overflow-hidden"
+                    className="bg-white/[0.04] rounded-lg border border-white/[0.10] hover:border-[#5B8DEF]/50 transition-colors overflow-hidden"
                   >
                     <div className="p-3">
                       {editingHunt === hunt.hunt_id ? (
                         <div className="space-y-2">
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <Label className="text-slate-300 text-xs">Streamer</Label>
+                              <Label className="text-white/60 text-xs">Streamer</Label>
                               <Input
                                 value={editForm.streamer}
                                 onChange={(e) => setEditForm({ ...editForm, streamer: e.target.value })}
-                                className="bg-slate-900 border-slate-700 text-white mt-1 h-8 text-xs"
+                                className="bg-[#101014] border-white/[0.10] text-white mt-1 h-8 text-xs"
                               />
                             </div>
                             <div>
-                              <Label className="text-slate-300 text-xs">Title</Label>
+                              <Label className="text-white/60 text-xs">Title</Label>
                               <Input
                                 value={editForm.title}
                                 onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                                className="bg-slate-900 border-slate-700 text-white mt-1 h-8 text-xs"
+                                className="bg-[#101014] border-white/[0.10] text-white mt-1 h-8 text-xs"
                               />
                             </div>
                           </div>
                           <div>
-                            <Label className="text-slate-300 text-xs">Starting Balance</Label>
+                            <Label className="text-white/60 text-xs">Starting Balance</Label>
                             <Input
                               type="number"
                               step="0.01"
                               value={editForm.starting_balance}
                               onChange={(e) => setEditForm({ ...editForm, starting_balance: e.target.value })}
-                              className="bg-slate-900 border-slate-700 text-white mt-1 h-8 text-xs"
+                              className="bg-[#101014] border-white/[0.10] text-white mt-1 h-8 text-xs"
                             />
                           </div>
                           <div className="flex gap-2">
                             <Button
                               size="sm"
                               onClick={() => saveEdit(hunt.hunt_id)}
-                              className="flex-1 bg-cyan-600 hover:bg-cyan-700 h-7 text-xs"
+                              className="flex-1 bg-[#5B8DEF] hover:bg-[#4A7AD8] h-7 text-xs"
                             >
                               <Save className="w-3 h-3 mr-1" />
                               Save
@@ -218,7 +218,7 @@ export default function AdminHistoryPage() {
                               size="sm"
                               variant="outline"
                               onClick={cancelEdit}
-                              className="flex-1 bg-transparent border-slate-600 text-slate-300 hover:text-white h-7 text-xs"
+                              className="flex-1 bg-transparent border-white/[0.12] text-white/60 hover:text-white h-7 text-xs"
                             >
                               <X className="w-3 h-3 mr-1" />
                               Cancel
@@ -232,9 +232,9 @@ export default function AdminHistoryPage() {
                               <div className="flex items-center gap-2">
                                 <h3 className="text-white font-semibold text-sm">
                                   {hunt.streamer}
-                                  {hunt.title ? <span className="text-slate-400"> · {hunt.title}</span> : null}
+                                  {hunt.title ? <span className="text-white/40"> · {hunt.title}</span> : null}
                                 </h3>
-                                <span className="text-slate-400 text-[10px]">
+                                <span className="text-white/40 text-[10px]">
                                   {new Date(hunt.ended_at ?? hunt.created_at).toLocaleDateString()}
                                 </span>
                               </div>
@@ -260,7 +260,7 @@ export default function AdminHistoryPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => toggleHuntExpansion(hunt.hunt_id)}
-                                className="text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/50 h-7 w-7 p-0"
+                                className="text-[#5B8DEF] hover:text-[#5B8DEF] hover:bg-[#0B0B0D]/50 h-7 w-7 p-0"
                               >
                                 {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                               </Button>
@@ -268,19 +268,19 @@ export default function AdminHistoryPage() {
                           </div>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
                             <div>
-                              <p className="text-slate-400">Bonuses</p>
+                              <p className="text-white/40">Bonuses</p>
                               <p className="text-white font-medium">{hunt.total_bonuses}</p>
                             </div>
                             <div>
-                              <p className="text-slate-400">Total Bet</p>
+                              <p className="text-white/40">Total Bet</p>
                               <p className="text-red-400 font-medium">${totalBet.toFixed(2)}</p>
                             </div>
                             <div>
-                              <p className="text-slate-400">Total Won</p>
+                              <p className="text-white/40">Total Won</p>
                               <p className="text-green-400 font-medium">${totalWon.toFixed(2)}</p>
                             </div>
                             <div>
-                              <p className="text-slate-400">P/L</p>
+                              <p className="text-white/40">P/L</p>
                               <p className={`font-medium ${profitLoss >= 0 ? "text-green-400" : "text-red-400"}`}>
                                 {profitLoss >= 0 ? "+" : ""}${profitLoss.toFixed(2)}
                               </p>
@@ -291,22 +291,22 @@ export default function AdminHistoryPage() {
                     </div>
 
                     {isExpanded && (
-                      <div className="border-t border-slate-700 bg-slate-900/30 p-3">
+                      <div className="border-t border-white/[0.10] bg-[#101014]/30 p-3">
                         <div className="mb-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
                           <div>
-                            <p className="text-slate-400">Starting Balance</p>
+                            <p className="text-white/40">Starting Balance</p>
                             <p className="text-white font-medium">${startingBalance.toFixed(2)}</p>
                           </div>
                           <div>
-                            <p className="text-slate-400">Best Multiplier</p>
+                            <p className="text-white/40">Best Multiplier</p>
                             <p className="text-amber-400 font-medium">{Number(hunt.best_multiplier).toFixed(2)}x</p>
                           </div>
                           <div>
-                            <p className="text-slate-400">Best Cash Win</p>
+                            <p className="text-white/40">Best Cash Win</p>
                             <p className="text-green-400 font-medium">${Number(hunt.best_cash_win).toFixed(2)}</p>
                           </div>
                           <div>
-                            <p className="text-slate-400">Average Multi</p>
+                            <p className="text-white/40">Average Multi</p>
                             <p className="text-amber-400 font-medium">{Number(hunt.average_multi).toFixed(2)}x</p>
                           </div>
                         </div>
@@ -319,10 +319,10 @@ export default function AdminHistoryPage() {
                             const profit = (bonus.result || 0) - bonus.bet_size
 
                             return (
-                              <div key={bonus.id} className="bg-slate-800/50 p-2 rounded border border-slate-700">
+                              <div key={bonus.id} className="bg-white/[0.04] p-2 rounded border border-white/[0.10]">
                                 <div className="flex items-start justify-between mb-1">
                                   <div className="flex items-center gap-1.5">
-                                    <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded border border-slate-700 bg-slate-900">
+                                    <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded border border-white/[0.10] bg-[#101014]">
                                       {bonus.image_url ? (
                                         // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
                                         <img
@@ -331,30 +331,30 @@ export default function AdminHistoryPage() {
                                           className="h-full w-full object-cover"
                                         />
                                       ) : (
-                                        <ImageIcon className="size-3 text-slate-600" />
+                                        <ImageIcon className="size-3 text-white/20" />
                                       )}
                                     </span>
                                     {bonus.is_super && <Crown className="w-3 h-3 text-amber-400" />}
                                     <div>
                                       <p className="text-white font-medium text-xs">{bonus.game_name}</p>
-                                      {bonus.provider && <p className="text-slate-400 text-[10px]">{bonus.provider}</p>}
+                                      {bonus.provider && <p className="text-white/40 text-[10px]">{bonus.provider}</p>}
                                     </div>
                                   </div>
                                   <p className="text-amber-400 font-medium text-xs">{multiplier}x</p>
                                 </div>
                                 <div className="grid grid-cols-3 gap-2 text-[10px]">
                                   <div>
-                                    <p className="text-slate-400">Bet</p>
+                                    <p className="text-white/40">Bet</p>
                                     <p className="text-red-400 font-medium">${bonus.bet_size.toFixed(2)}</p>
                                   </div>
                                   <div>
-                                    <p className="text-slate-400">Result</p>
+                                    <p className="text-white/40">Result</p>
                                     <p className="text-green-400 font-medium">
                                       {bonus.result !== null ? `$${bonus.result.toFixed(2)}` : "-"}
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-slate-400">P/L</p>
+                                    <p className="text-white/40">P/L</p>
                                     <p className={`font-medium ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
                                       {bonus.result !== null ? `${profit >= 0 ? "+" : ""}$${profit.toFixed(2)}` : "-"}
                                     </p>

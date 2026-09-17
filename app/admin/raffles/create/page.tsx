@@ -73,14 +73,14 @@ export default function CreateRafflePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-8">
+    <div className="min-h-screen bg-[#0B0B0D] p-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div>
           <h1 className="text-3xl font-bold text-white">Create Raffle</h1>
-          <p className="text-slate-400 mt-1">Create a new raffle campaign</p>
+          <p className="text-white/40 mt-1">Create a new raffle campaign</p>
         </div>
 
-        <Card className="border-slate-700 bg-slate-800/50">
+        <Card className="border-white/[0.10] bg-white/[0.04]">
           <CardHeader>
             <CardTitle className="text-white">Raffle Details</CardTitle>
             <CardDescription>Fill in the raffle information below</CardDescription>
@@ -97,7 +97,7 @@ export default function CreateRafflePage() {
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     required
-                    className="bg-slate-900 border-slate-700 text-white"
+                    className="bg-[#101014] border-white/[0.10] text-white"
                   />
                 </div>
 
@@ -110,7 +110,7 @@ export default function CreateRafflePage() {
                     value={formData.prize_name}
                     onChange={(e) => setFormData({ ...formData, prize_name: e.target.value })}
                     required
-                    className="bg-slate-900 border-slate-700 text-white"
+                    className="bg-[#101014] border-white/[0.10] text-white"
                   />
                 </div>
               </div>
@@ -123,7 +123,7 @@ export default function CreateRafflePage() {
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="bg-slate-900 border-slate-700 text-white"
+                  className="bg-[#101014] border-white/[0.10] text-white"
                   rows={3}
                 />
               </div>
@@ -139,7 +139,7 @@ export default function CreateRafflePage() {
                     step="0.01"
                     value={formData.prize_value}
                     onChange={(e) => setFormData({ ...formData, prize_value: e.target.value })}
-                    className="bg-slate-900 border-slate-700 text-white"
+                    className="bg-[#101014] border-white/[0.10] text-white"
                   />
                 </div>
 
@@ -153,7 +153,7 @@ export default function CreateRafflePage() {
                       setFormData({ ...formData, entry_type: value, ticket_price: value === "free" ? "0" : "100" })
                     }
                   >
-                    <SelectTrigger className="bg-slate-900 border-slate-700 text-white">
+                    <SelectTrigger className="bg-[#101014] border-white/[0.10] text-white">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -175,7 +175,7 @@ export default function CreateRafflePage() {
                     value={formData.ticket_price}
                     onChange={(e) => setFormData({ ...formData, ticket_price: e.target.value })}
                     required
-                    className="bg-slate-900 border-slate-700 text-white"
+                    className="bg-[#101014] border-white/[0.10] text-white"
                   />
                 </div>
               )}
@@ -191,7 +191,7 @@ export default function CreateRafflePage() {
                     value={formData.start_date}
                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                     required
-                    className="bg-slate-900 border-slate-700 text-white"
+                    className="bg-[#101014] border-white/[0.10] text-white"
                   />
                 </div>
 
@@ -205,7 +205,7 @@ export default function CreateRafflePage() {
                     value={formData.end_date}
                     onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                     required
-                    className="bg-slate-900 border-slate-700 text-white"
+                    className="bg-[#101014] border-white/[0.10] text-white"
                   />
                 </div>
 
@@ -218,7 +218,7 @@ export default function CreateRafflePage() {
                     type="datetime-local"
                     value={formData.draw_date}
                     onChange={(e) => setFormData({ ...formData, draw_date: e.target.value })}
-                    className="bg-slate-900 border-slate-700 text-white"
+                    className="bg-[#101014] border-white/[0.10] text-white"
                   />
                 </div>
               </div>
@@ -232,7 +232,7 @@ export default function CreateRafflePage() {
                     value={formData.status}
                     onValueChange={(value) => setFormData({ ...formData, status: value })}
                   >
-                    <SelectTrigger className="bg-slate-900 border-slate-700 text-white">
+                    <SelectTrigger className="bg-[#101014] border-white/[0.10] text-white">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -253,7 +253,7 @@ export default function CreateRafflePage() {
                       checked={formData.featured}
                       onCheckedChange={(checked) => setFormData({ ...formData, featured: checked })}
                     />
-                    <Label htmlFor="featured" className="text-slate-400 cursor-pointer">
+                    <Label htmlFor="featured" className="text-white/40 cursor-pointer">
                       Show as featured raffle
                     </Label>
                   </div>
@@ -264,7 +264,7 @@ export default function CreateRafflePage() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+                  className="bg-[#5B8DEF] hover:bg-[#4A7AD8]"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   {loading ? "Creating..." : "Create Raffle"}

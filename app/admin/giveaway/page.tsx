@@ -515,20 +515,20 @@ export default function GiveawayAdminPage() {
         ? "bg-amber-300 animate-pulse"
         : status === "error"
           ? "bg-red-400"
-          : "bg-slate-500"
+          : "bg-white/[0.10]"
 
   const entrantList = Array.from(entrants)
   const eligibleCount = entrantList.filter((name) => !roundWinners.has(name)).length
 
   return (
-    <main className="hide-scrollbar min-h-screen overflow-y-auto bg-slate-950 px-4 py-6 text-slate-100 sm:px-6 lg:px-8">
+    <main className="hide-scrollbar min-h-screen overflow-y-auto bg-[#0B0B0D] px-4 py-6 text-white/90 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1400px]">
         {/* Page header */}
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">Kick Giveaway</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Reading <span className="font-semibold text-slate-300">{slug}</span>&apos;s chat directly in this tab.
+            <p className="mt-1 text-sm text-white/30">
+              Reading <span className="font-semibold text-white/60">{slug}</span>&apos;s chat directly in this tab.
             </p>
             {/* Active-round indicator — visible from Start until End, independent of
                 whether entries are currently open or a roll is in progress. */}
@@ -555,7 +555,7 @@ export default function GiveawayAdminPage() {
           <motion.div
             layout
             transition={{ type: "spring", stiffness: 500, damping: 32 }}
-            className="flex items-center gap-1.5 overflow-hidden rounded-full border border-slate-800 bg-slate-900/70 py-1 pl-1.5 pr-1.5"
+            className="flex items-center gap-1.5 overflow-hidden rounded-full border border-white/[0.06] bg-white/[0.022] py-1 pl-1.5 pr-1.5"
           >
             <AnimatePresence mode="popLayout" initial={false}>
               {status === "connected" && !isEditingChannel ? (
@@ -574,8 +574,8 @@ export default function GiveawayAdminPage() {
                       className="size-6 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="flex size-6 items-center justify-center rounded-full bg-slate-800">
-                      <Tv className="size-3.5 text-slate-500" />
+                    <div className="flex size-6 items-center justify-center rounded-full bg-white/[0.06]">
+                      <Tv className="size-3.5 text-white/30" />
                     </div>
                   )}
                   <span className="text-sm font-semibold text-white">{slug}</span>
@@ -586,7 +586,7 @@ export default function GiveawayAdminPage() {
                       setIsEditingChannel(true)
                     }}
                     title="Change channel"
-                    className="flex size-6 cursor-pointer items-center justify-center rounded-full text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                    className="flex size-6 cursor-pointer items-center justify-center rounded-full text-white/30 hover:bg-white/[0.06] hover:text-white/60"
                   >
                     <Pencil className="size-3.5" />
                   </button>
@@ -608,18 +608,18 @@ export default function GiveawayAdminPage() {
                       if (event.key === "Enter") connect()
                     }}
                     placeholder="channel-slug"
-                    className="w-32 bg-transparent text-sm font-semibold text-white outline-none placeholder:text-slate-500"
+                    className="w-32 bg-transparent text-sm font-semibold text-white outline-none placeholder:text-white/30"
                   />
                   <button
                     onClick={() => connect()}
-                    className="cursor-pointer rounded-full bg-[#53fc18] px-3 py-1 text-xs font-bold text-slate-950 hover:bg-[#68ff34]"
+                    className="cursor-pointer rounded-full bg-[#53fc18] px-3 py-1 text-xs font-bold text-[#0B0B0D] hover:bg-[#68ff34]"
                   >
                     Go
                   </button>
                   <button
                     onClick={disconnect}
                     title="Disconnect"
-                    className="flex size-6 cursor-pointer items-center justify-center rounded-full text-slate-500 hover:bg-slate-800 hover:text-slate-300"
+                    className="flex size-6 cursor-pointer items-center justify-center rounded-full text-white/30 hover:bg-white/[0.06] hover:text-white/60"
                   >
                     <X className="size-3.5" />
                   </button>
@@ -638,9 +638,9 @@ export default function GiveawayAdminPage() {
         {/* Three-column layout: Entries · Keyword & controls · Live chat */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr_320px]">
           {/* Entries */}
-          <section className="flex flex-col rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
+          <section className="flex flex-col rounded-2xl border border-white/[0.06] bg-white/[0.022] p-4">
             <div className="mb-3 flex items-center justify-between">
-              <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+              <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/40">
                 <Users className="size-3.5" /> Entries
               </span>
               <span className="rounded-full bg-[#53fc18]/15 px-2 py-0.5 text-xs font-bold text-[#53fc18]">
@@ -649,7 +649,7 @@ export default function GiveawayAdminPage() {
             </div>
             <div className="hide-scrollbar flex-1 space-y-1 overflow-y-auto lg:max-h-[600px]">
               {entrantList.length === 0 ? (
-                <p className="py-10 text-center text-sm text-slate-500">
+                <p className="py-10 text-center text-sm text-white/30">
                   {isOpen ? `Type ${formatKeywordForDisplay(keyword)} in chat to enter.` : "Entries are closed."}
                 </p>
               ) : (
@@ -660,13 +660,13 @@ export default function GiveawayAdminPage() {
                       winner === entrant
                         ? "bg-[#53fc18]/15 text-[#53fc18]"
                         : roundWinners.has(entrant)
-                          ? "bg-slate-800/30 text-slate-500"
-                          : "bg-slate-800/50 text-slate-300"
+                          ? "bg-white/[0.06]/30 text-white/30"
+                          : "bg-white/[0.04] text-white/60"
                     }`}
                   >
                     <span className="truncate">{entrant}</span>
                     {roundWinners.has(entrant) && (
-                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-white/30">
                         Won
                       </span>
                     )}
@@ -678,10 +678,10 @@ export default function GiveawayAdminPage() {
 
           {/* Keyword, controls, winner */}
           <div className="flex flex-col gap-4">
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+            <section className="rounded-2xl border border-white/[0.06] bg-white/[0.022] p-5">
               <div className="mb-4 flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Keyword</span>
-                <span className="font-semibold capitalize text-slate-500">
+                <span className="text-xs font-bold uppercase tracking-wider text-white/40">Keyword</span>
+                <span className="font-semibold capitalize text-white/30">
                   {status}
                 </span>
               </div>
@@ -690,10 +690,10 @@ export default function GiveawayAdminPage() {
                 value={keyword}
                 onChange={(event) => setKeyword(event.target.value)}
                 placeholder="leave empty to enter everyone"
-                className="mb-4 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-[#53fc18]"
+                className="mb-4 w-full rounded-lg border border-white/[0.10] bg-black/30 px-3 py-2.5 text-sm text-white/90 outline-none focus:border-[#53fc18]"
               />
 
-              <label className="mb-5 flex items-center justify-between gap-3 text-sm font-semibold text-slate-300">
+              <label className="mb-5 flex items-center justify-between gap-3 text-sm font-semibold text-white/60">
                 <span>Roll duration</span>
                 <span className="flex items-center gap-2">
                   <input
@@ -702,22 +702,22 @@ export default function GiveawayAdminPage() {
                     max={20}
                     value={rollDuration}
                     onChange={(event) => setRollDuration(Number(event.target.value))}
-                    className="h-1.5 w-32 cursor-pointer appearance-none rounded-full bg-slate-700 accent-[#53fc18]"
+                    className="h-1.5 w-32 cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[#53fc18]"
                   />
                   <span className="w-10 text-right text-xs font-bold text-[#53fc18]">{rollDuration}s</span>
                 </span>
               </label>
 
-              <div className="mb-4 flex flex-wrap items-center gap-2 border-t border-slate-800 pt-4">
+              <div className="mb-4 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-4">
                 <button
                   onClick={startGiveaway}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg bg-[#53fc18] px-3 py-2 text-sm font-bold text-slate-950 hover:bg-[#68ff34]"
+                  className="flex cursor-pointer items-center gap-2 rounded-lg bg-[#53fc18] px-3 py-2 text-sm font-bold text-[#0B0B0D] hover:bg-[#68ff34]"
                 >
                   <Play className="size-4" /> Start
                 </button>
                 <button
                   onClick={stopEntries}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/[0.10] px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/[0.06]"
                 >
                   <Square className="size-4" /> Stop entries
                 </button>
@@ -738,7 +738,7 @@ export default function GiveawayAdminPage() {
                 {revealPhase === "rolling" ? "Rolling…" : "Roll winner"}
               </button>
               {revealPhase !== "rolling" && entrants.size > 0 && eligibleCount === 0 && (
-                <p className="mt-2 text-center text-xs font-semibold text-slate-500">
+                <p className="mt-2 text-center text-xs font-semibold text-white/30">
                   Everyone left has already won this round.
                 </p>
               )}
@@ -746,7 +746,7 @@ export default function GiveawayAdminPage() {
 
             {/* Current winner — rolls in suspense alongside the OBS widget instead of
                 revealing the name the instant Roll winner is clicked. */}
-            <section className="flex min-h-[180px] flex-1 flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+            <section className="flex min-h-[180px] flex-1 flex-col items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.022] p-5">
               <AnimatePresence mode="wait">
                 {revealPhase === "revealed" && winner ? (
                   <motion.div
@@ -759,7 +759,7 @@ export default function GiveawayAdminPage() {
                   >
                     <Trophy className="size-8 text-amber-400" />
                     <p className="text-2xl font-bold text-white">{winner}</p>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Current winner</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-white/30">Current winner</p>
                   </motion.div>
                 ) : revealPhase === "rolling" ? (
                   <motion.div
@@ -782,7 +782,7 @@ export default function GiveawayAdminPage() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="flex flex-col items-center gap-2 text-center text-slate-500"
+                    className="flex flex-col items-center gap-2 text-center text-white/30"
                   >
                     <Crown className="size-8" />
                     <p className="text-sm font-semibold">No winner yet</p>
@@ -792,18 +792,18 @@ export default function GiveawayAdminPage() {
             </section>
 
             {/* Past winners */}
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
-              <span className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+            <section className="rounded-2xl border border-white/[0.06] bg-white/[0.022] p-5">
+              <span className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/40">
                 <History className="size-3.5" /> Past winners
               </span>
               {pastWinners.length === 0 ? (
-                <p className="py-4 text-center text-sm text-slate-500">No rolls yet.</p>
+                <p className="py-4 text-center text-sm text-white/30">No rolls yet.</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {pastWinners.map((name, index) => (
                     <span
                       key={`${name}-${index}`}
-                      className="rounded-full bg-slate-800/70 px-3 py-1 text-xs font-semibold text-slate-300"
+                      className="rounded-full bg-white/[0.06]/70 px-3 py-1 text-xs font-semibold text-white/60"
                     >
                       {name}
                     </span>
@@ -813,16 +813,16 @@ export default function GiveawayAdminPage() {
             </section>
 
             {/* OBS widget link */}
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/70">
+            <section className="rounded-2xl border border-white/[0.06] bg-white/[0.022]">
               <button
                 onClick={() => setObsExpanded((current) => !current)}
-                className="flex w-full cursor-pointer items-center justify-between px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-400"
+                className="flex w-full cursor-pointer items-center justify-between px-5 py-4 text-xs font-bold uppercase tracking-wider text-white/40"
               >
                 OBS widget
                 <ChevronDown className={`size-4 transition-transform ${obsExpanded ? "rotate-180" : ""}`} />
               </button>
               {obsExpanded && (
-                <div className="flex flex-col gap-3 border-t border-slate-800 px-5 py-4">
+                <div className="flex flex-col gap-3 border-t border-white/[0.06] px-5 py-4">
                   {[
                     {
                       href: "/obs/giveaway",
@@ -837,14 +837,14 @@ export default function GiveawayAdminPage() {
                   ].map((widget) => (
                     <div key={widget.href} className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-200">{widget.label}</p>
-                        <p className="text-xs text-slate-400">{widget.hint}</p>
+                        <p className="text-sm font-semibold text-white/80">{widget.label}</p>
+                        <p className="text-xs text-white/40">{widget.hint}</p>
                       </div>
                       <a
                         href={widget.href}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-2 whitespace-nowrap rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+                        className="flex items-center gap-2 whitespace-nowrap rounded-lg border border-white/[0.10] px-3 py-1.5 text-xs font-semibold text-white/60 hover:bg-white/[0.06]"
                       >
                         <Tv className="size-3.5" /> Open widget
                       </a>
@@ -856,11 +856,11 @@ export default function GiveawayAdminPage() {
           </div>
 
           {/* Live chat */}
-          <section className="flex flex-col rounded-2xl border border-slate-800 bg-slate-900/70">
-            <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-              <h2 className="text-sm font-semibold text-slate-200">Live chat</h2>
+          <section className="flex flex-col rounded-2xl border border-white/[0.06] bg-white/[0.022]">
+            <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+              <h2 className="text-sm font-semibold text-white/80">Live chat</h2>
             </div>
-            <p className="border-b border-slate-800 px-4 py-2 text-xs text-slate-500">
+            <p className="border-b border-white/[0.06] px-4 py-2 text-xs text-white/30">
               {`Type ${formatKeywordForDisplay(keyword)} in chat to enter · click an emote below to use it as the keyword`}
             </p>
             <div
@@ -868,17 +868,17 @@ export default function GiveawayAdminPage() {
               className="hide-scrollbar flex h-[520px] flex-col gap-1.5 overflow-y-auto p-4 font-mono text-sm lg:h-[600px]"
             >
               {messages.length === 0 ? (
-                <p className="py-16 text-center text-slate-500">
+                <p className="py-16 text-center text-white/30">
                   {status === "idle" ? "Connect to a channel to see live chat." : "Waiting for messages…"}
                 </p>
               ) : (
                 messages.map((message) => (
                   <div key={message.id} className="leading-relaxed">
-                    <span className={`font-bold ${message.isMod ? "text-[#53fc18]" : "text-slate-200"}`}>
+                    <span className={`font-bold ${message.isMod ? "text-[#53fc18]" : "text-white/80"}`}>
                       {message.username}
                     </span>
-                    <span className="text-slate-500">: </span>
-                    <span className="text-slate-300">{renderMessageContent(message.content, setKeyword)}</span>
+                    <span className="text-white/30">: </span>
+                    <span className="text-white/60">{renderMessageContent(message.content, setKeyword)}</span>
                   </div>
                 ))
               )}

@@ -201,7 +201,7 @@ export function GiveawayCard({
         borderColor: OBS.cardBorder,
         borderRadius: OBS_RADIUS.card,
       }}
-      className={`flex flex-col overflow-hidden border shadow-lg backdrop-blur-sm ${className ?? ""}`}
+      className={`flex flex-col overflow-hidden border shadow-lg ${className ?? ""}`}
     >
       {/* Header — fixed, never grows or shrinks */}
       <div className="flex flex-shrink-0 items-center justify-between px-2.5 pt-2 pb-1">

@@ -120,21 +120,21 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6">
+    <div className="min-h-screen bg-[#0B0B0D] p-6">
       <div className="max-w-2xl mx-auto">
         <Link href="/admin/store">
-          <Button variant="ghost" className="text-slate-400 hover:text-white mb-6">
+          <Button variant="ghost" className="text-white/40 hover:text-white mb-6">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Store
           </Button>
         </Link>
 
-        <div className="bg-slate-900/80 backdrop-blur border border-slate-700/50 rounded-2xl p-8">
+        <div className="bg-white/[0.03] backdrop-blur border border-white/[0.08] rounded-2xl p-8">
           <h1 className="text-2xl font-bold text-white mb-6">Edit Store Item</h1>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="name" className="text-slate-300">
+              <Label htmlFor="name" className="text-white/60">
                 Item Name
               </Label>
               <Input
@@ -142,12 +142,12 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
-                className="bg-slate-800 border-slate-700 text-white"
+                className="bg-white/[0.06] border-white/[0.10] text-white"
               />
             </div>
 
             <div>
-              <Label htmlFor="cost" className="text-slate-300">
+              <Label htmlFor="cost" className="text-white/60">
                 Cost (Points)
               </Label>
               <Input
@@ -156,12 +156,12 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
                 value={formData.cost}
                 onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
                 required
-                className="bg-slate-800 border-slate-700 text-white"
+                className="bg-white/[0.06] border-white/[0.10] text-white"
               />
             </div>
 
             <div>
-              <Label htmlFor="type" className="text-slate-300">
+              <Label htmlFor="type" className="text-white/60">
                 Type
               </Label>
               <select
@@ -169,7 +169,7 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                 required
-                className="w-full h-10 bg-slate-800 border border-slate-700 text-white rounded-md px-3"
+                className="w-full h-10 bg-white/[0.06] border border-white/[0.10] text-white rounded-md px-3"
               >
                 <option value="Digital">Digital</option>
                 <option value="Physical">Physical</option>
@@ -180,7 +180,7 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
             </div>
 
             <div>
-              <Label htmlFor="quantity" className="text-slate-300">
+              <Label htmlFor="quantity" className="text-white/60">
                 Quantity
               </Label>
               <Input
@@ -189,20 +189,20 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
                 value={formData.quantity}
                 onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                 required
-                className="bg-slate-800 border-slate-700 text-white"
+                className="bg-white/[0.06] border-white/[0.10] text-white"
               />
-              <p className="text-xs text-slate-400 mt-1">Set to -1 for infinite quantity</p>
+              <p className="text-xs text-white/40 mt-1">Set to -1 for infinite quantity</p>
             </div>
 
             <div>
-              <Label htmlFor="is_available" className="text-slate-300">
+              <Label htmlFor="is_available" className="text-white/60">
                 Status
               </Label>
               <select
                 id="is_available"
                 value={formData.is_available}
                 onChange={(e) => setFormData({ ...formData, is_available: e.target.value })}
-                className="w-full h-10 bg-slate-800 border border-slate-700 text-white rounded-md px-3"
+                className="w-full h-10 bg-white/[0.06] border border-white/[0.10] text-white rounded-md px-3"
               >
                 <option value="true">Enabled</option>
                 <option value="false">Disabled</option>
@@ -210,11 +210,11 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
             </div>
 
             <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={submitting} className="bg-cyan-500 hover:bg-cyan-600 flex-1">
+              <Button type="submit" disabled={submitting} className="bg-[#5B8DEF] hover:bg-[#5B8DEF] flex-1">
                 {submitting ? "Saving..." : "Save Changes"}
               </Button>
               <Link href="/admin/store" className="flex-1">
-                <Button type="button" variant="outline" className="w-full bg-transparent border-slate-600">
+                <Button type="button" variant="outline" className="w-full bg-transparent border-white/[0.12]">
                   Cancel
                 </Button>
               </Link>

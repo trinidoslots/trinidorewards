@@ -138,7 +138,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+      <div className="flex items-center justify-center min-h-screen bg-[#0B0B0D]">
         <p className="text-white">Loading...</p>
       </div>
     )
@@ -149,20 +149,20 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
+    <div className="min-h-screen bg-[#0B0B0D] p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
           {user.avatar_url ? (
             <img src={user.avatar_url || "/placeholder.svg"} alt={user.username} className="w-16 h-16 rounded-full" />
           ) : (
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-[#5B8DEF] flex items-center justify-center">
               <User className="w-8 h-8 text-white" />
             </div>
           )}
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-white">{user.username}</h1>
-            <div className="flex items-center gap-2 text-cyan-400">
+            <div className="flex items-center gap-2 text-[#5B8DEF]">
               <Coins className="w-4 h-4" />
               <span className="font-semibold">{user.points_balance} Points</span>
             </div>
@@ -171,7 +171,7 @@ export default function ProfilePage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Site Usernames */}
-          <Card className="bg-slate-900/60 border-slate-700/50 backdrop-blur">
+          <Card className="bg-white/[0.022] border-white/[0.08] backdrop-blur">
             <CardHeader className="p-4">
               <CardTitle className="text-white flex items-center gap-2">
                 <User className="w-5 h-5" />
@@ -181,7 +181,7 @@ export default function ProfilePage() {
             <CardContent className="p-4 pt-0 space-y-4">
               <form onSubmit={handleAddSiteUsername} className="space-y-3">
                 <div>
-                  <Label htmlFor="site" className="text-slate-300 text-sm">
+                  <Label htmlFor="site" className="text-white/60 text-sm">
                     Site Name
                   </Label>
                   <Input
@@ -189,11 +189,11 @@ export default function ProfilePage() {
                     value={newSite}
                     onChange={(e) => setNewSite(e.target.value)}
                     placeholder="e.g., Twitch, Discord, Steam"
-                    className="bg-slate-800 border-slate-700 text-white"
+                    className="bg-white/[0.06] border-white/[0.10] text-white"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="username" className="text-slate-300 text-sm">
+                  <Label htmlFor="username" className="text-white/60 text-sm">
                     Username
                   </Label>
                   <Input
@@ -201,10 +201,10 @@ export default function ProfilePage() {
                     value={newUsername}
                     onChange={(e) => setNewUsername(e.target.value)}
                     placeholder="Your username on that site"
-                    className="bg-slate-800 border-slate-700 text-white"
+                    className="bg-white/[0.06] border-white/[0.10] text-white"
                   />
                 </div>
-                <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700">
+                <Button type="submit" className="w-full bg-[#5B8DEF] hover:bg-[#4A7AD8]">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Username
                 </Button>
@@ -212,22 +212,22 @@ export default function ProfilePage() {
 
               <div className="space-y-2">
                 {siteUsernames.length === 0 ? (
-                  <p className="text-slate-400 text-sm text-center py-4">No usernames added yet</p>
+                  <p className="text-white/40 text-sm text-center py-4">No usernames added yet</p>
                 ) : (
                   siteUsernames.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between p-3 bg-slate-800/50 rounded border border-slate-700"
+                      className="flex items-center justify-between p-3 bg-white/[0.04] rounded border border-white/[0.10]"
                     >
                       <div>
                         <p className="text-white font-medium text-sm">{item.site_name}</p>
-                        <p className="text-slate-400 text-xs">{item.username}</p>
+                        <p className="text-white/40 text-xs">{item.username}</p>
                       </div>
                       <Button
                         onClick={() => handleDeleteSiteUsername(item.id)}
                         variant="ghost"
                         size="sm"
-                        className="text-red-400 hover:text-red-300 hover:bg-slate-700"
+                        className="text-red-400 hover:text-red-300 hover:bg-white/[0.08]"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -239,7 +239,7 @@ export default function ProfilePage() {
           </Card>
 
           {/* Redemption History */}
-          <Card className="bg-slate-900/60 border-slate-700/50 backdrop-blur">
+          <Card className="bg-white/[0.022] border-white/[0.08] backdrop-blur">
             <CardHeader className="p-4">
               <CardTitle className="text-white flex items-center gap-2">
                 <Package className="w-5 h-5" />
@@ -248,20 +248,20 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="p-4 pt-0">
               {redemptions.length === 0 ? (
-                <p className="text-slate-400 text-sm text-center py-8">No redemptions yet</p>
+                <p className="text-white/40 text-sm text-center py-8">No redemptions yet</p>
               ) : (
                 <div className="space-y-2 max-h-[500px] overflow-y-auto">
                   {redemptions.map((redemption) => (
-                    <div key={redemption.id} className="p-3 bg-slate-800/50 rounded border border-slate-700">
+                    <div key={redemption.id} className="p-3 bg-white/[0.04] rounded border border-white/[0.10]">
                       <div className="flex items-start justify-between">
                         <div>
                           <p className="text-white font-medium text-sm">{redemption.item_name}</p>
-                          <p className="text-slate-400 text-xs">
+                          <p className="text-white/40 text-xs">
                             {new Date(redemption.created_at).toLocaleDateString()}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-cyan-400 font-semibold text-sm">{redemption.cost} points</p>
+                          <p className="text-[#5B8DEF] font-semibold text-sm">{redemption.cost} points</p>
                           <span
                             className={`text-xs px-2 py-0.5 rounded ${
                               redemption.status === "completed" ? "bg-green-600 text-white" : "bg-yellow-600 text-white"

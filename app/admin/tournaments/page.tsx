@@ -161,7 +161,7 @@ export default function AdminTournamentsPage() {
       case "active":
         return "bg-green-500/10 text-green-400 border-green-500/20"
       case "completed":
-        return "bg-slate-500/10 text-slate-400 border-slate-500/20"
+        return "bg-white/[0.05] text-white/40 border-white/[0.10]"
       default:
         return "bg-amber-500/10 text-amber-400 border-amber-500/20"
     }
@@ -171,7 +171,7 @@ export default function AdminTournamentsPage() {
     return (
       <div className="p-8">
         <div className="flex items-center justify-center h-64">
-          <div className="text-slate-400">Loading tournaments...</div>
+          <div className="text-white/40">Loading tournaments...</div>
         </div>
       </div>
     )
@@ -182,7 +182,7 @@ export default function AdminTournamentsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Manage Tournaments</h1>
-          <p className="text-slate-400">Create and manage competitive tournaments</p>
+          <p className="text-white/40">Create and manage competitive tournaments</p>
         </div>
         <Button
           onClick={() => {
@@ -201,7 +201,7 @@ export default function AdminTournamentsPage() {
               featured: false,
             })
           }}
-          className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+          className="bg-[#5B8DEF] hover:bg-[#4A7AD8]"
         >
           <Plus className="w-4 h-4 mr-2" />
           {showForm ? "Cancel" : "Add Tournament"}
@@ -209,7 +209,7 @@ export default function AdminTournamentsPage() {
       </div>
 
       {showForm && (
-        <Card className="bg-slate-800/50 border-slate-700/50 p-6">
+        <Card className="bg-white/[0.04] border-white/[0.08] p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -220,7 +220,7 @@ export default function AdminTournamentsPage() {
                   id="title"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="bg-slate-900 border-slate-700 text-white"
+                  className="bg-[#101014] border-white/[0.10] text-white"
                   required
                 />
               </div>
@@ -234,7 +234,7 @@ export default function AdminTournamentsPage() {
                   value={formData.game_type}
                   onChange={(e) => setFormData({ ...formData, game_type: e.target.value })}
                   placeholder="e.g., Slots, Blackjack"
-                  className="bg-slate-900 border-slate-700 text-white"
+                  className="bg-[#101014] border-white/[0.10] text-white"
                 />
               </div>
 
@@ -248,7 +248,7 @@ export default function AdminTournamentsPage() {
                   step="0.01"
                   value={formData.prize_pool}
                   onChange={(e) => setFormData({ ...formData, prize_pool: e.target.value })}
-                  className="bg-slate-900 border-slate-700 text-white"
+                  className="bg-[#101014] border-white/[0.10] text-white"
                   required
                 />
               </div>
@@ -263,7 +263,7 @@ export default function AdminTournamentsPage() {
                   step="0.01"
                   value={formData.entry_fee}
                   onChange={(e) => setFormData({ ...formData, entry_fee: e.target.value })}
-                  className="bg-slate-900 border-slate-700 text-white"
+                  className="bg-[#101014] border-white/[0.10] text-white"
                 />
               </div>
 
@@ -275,7 +275,7 @@ export default function AdminTournamentsPage() {
                   value={formData.max_participants}
                   onValueChange={(value) => setFormData({ ...formData, max_participants: value })}
                 >
-                  <SelectTrigger className="bg-slate-800/50 border-slate-700 text-white">
+                  <SelectTrigger className="bg-white/[0.04] border-white/[0.10] text-white">
                     <SelectValue placeholder="Select participant count" />
                   </SelectTrigger>
                   <SelectContent>
@@ -299,7 +299,7 @@ export default function AdminTournamentsPage() {
                   value={formData.tournament_type}
                   onValueChange={(value) => setFormData({ ...formData, tournament_type: value })}
                 >
-                  <SelectTrigger className="bg-slate-900 border-slate-700 text-white">
+                  <SelectTrigger className="bg-[#101014] border-white/[0.10] text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -319,7 +319,7 @@ export default function AdminTournamentsPage() {
                   value={formData.image_url}
                   onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
                   placeholder="https://..."
-                  className="bg-slate-900 border-slate-700 text-white"
+                  className="bg-[#101014] border-white/[0.10] text-white"
                 />
               </div>
 
@@ -344,7 +344,7 @@ export default function AdminTournamentsPage() {
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="bg-slate-900 border-slate-700 text-white min-h-[100px]"
+                className="bg-[#101014] border-white/[0.10] text-white min-h-[100px]"
               />
             </div>
 
@@ -356,13 +356,13 @@ export default function AdminTournamentsPage() {
                 id="rules"
                 value={formData.rules}
                 onChange={(e) => setFormData({ ...formData, rules: e.target.value })}
-                className="bg-slate-900 border-slate-700 text-white min-h-[100px]"
+                className="bg-[#101014] border-white/[0.10] text-white min-h-[100px]"
               />
             </div>
 
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+              className="w-full bg-[#5B8DEF] hover:bg-[#4A7AD8]"
             >
               {editingId ? "Update Tournament" : "Create Tournament"}
             </Button>
@@ -382,13 +382,13 @@ export default function AdminTournamentsPage() {
         ))}
 
         {tournaments.length === 0 && (
-          <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50 p-12 text-center">
-            <Trophy className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+          <Card className="bg-white/[0.022] backdrop-blur border-white/[0.08] p-12 text-center">
+            <Trophy className="w-16 h-16 text-white/20 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-white mb-2">No Tournaments Yet</h3>
-            <p className="text-slate-400 mb-6">Create your first tournament bracket to get started</p>
+            <p className="text-white/40 mb-6">Create your first tournament bracket to get started</p>
             <Button
               onClick={() => setShowForm(true)}
-              className="bg-cyan-600 hover:bg-cyan-700"
+              className="bg-[#5B8DEF] hover:bg-[#4A7AD8]"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Tournament

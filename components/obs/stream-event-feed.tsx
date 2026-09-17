@@ -146,7 +146,7 @@ export function EventCard({
 }) {
   return (
     <div
-      className="flex items-start gap-3 border px-3 py-2.5 shadow-lg backdrop-blur-sm"
+      className="flex items-start gap-3 border px-3 py-2.5 shadow-lg"
       style={{ backgroundColor: OBS.card, borderColor: OBS.cardBorder, borderRadius: OBS_RADIUS.card }}
     >
       <div

@@ -134,7 +134,7 @@ function RouteTransitionOverlayInner({ children }: { children: React.ReactNode }
       <AnimatePresence>
         {navigating && (
           <motion.div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0B0B0D]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -143,7 +143,10 @@ function RouteTransitionOverlayInner({ children }: { children: React.ReactNode }
             aria-live="polite"
             aria-label="Loading page"
           >
-            <div className="h-12 w-12 animate-spin rounded-full border-2 border-slate-700 border-t-cyan-400" />
+            <div className="flex flex-col items-center gap-4">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-[#5B8DEF]" />
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/25">Loading</span>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -102,7 +102,7 @@ export default function TournamentBracketPage() {
     return (
       <div className="p-8">
         <div className="flex items-center justify-center h-64">
-          <div className="text-slate-400">Loading tournament bracket...</div>
+          <div className="text-white/40">Loading tournament bracket...</div>
         </div>
       </div>
     )
@@ -126,18 +126,18 @@ export default function TournamentBracketPage() {
             onClick={() => router.back()}
             variant="outline"
             size="sm"
-            className="border-slate-700 hover:bg-slate-800"
+            className="border-white/[0.10] hover:bg-white/[0.06]"
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold text-white">{tournament.title}</h1>
-              <Badge className={tournament.status === "active" ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-slate-500/10 text-slate-400 border-slate-500/20"}>
+              <Badge className={tournament.status === "active" ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-white/[0.05] text-white/40 border-white/[0.10]"}>
                 {tournament.status.toUpperCase()}
               </Badge>
             </div>
-            <p className="text-slate-400">
+            <p className="text-white/40">
               {tournament.game_type} • {slots.length}/{tournament.max_participants} participants
             </p>
           </div>
@@ -147,7 +147,7 @@ export default function TournamentBracketPage() {
           <Button
             onClick={() => router.push(`/admin/tournaments/${tournamentId}/slots`)}
             variant="outline"
-            className="border-slate-700 hover:bg-slate-800 text-slate-300"
+            className="border-white/[0.10] hover:bg-white/[0.06] text-white/60"
           >
             <Edit className="w-4 h-4 mr-2" />
             Edit Slots
@@ -155,7 +155,7 @@ export default function TournamentBracketPage() {
           <Button
             onClick={handleStartTournament}
             disabled={!hasAllSlotsFilled || isStarting}
-            className="bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-[#5B8DEF] hover:bg-[#4A7AD8] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Play className="w-4 h-4 mr-2" />
             {isStarting ? "Starting..." : "Start Tournament"}
@@ -164,10 +164,10 @@ export default function TournamentBracketPage() {
       </div>
 
       <div className="space-y-4">
-        <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50 p-6">
+        <Card className="bg-white/[0.022] backdrop-blur border-white/[0.08] p-6">
           <div className="mb-4">
             <h2 className="text-lg font-semibold text-white mb-2">Tournament Bracket</h2>
-            <p className="text-slate-400 text-sm">
+            <p className="text-white/40 text-sm">
               {hasAllSlotsFilled
                 ? "All slots are filled. Ready to start the tournament!"
                 : `${tournament.max_participants - slots.length} more slots to fill before tournament can start`}
@@ -185,10 +185,10 @@ export default function TournamentBracketPage() {
             />
           ) : (
             <div className="text-center py-12">
-              <p className="text-slate-400 mb-4">No slots assigned yet</p>
+              <p className="text-white/40 mb-4">No slots assigned yet</p>
               <Button
                 onClick={() => router.push(`/admin/tournaments/${tournamentId}/slots`)}
-                className="bg-cyan-600 hover:bg-cyan-700"
+                className="bg-[#5B8DEF] hover:bg-[#4A7AD8]"
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Assign Slots

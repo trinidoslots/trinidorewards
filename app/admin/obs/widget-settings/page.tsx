@@ -461,39 +461,39 @@ export default function ObsWidgetSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 p-8">
+    <div className="min-h-screen bg-gradient-to-b from-[#0B0B0D] to-[#101014] p-8">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold text-white mb-8">OBS Widget Settings</h1>
 
         {/* Add Timer Form */}
-        <Card className="bg-slate-800/50 border-slate-700 mb-8">
+        <Card className="bg-white/[0.04] border-white/[0.10] mb-8">
           <CardHeader>
             <CardTitle className="text-white">Add Timer</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Timer Message</label>
+              <label className="block text-sm font-medium text-white/60 mb-2">Timer Message</label>
               <Input
                 placeholder="e.g., Stream Raid, Daily Bonus"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
+                className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25"
                 onKeyPress={(e) => e.key === "Enter" && addTimer()}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">End Time</label>
+              <label className="block text-sm font-medium text-white/60 mb-2">End Time</label>
               <div className="flex gap-2">
                 <Input
                   type="datetime-local"
                   value={newEndTime}
                   onChange={(e) => setNewEndTime(e.target.value)}
-                  className="bg-slate-700/50 border-slate-600 text-white flex-1"
+                  className="bg-white/[0.06] border-white/[0.12] text-white flex-1"
                 />
                 <Button
                   onClick={addTimer}
-                  className="bg-cyan-600 hover:bg-cyan-700 text-white whitespace-nowrap"
+                  className="bg-[#5B8DEF] hover:bg-[#4A7AD8] text-white whitespace-nowrap"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Timer
@@ -502,44 +502,44 @@ export default function ObsWidgetSettings() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Data URL (emoji/icon image)</label>
+              <label className="block text-sm font-medium text-white/60 mb-2">Data URL (emoji/icon image)</label>
               <Input
                 placeholder="Paste data URL with emoji image (e.g., data:image/png;base64,...)"
                 value={newTimerDataUrl}
                 onChange={(e) => setNewTimerDataUrl(e.target.value)}
-                className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 text-sm"
+                className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25 text-sm"
               />
             </div>
 
-            <div className="border-t border-slate-700 pt-4">
-              <label className="block text-sm font-medium text-slate-300 mb-3">Bold Elements</label>
+            <div className="border-t border-white/[0.10] pt-4">
+              <label className="block text-sm font-medium text-white/60 mb-3">Bold Elements</label>
               <div className="space-y-2">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={boldSettings.icon}
                     onChange={(e) => setBoldSettings({ ...boldSettings, icon: e.target.checked })}
-                    className="w-4 h-4 accent-cyan-600"
+                    className="w-4 h-4 accent-[#5B8DEF]"
                   />
-                  <span className="text-sm text-slate-300">Bold Timer Icon (⏱)</span>
+                  <span className="text-sm text-white/60">Bold Timer Icon (⏱)</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={boldSettings.message}
                     onChange={(e) => setBoldSettings({ ...boldSettings, message: e.target.checked })}
-                    className="w-4 h-4 accent-cyan-600"
+                    className="w-4 h-4 accent-[#5B8DEF]"
                   />
-                  <span className="text-sm text-slate-300">Bold Message</span>
+                  <span className="text-sm text-white/60">Bold Message</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={boldSettings.time}
                     onChange={(e) => setBoldSettings({ ...boldSettings, time: e.target.checked })}
-                    className="w-4 h-4 accent-cyan-600"
+                    className="w-4 h-4 accent-[#5B8DEF]"
                   />
-                  <span className="text-sm text-slate-300">Bold Countdown Time</span>
+                  <span className="text-sm text-white/60">Bold Countdown Time</span>
                 </label>
               </div>
             </div>
@@ -548,7 +548,7 @@ export default function ObsWidgetSettings() {
 
         {/* Active Timers */}
         {timers.length > 0 ? (
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-white/[0.04] border-white/[0.10]">
             <CardHeader>
               <CardTitle className="text-white">Active Timers ({timers.length})</CardTitle>
             </CardHeader>
@@ -557,22 +557,22 @@ export default function ObsWidgetSettings() {
                 {timers.map((timer) => (
                   <div key={timer.id}>
                     {editingId === timer.id ? (
-                      <div className="p-3 bg-slate-700/50 rounded-lg border border-slate-600/50 space-y-3">
+                      <div className="p-3 bg-white/[0.06] rounded-lg border border-white/[0.12]/50 space-y-3">
                         <div>
-                          <label className="block text-xs font-medium text-slate-300 mb-1">Message</label>
+                          <label className="block text-xs font-medium text-white/60 mb-1">Message</label>
                           <Input
                             value={editMessage}
                             onChange={(e) => setEditMessage(e.target.value)}
-                            className="bg-slate-700 border-slate-600 text-white text-sm"
+                            className="bg-white/[0.08] border-white/[0.12] text-white text-sm"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-slate-300 mb-1">End Time</label>
+                          <label className="block text-xs font-medium text-white/60 mb-1">End Time</label>
                           <Input
                             type="datetime-local"
                             value={editEndTime}
                             onChange={(e) => setEditEndTime(e.target.value)}
-                            className="bg-slate-700 border-slate-600 text-white text-sm"
+                            className="bg-white/[0.08] border-white/[0.12] text-white text-sm"
                           />
                         </div>
                         <div className="flex gap-2">
@@ -582,7 +582,7 @@ export default function ObsWidgetSettings() {
                               setEditingId(null)
                             }}
                             size="sm"
-                            className="bg-cyan-600 hover:bg-cyan-700 text-white flex-1"
+                            className="bg-[#5B8DEF] hover:bg-[#4A7AD8] text-white flex-1"
                           >
                             Save
                           </Button>
@@ -590,32 +590,32 @@ export default function ObsWidgetSettings() {
                             onClick={() => setEditingId(null)}
                             size="sm"
                             variant="outline"
-                            className="border-slate-600 text-slate-400"
+                            className="border-white/[0.12] text-white/40"
                           >
                             Cancel
                           </Button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg border border-slate-600/50">
+                      <div className="flex items-center justify-between p-3 bg-white/[0.06] rounded-lg border border-white/[0.12]/50">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <input
                               type="checkbox"
                               checked={timer.active}
                               onChange={() => toggleTimer(timer.id)}
-                              className="w-4 h-4 accent-cyan-600"
+                              className="w-4 h-4 accent-[#5B8DEF]"
                             />
                             <span className="text-white font-medium">{timer.message}</span>
-                            <span className="text-xs text-slate-400">
+                            <span className="text-xs text-white/40">
                               {new Date(timer.end_time) > new Date() ? "● Active" : "● Expired"}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className={`text-xs ${timer.active ? "text-green-400" : "text-slate-400"}`}>
+                            <span className={`text-xs ${timer.active ? "text-green-400" : "text-white/40"}`}>
                               {timer.active ? "Enabled" : "Disabled"}
                             </span>
-                            <span className="text-xs text-slate-400">
+                            <span className="text-xs text-white/40">
                               Ends: {new Date(timer.end_time).toLocaleString()}
                             </span>
                           </div>
@@ -629,7 +629,7 @@ export default function ObsWidgetSettings() {
                             }}
                             size="sm"
                             variant="outline"
-                            className="border-slate-600 hover:bg-slate-600/50 text-slate-300"
+                            className="border-white/[0.12] hover:bg-white/[0.10]/50 text-white/60"
                           >
                             Edit
                           </Button>
@@ -650,45 +650,45 @@ export default function ObsWidgetSettings() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="bg-white/[0.04] border-white/[0.10]">
             <CardContent className="py-8">
-              <p className="text-center text-slate-400">No timers configured. Add one to get started!</p>
+              <p className="text-center text-white/40">No timers configured. Add one to get started!</p>
             </CardContent>
           </Card>
         )}
 
         {/* Info */}
-        <div className="mt-8 p-4 bg-slate-800/30 border border-slate-700/50 rounded-lg">
-          <p className="text-sm text-slate-400">
+        <div className="mt-8 p-4 bg-white/[0.06]/30 border border-white/[0.08] rounded-lg">
+          <p className="text-sm text-white/40">
             <strong>Info:</strong> Timers added here will automatically appear on the OBS widget bar at{" "}
-            <code className="bg-slate-900 px-2 py-1 rounded text-cyan-400">/obs-widget</code>
+            <code className="bg-[#101014] px-2 py-1 rounded text-[#5B8DEF]">/obs-widget</code>
           </p>
         </div>
 
         {/* Deposits & Withdrawals Section */}
-        <div className="mt-12 pt-8 border-t border-slate-700">
+        <div className="mt-12 pt-8 border-t border-white/[0.10]">
           <h2 className="text-2xl font-bold text-white mb-6">Info Settings</h2>
 
           {/* Add Info Form */}
-          <Card className="bg-slate-800/50 border-slate-700 mb-8">
+          <Card className="bg-white/[0.04] border-white/[0.10] mb-8">
             <CardHeader>
               <CardTitle className="text-white">Add Info Item</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Info Text</label>
+                <label className="block text-sm font-medium text-white/60 mb-2">Info Text</label>
                 <div className="flex gap-2 mb-3">
                   <Input
                     placeholder="e.g., Raid incoming!, Special event live"
                     value={newInfo}
                     onChange={(e) => setNewInfo(e.target.value)}
-                    className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
+                    className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25"
                     onKeyPress={(e) => e.key === "Enter" && addInfoItem()}
                   />
                   <Button
                     onClick={addInfoItem}
                     disabled={savingInfo}
-                    className="bg-cyan-600 hover:bg-cyan-700 text-white whitespace-nowrap"
+                    className="bg-[#5B8DEF] hover:bg-[#4A7AD8] text-white whitespace-nowrap"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Info
@@ -696,18 +696,18 @@ export default function ObsWidgetSettings() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Data URL (emoji/icon image)</label>
+                <label className="block text-sm font-medium text-white/60 mb-2">Data URL (emoji/icon image)</label>
                 <Input
                   placeholder="Paste data URL with emoji image (e.g., data:image/png;base64,...)"
                   value={newInfoDataUrl}
                   onChange={(e) => setNewInfoDataUrl(e.target.value)}
-                  className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400 text-sm"
+                  className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25 text-sm"
                 />
               </div>
               {newInfo && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Select Words to Format</label>
-                  <div className="bg-slate-700/30 p-3 rounded-lg mb-3 flex flex-wrap gap-2">
+                  <label className="block text-sm font-medium text-white/60 mb-2">Select Words to Format</label>
+                  <div className="bg-white/[0.08]/30 p-3 rounded-lg mb-3 flex flex-wrap gap-2">
                     {newInfo.split(" ").map((word, idx) => (
                       <button
                         key={idx}
@@ -720,8 +720,8 @@ export default function ObsWidgetSettings() {
                         }}
                         className={`px-3 py-1 rounded transition-colors ${
                           selectedWords.includes(idx)
-                            ? "bg-cyan-600 text-white"
-                            : "bg-slate-600 text-slate-300 hover:bg-slate-500"
+                            ? "bg-[#5B8DEF] text-white"
+                            : "bg-white/[0.10] text-white/60 hover:bg-white/[0.14]"
                         }`}
                       >
                         {word}
@@ -731,7 +731,7 @@ export default function ObsWidgetSettings() {
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-white/60 mb-2">
                   Apply Formatting {selectedWords.length > 0 && `(${selectedWords.length} word${selectedWords.length !== 1 ? "s" : ""} selected)`}
                 </label>
                 <div className="flex gap-2">
@@ -739,8 +739,8 @@ export default function ObsWidgetSettings() {
                     onClick={() => setWordStyles({ ...wordStyles, bold: !wordStyles.bold })}
                     className={`px-3 py-2 rounded font-bold ${
                       wordStyles.bold
-                        ? "bg-cyan-600 text-white"
-                        : "bg-slate-700/50 text-slate-300 border border-slate-600"
+                        ? "bg-[#5B8DEF] text-white"
+                        : "bg-white/[0.06] text-white/60 border border-white/[0.12]"
                     }`}
                   >
                     B
@@ -749,8 +749,8 @@ export default function ObsWidgetSettings() {
                     onClick={() => setWordStyles({ ...wordStyles, italic: !wordStyles.italic })}
                     className={`px-3 py-2 rounded italic ${
                       wordStyles.italic
-                        ? "bg-cyan-600 text-white"
-                        : "bg-slate-700/50 text-slate-300 border border-slate-600"
+                        ? "bg-[#5B8DEF] text-white"
+                        : "bg-white/[0.06] text-white/60 border border-white/[0.12]"
                     }`}
                   >
                     I
@@ -759,8 +759,8 @@ export default function ObsWidgetSettings() {
                     onClick={() => setWordStyles({ ...wordStyles, underline: !wordStyles.underline })}
                     className={`px-3 py-2 rounded underline ${
                       wordStyles.underline
-                        ? "bg-cyan-600 text-white"
-                        : "bg-slate-700/50 text-slate-300 border border-slate-600"
+                        ? "bg-[#5B8DEF] text-white"
+                        : "bg-white/[0.06] text-white/60 border border-white/[0.12]"
                     }`}
                   >
                     U
@@ -772,7 +772,7 @@ export default function ObsWidgetSettings() {
 
           {/* Active Info Items */}
           {infos.length > 0 ? (
-            <Card className="bg-slate-800/50 border-slate-700">
+            <Card className="bg-white/[0.04] border-white/[0.10]">
               <CardHeader>
                 <CardTitle className="text-white">Info Items ({infos.length})</CardTitle>
               </CardHeader>
@@ -781,28 +781,28 @@ export default function ObsWidgetSettings() {
                   {infos.map((info) => (
                     <div key={info.id}>
                       {editingInfoId === info.id ? (
-                        <div className="p-3 bg-slate-700/50 rounded-lg border border-slate-600/50 space-y-3">
+                        <div className="p-3 bg-white/[0.06] rounded-lg border border-white/[0.12]/50 space-y-3">
                           <div>
-                            <label className="block text-xs font-medium text-slate-300 mb-1">Message</label>
+                            <label className="block text-xs font-medium text-white/60 mb-1">Message</label>
                             <Input
                               value={editInfoMessage}
                               onChange={(e) => setEditInfoMessage(e.target.value)}
-                              className="bg-slate-700 border-slate-600 text-white text-sm"
+                              className="bg-white/[0.08] border-white/[0.12] text-white text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-slate-300 mb-1">Data URL (emoji/icon)</label>
+                            <label className="block text-xs font-medium text-white/60 mb-1">Data URL (emoji/icon)</label>
                             <Input
                               value={editInfoDataUrl}
                               onChange={(e) => setEditInfoDataUrl(e.target.value)}
-                              className="bg-slate-700 border-slate-600 text-white text-sm"
+                              className="bg-white/[0.08] border-white/[0.12] text-white text-sm"
                               placeholder="Paste data URL..."
                             />
                           </div>
                           {editInfoMessage && (
                             <div>
-                              <label className="block text-xs font-medium text-slate-300 mb-1">Select Words to Format</label>
-                              <div className="bg-slate-700/30 p-2 rounded flex flex-wrap gap-1">
+                              <label className="block text-xs font-medium text-white/60 mb-1">Select Words to Format</label>
+                              <div className="bg-white/[0.08]/30 p-2 rounded flex flex-wrap gap-1">
                                 {editInfoMessage.split(" ").map((word, idx) => (
                                   <button
                                     key={idx}
@@ -815,8 +815,8 @@ export default function ObsWidgetSettings() {
                                     }}
                                     className={`px-2 py-0.5 text-xs rounded transition-colors ${
                                       editSelectedWords.includes(idx)
-                                        ? "bg-cyan-600 text-white"
-                                        : "bg-slate-600 text-slate-300"
+                                        ? "bg-[#5B8DEF] text-white"
+                                        : "bg-white/[0.10] text-white/60"
                                     }`}
                                   >
                                     {word}
@@ -830,8 +830,8 @@ export default function ObsWidgetSettings() {
                               onClick={() => setEditWordStyles({ ...editWordStyles, bold: !editWordStyles.bold })}
                               className={`px-2 py-1 text-xs rounded font-bold ${
                                 editWordStyles.bold
-                                  ? "bg-cyan-600 text-white"
-                                  : "bg-slate-600 text-slate-300"
+                                  ? "bg-[#5B8DEF] text-white"
+                                  : "bg-white/[0.10] text-white/60"
                               }`}
                             >
                               B
@@ -840,8 +840,8 @@ export default function ObsWidgetSettings() {
                               onClick={() => setEditWordStyles({ ...editWordStyles, italic: !editWordStyles.italic })}
                               className={`px-2 py-1 text-xs rounded italic ${
                                 editWordStyles.italic
-                                  ? "bg-cyan-600 text-white"
-                                  : "bg-slate-600 text-slate-300"
+                                  ? "bg-[#5B8DEF] text-white"
+                                  : "bg-white/[0.10] text-white/60"
                               }`}
                             >
                               I
@@ -850,8 +850,8 @@ export default function ObsWidgetSettings() {
                               onClick={() => setEditWordStyles({ ...editWordStyles, underline: !editWordStyles.underline })}
                               className={`px-2 py-1 text-xs rounded underline ${
                                 editWordStyles.underline
-                                  ? "bg-cyan-600 text-white"
-                                  : "bg-slate-600 text-slate-300"
+                                  ? "bg-[#5B8DEF] text-white"
+                                  : "bg-white/[0.10] text-white/60"
                               }`}
                             >
                               U
@@ -861,7 +861,7 @@ export default function ObsWidgetSettings() {
                             <Button
                               onClick={() => updateInfoItem(info.id)}
                               size="sm"
-                              className="bg-cyan-600 hover:bg-cyan-700 text-white flex-1"
+                              className="bg-[#5B8DEF] hover:bg-[#4A7AD8] text-white flex-1"
                             >
                               Save
                             </Button>
@@ -869,21 +869,21 @@ export default function ObsWidgetSettings() {
                               onClick={() => setEditingInfoId(null)}
                               size="sm"
                               variant="outline"
-                              className="border-slate-600 text-slate-400"
+                              className="border-white/[0.12] text-white/40"
                             >
                               Cancel
                             </Button>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg border border-slate-600/50">
+                        <div className="flex items-center justify-between p-3 bg-white/[0.06] rounded-lg border border-white/[0.12]/50">
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <input
                                 type="checkbox"
                                 checked={info.active}
                                 onChange={() => toggleInfoActive(info.id)}
-                                className="w-4 h-4 accent-cyan-600"
+                                className="w-4 h-4 accent-[#5B8DEF]"
                               />
                               {info.data_url && (
                                 <img src={info.data_url} alt="info icon" className="w-4 h-4" style={{ filter: "brightness(0) saturate(100%) invert(1)" }} />
@@ -905,19 +905,19 @@ export default function ObsWidgetSettings() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2 mt-1">
-                              <div className={`text-xs ${info.active ? "text-green-400" : "text-slate-400"}`}>
+                              <div className={`text-xs ${info.active ? "text-green-400" : "text-white/40"}`}>
                                 {info.active ? "● Active" : "● Inactive"}
                               </div>
                               {(info.word_styles || []).length > 0 && (
                                 <div className="flex gap-1 text-xs">
                                   {(info.word_styles || []).some((s) => s.bold) && (
-                                    <span className="bg-slate-600 px-1.5 py-0.5 rounded font-bold text-slate-300">B</span>
+                                    <span className="bg-white/[0.10] px-1.5 py-0.5 rounded font-bold text-white/60">B</span>
                                   )}
                                   {(info.word_styles || []).some((s) => s.italic) && (
-                                    <span className="bg-slate-600 px-1.5 py-0.5 rounded italic text-slate-300">I</span>
+                                    <span className="bg-white/[0.10] px-1.5 py-0.5 rounded italic text-white/60">I</span>
                                   )}
                                   {(info.word_styles || []).some((s) => s.underline) && (
-                                    <span className="bg-slate-600 px-1.5 py-0.5 rounded underline text-slate-300">U</span>
+                                    <span className="bg-white/[0.10] px-1.5 py-0.5 rounded underline text-white/60">U</span>
                                   )}
                                 </div>
                               )}
@@ -948,77 +948,77 @@ export default function ObsWidgetSettings() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="bg-slate-800/50 border-slate-700">
+            <Card className="bg-white/[0.04] border-white/[0.10]">
               <CardContent className="py-8">
-                <p className="text-center text-slate-400">No info items configured. Add one to get started!</p>
+                <p className="text-center text-white/40">No info items configured. Add one to get started!</p>
               </CardContent>
             </Card>
           )}
 
           {/* Info */}
-          <div className="mt-4 p-4 bg-slate-800/30 border border-slate-700/50 rounded-lg">
-            <p className="text-sm text-slate-400">
+          <div className="mt-4 p-4 bg-white/[0.06]/30 border border-white/[0.08] rounded-lg">
+            <p className="text-sm text-white/40">
               <strong>Info:</strong> Info items added here will automatically appear on the OBS widget bar at{" "}
-              <code className="bg-slate-900 px-2 py-1 rounded text-cyan-400">/obs-widget</code> in the right column next to the timers.
+              <code className="bg-[#101014] px-2 py-1 rounded text-[#5B8DEF]">/obs-widget</code> in the right column next to the timers.
             </p>
           </div>
         </div>
 
         {/* Spotify Section */}
-        <div className="mt-12 pt-8 border-t border-slate-700">
+        <div className="mt-12 pt-8 border-t border-white/[0.10]">
           <h2 className="text-2xl font-bold text-white mb-6">Spotify Configuration</h2>
 
           {/* Spotify API Setup */}
-          <Card className="bg-slate-800/50 border-slate-700 mb-8">
+          <Card className="bg-white/[0.04] border-white/[0.10] mb-8">
             <CardHeader>
               <CardTitle className="text-white">Spotify API Credentials</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-slate-700/30 border border-slate-600/50 p-4 rounded-lg mb-4">
-                <p className="text-sm text-slate-300 mb-2">
+              <div className="bg-white/[0.08]/30 border border-white/[0.12]/50 p-4 rounded-lg mb-4">
+                <p className="text-sm text-white/60 mb-2">
                   <strong>How to get your credentials:</strong>
                 </p>
-                <ol className="text-xs text-slate-400 list-decimal list-inside space-y-1">
-                  <li>Go to <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Spotify Developer Dashboard</a></li>
+                <ol className="text-xs text-white/40 list-decimal list-inside space-y-1">
+                  <li>Go to <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-[#5B8DEF] hover:underline">Spotify Developer Dashboard</a></li>
                   <li>Create a new app and get your Client ID and Client Secret</li>
                   <li>Use the Spotify Authorization flow to generate a Refresh Token</li>
                   <li>Paste them here to enable live track display on the OBS widget</li>
                 </ol>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Client ID</label>
+                <label className="block text-sm font-medium text-white/60 mb-2">Client ID</label>
                 <Input
                   type="password"
                   placeholder="Your Spotify Client ID"
                   value={spotifyConfig.clientId}
                   onChange={(e) => setSpotifyConfig({ ...spotifyConfig, clientId: e.target.value })}
-                  className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
+                  className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Client Secret</label>
+                <label className="block text-sm font-medium text-white/60 mb-2">Client Secret</label>
                 <Input
                   type="password"
                   placeholder="Your Spotify Client Secret"
                   value={spotifyConfig.clientSecret}
                   onChange={(e) => setSpotifyConfig({ ...spotifyConfig, clientSecret: e.target.value })}
-                  className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
+                  className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Refresh Token</label>
+                <label className="block text-sm font-medium text-white/60 mb-2">Refresh Token</label>
                 <Input
                   type="password"
                   placeholder="Your Spotify Refresh Token"
                   value={spotifyConfig.refreshToken}
                   onChange={(e) => setSpotifyConfig({ ...spotifyConfig, refreshToken: e.target.value })}
-                  className="bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
+                  className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25"
                 />
               </div>
               <Button
                 onClick={saveSpotifyConfig}
                 disabled={spotifySaving}
-                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
+                className="w-full bg-[#5B8DEF] hover:bg-[#4A7AD8] text-white"
               >
                 Save Spotify Configuration
               </Button>
@@ -1027,9 +1027,9 @@ export default function ObsWidgetSettings() {
         </div>
 
         {/* Transactions moved to /admin/settings — one ledger, one screen. */}
-        <div className="mt-12 pt-8 border-t border-slate-700">
+        <div className="mt-12 pt-8 border-t border-white/[0.10]">
           <h2 className="mb-2 text-2xl font-bold text-white">Wallet</h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-white/40">
             Deposits and cashouts now live in{" "}
             <a href="/admin/settings" className="font-semibold text-[#7FB3FF] underline underline-offset-2">
               Settings &rarr; Transactions

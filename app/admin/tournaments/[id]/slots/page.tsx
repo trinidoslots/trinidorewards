@@ -121,7 +121,7 @@ export default function SlotAssignmentPage() {
     return (
       <div className="p-8">
         <div className="flex items-center justify-center h-64">
-          <div className="text-slate-400">Loading tournament...</div>
+          <div className="text-white/40">Loading tournament...</div>
         </div>
       </div>
     )
@@ -145,37 +145,37 @@ export default function SlotAssignmentPage() {
             onClick={() => router.back()}
             variant="outline"
             size="sm"
-            className="border-slate-700 hover:bg-slate-800"
+            className="border-white/[0.10] hover:bg-white/[0.06]"
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Assign Tournament Slots</h1>
-            <p className="text-slate-400">{tournament.title}</p>
+            <p className="text-white/40">{tournament.title}</p>
           </div>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto">
-        <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50 p-6">
+        <Card className="bg-white/[0.022] backdrop-blur border-white/[0.08] p-6">
           <div className="space-y-6">
             <div>
               <h2 className="text-lg font-semibold text-white mb-4">Tournament Slots</h2>
-              <p className="text-slate-400 text-sm mb-6">
+              <p className="text-white/40 text-sm mb-6">
                 Assign participants to each bracket slot and add optional notes. Notes will be visible in the tournament bracket.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {slots.map((slot, index) => (
-                <div key={slot.slot_position} className="space-y-3 p-4 bg-slate-800/30 rounded-lg border border-slate-700/50">
+                <div key={slot.slot_position} className="space-y-3 p-4 bg-white/[0.06]/30 rounded-lg border border-white/[0.08]">
                   <div className="flex items-center gap-2 mb-3">
-                    <Trophy className="w-4 h-4 text-cyan-400" />
+                    <Trophy className="w-4 h-4 text-[#5B8DEF]" />
                     <Label className="text-white font-semibold">Slot {slot.slot_position}</Label>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor={`participant-${index}`} className="text-slate-300 text-sm">
+                    <Label htmlFor={`participant-${index}`} className="text-white/60 text-sm">
                       Participant Name
                     </Label>
                     <Input
@@ -183,12 +183,12 @@ export default function SlotAssignmentPage() {
                       placeholder="Enter participant name"
                       value={slot.participant_name}
                       onChange={(e) => handleSlotChange(index, "participant_name", e.target.value)}
-                      className="bg-slate-900 border-slate-600 text-white placeholder-slate-500"
+                      className="bg-[#101014] border-white/[0.12] text-white placeholder:text-white/25"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor={`note-${index}`} className="text-slate-300 text-sm">
+                    <Label htmlFor={`note-${index}`} className="text-white/60 text-sm">
                       Admin Note
                     </Label>
                     <Textarea
@@ -196,25 +196,25 @@ export default function SlotAssignmentPage() {
                       placeholder="Add a note for this slot (e.g., seeding, notes)"
                       value={slot.admin_note}
                       onChange={(e) => handleSlotChange(index, "admin_note", e.target.value)}
-                      className="bg-slate-900 border-slate-600 text-white placeholder-slate-500 min-h-[60px] resize-none"
+                      className="bg-[#101014] border-white/[0.12] text-white placeholder:text-white/25 min-h-[60px] resize-none"
                     />
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="flex gap-4 pt-6 border-t border-slate-700/50">
+            <div className="flex gap-4 pt-6 border-t border-white/[0.08]">
               <Button
                 onClick={() => router.back()}
                 variant="outline"
-                className="border-slate-700 hover:bg-slate-800 text-slate-300"
+                className="border-white/[0.10] hover:bg-white/[0.06] text-white/60"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleSaveSlots}
                 disabled={saving}
-                className="bg-cyan-600 hover:bg-cyan-700 flex items-center gap-2"
+                className="bg-[#5B8DEF] hover:bg-[#4A7AD8] flex items-center gap-2"
               >
                 <Save className="w-4 h-4" />
                 {saving ? "Saving..." : "Save Slots & View Bracket"}

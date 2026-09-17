@@ -288,20 +288,20 @@ export default function TournamentOpeningPage() {
 
   if (!tournament) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-8">
+      <div className="min-h-screen bg-gradient-to-b from-[#101014] via-white/[0.06] to-[#101014] p-8">
         <div className="max-w-7xl mx-auto">
           <Button
             onClick={() => router.push("/admin/tournaments")}
             variant="outline"
-            className="mb-4 border-slate-700 hover:bg-slate-800"
+            className="mb-4 border-white/[0.10] hover:bg-white/[0.06]"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Tournaments
           </Button>
-          <Card className="bg-slate-800/50 border-slate-700/50 p-12 text-center">
-            <Trophy className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+          <Card className="bg-white/[0.04] border-white/[0.08] p-12 text-center">
+            <Trophy className="w-16 h-16 text-white/20 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-white mb-2">No Active Tournament</h3>
-            <p className="text-slate-400">Create and activate a tournament first</p>
+            <p className="text-white/40">Create and activate a tournament first</p>
           </Card>
         </div>
       </div>
@@ -309,7 +309,7 @@ export default function TournamentOpeningPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 p-8">
+    <div className="min-h-screen bg-gradient-to-b from-[#101014] via-white/[0.06] to-[#101014] p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -317,14 +317,14 @@ export default function TournamentOpeningPage() {
             <Button
               onClick={() => router.push("/admin/tournaments")}
               variant="outline"
-              className="border-slate-700 hover:bg-slate-800"
+              className="border-white/[0.10] hover:bg-white/[0.06]"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
             <div>
               <h1 className="text-3xl font-bold text-white">{tournament.title}</h1>
-              <p className="text-slate-400">Tournament Opening Mode</p>
+              <p className="text-white/40">Tournament Opening Mode</p>
             </div>
           </div>
           {isCompleted && (
@@ -343,16 +343,16 @@ export default function TournamentOpeningPage() {
         {matches.length === 0 && (
           <div className="grid md:grid-cols-2 gap-6">
             {/* Slot Selection */}
-            <Card className="bg-slate-800/50 border-slate-700/50 p-6">
+            <Card className="bg-white/[0.04] border-white/[0.08] p-6">
               <h3 className="text-xl font-bold text-white mb-4">Select 8 Slots</h3>
               <div className="space-y-4">
                 <Input
                   placeholder="Search slots..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-slate-900 border-slate-700 text-white"
+                  className="bg-[#101014] border-white/[0.10] text-white"
                 />
-                <div className="text-sm text-slate-400">Selected: {selectedSlots.length}/8</div>
+                <div className="text-sm text-white/40">Selected: {selectedSlots.length}/8</div>
                 <div className="max-h-[500px] overflow-y-auto space-y-2">
                   {filteredSlots.map((slot, idx) => {
                     const isSelected = selectedSlots.some(
@@ -364,12 +364,12 @@ export default function TournamentOpeningPage() {
                         onClick={() => toggleSlotSelection(slot)}
                         className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
                           isSelected
-                            ? "bg-cyan-500/20 border-cyan-500"
-                            : "bg-slate-900/50 border-slate-700 hover:border-cyan-500/50"
+                            ? "bg-[#5B8DEF]/20 border-[#5B8DEF]"
+                            : "bg-white/[0.022] border-white/[0.10] hover:border-[#5B8DEF]/50"
                         }`}
                       >
                         <div className="text-white font-semibold">{slot.game_name}</div>
-                        <div className="text-slate-400 text-sm">{slot.provider}</div>
+                        <div className="text-white/40 text-sm">{slot.provider}</div>
                       </div>
                     )
                   })}
@@ -378,24 +378,24 @@ export default function TournamentOpeningPage() {
             </Card>
 
             {/* Selected Slots */}
-            <Card className="bg-slate-800/50 border-slate-700/50 p-6">
+            <Card className="bg-white/[0.04] border-white/[0.08] p-6">
               <h3 className="text-xl font-bold text-white mb-4">Tournament Bracket</h3>
               <div className="space-y-4">
                 {selectedSlots.length === 0 ? (
-                  <div className="text-center py-12 text-slate-400">
+                  <div className="text-center py-12 text-white/40">
                     Select 8 slots to create the tournament bracket
                   </div>
                 ) : (
                   <>
                     <div className="space-y-2">
                       {selectedSlots.map((slot, idx) => (
-                        <div key={idx} className="p-3 bg-slate-900/50 border border-slate-700 rounded-lg">
+                        <div key={idx} className="p-3 bg-white/[0.022] border border-white/[0.10] rounded-lg">
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="text-white font-semibold">{slot.game_name}</div>
-                              <div className="text-slate-400 text-sm">{slot.provider}</div>
+                              <div className="text-white/40 text-sm">{slot.provider}</div>
                             </div>
-                            <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30">#{idx + 1}</Badge>
+                            <Badge className="bg-[#5B8DEF]/20 text-[#5B8DEF] border-[#5B8DEF]/30">#{idx + 1}</Badge>
                           </div>
                         </div>
                       ))}
@@ -419,9 +419,9 @@ export default function TournamentOpeningPage() {
         {matches.length > 0 && !isCompleted && currentMatch && (
           <div className="grid md:grid-cols-3 gap-6">
             {/* Current Match */}
-            <Card className="md:col-span-2 bg-slate-800/50 border-slate-700/50 p-8">
+            <Card className="md:col-span-2 bg-white/[0.04] border-white/[0.08] p-8">
               <div className="text-center mb-6">
-                <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30 text-lg px-4 py-2">
+                <Badge className="bg-[#5B8DEF]/20 text-[#5B8DEF] border-[#5B8DEF]/30 text-lg px-4 py-2">
                   {getRoundName(currentMatch.round_number)} - Match #{currentMatch.match_number}
                 </Badge>
               </div>
@@ -430,11 +430,11 @@ export default function TournamentOpeningPage() {
                 {/* Slot 1 */}
                 <div
                   onClick={() => setWinner(1)}
-                  className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 border-2 border-slate-700 hover:border-cyan-500 rounded-xl cursor-pointer transition-all group"
+                  className="p-8 bg-gradient-to-br from-[#101014] to-white/[0.06] border-2 border-white/[0.10] hover:border-[#5B8DEF] rounded-xl cursor-pointer transition-all group"
                 >
                   <div className="text-center">
                     <div className="text-3xl font-bold text-white mb-2">{currentMatch.slot1_name}</div>
-                    <div className="text-slate-400 text-lg">({currentMatch.slot1_provider})</div>
+                    <div className="text-white/40 text-lg">({currentMatch.slot1_provider})</div>
                     <Button className="mt-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Check className="w-4 h-4 mr-2" />
                       Select Winner
@@ -442,16 +442,16 @@ export default function TournamentOpeningPage() {
                   </div>
                 </div>
 
-                <div className="text-center text-slate-500 font-bold text-xl">VS</div>
+                <div className="text-center text-white/30 font-bold text-xl">VS</div>
 
                 {/* Slot 2 */}
                 <div
                   onClick={() => setWinner(2)}
-                  className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 border-2 border-slate-700 hover:border-cyan-500 rounded-xl cursor-pointer transition-all group"
+                  className="p-8 bg-gradient-to-br from-[#101014] to-white/[0.06] border-2 border-white/[0.10] hover:border-[#5B8DEF] rounded-xl cursor-pointer transition-all group"
                 >
                   <div className="text-center">
                     <div className="text-3xl font-bold text-white mb-2">{currentMatch.slot2_name}</div>
-                    <div className="text-slate-400 text-lg">({currentMatch.slot2_provider})</div>
+                    <div className="text-white/40 text-lg">({currentMatch.slot2_provider})</div>
                     <Button className="mt-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Check className="w-4 h-4 mr-2" />
                       Select Winner
@@ -462,7 +462,7 @@ export default function TournamentOpeningPage() {
             </Card>
 
             {/* Match List */}
-            <Card className="bg-slate-800/50 border-slate-700/50 p-6">
+            <Card className="bg-white/[0.04] border-white/[0.08] p-6">
               <h3 className="text-xl font-bold text-white mb-4">All Matches</h3>
               <div className="space-y-3 max-h-[600px] overflow-y-auto">
                 {matches.map((match, idx) => (
@@ -471,13 +471,13 @@ export default function TournamentOpeningPage() {
                     onClick={() => match.status === "pending" && setCurrentMatchIndex(idx)}
                     className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
                       idx === currentMatchIndex
-                        ? "bg-cyan-500/20 border-cyan-500"
+                        ? "bg-[#5B8DEF]/20 border-[#5B8DEF]"
                         : match.status === "completed"
                           ? "bg-green-500/10 border-green-500/30"
-                          : "bg-slate-900/50 border-slate-700 hover:border-cyan-500/50"
+                          : "bg-white/[0.022] border-white/[0.10] hover:border-[#5B8DEF]/50"
                     }`}
                   >
-                    <div className="text-xs text-slate-400 mb-1">
+                    <div className="text-xs text-white/40 mb-1">
                       {getRoundName(match.round_number)} - Match #{match.match_number}
                     </div>
                     <div className="space-y-1">
@@ -504,10 +504,10 @@ export default function TournamentOpeningPage() {
 
         {/* Completed State */}
         {isCompleted && (
-          <Card className="bg-slate-800/50 border-slate-700/50 p-12 text-center">
+          <Card className="bg-white/[0.04] border-white/[0.08] p-12 text-center">
             <Trophy className="w-24 h-24 text-amber-400 mx-auto mb-6" />
             <h2 className="text-4xl font-bold text-white mb-4">Tournament Complete!</h2>
-            <p className="text-slate-400 text-lg mb-8">
+            <p className="text-white/40 text-lg mb-8">
               Winner:{" "}
               {matches[matches.length - 1]?.winner_slot === 1
                 ? matches[matches.length - 1]?.slot1_name
@@ -516,7 +516,7 @@ export default function TournamentOpeningPage() {
             <div className="flex gap-4 justify-center">
               <Button
                 onClick={() => router.push("/admin/tournaments")}
-                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+                className="bg-[#5B8DEF] hover:bg-[#4A7AD8]"
               >
                 Back to Tournaments
               </Button>

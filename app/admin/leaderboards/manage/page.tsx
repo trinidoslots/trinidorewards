@@ -532,7 +532,7 @@ export default function LeaderboardsManagePage() {
     <div className="p-3">
       <div className="mt-3 space-y-3">
         {/* Create Leaderboard Section */}
-        <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
+        <Card className="bg-white/[0.022] backdrop-blur border-white/[0.08]">
           <CardHeader className="p-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-white flex items-center gap-2 text-sm">
@@ -542,7 +542,7 @@ export default function LeaderboardsManagePage() {
               <Button
                 onClick={() => setShowCreateForm(!showCreateForm)}
                 size="sm"
-                className="bg-cyan-600 hover:bg-cyan-700 h-7 text-xs"
+                className="bg-[#5B8DEF] hover:bg-[#4A7AD8] h-7 text-xs"
               >
                 <Plus className="w-3 h-3 mr-1" />
                 Create New
@@ -554,32 +554,32 @@ export default function LeaderboardsManagePage() {
               <form onSubmit={handleCreateLeaderboard} className="space-y-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
-                    <Label htmlFor="title" className="text-slate-300 text-xs">
+                    <Label htmlFor="title" className="text-white/60 text-xs">
                       Title
                     </Label>
                     <Input
                       id="title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                      className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                       placeholder="STAKE.COM & STAKE.US"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="subtitle" className="text-slate-300 text-xs">
+                    <Label htmlFor="subtitle" className="text-white/60 text-xs">
                       Subtitle
                     </Label>
                     <Input
                       id="subtitle"
                       value={subtitle}
                       onChange={(e) => setSubtitle(e.target.value)}
-                      className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                      className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                       placeholder="Optional subtitle"
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <Label htmlFor="image_url" className="text-slate-300 text-xs flex items-center gap-1">
+                    <Label htmlFor="image_url" className="text-white/60 text-xs flex items-center gap-1">
                       <ImageIcon className="w-3 h-3" />
                       Header Image URL
                     </Label>
@@ -587,13 +587,13 @@ export default function LeaderboardsManagePage() {
                       id="image_url"
                       value={imageUrl}
                       onChange={(e) => setImageUrl(e.target.value)}
-                      className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                      className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                       placeholder="https://example.com/header-image.png"
                     />
-                    <p className="text-[10px] text-slate-400 mt-1">Upload image to Vercel Blob or use external URL</p>
+                    <p className="text-[10px] text-white/40 mt-1">Upload image to Vercel Blob or use external URL</p>
                   </div>
                   <div>
-                    <Label htmlFor="prize_pool" className="text-slate-300 text-xs">
+                    <Label htmlFor="prize_pool" className="text-white/60 text-xs">
                       Prize Pool ($)
                     </Label>
                     <Input
@@ -602,20 +602,20 @@ export default function LeaderboardsManagePage() {
                       step="0.01"
                       value={prizePool}
                       onChange={(e) => setPrizePool(e.target.value)}
-                      className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                      className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                       placeholder="20000"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="prize_distribution" className="text-slate-300 text-xs">
+                    <Label htmlFor="prize_distribution" className="text-white/60 text-xs">
                       Prize Distribution
                     </Label>
                     <select
                       id="prize_distribution"
                       value={prizeDistribution}
                       onChange={(e) => setPrizeDistribution(e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-700 text-white h-8 text-xs rounded-md px-2"
+                      className="w-full bg-[#101014] border border-white/[0.10] text-white h-8 text-xs rounded-md px-2"
                     >
                       {PAYOUT_PRESETS.map((preset) => (
                         <option key={preset.id} value={preset.id}>
@@ -625,19 +625,19 @@ export default function LeaderboardsManagePage() {
                     </select>
                   </div>
                   <div>
-                    <Label htmlFor="api_url" className="text-slate-300 text-xs">
+                    <Label htmlFor="api_url" className="text-white/60 text-xs">
                       API URL (Optional)
                     </Label>
                     <Input
                       id="api_url"
                       value={apiUrl}
                       onChange={(e) => setApiUrl(e.target.value)}
-                      className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                      className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                       placeholder="https://api.example.com/leaderboard"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="api_key" className="text-slate-300 text-xs">
+                    <Label htmlFor="api_key" className="text-white/60 text-xs">
                       API Key (Optional)
                     </Label>
                     <Input
@@ -645,12 +645,12 @@ export default function LeaderboardsManagePage() {
                       type="password"
                       value={apiKey}
                       onChange={(e) => setApiKey(e.target.value)}
-                      className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                      className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                       placeholder="Bearer token or API key"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="start_date" className="text-slate-300 text-xs">
+                    <Label htmlFor="start_date" className="text-white/60 text-xs">
                       Start Date
                     </Label>
                     <Input
@@ -658,12 +658,12 @@ export default function LeaderboardsManagePage() {
                       type="datetime-local"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                      className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="end_date" className="text-slate-300 text-xs">
+                    <Label htmlFor="end_date" className="text-white/60 text-xs">
                       End Date
                     </Label>
                     <Input
@@ -671,20 +671,20 @@ export default function LeaderboardsManagePage() {
                       type="datetime-local"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                      className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                       required
                     />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="timezone" className="text-slate-300 text-xs">
+                  <Label htmlFor="timezone" className="text-white/60 text-xs">
                     Timezone
                   </Label>
                   <select
                     id="timezone"
                     value={timezone}
                     onChange={(e) => setTimezone(e.target.value)}
-                    className="w-full rounded-md border border-slate-700 bg-slate-900 px-2 text-xs text-white h-8"
+                    className="w-full rounded-md border border-white/[0.10] bg-[#101014] px-2 text-xs text-white h-8"
                   >
                     {COMMON_TIMEZONES.map((zone) => (
                       <option key={zone} value={zone}>
@@ -692,12 +692,12 @@ export default function LeaderboardsManagePage() {
                       </option>
                     ))}
                   </select>
-                  <p className="mt-1 text-[10px] text-slate-400">
+                  <p className="mt-1 text-[10px] text-white/40">
                     The dates above are read as wall-clock time in this zone, and shown in it everywhere.
                   </p>
                 </div>
                 {prizePool && (
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-[10px] text-white/40">
                     {(() => {
                       const summary = payoutSummary(Number.parseFloat(prizePool) || 0, prizeDistribution)
                       return `Pays ${summary.places} places${
@@ -706,10 +706,10 @@ export default function LeaderboardsManagePage() {
                     })()}
                   </p>
                 )}
-                <p className="text-[10px] text-slate-400">
+                <p className="text-[10px] text-white/40">
                   Status will be automatically calculated based on start and end dates
                 </p>
-                <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 h-8 text-xs">
+                <Button type="submit" className="w-full bg-[#5B8DEF] hover:bg-[#4A7AD8] h-8 text-xs">
                   Create Leaderboard
                 </Button>
               </form>
@@ -725,8 +725,8 @@ export default function LeaderboardsManagePage() {
             return (
               <Card
                 key={lb.id}
-                className={`bg-slate-900/60 backdrop-blur border-slate-700/50 transition-all ${
-                  selectedLeaderboard === lb.id ? "ring-2 ring-cyan-500" : ""
+                className={`bg-white/[0.022] backdrop-blur border-white/[0.08] transition-all ${
+                  selectedLeaderboard === lb.id ? "ring-2 ring-[#5B8DEF]" : ""
                 }`}
               >
                 <CardContent className="p-3">
@@ -735,39 +735,39 @@ export default function LeaderboardsManagePage() {
                       <Input
                         value={editLeaderboardForm.title}
                         onChange={(e) => setEditLeaderboardForm({ ...editLeaderboardForm, title: e.target.value })}
-                        className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                        className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                         placeholder="Title"
                       />
                       <Input
                         value={editLeaderboardForm.subtitle}
                         onChange={(e) => setEditLeaderboardForm({ ...editLeaderboardForm, subtitle: e.target.value })}
-                        className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                        className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                         placeholder="Subtitle"
                       />
                       <Input
                         type="number"
                         value={editLeaderboardForm.prize_pool}
                         onChange={(e) => setEditLeaderboardForm({ ...editLeaderboardForm, prize_pool: e.target.value })}
-                        className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                        className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                         placeholder="Prize Pool"
                       />
                       <Input
                         value={editLeaderboardForm.image_url}
                         onChange={(e) => setEditLeaderboardForm({ ...editLeaderboardForm, image_url: e.target.value })}
-                        className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                        className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                         placeholder="Image URL"
                       />
                       <Input
                         type="datetime-local"
                         value={editLeaderboardForm.start_date}
                         onChange={(e) => setEditLeaderboardForm({ ...editLeaderboardForm, start_date: e.target.value })}
-                        className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                        className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                       />
                       <Input
                         type="datetime-local"
                         value={editLeaderboardForm.end_date}
                         onChange={(e) => setEditLeaderboardForm({ ...editLeaderboardForm, end_date: e.target.value })}
-                        className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                        className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                       />
                       <div className="flex gap-2">
                         <Button
@@ -782,7 +782,7 @@ export default function LeaderboardsManagePage() {
                           onClick={() => setEditingLeaderboard(null)}
                           size="sm"
                           variant="outline"
-                          className="flex-1 border-slate-600 text-slate-300 h-7 text-xs bg-transparent"
+                          className="flex-1 border-white/[0.12] text-white/60 h-7 text-xs bg-transparent"
                         >
                           <X className="w-3 h-3 mr-1" />
                           Cancel
@@ -800,14 +800,14 @@ export default function LeaderboardsManagePage() {
                           }}
                         >
                           <h3 className="text-sm font-bold text-white">{lb.title}</h3>
-                          {lb.subtitle && <p className="text-[10px] text-slate-400">{lb.subtitle}</p>}
+                          {lb.subtitle && <p className="text-[10px] text-white/40">{lb.subtitle}</p>}
                         </div>
                         <div className="flex gap-1">
                           <Button
                             onClick={() => startEditLeaderboard(lb)}
                             size="sm"
                             variant="ghost"
-                            className="h-6 w-6 p-0 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-900/20"
+                            className="h-6 w-6 p-0 text-[#5B8DEF] hover:text-[#5B8DEF] hover:bg-[#5B8DEF]/10"
                           >
                             <Edit className="w-3 h-3" />
                           </Button>
@@ -826,15 +826,15 @@ export default function LeaderboardsManagePage() {
                       </div>
                       <div className="space-y-1 text-[10px]">
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Prize Pool:</span>
+                          <span className="text-white/40">Prize Pool:</span>
                           <span className="text-amber-400 font-bold">${lb.prize_pool.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Distribution:</span>
-                          <span className="text-cyan-400 capitalize">{lb.prize_distribution_type}</span>
+                          <span className="text-white/40">Distribution:</span>
+                          <span className="text-[#5B8DEF] capitalize">{lb.prize_distribution_type}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Status:</span>
+                          <span className="text-white/40">Status:</span>
                           <span
                             className={`font-bold ${
                               calculatedStatus === "active"
@@ -849,14 +849,14 @@ export default function LeaderboardsManagePage() {
                         </div>
                         {lb.api_url && (
                           <div className="flex justify-between">
-                            <span className="text-slate-400">API:</span>
+                            <span className="text-white/40">API:</span>
                             <span className="text-purple-400">Configured</span>
                           </div>
                         )}
                         {lb.image_url && (
                           <div className="flex justify-between">
-                            <span className="text-slate-400">Header Image:</span>
-                            <span className="text-slate-400">✓</span>
+                            <span className="text-white/40">Header Image:</span>
+                            <span className="text-white/40">✓</span>
                           </div>
                         )}
                       </div>
@@ -870,7 +870,7 @@ export default function LeaderboardsManagePage() {
 
         {/* Entries Management */}
         {selectedLeaderboard && (
-          <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
+          <Card className="bg-white/[0.022] backdrop-blur border-white/[0.08]">
             <CardHeader className="p-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-white flex items-center gap-2 text-sm">
@@ -888,7 +888,7 @@ export default function LeaderboardsManagePage() {
                     onClick={downloadCsvTemplate}
                     size="sm"
                     variant="outline"
-                    className="border-slate-600 text-slate-300 hover:bg-slate-800 h-7 text-xs bg-transparent"
+                    className="border-white/[0.12] text-white/60 hover:bg-white/[0.06] h-7 text-xs bg-transparent"
                   >
                     <Download className="w-3 h-3 mr-1" />
                     Template
@@ -896,7 +896,7 @@ export default function LeaderboardsManagePage() {
                   <Button
                     onClick={() => setShowCsvUpload(!showCsvUpload)}
                     size="sm"
-                    className="bg-cyan-600 hover:bg-cyan-700 h-7 text-xs"
+                    className="bg-[#5B8DEF] hover:bg-[#4A7AD8] h-7 text-xs"
                   >
                     <Upload className="w-3 h-3 mr-1" />
                     Upload CSV
@@ -906,9 +906,9 @@ export default function LeaderboardsManagePage() {
             </CardHeader>
             <CardContent className="p-3 pt-0">
               {showCsvUpload && (
-                <div className="space-y-3 mb-3 p-3 bg-slate-800/50 rounded-lg">
+                <div className="space-y-3 mb-3 p-3 bg-white/[0.04] rounded-lg">
                   <div>
-                    <Label htmlFor="csv_file" className="text-slate-300 text-xs mb-2 block">
+                    <Label htmlFor="csv_file" className="text-white/60 text-xs mb-2 block">
                       Upload CSV File
                     </Label>
                     <Input
@@ -916,9 +916,9 @@ export default function LeaderboardsManagePage() {
                       type="file"
                       accept=".csv"
                       onChange={handleCsvFileChange}
-                      className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                      className="bg-[#101014] border-white/[0.10] text-white h-8 text-xs"
                     />
-                    <p className="text-[10px] text-slate-400 mt-1">
+                    <p className="text-[10px] text-white/40 mt-1">
                       CSV format: username,wager_amount (prizes calculated automatically)
                     </p>
                   </div>
@@ -926,7 +926,7 @@ export default function LeaderboardsManagePage() {
                   {csvPreview.length > 0 && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label className="text-slate-300 text-xs">Preview ({csvPreview.length} entries)</Label>
+                        <Label className="text-white/60 text-xs">Preview ({csvPreview.length} entries)</Label>
                         <Button
                           onClick={handleCsvUpload}
                           size="sm"
@@ -939,14 +939,14 @@ export default function LeaderboardsManagePage() {
                         {csvPreview.slice(0, 10).map((entry, index) => (
                           <div
                             key={index}
-                            className="flex items-center justify-between p-2 bg-slate-900/50 rounded text-[10px]"
+                            className="flex items-center justify-between p-2 bg-white/[0.022] rounded text-[10px]"
                           >
                             <span className="text-white">{entry.username}</span>
-                            <span className="text-slate-400">${entry.wager_amount?.toLocaleString()}</span>
+                            <span className="text-white/40">${entry.wager_amount?.toLocaleString()}</span>
                           </div>
                         ))}
                         {csvPreview.length > 10 && (
-                          <p className="text-[10px] text-slate-400 text-center py-1">
+                          <p className="text-[10px] text-white/40 text-center py-1">
                             ... and {csvPreview.length - 10} more entries
                           </p>
                         )}
@@ -960,28 +960,28 @@ export default function LeaderboardsManagePage() {
                 {entries.map((entry) => (
                   <div
                     key={entry.id}
-                    className="flex items-center justify-between p-2 bg-slate-800/30 rounded hover:bg-slate-800/50 transition-colors"
+                    className="flex items-center justify-between p-2 bg-white/[0.06]/30 rounded hover:bg-white/[0.04] transition-colors"
                   >
                     {editingEntry === entry.id ? (
                       <>
                         <div className="flex items-center gap-2 flex-1">
-                          <div className="text-xs text-slate-400 w-6">#{entry.rank}</div>
+                          <div className="text-xs text-white/40 w-6">#{entry.rank}</div>
                           <Input
                             value={editForm.username}
                             onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                            className="bg-slate-900 border-slate-700 text-white h-6 text-xs flex-1"
+                            className="bg-[#101014] border-white/[0.10] text-white h-6 text-xs flex-1"
                           />
                           <Input
                             type="number"
                             value={editForm.wager_amount}
                             onChange={(e) => setEditForm({ ...editForm, wager_amount: e.target.value })}
-                            className="bg-slate-900 border-slate-700 text-white h-6 text-xs w-24"
+                            className="bg-[#101014] border-white/[0.10] text-white h-6 text-xs w-24"
                           />
                           <Input
                             type="number"
                             value={editForm.prize_amount}
                             onChange={(e) => setEditForm({ ...editForm, prize_amount: e.target.value })}
-                            className="bg-slate-900 border-slate-700 text-white h-6 text-xs w-24"
+                            className="bg-[#101014] border-white/[0.10] text-white h-6 text-xs w-24"
                           />
                         </div>
                         <div className="flex gap-1">
@@ -997,7 +997,7 @@ export default function LeaderboardsManagePage() {
                             onClick={() => setEditingEntry(null)}
                             size="sm"
                             variant="ghost"
-                            className="h-6 w-6 p-0 text-slate-400 hover:text-slate-300 hover:bg-slate-800"
+                            className="h-6 w-6 p-0 text-white/40 hover:text-white/60 hover:bg-white/[0.06]"
                           >
                             <X className="w-3 h-3" />
                           </Button>
@@ -1006,17 +1006,17 @@ export default function LeaderboardsManagePage() {
                     ) : (
                       <>
                         <div className="flex items-center gap-3">
-                          <div className="text-xs text-slate-400 w-6">#{entry.rank}</div>
+                          <div className="text-xs text-white/40 w-6">#{entry.rank}</div>
                           <div className="text-xs text-white">{entry.username}</div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="text-xs text-slate-400">${entry.wager_amount.toLocaleString()}</div>
+                          <div className="text-xs text-white/40">${entry.wager_amount.toLocaleString()}</div>
                           <div className="text-xs text-amber-400 font-bold">${entry.prize_amount.toLocaleString()}</div>
                           <Button
                             onClick={() => startEditEntry(entry)}
                             size="sm"
                             variant="ghost"
-                            className="h-6 w-6 p-0 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-900/20"
+                            className="h-6 w-6 p-0 text-[#5B8DEF] hover:text-[#5B8DEF] hover:bg-[#5B8DEF]/10"
                           >
                             <Edit className="w-3 h-3" />
                           </Button>

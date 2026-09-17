@@ -176,11 +176,11 @@ export default function AdminUsersPage() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">User Management</h1>
-          <p className="text-slate-400">Manage users, points, and view user activity</p>
+          <p className="text-white/40">Manage users, points, and view user activity</p>
         </div>
 
         {/* Search & Filter Section */}
-        <Card className="bg-slate-900/80 border-slate-700/50 backdrop-blur">
+        <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur">
           <CardContent className="p-6">
             <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
               <Filter className="w-5 h-5" />
@@ -189,10 +189,10 @@ export default function AdminUsersPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectTrigger className="bg-white/[0.06] border-white/[0.10] text-white">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-white/[0.06] border-white/[0.10]">
                   <SelectItem value="registered" className="text-white">
                     Registered Date
                   </SelectItem>
@@ -208,15 +208,15 @@ export default function AdminUsersPage() {
 
             <div className="flex gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by username or Kick ID..."
-                  className="pl-10 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+                  className="pl-10 bg-white/[0.06] border-white/[0.10] text-white placeholder:text-white/30"
                 />
               </div>
-              <Button onClick={fetchData} className="bg-slate-700 hover:bg-slate-600 text-white gap-2">
+              <Button onClick={fetchData} className="bg-white/[0.08] hover:bg-white/[0.10] text-white gap-2">
                 <RefreshCw className="w-4 h-4" />
                 REFRESH
               </Button>
@@ -225,31 +225,31 @@ export default function AdminUsersPage() {
         </Card>
 
         {/* Users Table */}
-        <Card className="bg-slate-900/80 border-slate-700/50 backdrop-blur">
+        <Card className="bg-white/[0.03] border-white/[0.08] backdrop-blur">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="border-b border-slate-700">
+                <thead className="border-b border-white/[0.10]">
                   <tr className="text-left">
-                    <th className="p-4 text-sm font-semibold text-slate-400 uppercase tracking-wider">User</th>
-                    <th className="p-4 text-sm font-semibold text-slate-400 uppercase tracking-wider">Kick ID</th>
-                    <th className="p-4 text-sm font-semibold text-slate-400 uppercase tracking-wider">Total Earned</th>
-                    <th className="p-4 text-sm font-semibold text-slate-400 uppercase tracking-wider">
+                    <th className="p-4 text-sm font-semibold text-white/40 uppercase tracking-wider">User</th>
+                    <th className="p-4 text-sm font-semibold text-white/40 uppercase tracking-wider">Kick ID</th>
+                    <th className="p-4 text-sm font-semibold text-white/40 uppercase tracking-wider">Total Earned</th>
+                    <th className="p-4 text-sm font-semibold text-white/40 uppercase tracking-wider">
                       Registered {sortBy === "registered" && "↓"}
                     </th>
-                    <th className="p-4 text-sm font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
+                    <th className="p-4 text-sm font-semibold text-white/40 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-slate-400">
+                      <td colSpan={5} className="p-8 text-center text-white/40">
                         No users found
                       </td>
                     </tr>
                   ) : (
                     filteredUsers.map((user) => (
-                      <tr key={user.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
+                      <tr key={user.id} className="border-b border-white/[0.06] hover:bg-white/[0.04] transition-colors">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             {user.avatar_url ? (
@@ -259,7 +259,7 @@ export default function AdminUsersPage() {
                                 className="w-10 h-10 rounded-full"
                               />
                             ) : (
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#5B8DEF] to-[#4A7AD8] flex items-center justify-center">
                                 <span className="text-white font-semibold text-sm">
                                   {user.username.charAt(0).toUpperCase()}
                                 </span>
@@ -267,12 +267,12 @@ export default function AdminUsersPage() {
                             )}
                             <div>
                               <p className="text-white font-medium">{user.username}</p>
-                              <p className="text-slate-500 text-xs">{user.id.substring(0, 8)}...</p>
+                              <p className="text-white/30 text-xs">{user.id.substring(0, 8)}...</p>
                             </div>
                           </div>
                         </td>
                         <td className="p-4">
-                          <p className="text-slate-300 text-sm">{user.kick_id}</p>
+                          <p className="text-white/60 text-sm">{user.kick_id}</p>
                         </td>
                         <td className="p-4">
                           <button
@@ -284,13 +284,13 @@ export default function AdminUsersPage() {
                               setActionError("")
                               setAmountError("")
                             }}
-                            className="text-cyan-400 font-semibold hover:text-cyan-300 transition-colors"
+                            className="text-[#5B8DEF] font-semibold hover:text-[#5B8DEF] transition-colors"
                           >
                             ${user.points_balance.toFixed(2)}
                           </button>
                         </td>
                         <td className="p-4">
-                          <p className="text-slate-300 text-sm">
+                          <p className="text-white/60 text-sm">
                             {new Date(user.created_at).toLocaleDateString("en-US", {
                               month: "short",
                               day: "numeric",
@@ -304,7 +304,7 @@ export default function AdminUsersPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="text-slate-400 hover:text-white hover:bg-slate-700"
+                            className="text-white/40 hover:text-white hover:bg-white/[0.08]"
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
@@ -319,7 +319,7 @@ export default function AdminUsersPage() {
         </Card>
 
         {/* Stats Footer */}
-        <div className="flex items-center justify-between text-sm text-slate-400">
+        <div className="flex items-center justify-between text-sm text-white/40">
           <p>
             Showing {filteredUsers.length} of {users.length} users
           </p>
@@ -329,7 +329,7 @@ export default function AdminUsersPage() {
 
       {/* Edit Points Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-md">
+        <DialogContent className="bg-[#101014] border-white/[0.10] text-white max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between text-xl">
               Edit Points
@@ -337,7 +337,7 @@ export default function AdminUsersPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setEditModalOpen(false)}
-                className="h-6 w-6 p-0 hover:bg-slate-800"
+                className="h-6 w-6 p-0 hover:bg-white/[0.06]"
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -355,11 +355,11 @@ export default function AdminUsersPage() {
                 }}
               >
                 <SelectTrigger
-                  className={`bg-slate-800 border-2 ${actionError ? "border-red-500" : "border-slate-700"} text-white h-12`}
+                  className={`bg-white/[0.06] border-2 ${actionError ? "border-red-500" : "border-white/[0.10]"} text-white h-12`}
                 >
                   <SelectValue placeholder="Add or Remove" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectContent className="bg-white/[0.06] border-white/[0.10]">
                   <SelectItem value="add" className="text-white">
                     Add Points
                   </SelectItem>
@@ -384,7 +384,7 @@ export default function AdminUsersPage() {
                   setPointsAmount(e.target.value)
                   setAmountError("")
                 }}
-                className={`bg-slate-800 border-2 ${amountError ? "border-red-500" : "border-slate-700"} text-white h-12 placeholder:text-slate-500`}
+                className={`bg-white/[0.06] border-2 ${amountError ? "border-red-500" : "border-white/[0.10]"} text-white h-12 placeholder:text-white/30`}
               />
               {amountError && <p className="text-red-500 text-sm">{amountError}</p>}
             </div>
@@ -393,14 +393,14 @@ export default function AdminUsersPage() {
             <div className="flex gap-3 pt-2">
               <Button
                 onClick={handleEditPoints}
-                className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white h-12 font-semibold"
+                className="flex-1 bg-[#5B8DEF] hover:bg-[#5B8DEF] text-white h-12 font-semibold"
               >
                 EDIT
               </Button>
               <Button
                 onClick={() => setEditModalOpen(false)}
                 variant="outline"
-                className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-800 h-12 font-semibold"
+                className="flex-1 border-white/[0.12] text-white/60 hover:bg-white/[0.06] h-12 font-semibold"
               >
                 CANCEL
               </Button>

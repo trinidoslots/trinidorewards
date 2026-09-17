@@ -130,20 +130,20 @@ export default function DrawRafflesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-8">
+    <div className="min-h-screen bg-[#0B0B0D] p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         <div>
           <h1 className="text-3xl font-bold text-white">Draw Raffles</h1>
-          <p className="text-slate-400 mt-1">Draw winners for ended raffles</p>
+          <p className="text-white/40 mt-1">Draw winners for ended raffles</p>
         </div>
 
         {loading ? (
-          <Card className="border-slate-700 bg-slate-800/50">
-            <CardContent className="py-8 text-center text-slate-400">Loading raffles...</CardContent>
+          <Card className="border-white/[0.10] bg-white/[0.04]">
+            <CardContent className="py-8 text-center text-white/40">Loading raffles...</CardContent>
           </Card>
         ) : raffles.length === 0 ? (
-          <Card className="border-slate-700 bg-slate-800/50">
-            <CardContent className="py-8 text-center text-slate-400">
+          <Card className="border-white/[0.10] bg-white/[0.04]">
+            <CardContent className="py-8 text-center text-white/40">
               No raffles ready to draw. All ended raffles have been drawn!
             </CardContent>
           </Card>
@@ -156,7 +156,7 @@ export default function DrawRafflesPage() {
               return (
                 <Card
                   key={raffle.id}
-                  className="border-slate-700 bg-slate-800/50 hover:border-amber-500/50 transition-all"
+                  className="border-white/[0.10] bg-white/[0.04] hover:border-amber-500/50 transition-all"
                 >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between gap-4">
@@ -172,15 +172,15 @@ export default function DrawRafflesPage() {
                             <Badge className="bg-red-500/20 text-red-400 border-red-500/30">No Entries</Badge>
                           )}
                         </div>
-                        <p className="text-slate-400">{raffle.description}</p>
+                        <p className="text-white/40">{raffle.description}</p>
                         <div className="flex items-center gap-6 text-sm">
                           <div className="flex items-center gap-2">
-                            <Ticket className="w-4 h-4 text-cyan-400" />
-                            <span className="text-slate-300">{raffle.ticket_price} pts/ticket</span>
+                            <Ticket className="w-4 h-4 text-[#5B8DEF]" />
+                            <span className="text-white/60">{raffle.ticket_price} pts/ticket</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Users className="w-4 h-4 text-purple-400" />
-                            <span className="text-slate-300">Total Tickets: {totalEntries}</span>
+                            <span className="text-white/60">Total Tickets: {totalEntries}</span>
                           </div>
                           {raffle.prize_value && (
                             <div className="text-green-400 font-medium">${raffle.prize_value.toFixed(2)}</div>

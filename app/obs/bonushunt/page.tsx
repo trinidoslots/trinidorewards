@@ -363,7 +363,7 @@ export default function OBSWidget() {
 
   return (
     <div className="min-h-screen bg-transparent p-4">
-      <div className="w-[300px] h-[800px] bg-gradient-to-b from-[#1A1F2B]/95 to-[#0B0E13]/95 backdrop-blur-sm rounded-xl shadow-2xl border border-[#4D84FF]/30 overflow-hidden flex flex-col">
+      <div className="w-[300px] h-[800px] bg-gradient-to-b from-[#1A1F2B]/95 to-[#0B0E13]/95 rounded-xl shadow-2xl border border-[#4D84FF]/30 overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-4 pt-4 pb-2 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2">

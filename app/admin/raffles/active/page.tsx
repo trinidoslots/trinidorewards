@@ -120,25 +120,25 @@ export default function ActiveRafflesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 p-8">
+    <div className="min-h-screen bg-[#0B0B0D] p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-white">Active Raffles</h1>
-            <p className="text-slate-400 mt-1">Manage currently active raffle campaigns</p>
+            <p className="text-white/40 mt-1">Manage currently active raffle campaigns</p>
           </div>
           <div className="flex gap-2">
             <Button
               onClick={handleRefresh}
               disabled={isRefreshing}
               variant="outline"
-              className="border-slate-600 hover:bg-slate-700 bg-transparent"
+              className="border-white/[0.12] hover:bg-white/[0.08] bg-transparent"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
               Refresh
             </Button>
             <Link href="/admin/raffles/create">
-              <Button className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500">
+              <Button className="bg-[#5B8DEF] hover:bg-[#4A7AD8]">
                 Create New Raffle
               </Button>
             </Link>
@@ -146,18 +146,18 @@ export default function ActiveRafflesPage() {
         </div>
 
         {isLoading ? (
-          <Card className="border-slate-700 bg-slate-800/50">
-            <CardContent className="py-8 text-center text-slate-400">Loading raffles...</CardContent>
+          <Card className="border-white/[0.10] bg-white/[0.04]">
+            <CardContent className="py-8 text-center text-white/40">Loading raffles...</CardContent>
           </Card>
         ) : error ? (
-          <Card className="border-slate-700 bg-slate-800/50">
+          <Card className="border-white/[0.10] bg-white/[0.04]">
             <CardContent className="py-8 text-center text-red-400">
               Error loading raffles. Please try again.
             </CardContent>
           </Card>
         ) : raffles.length === 0 ? (
-          <Card className="border-slate-700 bg-slate-800/50">
-            <CardContent className="py-8 text-center text-slate-400">
+          <Card className="border-white/[0.10] bg-white/[0.04]">
+            <CardContent className="py-8 text-center text-white/40">
               No active raffles found. Create your first raffle!
             </CardContent>
           </Card>
@@ -167,7 +167,7 @@ export default function ActiveRafflesPage() {
               const ticketsSold = calculateTicketsSold(raffle)
 
               return (
-                <Card key={raffle.id} className="border-slate-700 bg-slate-800/50">
+                <Card key={raffle.id} className="border-white/[0.10] bg-white/[0.04]">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 space-y-2">
@@ -179,22 +179,22 @@ export default function ActiveRafflesPage() {
                           )}
                           <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Active</Badge>
                         </div>
-                        <p className="text-slate-400">{raffle.description}</p>
+                        <p className="text-white/40">{raffle.description}</p>
                         <div className="flex items-center gap-6 text-sm">
                           <div className="flex items-center gap-2">
-                            <Ticket className="w-4 h-4 text-cyan-400" />
-                            <span className="text-slate-300">{raffle.ticket_price || 0} pts/ticket</span>
+                            <Ticket className="w-4 h-4 text-[#5B8DEF]" />
+                            <span className="text-white/60">{raffle.ticket_price || 0} pts/ticket</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Users className="w-4 h-4 text-purple-400" />
-                            <span className="text-slate-300">
+                            <span className="text-white/60">
                               Tickets: {ticketsSold}
                               {raffle.total_tickets_available ? ` / ${raffle.total_tickets_available}` : ""}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Users className="w-4 h-4 text-blue-400" />
-                            <span className="text-slate-300">Entries: {raffle.raffle_entries?.length || 0}</span>
+                            <span className="text-white/60">Entries: {raffle.raffle_entries?.length || 0}</span>
                           </div>
                           {raffle.prize_value != null && (
                             <div className="text-green-400 font-medium">${Number(raffle.prize_value).toFixed(2)}</div>
@@ -206,7 +206,7 @@ export default function ActiveRafflesPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => router.push(`/admin/raffles/edit/${raffle.id}`)}
-                          className="border-slate-600 hover:bg-slate-700"
+                          className="border-white/[0.12] hover:bg-white/[0.08]"
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>
