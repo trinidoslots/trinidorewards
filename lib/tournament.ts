@@ -161,3 +161,48 @@ export function tournamentTotals(participants: Participant[], matches: Match[], 
     matchesTotal: size - 1,
   }
 }
+
+/**
+ * Casinos offered in the add-participant form. A plain list rather than a table
+ * because it changes about twice a year and a dropdown of five hard-coded names
+ * is not worth a migration; anything already used on a past participant is
+ * merged in at render time, so a one-off casino is never lost.
+ */
+export const TOURNAMENT_CASINOS = [
+  "Stake",
+  "Roobet",
+  "Rollbit",
+  "Gamdom",
+  "Shuffle",
+  "BC.Game",
+  "Duelbits",
+  "Goated",
+] as const
+
+/** Money as it is spoken on stream: no cents unless there are cents. */
+export function money(value: number | null | undefined): string {
+  const amount = Number(value) || 0
+  const hasCents = Math.abs(amount % 1) > 0.004
+  return `$${amount.toLocaleString(undefined, {
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: 2,
+  })}`
+}
+
+/**
+ * Round one, as participant pairs.
+ *
+ * `bySeed` is looked up rather than indexed into so that a missing seed yields
+ * null (an empty slot) instead of throwing — the bracket still draws, with the
+ * hole visible, which is far easier to diagnose than a blank page.
+ */
+export function roundOnePairs(
+  size: number,
+  bySeed: Map<number, Participant>,
+): { match_number: number; p1: Participant | null; p2: Participant | null }[] {
+  return seedPairs(size).map(([a, b], index) => ({
+    match_number: index + 1,
+    p1: bySeed.get(a) ?? null,
+    p2: bySeed.get(b) ?? null,
+  }))
+}
