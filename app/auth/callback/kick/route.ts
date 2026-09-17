@@ -181,6 +181,7 @@ export async function GET(request: NextRequest) {
         .insert({
           kick_id: kickUserIdStr,
           username: kickUsername,
+          avatar_url: kickAvatarUrl || null,
           points_balance: 0,
         })
         .select()
@@ -202,6 +203,9 @@ export async function GET(request: NextRequest) {
         .from("users")
         .update({
           username: kickUsername,
+          // Refreshed on every login: people change their Kick picture, and a
+          // stale one in the admin panel is worse than none.
+          avatar_url: kickAvatarUrl || null,
           updated_at: new Date().toISOString(),
         })
         .eq("kick_id", kickUserIdStr)

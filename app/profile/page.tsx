@@ -1,16 +1,19 @@
 "use client"
 
-import type React from "react"
-
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useToast } from "@/hooks/use-toast"
-import { User, Package, Plus, Trash2, Coins } from "lucide-react"
-import { ProfilePaymentMethods } from "@/components/profile-payment-methods"
+import { Coins, Package, UserRound } from "lucide-react"
+import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
+import { CopyableId } from "@/components/ui/copyable-id"
+import { ConnectedAccountsPanel, PaymentMethodsPanel } from "@/components/profile-panels"
+
+/**
+ * The player's own page: what they have, where they play, and where they want
+ * to be paid.
+ *
+ * The two editable panels live in their own component because they go through
+ * the API rather than the browser Supabase client — see profile-panels.tsx.
+ */
 
 type Redemption = {
   id: string
@@ -20,269 +23,156 @@ type Redemption = {
   created_at: string
 }
 
-type SiteUsername = {
+type SessionUser = {
   id: string
-  site_name: string
   username: string
+  avatar_url: string | null
+  points_balance: number
+}
+
+const points = (value: number) => Math.round(Number(value) || 0).toLocaleString()
+
+const when = (iso: string) =>
+  new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric" })
+
+function statusAccent(status: string) {
+  if (status === "completed" || status === "approved") return "green" as const
+  if (status === "rejected" || status === "cancelled") return "red" as const
+  return "amber" as const
 }
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<SessionUser | null>(null)
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
-  const [siteUsernames, setSiteUsernames] = useState<SiteUsername[]>([])
   const [loading, setLoading] = useState(true)
-  const [newSite, setNewSite] = useState("")
-  const [newUsername, setNewUsername] = useState("")
-  const { toast } = useToast()
-  const supabase = createClient()
 
   useEffect(() => {
-    fetchUserData()
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const response = await fetch("/api/auth/session", { cache: "no-store" })
+        const session = await response.json()
+        if (!session.user) {
+          window.location.href = "/"
+          return
+        }
+        if (cancelled) return
+        setUser(session.user as SessionUser)
+
+        const { data, error } = await createClient()
+          .from("redemptions")
+          .select("id, item_name, cost, status, created_at")
+          .eq("user_id", session.user.id)
+          .order("created_at", { ascending: false })
+
+        if (error) console.error("[v0] Could not load redemptions:", error)
+        if (!cancelled) setRedemptions((data ?? []) as Redemption[])
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
-
-  async function fetchUserData() {
-    try {
-      // Get user from cookies
-      const response = await fetch("/api/auth/session")
-      const sessionData = await response.json()
-
-      console.log("[v0] Session data:", sessionData)
-
-      if (!sessionData.user) {
-        window.location.href = "/"
-        return
-      }
-
-      setUser(sessionData.user)
-
-      // Fetch redemptions
-      const { data: redemptionsData, error: redemptionsError } = await supabase
-        .from("redemptions")
-        .select("*")
-        .eq("user_id", sessionData.user.id)
-        .order("created_at", { ascending: false })
-
-      if (redemptionsError) {
-        console.error("[v0] Error fetching redemptions:", redemptionsError)
-      }
-
-      setRedemptions((redemptionsData || []) as Redemption[])
-
-      // Fetch site usernames
-      const { data: usernamesData, error: usernamesError } = await supabase
-        .from("user_site_usernames")
-        .select("*")
-        .eq("user_id", sessionData.user.id)
-        .order("site_name", { ascending: true })
-
-      if (usernamesError) {
-        console.error("[v0] Error fetching usernames:", usernamesError)
-      }
-
-      setSiteUsernames((usernamesData || []) as SiteUsername[])
-    } catch (error) {
-      console.error("[v0] Error fetching user data:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleAddSiteUsername(e: React.FormEvent) {
-    e.preventDefault()
-
-    if (!user || !newSite || !newUsername) return
-
-    const { error } = await supabase.from("user_site_usernames").insert({
-      user_id: user.id,
-      site_name: newSite,
-      username: newUsername,
-    })
-
-    if (error) {
-      console.error("[v0] Error adding username:", error)
-      toast({
-        title: "Error",
-        description: "Failed to add username",
-        variant: "destructive",
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Username added successfully",
-        className: "bg-green-600 text-white",
-      })
-      setNewSite("")
-      setNewUsername("")
-      fetchUserData()
-    }
-  }
-
-  async function handleDeleteSiteUsername(id: string) {
-    const { error } = await supabase.from("user_site_usernames").delete().eq("id", id)
-
-    if (error) {
-      console.error("[v0] Error deleting username:", error)
-      toast({
-        title: "Error",
-        description: "Failed to delete username",
-        variant: "destructive",
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Username deleted successfully",
-        className: "bg-green-600 text-white",
-      })
-      fetchUserData()
-    }
-  }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0B0B0D]">
-        <p className="text-white">Loading...</p>
+      <div className="mx-auto max-w-6xl px-5 py-16 text-center">
+        <MonoLabel className="text-white/25">Loading</MonoLabel>
       </div>
     )
   }
 
-  if (!user) {
-    return null
-  }
+  if (!user) return null
+
+  // Rejected redemptions were refunded, so counting them would tell the user
+  // they spent points they still have.
+  const spent = redemptions
+    .filter((entry) => entry.status !== "rejected" && entry.status !== "cancelled")
+    .reduce((sum, entry) => sum + (Number(entry.cost) || 0), 0)
 
   return (
-    <div className="min-h-screen bg-[#0B0B0D] p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          {user.avatar_url ? (
-            <img src={user.avatar_url || "/placeholder.svg"} alt={user.username} className="w-16 h-16 rounded-full" />
+    <div className="mx-auto max-w-6xl space-y-4 px-5 py-6">
+      <Panel accent="blue" className="flex flex-wrap items-center gap-4 p-4">
+        {user.avatar_url ? (
+          <img
+            src={user.avatar_url}
+            alt=""
+            className="h-16 w-16 shrink-0 rounded-lg border border-white/[0.08] object-cover"
+            onError={(event) => {
+              event.currentTarget.style.display = "none"
+            }}
+          />
+        ) : (
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03]">
+            <UserRound className="h-7 w-7 text-white/20" />
+          </div>
+        )}
+
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-semibold tracking-tight text-white">{user.username}</h1>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <Coins className="h-3.5 w-3.5" style={{ color: ACCENTS.green }} />
+            <span className="text-[14px] font-semibold tabular-nums" style={{ color: ACCENTS.green }}>
+              {points(user.points_balance)}
+            </span>
+            <span className="text-[13px] text-white/35">points</span>
+          </div>
+        </div>
+
+        <div className="ml-auto flex items-center gap-1.5">
+          <MonoLabel className="text-white/25">Your ID</MonoLabel>
+          <CopyableId value={user.id} chars={6} />
+        </div>
+      </Panel>
+
+      <div className="grid gap-2.5 sm:grid-cols-3">
+        <StatTile label="Points balance" value={points(user.points_balance)} accent="green" />
+        <StatTile label="Points spent" value={points(spent)} accent="amber" />
+        <StatTile label="Redemptions" value={redemptions.length.toLocaleString()} accent="blue" />
+      </div>
+
+      <div className="grid items-start gap-3 lg:grid-cols-2">
+        <div className="space-y-3">
+          <ConnectedAccountsPanel />
+          <PaymentMethodsPanel />
+        </div>
+
+        <Panel accent="amber">
+          <PanelHeader
+            title="Redemption history"
+            accent="amber"
+            right={<MonoLabel className="text-white/25">{points(spent)} spent</MonoLabel>}
+          />
+          {redemptions.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-12">
+              <Package className="h-7 w-7 text-white/10" />
+              <p className="text-[13px] text-white/30">Nothing redeemed yet.</p>
+            </div>
           ) : (
-            <div className="w-16 h-16 rounded-full bg-[#5B8DEF] flex items-center justify-center">
-              <User className="w-8 h-8 text-white" />
-            </div>
+            <ul className="divide-y divide-white/[0.05]">
+              {redemptions.map((redemption) => (
+                <li key={redemption.id} className="flex items-center gap-3 px-3.5 py-2.5">
+                  <Package className="h-3.5 w-3.5 shrink-0 text-white/15" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] text-white">{redemption.item_name}</p>
+                    <p className="text-[11px] text-white/25">{when(redemption.created_at)}</p>
+                  </div>
+                  <Tag accent={statusAccent(redemption.status)}>{redemption.status}</Tag>
+                  <span
+                    className="w-20 shrink-0 text-right text-[13px] tabular-nums"
+                    style={{ color: ACCENTS.amber }}
+                  >
+                    {points(redemption.cost)}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-white">{user.username}</h1>
-            <div className="flex items-center gap-2 text-[#5B8DEF]">
-              <Coins className="w-4 h-4" />
-              <span className="font-semibold">{user.points_balance} Points</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-          <div className="space-y-6">
-          {/* Site Usernames */}
-          <Card className="bg-white/[0.022] border-white/[0.08] backdrop-blur">
-            <CardHeader className="p-4">
-              <CardTitle className="text-white flex items-center gap-2">
-                <User className="w-5 h-5" />
-                Site Usernames
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0 space-y-4">
-              <form onSubmit={handleAddSiteUsername} className="space-y-3">
-                <div>
-                  <Label htmlFor="site" className="text-white/60 text-sm">
-                    Site Name
-                  </Label>
-                  <Input
-                    id="site"
-                    value={newSite}
-                    onChange={(e) => setNewSite(e.target.value)}
-                    placeholder="e.g., Twitch, Discord, Steam"
-                    className="bg-white/[0.06] border-white/[0.10] text-white"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="username" className="text-white/60 text-sm">
-                    Username
-                  </Label>
-                  <Input
-                    id="username"
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    placeholder="Your username on that site"
-                    className="bg-white/[0.06] border-white/[0.10] text-white"
-                  />
-                </div>
-                <Button type="submit" className="w-full bg-[#5B8DEF] hover:bg-[#4A7AD8]">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Username
-                </Button>
-              </form>
-
-              <div className="space-y-2">
-                {siteUsernames.length === 0 ? (
-                  <p className="text-white/40 text-sm text-center py-4">No usernames added yet</p>
-                ) : (
-                  siteUsernames.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between p-3 bg-white/[0.04] rounded border border-white/[0.10]"
-                    >
-                      <div>
-                        <p className="text-white font-medium text-sm">{item.site_name}</p>
-                        <p className="text-white/40 text-xs">{item.username}</p>
-                      </div>
-                      <Button
-                        onClick={() => handleDeleteSiteUsername(item.id)}
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-400 hover:text-red-300 hover:bg-white/[0.08]"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <ProfilePaymentMethods />
-          </div>
-
-          {/* Redemption History */}
-          <Card className="bg-white/[0.022] border-white/[0.08] backdrop-blur">
-            <CardHeader className="p-4">
-              <CardTitle className="text-white flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Redemption History
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              {redemptions.length === 0 ? (
-                <p className="text-white/40 text-sm text-center py-8">No redemptions yet</p>
-              ) : (
-                <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                  {redemptions.map((redemption) => (
-                    <div key={redemption.id} className="p-3 bg-white/[0.04] rounded border border-white/[0.10]">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-white font-medium text-sm">{redemption.item_name}</p>
-                          <p className="text-white/40 text-xs">
-                            {new Date(redemption.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[#5B8DEF] font-semibold text-sm">{redemption.cost} points</p>
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded ${
-                              redemption.status === "completed" ? "bg-green-600 text-white" : "bg-yellow-600 text-white"
-                            }`}
-                          >
-                            {redemption.status}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+        </Panel>
       </div>
     </div>
   )

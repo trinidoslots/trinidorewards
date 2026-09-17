@@ -103,7 +103,7 @@ export function BracketVisualizer({
                   {matchup.map((participant, participantIndex) => (
                     <Card
                       key={`${matchupIndex}-${participantIndex}`}
-                      onClick={() => isInteractive && onSlotClick?.(participant.slot_number)}
+                      onClick={() => isInteractive && onSlotClick?.(participant.slot_position)}
                       className={`
                         w-56 p-3 bg-slate-800/50 border border-slate-700/50 rounded-lg
                         ${isInteractive ? "cursor-pointer hover:border-cyan-500/50 transition-colors" : ""}

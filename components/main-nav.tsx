@@ -90,6 +90,7 @@ export function MainNav() {
   })
   const [loginOpen, setLoginOpen] = useState(false)
   const [username, setUsername] = useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [points, setPoints] = useState(0)
   const [modules, setModules] = useState<ModuleStatus>(emptyModules)
 
@@ -103,6 +104,9 @@ export function MainNav() {
         if (!response.ok) return
         const data = await response.json()
         setUsername(data.username)
+        // The session has always carried this; the nav just never read it and
+        // drew a flat coloured disc instead.
+        setAvatarUrl(data.avatar_url || null)
         setPoints(data.points || 0)
       })
       .catch(() => {})
@@ -256,10 +260,18 @@ export function MainNav() {
                 collapsed ? "justify-center" : ""
               }`}
             >
-              <span
-                className="h-6 w-6 shrink-0 rounded-full"
-                style={{ backgroundColor: `${ACCENT}44` }}
-              />
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="h-6 w-6 shrink-0 rounded-full object-cover"
+                  // A Kick avatar URL can rot; fall back to the disc rather
+                  // than leaving a broken-image glyph in the nav.
+                  onError={() => setAvatarUrl(null)}
+                />
+              ) : (
+                <span className="h-6 w-6 shrink-0 rounded-full" style={{ backgroundColor: `${ACCENT}44` }} />
+              )}
               <span className={collapsed ? "sr-only" : "truncate"}>
                 {username} · {points.toFixed(0)} pts
               </span>

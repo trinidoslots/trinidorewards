@@ -375,17 +375,10 @@ export default function ObsWidget() {
   }
 
   function updateTimers() {
-    setTimers((prevTimers) => {
-      // Decrement all timers but don't remove them
-      const updated = prevTimers.map((timer) => ({
-        ...timer,
-        duration: Math.max(0, timer.duration - 1),
-      }))
-      // Update ref so next poll preserves these durations
-      timersRef.current = updated
-
-      return updated
-    })
+    // Each timer counts down to its own end_time, so there is nothing stored to
+    // decrement: this tick just gives the list a new identity once a second so
+    // the rendered remaining time advances.
+    setTimers((prevTimers) => [...prevTimers])
   }
 
   if (loading) {
