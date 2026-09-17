@@ -60,7 +60,7 @@ A full-stack bonus hunt tracking application built with Next.js, Supabase, and T
 6. **Access the application**
    - Main page: http://localhost:3000
    - Admin panel: http://localhost:3000/admin
-   - OBS widget: http://localhost:3000/obs
+   - OBS widget: http://localhost:3000/obs/bonushunt
 
 ### OBS Setup
 
@@ -69,7 +69,7 @@ background, so they drop straight onto a scene.
 
 | Source | URL | Suggested size |
 | --- | --- | --- |
-| Bonus hunt | `/obs` | 400 x 800 |
+| Bonus hunt | `/obs/bonushunt` | 400 x 800 |
 | Giveaway only | `/obs/giveaway` | 300 x 120 |
 | Stream column | `/obs/stream` | 340 x 900 |
 | Transactions | `/deposits-withdrawals` | 340 x 140 |

@@ -157,6 +157,18 @@ export default function ObsWidgetSettings() {
         .select()
 
       if (!error && data) {
+        // Adding a record here *is* the moment money moved, so this is where the
+        // OBS stream widget's announcement comes from. Best-effort: a failure
+        // must not lose the wallet record that was just saved.
+        const movements: { kind: "deposit" | "cashout"; amount: number }[] = []
+        if (deposit > 0) movements.push({ kind: "deposit", amount: deposit })
+        if (withdraw > 0) movements.push({ kind: "cashout", amount: withdraw })
+
+        if (movements.length > 0) {
+          const { error: eventError } = await supabase.from("transaction_events").insert(movements)
+          if (eventError) console.error("[v0] Error recording transaction event:", eventError)
+        }
+
         setWalletRecords([data[0], ...walletRecords])
         setNewDeposit("")
         setNewWithdraw("")

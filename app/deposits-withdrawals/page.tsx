@@ -108,13 +108,15 @@ export default function DepositsWithdrawalsWidget() {
             <AnimatedAmount
               value={depositAmount}
               sign="-"
-              className="text-red-400 font-bold text-xl transition-[filter] duration-300"
+              className="font-bold text-xl transition-[filter] duration-300"
+              toneClassName="text-red-400"
               pulseClassName="drop-shadow-[0_0_10px_rgba(251,113,133,0.9)]"
             />
             <AnimatedAmount
               value={withdrawAmount}
               sign="+"
-              className="text-emerald-400 font-bold text-xl transition-[filter] duration-300"
+              className="font-bold text-xl transition-[filter] duration-300"
+              toneClassName="text-emerald-400"
               pulseClassName="drop-shadow-[0_0_10px_rgba(52,211,153,0.9)]"
             />
           </div>

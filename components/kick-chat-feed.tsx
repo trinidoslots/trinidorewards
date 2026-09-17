@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import { CHAT_EMOTE_PX, CHAT_FONT_PX } from "@/lib/obs-theme"
 import { emoteImageUrl, parseMessageContent, type KickBadge, type KickMessage } from "@/lib/kick-chat"
 
 // Kick's own badge palette, so the feed reads as Kick rather than as our theme.
@@ -16,22 +17,35 @@ const BADGE_COLORS: Record<string, string> = {
   subscriber: "#4C8BF5",
 }
 
-function badgeColor(type: string) {
-  return BADGE_COLORS[type] ?? "#8B8B8B"
+// Subscriber badges are tinted by tenure on Kick, so a long-standing sub reads
+// differently from a new one at a glance.
+const SUB_TIERS: { months: number; color: string }[] = [
+  { months: 24, color: "#E8437D" },
+  { months: 12, color: "#F5A623" },
+  { months: 6, color: "#1ED3A3" },
+  { months: 3, color: "#9147FF" },
+  { months: 0, color: "#4C8BF5" },
+]
+
+function badgeColor(badge: KickBadge) {
+  if (badge.type === "subscriber") {
+    const months = badge.count ?? 1
+    return SUB_TIERS.find((tier) => months >= tier.months)!.color
+  }
+  return BADGE_COLORS[badge.type] ?? "#8B8B8B"
 }
 
-// Kick renders the subscriber badge as the month count in a coloured pill and
+// Kick renders the subscriber badge as the month count in a coloured tile and
 // every other badge as a glyph. Approximating the glyphs with the badge's first
 // letter keeps the row height and rhythm identical without shipping Kick's SVGs.
-function BadgePill({ badge }: { badge: KickBadge }) {
-  const color = badgeColor(badge.type)
+function BadgeTile({ badge }: { badge: KickBadge }) {
   const label = badge.type === "subscriber" ? String(badge.count ?? 1) : badge.type.charAt(0).toUpperCase()
 
   return (
     <span
       title={badge.text ?? badge.type}
-      className="inline-flex h-[15px] min-w-[15px] shrink-0 items-center justify-center rounded-[3px] px-[3px] text-[9px] font-bold leading-none text-black"
-      style={{ backgroundColor: color }}
+      className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-[5px] px-[4px] text-[11px] font-extrabold leading-none text-white"
+      style={{ backgroundColor: badgeColor(badge) }}
     >
       {label}
     </span>
@@ -52,7 +66,8 @@ function MessageContent({ content }: { content: string }) {
             alt={part.name}
             title={part.name}
             loading="lazy"
-            className="mx-[2px] inline-block h-[22px] w-auto max-w-[70px] align-middle"
+            className="mx-[2px] inline-block w-auto align-middle"
+            style={{ height: CHAT_EMOTE_PX, maxWidth: CHAT_EMOTE_PX * 3 }}
           />
         ),
       )}
@@ -84,24 +99,21 @@ export function KickChatFeed({ messages, className }: { messages: KickMessage[];
       ref={feedRef}
       onScroll={handleScroll}
       className={`flex flex-col overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className ?? ""}`}
-      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+      style={{ fontFamily: "Inter, system-ui, sans-serif", fontSize: CHAT_FONT_PX }}
     >
       {messages.map((message) => (
-        <div
-          key={message.id}
-          className="break-words px-[10px] py-[5px] text-[13px] leading-[1.4] text-[#E5E7EB]"
-        >
+        <div key={message.id} className="break-words px-[10px] py-[5px] leading-[1.45] text-[#E8E3F5]">
           {message.badges.length > 0 && (
-            <span className="mr-[5px] inline-flex items-center gap-[3px] align-middle">
+            <span className="mr-[6px] inline-flex items-center gap-[4px] align-middle">
               {message.badges.map((badge, index) => (
-                <BadgePill key={`${badge.type}-${index}`} badge={badge} />
+                <BadgeTile key={`${badge.type}-${index}`} badge={badge} />
               ))}
             </span>
           )}
           <span className="font-bold" style={{ color: message.color }}>
             {message.username}
           </span>
-          <span className="text-[#9CA3AF]">: </span>
+          <span className="text-[#9A8CC4]">: </span>
           <MessageContent content={message.content} />
         </div>
       ))}

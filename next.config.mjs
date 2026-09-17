@@ -9,6 +9,11 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // The bonus hunt widget moved to /obs/bonushunt so every OBS source sits under
+  // /obs/<widget>. Browser sources already pointing at /obs keep working.
+  async redirects() {
+    return [{ source: "/obs", destination: "/obs/bonushunt", permanent: true }]
+  },
   experimental: {
     staleTimes: {
       dynamic: 30,

@@ -496,7 +496,7 @@ export default function ObsWidget() {
         {/* Wallet Difference */}
         <div className="flex items-center gap-1 text-white">
           <Wallet className="w-4 h-4 text-[#7FB3FF]" />
-          <AnimatedAmount value={walletStats.difference} className={`font-bold ${diffColor}`} />
+          <AnimatedAmount value={walletStats.difference} className="font-bold" toneClassName={diffColor} />
         </div>
 
         {/* BTC Price */}

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Gift, Trophy, Users, User, Timer } from "lucide-react"
 import { formatElapsed, formatKeywordForDisplay } from "@/lib/kick-chat"
+import { OBS } from "@/lib/obs-theme"
 
 export type GiveawayStatus = "idle" | "open" | "closed" | "rolling" | "finished"
 
@@ -193,13 +194,18 @@ export function GiveawayCard({
 
   return (
     <div
-      style={{ width: fullWidth ? "100%" : GIVEAWAY_CARD_WIDTH, height: GIVEAWAY_CARD_HEIGHT }}
-      className={`flex flex-col overflow-hidden rounded-xl border border-[#4D84FF]/30 bg-gradient-to-b from-[#1A1F2B]/95 to-[#0B0E13]/95 shadow-2xl backdrop-blur-sm ${className ?? ""}`}
+      style={{
+        width: fullWidth ? "100%" : GIVEAWAY_CARD_WIDTH,
+        height: GIVEAWAY_CARD_HEIGHT,
+        backgroundColor: OBS.card,
+        borderColor: OBS.cardBorder,
+      }}
+      className={`flex flex-col overflow-hidden rounded-2xl border shadow-lg backdrop-blur-sm ${className ?? ""}`}
     >
       {/* Header — fixed, never grows or shrinks */}
       <div className="flex flex-shrink-0 items-center justify-between px-2.5 pt-2 pb-1">
         <div className="flex items-center gap-1.5">
-          <Gift className="h-3.5 w-3.5 text-[#7FB3FF]" />
+          <Gift className="h-3.5 w-3.5 text-[#B4A6E4]" />
           <h1 className="text-sm font-bold text-white">Giveaway</h1>
           {showElapsed && state?.started_at && status !== "idle" && (
             <span className="flex items-center gap-0.5 rounded-full bg-white/5 px-1.5 py-0.5 text-[8px] font-semibold tabular-nums text-gray-400">
@@ -253,10 +259,10 @@ export function GiveawayCard({
               className="flex flex-1 flex-col justify-between"
             >
               <div className="flex flex-col gap-1">
-                <span className="text-[9px] font-semibold uppercase tracking-wide text-[#7FB3FF]">
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-[#B4A6E4]">
                   Active Keyword
                 </span>
-                <div className="flex items-center justify-center rounded-lg border border-[#4D84FF]/30 bg-gradient-to-r from-[#4D84FF]/15 to-transparent px-2.5 py-1.5">
+                <div className="flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.06] px-2.5 py-1.5">
                   <span
                     className={`text-balance break-words text-center font-bold leading-tight text-white ${keywordTextSizeClass(
                       formatKeywordForDisplay(state?.keyword),
@@ -268,7 +274,7 @@ export function GiveawayCard({
               </div>
               <div className="flex items-center justify-between text-[10px]">
                 <span className="flex items-center gap-1 text-gray-400">
-                  <Users className="h-2.5 w-2.5 text-[#7FB3FF]" /> Entries
+                  <Users className="h-2.5 w-2.5 text-[#B4A6E4]" /> Entries
                 </span>
                 <span className="font-semibold text-white">{state?.entrants.length ?? 0}</span>
               </div>
@@ -285,10 +291,10 @@ export function GiveawayCard({
               className="flex flex-1 flex-col justify-between"
             >
               <div className="flex flex-col gap-1">
-                <span className="text-[9px] font-semibold uppercase tracking-wide text-[#7FB3FF]">
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-[#B4A6E4]">
                   Active Keyword
                 </span>
-                <div className="flex flex-col items-center justify-center gap-0 rounded-lg border border-[#4D84FF]/30 bg-gradient-to-r from-[#4D84FF]/15 to-transparent px-2.5 py-1.5 text-center">
+                <div className="flex flex-col items-center justify-center gap-0 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-center">
                   <span className="text-xs font-bold text-white">Entries stopped</span>
                   <span className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
                     Awaiting roll
@@ -297,7 +303,7 @@ export function GiveawayCard({
               </div>
               <div className="flex items-center justify-between text-[10px]">
                 <span className="flex items-center gap-1 text-gray-400">
-                  <Users className="h-2.5 w-2.5 text-[#7FB3FF]" /> Entries
+                  <Users className="h-2.5 w-2.5 text-[#B4A6E4]" /> Entries
                 </span>
                 <span className="font-semibold text-white">{state?.entrants.length ?? 0}</span>
               </div>
@@ -313,11 +319,11 @@ export function GiveawayCard({
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="flex w-full flex-col gap-1"
             >
-              <div className="text-center text-[9px] font-semibold uppercase tracking-wide text-[#7FB3FF]">
+              <div className="text-center text-[9px] font-semibold uppercase tracking-wide text-[#B4A6E4]">
                 {rollComplete ? "We have a winner!" : "Rolling"}
               </div>
-              <div className="relative mx-auto h-10 w-full overflow-hidden rounded-lg border border-[#4D84FF]/30 bg-[#0B0E13]">
-                <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-[2px] -translate-x-1/2 bg-[#4D84FF] shadow-[0_0_8px_2px_rgba(77,132,255,0.6)]" />
+              <div className="relative mx-auto h-10 w-full overflow-hidden rounded-lg border border-white/10 bg-black/30">
+                <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-[2px] -translate-x-1/2 bg-[#B18CFF] shadow-[0_0_8px_2px_rgba(177,140,255,0.6)]" />
                 <motion.div
                   className="absolute inset-y-0 left-1/2 flex items-center gap-1 py-1"
                   animate={{ x: translateX }}
@@ -345,10 +351,10 @@ export function GiveawayCard({
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="flex w-full flex-col items-center gap-1"
             >
-              <div className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-[#7FB3FF]">
+              <div className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-[#B4A6E4]">
                 <Trophy className="h-3 w-3 text-[#B18CFF]" /> Winner
               </div>
-              <div className="flex items-center gap-2 rounded-lg border border-[#4D84FF]/30 bg-gradient-to-r from-[#4D84FF]/15 to-transparent px-2.5 py-1.5">
+              <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.06] px-2.5 py-1.5">
                 <AvatarImage username={state.winner} avatar={avatars[state.winner] ?? null} size={22} />
                 <span className="text-balance text-sm font-bold text-white">{state.winner}</span>
               </div>
@@ -372,7 +378,7 @@ function AvatarChip({
   return (
     <div
       className={`flex shrink-0 flex-col items-center gap-0 rounded-lg px-0.5 py-0.5 transition-colors ${
-        highlight ? "bg-[#4D84FF]/20 ring-2 ring-[#4D84FF]" : ""
+        highlight ? "bg-[#B18CFF]/20 ring-2 ring-[#B18CFF]" : ""
       }`}
       style={{ width: CELL_WIDTH - 4 }}
     >
@@ -385,7 +391,7 @@ function AvatarChip({
 function AvatarImage({ username, avatar, size }: { username: string; avatar: string | null; size: number }) {
   return (
     <span
-      className="relative shrink-0 overflow-hidden rounded-full border border-[#4D84FF]/30 bg-[#0B0E13]"
+      className="relative shrink-0 overflow-hidden rounded-full border border-white/10 bg-black/30"
       style={{ width: size, height: size }}
     >
       {avatar ? (
@@ -397,7 +403,7 @@ function AvatarImage({ username, avatar, size }: { username: string; avatar: str
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
-        <User className="absolute inset-0 m-auto h-1/2 w-1/2 text-[#4D84FF]/50" />
+        <User className="absolute inset-0 m-auto h-1/2 w-1/2 text-[#B18CFF]/50" />
       )}
     </span>
   )

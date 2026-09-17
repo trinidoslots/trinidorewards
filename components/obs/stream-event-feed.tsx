@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { createClient } from "@/lib/supabase/client"
 import { BANNER_ASPECT_RATIO, BANNER_ROTATION_MS, OBS_BANNERS } from "@/lib/obs-banners"
+import { OBS } from "@/lib/obs-theme"
 
 export type TransactionKind = "deposit" | "cashout"
 
@@ -84,7 +85,15 @@ function formatAmount(amount: number) {
 
 // lucide-react 0.454 predates the banknote-arrow icons, so they are drawn here
 // rather than pulling the whole library forward for two glyphs.
-function BanknoteArrow({ direction, className }: { direction: "in" | "out"; className?: string }) {
+function BanknoteArrow({
+  direction,
+  className,
+  style,
+}: {
+  direction: "in" | "out"
+  className?: string
+  style?: React.CSSProperties
+}) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -95,6 +104,7 @@ function BanknoteArrow({ direction, className }: { direction: "in" | "out"; clas
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
+      style={style}
       aria-hidden="true"
     >
       <path d="M11 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5" />
@@ -116,30 +126,49 @@ function BanknoteArrow({ direction, className }: { direction: "in" | "out"; clas
   )
 }
 
+/**
+ * The shared card shape for everything in the event column: an icon tile on the
+ * left, then a label row carrying the timestamp on the right, then the value.
+ */
 export function EventCard({
   icon,
-  title,
-  titleColor,
+  label,
+  labelColor,
   timestamp,
   children,
 }: {
   icon: React.ReactNode
-  title: string
-  titleColor: string
+  label: string
+  labelColor?: string
   timestamp?: React.ReactNode
   children?: React.ReactNode
 }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-xl border border-white/10 bg-gradient-to-b from-[#1A1F2B]/95 to-[#0B0E13]/95 px-3 py-2.5 shadow-lg backdrop-blur-sm">
-      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/5">{icon}</div>
+    <div
+      className="flex items-start gap-3 rounded-2xl border px-3 py-2.5 shadow-lg backdrop-blur-sm"
+      style={{ backgroundColor: OBS.card, borderColor: OBS.cardBorder }}
+    >
+      <div
+        className="mt-[2px] flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+        style={{ backgroundColor: OBS.iconTile }}
+      >
+        {icon}
+      </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-[0.08em]" style={{ color: titleColor }}>
-            {title}
+          <span
+            className="text-[11px] font-bold uppercase tracking-[0.10em]"
+            style={{ color: labelColor ?? OBS.label }}
+          >
+            {label}
           </span>
-          {timestamp && <span className="shrink-0 text-[9px] font-medium text-gray-500">{timestamp}</span>}
+          {timestamp && (
+            <span className="shrink-0 text-[10px] font-medium" style={{ color: OBS.muted }}>
+              {timestamp}
+            </span>
+          )}
         </div>
-        {children && <div className="mt-0.5 text-[12px] leading-snug text-gray-200">{children}</div>}
+        {children}
       </div>
     </div>
   )
@@ -147,24 +176,23 @@ export function EventCard({
 
 export function TransactionEventCard({ event }: { event: TransactionEvent }) {
   const isDeposit = event.kind === "deposit"
+  const tone = isDeposit ? OBS.deposit : OBS.cashout
 
   return (
     <EventCard
-      icon={
-        isDeposit ? (
-          <BanknoteArrow direction="in" className="h-4 w-4 text-[#fb7185]" />
-        ) : (
-          <BanknoteArrow direction="out" className="h-4 w-4 text-[#34D399]" />
-        )
-      }
-      title={isDeposit ? "DEPOSIT" : "CASHOUT"}
-      titleColor={isDeposit ? "#fb7185" : "#34D399"}
+      icon={<BanknoteArrow direction={isDeposit ? "in" : "out"} className="h-5 w-5" style={{ color: tone }} />}
+      label={isDeposit ? "DEPOSIT" : "CASHOUT"}
+      labelColor={tone}
       // Deliberately literal: these only ever live for TRANSACTION_EVENT_TTL_MS,
       // so a relative age would never read as anything but "now" anyway.
       timestamp="now"
     >
-      <span className="font-semibold text-white">{formatAmount(event.amount)}</span>{" "}
-      {isDeposit ? "has been deposited" : "has been cashed out"}
+      <div className="text-[20px] font-extrabold leading-tight" style={{ color: OBS.value }}>
+        {formatAmount(event.amount)}
+      </div>
+      <div className="text-[11px] leading-snug" style={{ color: OBS.muted }}>
+        {isDeposit ? "has been deposited" : "has been cashed out"}
+      </div>
     </EventCard>
   )
 }
@@ -184,8 +212,8 @@ export function BannerRotator() {
 
   return (
     <div
-      style={{ aspectRatio: BANNER_ASPECT_RATIO }}
-      className="relative w-full overflow-hidden rounded-xl border-2 border-[#4D84FF]/55 bg-[#0B0E13]/95 shadow-lg"
+      style={{ aspectRatio: BANNER_ASPECT_RATIO, backgroundColor: OBS.card, borderColor: OBS.cardBorder }}
+      className="relative w-full overflow-hidden rounded-2xl border shadow-lg"
     >
       <AnimatePresence mode="wait">
         <motion.img
@@ -205,12 +233,11 @@ export function BannerRotator() {
   )
 }
 
+/** Hairline between the events and the chat. */
 export function EventDivider() {
   return (
-    <div className="flex shrink-0 items-center gap-2 px-1 py-1.5">
-      <span className="h-px flex-1 bg-gradient-to-r from-transparent to-white/15" />
-      <span className="text-[8px] font-bold uppercase tracking-[0.18em] text-gray-600">Chat</span>
-      <span className="h-px flex-1 bg-gradient-to-l from-transparent to-white/15" />
+    <div className="shrink-0 px-1 py-2">
+      <span className="block h-px w-full" style={{ backgroundColor: OBS.cardBorder }} />
     </div>
   )
 }

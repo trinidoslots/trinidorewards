@@ -11,7 +11,16 @@ interface AnimatedAmountProps {
    * used for net figures that can legitimately swing either way.
    */
   sign?: "+" | "-" | "auto"
+  /** Layout and typography — always applied. */
   className?: string
+  /**
+   * Colour for an actual amount (the red/green of a deposit or cashout). Dropped
+   * at zero: a dash means "nothing here", so tinting it green would read as a
+   * positive balance rather than an absent one.
+   */
+  toneClassName?: string
+  /** Colour for the zero dash. */
+  zeroClassName?: string
   /** Extra class applied only while a change is animating, e.g. a glow. */
   pulseClassName?: string
 }
@@ -21,7 +30,14 @@ const ZERO_DASH = "-"
 // Animates deposit/cashout figures with a spring count-up/down plus a brief pop
 // whenever the underlying value actually changes. Renders a bare dash (no "$")
 // when the value is zero, instead of "$0" or "-$0".
-export function AnimatedAmount({ value, sign = "auto", className, pulseClassName }: AnimatedAmountProps) {
+export function AnimatedAmount({
+  value,
+  sign = "auto",
+  className,
+  toneClassName,
+  zeroClassName = "text-white",
+  pulseClassName,
+}: AnimatedAmountProps) {
   const motionValue = useMotionValue(value)
   const spring = useSpring(motionValue, { stiffness: 140, damping: 20, mass: 0.9 })
   const [display, setDisplay] = useState(value)
@@ -50,7 +66,9 @@ export function AnimatedAmount({ value, sign = "auto", className, pulseClassName
     <motion.span
       animate={pulse ? { scale: [1, 1.18, 1] } : { scale: 1 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className={`${className ?? ""} ${pulse ? (pulseClassName ?? "") : ""}`}
+      className={`${className ?? ""} ${isZero ? zeroClassName : (toneClassName ?? "")} ${
+        pulse ? (pulseClassName ?? "") : ""
+      }`}
     >
       {isZero ? ZERO_DASH : `${prefix}$${rounded.toLocaleString()}`}
     </motion.span>
