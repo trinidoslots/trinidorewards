@@ -64,13 +64,42 @@ A full-stack bonus hunt tracking application built with Next.js, Supabase, and T
 
 ### OBS Setup
 
-To use the OBS widget:
+Each widget is its own Browser Source. All of them render on a transparent
+background, so they drop straight onto a scene.
 
-1. Open OBS Studio
-2. Add a new Browser Source
-3. Set the URL to: `http://localhost:3000/obs`
-4. Set width to 400px and height to 800px (adjust as needed)
-5. The widget will update in real-time as you manage bonuses
+| Source | URL | Suggested size |
+| --- | --- | --- |
+| Bonus hunt | `/obs` | 400 x 800 |
+| Giveaway only | `/obs/giveaway` | 300 x 120 |
+| Stream column | `/obs/stream` | 340 x 900 |
+| Transactions | `/deposits-withdrawals` | 340 x 140 |
+| Top ticker | `/obs-widget` | 1920 x 50 |
+
+**Stream column** (`/obs/stream`) combines live events with Kick chat: the
+giveaway card while a round is running (with how long it has been open),
+deposit/cashout announcements that disappear after 30 seconds, and a rotating
+banner — then a divider, then chat filling the remaining height.
+
+It reads the `trinidoslots` chat by default; append `?channel=<slug>` to point
+it somewhere else. Banners are configured in `lib/obs-banners.ts` (see
+`public/banners/README.md`).
+
+### Database migrations
+
+SQL in `scripts/` runs against Supabase in filename order. The stream column
+needs 036, 037 and 038 — `scripts/036_038_obs_stream_widget_bundle.sql`
+combines all three and is safe to run more than once.
+
+Note that 037 adds `transaction_events` to the `supabase_realtime`
+publication. A new table is not in it by default, and without that the widget's
+subscription connects but never fires, so deposits silently never appear.
+
+### Deployment
+
+`main` deploys to production automatically via Vercel — push, and the site
+follows. This repository is the source of truth; the project also has a v0 chat
+attached, but deploying from v0 would build from v0's own snapshot and revert
+whatever is here.
 
 ### Building for Production
 
