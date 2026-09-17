@@ -1,37 +1,35 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { ACCENTS } from "@/components/ui/panel"
 
 interface GamesProgressBarProps {
   completed: number
   total: number
 }
 
+/**
+ * The bar alone — its caller supplies the caption, since the counts are shown
+ * differently on the hunt page and in the OBS widget.
+ */
 export function GamesProgressBar({ completed, total }: GamesProgressBarProps) {
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {
-    // Animate progress bar on mount
-    const timer = setTimeout(() => {
-      setProgress((completed / total) * 100)
-    }, 100)
+    // Animate from zero on mount rather than snapping to the final width.
+    const timer = setTimeout(() => setProgress(total ? (completed / total) * 100 : 0), 100)
     return () => clearTimeout(timer)
   }, [completed, total])
 
   return (
-    <div className="bg-slate-900/60 backdrop-blur border border-slate-700/50 rounded-lg p-4 mb-4">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-slate-400 text-sm font-medium">Games Progress</span>
-        <span className="text-white text-sm font-bold">
-          {completed} / {total} opened
-        </span>
-      </div>
-      <div className="relative h-2 bg-slate-800 rounded-full overflow-hidden">
-        <div
-          className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-green-500 transition-all duration-1000 ease-out"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
+    <div className="relative mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+      <div
+        className="absolute left-0 top-0 h-full rounded-full transition-all duration-1000 ease-out"
+        style={{
+          width: `${progress}%`,
+          background: `linear-gradient(90deg, ${ACCENTS.blue}, ${ACCENTS.green})`,
+        }}
+      />
     </div>
   )
 }

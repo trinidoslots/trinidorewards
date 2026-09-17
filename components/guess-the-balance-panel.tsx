@@ -119,25 +119,25 @@ export function GuessTheBalancePanel({ externalHuntId, huntTitle, currentUsernam
 
   const statusLabel = isRolled ? "Rolled" : isOpen ? "Open" : "Closed"
   const statusColor = isRolled
-    ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
+    ? "border-[#A78BFA]/30 bg-[#A78BFA]/15 text-[#A78BFA]"
     : isOpen
-      ? "bg-green-500/20 text-green-300 border-green-500/30"
-      : "bg-slate-500/20 text-slate-300 border-slate-500/30"
+      ? "border-[#46C48A]/30 bg-[#46C48A]/15 text-[#46C48A]"
+      : "border-white/12 bg-white/[0.06] text-white/45"
 
   return (
-    <div className="bg-white/5 backdrop-blur border border-slate-700/50 rounded-2xl p-6 mb-8">
+    <div className="mb-2.5 rounded-lg border border-white/[0.08] bg-white/[0.022] p-4">
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="bg-cyan-500/20 rounded-lg p-2">
-            <Coins className="w-5 h-5 text-cyan-400" />
+          <div className="rounded-lg bg-[#5B8DEF]/15 p-2">
+            <Coins className="h-4 w-4 text-[#5B8DEF]" />
           </div>
           <div>
             <h2 className="text-white text-lg font-bold">Guess the Balance</h2>
-            {huntTitle && <p className="text-slate-400 text-xs">{huntTitle}</p>}
+            {huntTitle && <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-white/35">{huntTitle}</p>}
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-slate-400 text-sm">
+          <span className="flex items-center gap-1.5 text-[12.5px] text-white/40">
             <Users className="w-4 h-4" />
             {entryCount} {entryCount === 1 ? "guess" : "guesses"}
           </span>
@@ -157,19 +157,19 @@ export function GuessTheBalancePanel({ externalHuntId, huntTitle, currentUsernam
                 value={guessAmount}
                 onChange={(e) => setGuessAmount(e.target.value)}
                 placeholder="Your balance guess (e.g., 1500.00)"
-                className="flex-1 min-w-[200px] bg-slate-800/60 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
+                className="h-9 min-w-[200px] flex-1 rounded-md border border-white/10 bg-black/40 px-3 text-[13px] tabular-nums text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
               />
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold px-5 py-2.5 rounded-lg transition-all disabled:opacity-50"
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-white/12 bg-white/[0.06] px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12] disabled:opacity-50"
               >
                 <Send className="w-4 h-4" />
                 {isSubmitting ? "Submitting..." : "Submit Guess"}
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-slate-400 text-sm bg-slate-800/40 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-2 rounded-md border border-white/[0.08] bg-black/25 px-3.5 py-2.5 text-[12.5px] text-white/40">
               <Lock className="w-4 h-4" />
               Log in with Kick to submit your balance guess.
             </div>
@@ -185,27 +185,27 @@ export function GuessTheBalancePanel({ externalHuntId, huntTitle, currentUsernam
       )}
 
       {!isOpen && !isRolled && (
-        <p className="text-slate-400 text-sm mb-5 bg-slate-800/40 rounded-lg px-4 py-3">
+        <p className="mb-4 rounded-md border border-white/[0.08] bg-black/25 px-3.5 py-2.5 text-[12.5px] text-white/40">
           Guessing is currently closed for this hunt.
         </p>
       )}
 
       {/* Entries list */}
       {loading ? (
-        <p className="text-slate-500 text-sm text-center py-6">Loading guesses...</p>
+        <p className="py-6 text-center text-[12.5px] text-white/25">Loading guesses...</p>
       ) : status?.error ? (
         <p className="text-red-400 text-sm text-center py-6">{status.error}</p>
       ) : entries.length === 0 ? (
-        <p className="text-slate-500 text-sm text-center py-6">No guesses submitted yet.</p>
+        <p className="py-6 text-center text-[12.5px] text-white/25">No guesses submitted yet.</p>
       ) : (
-        <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-700/50">
+        <div className="max-h-64 overflow-y-auto rounded-md border border-white/[0.08]">
           <table className="w-full">
-            <thead className="sticky top-0 bg-slate-900/90 backdrop-blur">
-              <tr className="border-b border-slate-700">
-                <th className="text-left py-2.5 px-4 text-slate-400 font-semibold text-xs uppercase tracking-wider">
+            <thead className="sticky top-0 bg-[#0E0E11]">
+              <tr className="border-b border-white/[0.08]">
+                <th className="px-4 py-2.5 text-left font-mono text-[10px] font-normal uppercase tracking-[0.12em] text-white/30">
                   User
                 </th>
-                <th className="text-right py-2.5 px-4 text-slate-400 font-semibold text-xs uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-right font-mono text-[10px] font-normal uppercase tracking-[0.12em] text-white/30">
                   Guess
                 </th>
               </tr>
@@ -216,13 +216,13 @@ export function GuessTheBalancePanel({ externalHuntId, huntTitle, currentUsernam
                 return (
                   <tr
                     key={`${entry.username}-${idx}`}
-                    className={`border-b border-slate-700/40 ${isMe ? "bg-cyan-500/10" : "hover:bg-white/5"}`}
+                    className={`border-b border-white/[0.05] ${isMe ? "bg-[#5B8DEF]/10" : "hover:bg-white/[0.03]"}`}
                   >
                     <td className="py-2.5 px-4 text-white text-sm font-medium">
                       {entry.username}
-                      {isMe && <span className="ml-2 text-cyan-400 text-xs">(you)</span>}
+                      {isMe && <span className="ml-2 text-[11px] text-[#5B8DEF]">(you)</span>}
                     </td>
-                    <td className="py-2.5 px-4 text-cyan-400 text-sm font-medium text-right">
+                    <td className="px-4 py-2.5 text-right text-[13px] tabular-nums text-[#5B8DEF]">
                       ${Number(entry.guessAmount).toFixed(2)}
                     </td>
                   </tr>

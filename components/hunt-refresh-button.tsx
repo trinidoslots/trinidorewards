@@ -9,7 +9,7 @@ export function HuntRefreshButton() {
   return (
     <button
       onClick={() => router.refresh()}
-      className="ml-auto p-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-md transition-colors"
+      className="ml-auto rounded-md p-1.5 text-white/30 transition-colors hover:bg-white/[0.06] hover:text-white"
       aria-label="Refresh"
     >
       <RefreshCw className="w-4 h-4" />

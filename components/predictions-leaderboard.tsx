@@ -60,89 +60,89 @@ export function PredictionsLeaderboard({ huntId, isLoggedIn, currentUsername, pr
 
   const submit = async (event: React.FormEvent) => { event.preventDefault(); if (!canSubmit) return setMessage("Predictions are closed for this round."); if (!form.final_balance || !form.highest_multi || !form.best_game) return setMessage("Complete all three picks first."); setSubmitting(true); const response = await fetch("/api/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hunt_id: huntId, highest_multi: form.highest_multi, best_game: form.best_game, final_balance: form.final_balance }) }); const data = await response.json(); setMessage(response.ok ? "Prediction saved." : data.error || "Could not save prediction."); if (response.ok) await load(); setSubmitting(false) }
 
-  return <section className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/45">
-    <div className="shrink-0 border-b border-slate-800 px-5 py-4 sm:px-6">
+  return <section className="flex h-full flex-col overflow-hidden rounded-lg border border-white/[0.08] bg-white/[0.022]">
+    <div className="shrink-0 border-b border-white/[0.08] px-4 py-3">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.28em] text-cyan-300"><Sparkles className="h-4 w-4" /> Winners</div>
-          <p className="mt-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">{categories[categoryIndex]?.short}</p>
+          <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-[#5B8DEF]"><Sparkles className="h-4 w-4" /> Winners</div>
+          <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white/30">{categories[categoryIndex]?.short}</p>
         </div>
         <div className="flex flex-col items-end gap-1.5">
-          <span className="text-xs font-bold tabular-nums text-slate-500">{categoryIndex + 1} / {categories.length}</span>
-          <span className="flex items-center gap-1.5 text-[10px] text-slate-500"><Lock className="h-3.5 w-3.5" /> {windowOpen ? `Open · ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : "Closed"}</span>
+          <span className="font-mono text-[10px] tabular-nums text-white/30">{categoryIndex + 1} / {categories.length}</span>
+          <span className="flex items-center gap-1.5 font-mono text-[10px] text-white/25"><Lock className="h-3.5 w-3.5" /> {windowOpen ? `Open · ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : "Closed"}</span>
         </div>
       </div>
     </div>
     <div className="flex-1 p-5 sm:p-6">
-      <div key={category} className="prediction-category-transition mb-5 flex h-[132px] flex-col items-center justify-center rounded-xl border border-cyan-300/15 bg-cyan-300/[0.05] px-4 py-4 text-center">
-        <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-300/70"><Trophy className="h-3.5 w-3.5" /> Target</div>
+      <div key={category} className="prediction-category-transition mb-5 flex h-[132px] flex-col items-center justify-center rounded-xl border border-[#5B8DEF]/20 bg-[#5B8DEF]/[0.06] px-4 py-4 text-center">
+        <div className="flex items-center justify-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-[#5B8DEF]/70"><Trophy className="h-3.5 w-3.5" /> Target</div>
         {category === "highest_win" && actual != null ? (
           <div className="mt-3 flex items-center gap-3">
-            <span className="relative aspect-[180/236] w-11 shrink-0 overflow-hidden rounded-lg border border-cyan-300/20 bg-slate-950">
+            <span className="relative aspect-[180/236] w-11 shrink-0 overflow-hidden rounded-lg border border-[#5B8DEF]/20 bg-black/40">
               {actualBestGameImage ? (
                 // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
                 <img src={actualBestGameImage || "/placeholder.svg"} alt={String(actual)} className="absolute inset-0 h-full w-full object-cover" />
               ) : (
-                <ImageIcon className="absolute inset-0 m-auto h-5 w-5 text-slate-600" />
+                <ImageIcon className="absolute inset-0 m-auto h-5 w-5 text-white/20" />
               )}
             </span>
-            <p className="text-lg font-bold text-balance text-left text-cyan-200">{actual}</p>
+            <p className="text-balance text-left text-[15px] font-semibold text-white">{actual}</p>
           </div>
         ) : (
-          <p className="mt-2 text-xl font-bold text-balance text-cyan-200 sm:text-2xl">{actual == null ? "Awaiting result" : category === "ending_balance" ? `$${Number(actual).toFixed(2)}` : `${Number(actual).toFixed(2)}x`}</p>
+          <p className="mt-2 text-balance text-[18px] font-semibold text-[#5B8DEF] sm:text-[20px]">{actual == null ? "Awaiting result" : category === "ending_balance" ? `$${Number(actual).toFixed(2)}` : `${Number(actual).toFixed(2)}x`}</p>
         )}
       </div>
       <div key={`leaderboard-${category}`} className="prediction-leaderboard-transition space-y-2">
-        {noBestGameWinner ? <div className="flex items-center gap-3 rounded-lg border border-dashed border-slate-800/70 px-4 py-6 text-center">
-          <p className="w-full text-xs font-bold uppercase tracking-[0.18em] text-slate-500">No winner this round</p>
+        {noBestGameWinner ? <div className="flex items-center gap-3 rounded-lg border border-dashed border-white/[0.10] px-4 py-6 text-center">
+          <p className="w-full font-mono text-[10px] uppercase tracking-[0.12em] text-white/30">No winner this round</p>
         </div> : [0, 1, 2].map((index) => {
           const prediction = sorted[index]
-          if (!prediction) return <div key={index} className="flex items-center gap-3 rounded-lg border border-dashed border-slate-800/70 p-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-800/40 text-xs font-bold text-slate-600">{index + 1}</span><div className="h-4 flex-1" /></div>
+          if (!prediction) return <div key={index} className="flex items-center gap-3 rounded-lg border border-dashed border-white/[0.10] p-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.04] text-[11px] font-semibold text-white/25">{index + 1}</span><div className="h-4 flex-1" /></div>
           const matched = isRowMatch(prediction, index)
-          return <div key={prediction.id} className={`flex items-center gap-3 rounded-lg border p-3 ${matched ? "border-cyan-300/25 bg-cyan-300/[0.06]" : "border-slate-800 bg-slate-900/60"}`}>
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-800 text-xs font-bold text-slate-400">{index + 1}</span>
+          return <div key={prediction.id} className={`flex items-center gap-3 rounded-lg border p-3 ${matched ? "border-[#5B8DEF]/25 bg-[#5B8DEF]/[0.06]" : "border-white/[0.08] bg-white/[0.022]"}`}>
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.07] text-[11px] font-semibold text-white/45">{index + 1}</span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-200">{prediction.username}</p>
-              <p className="mt-0.5 text-[11px] text-slate-500">{subtext(prediction)}</p>
+              <p className="truncate text-[13px] text-white/80">{prediction.username}</p>
+              <p className="mt-0.5 text-[11px] text-white/30">{subtext(prediction)}</p>
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-sm font-bold text-cyan-200">{rowValue(prediction)}</p>
+              <p className="text-[13px] font-semibold tabular-nums text-[#5B8DEF]">{rowValue(prediction)}</p>
             </div>
           </div>
         })}
       </div>
       <div className="mt-5 flex items-center justify-between">
-        <button type="button" aria-label="Previous prediction category" onClick={() => goToCategory(-1)} className="rounded-md border border-slate-800 p-2 text-slate-400 hover:border-cyan-300/40 hover:text-cyan-200"><ChevronLeft className="h-4 w-4" /></button>
-        <div className="flex items-center gap-1.5">{categories.map((item) => <button key={item.key} type="button" aria-label={`Show ${item.label}`} onClick={() => setCategory(item.key)} className={`h-1.5 rounded-full transition-all duration-200 ${item.key === category ? "w-6 bg-cyan-300" : "w-1.5 bg-slate-700 hover:bg-slate-600"}`} />)}</div>
-        <button type="button" aria-label="Next prediction category" onClick={() => goToCategory(1)} className="rounded-md border border-slate-800 p-2 text-slate-400 hover:border-cyan-300/40 hover:text-cyan-200"><ChevronRight className="h-4 w-4" /></button>
+        <button type="button" aria-label="Previous prediction category" onClick={() => goToCategory(-1)} className="rounded-md border border-white/[0.08] p-2 text-white/35 transition hover:border-white/20 hover:text-white"><ChevronLeft className="h-4 w-4" /></button>
+        <div className="flex items-center gap-1.5">{categories.map((item) => <button key={item.key} type="button" aria-label={`Show ${item.label}`} onClick={() => setCategory(item.key)} className={`h-1.5 rounded-full transition-all duration-200 ${item.key === category ? "w-6 bg-[#5B8DEF]" : "w-1.5 bg-white/15 hover:bg-white/30"}`} />)}</div>
+        <button type="button" aria-label="Next prediction category" onClick={() => goToCategory(1)} className="rounded-md border border-white/[0.08] p-2 text-white/35 transition hover:border-white/20 hover:text-white"><ChevronRight className="h-4 w-4" /></button>
       </div>
-      <div className="mt-6 border-t border-slate-800 pt-5">
+      <div className="mt-6 border-t border-white/[0.08] pt-4">
         <div className="mb-4 flex items-center justify-between gap-3">
           <p className="text-sm font-semibold text-white">Your prediction</p>
-          <span className="flex items-center gap-1.5 text-[10px] text-slate-500"><Lock className="h-3.5 w-3.5" /> {windowOpen ? `Open · ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : "Closed"}</span>
+          <span className="flex items-center gap-1.5 font-mono text-[10px] text-white/25"><Lock className="h-3.5 w-3.5" /> {windowOpen ? `Open · ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : "Closed"}</span>
         </div>
         {windowOpen ? <form onSubmit={submit} className="animate-in fade-in slide-in-from-bottom-2 space-y-2.5 duration-300">
           <div className="grid grid-cols-2 gap-2">
-            <input disabled={!canSubmit} aria-label="Highest multiplier" type="number" step="0.01" placeholder="Peak multi" value={form.highest_multi} onChange={(e) => setForm({ ...form, highest_multi: e.target.value })} className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50" />
-            <input disabled={!canSubmit} aria-label="Final balance" type="number" step="0.01" placeholder="Final balance" value={form.final_balance} onChange={(e) => setForm({ ...form, final_balance: e.target.value })} className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-3 text-xs text-white outline-none placeholder:text-slate-500 focus:border-cyan-300/50" />
+            <input disabled={!canSubmit} aria-label="Highest multiplier" type="number" step="0.01" placeholder="Peak multi" value={form.highest_multi} onChange={(e) => setForm({ ...form, highest_multi: e.target.value })} className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-[12.5px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25" />
+            <input disabled={!canSubmit} aria-label="Final balance" type="number" step="0.01" placeholder="Final balance" value={form.final_balance} onChange={(e) => setForm({ ...form, final_balance: e.target.value })} className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-[12.5px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25" />
           </div>
-          <select disabled={!canSubmit} aria-label="Best game" value={form.best_game} onChange={(e) => setForm({ ...form, best_game: e.target.value })} className="w-full rounded-lg border border-slate-800 bg-slate-900 px-3 py-3 text-xs text-slate-200 outline-none focus:border-cyan-300/50">
+          <select disabled={!canSubmit} aria-label="Best game" value={form.best_game} onChange={(e) => setForm({ ...form, best_game: e.target.value })} className="w-full rounded-md border border-white/10 bg-black/40 px-3 py-2.5 text-[12.5px] text-white/80 outline-none transition focus:border-white/25">
             <option value="">Select best game</option>
             {slots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
           </select>
-          <button type="submit" disabled={submitting || !canSubmit} className="flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-300 px-3 py-3 text-xs font-bold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-60">{submitting ? "Saving..." : mine ? "Update prediction" : "Lock in prediction"}<ArrowRight className="h-3.5 w-3.5" /></button>
-          {message && <p className="text-center text-[11px] text-slate-400">{message}</p>}
+          <button type="submit" disabled={submitting || !canSubmit} className="flex w-full items-center justify-center gap-2 rounded-md border border-white/12 bg-white/[0.06] px-3 py-2.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12] disabled:opacity-50">{submitting ? "Saving..." : mine ? "Update prediction" : "Lock in prediction"}<ArrowRight className="h-3.5 w-3.5" /></button>
+          {message && <p className="text-center text-[11px] text-white/40">{message}</p>}
         </form> : <div className="animate-in fade-in flex flex-col items-center justify-center px-4 py-8 text-center duration-300">
-          <Lock className="h-7 w-7 text-cyan-200" />
-          <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.24em] text-slate-300">Predictions are closed</p>
-          {mine ? <div className="mt-4 w-full rounded-lg border border-cyan-300/15 bg-cyan-300/[0.04] p-3 text-left">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-cyan-200">Your saved prediction</p>
-            <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-slate-300">
+          <Lock className="h-6 w-6 text-white/30" />
+          <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white/45">Predictions are closed</p>
+          {mine ? <div className="mt-3 w-full rounded-md border border-[#5B8DEF]/20 bg-[#5B8DEF]/[0.05] p-3 text-left">
+            <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#5B8DEF]">Your saved prediction</p>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-[12px] text-white/60">
               <span>Peak: {mine.predicted_max_multiplier}x</span>
               <span>Balance: ${mine.predicted_end_balance}</span>
               <span>Game: {mine.predicted_best_game}</span>
             </div>
-          </div> : <p className="mt-2 text-xs text-slate-500">Predict once the hunt opens for a shot at the prize pool.</p>}
+          </div> : <p className="mt-2 text-[12px] text-white/30">Predict once the hunt opens for a shot at the prize pool.</p>}
         </div>}
       </div>
     </div>

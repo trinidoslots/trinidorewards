@@ -6,6 +6,7 @@ import type { HuntKpis } from "@/lib/active-hunt"
 import { GamesProgressBar } from "@/components/games-progress-bar"
 import { PredictionsLeaderboard } from "@/components/predictions-leaderboard"
 import { HuntKpiBoard } from "@/components/hunt-kpi-board"
+import { MonoLabel, Panel } from "@/components/ui/panel"
 
 type BonusHunt = {
   id: string
@@ -100,18 +101,23 @@ export function BonusHuntClient({
   const remainingCount = usingKpis ? kpis!.remaining : hunts.filter((hunt) => hunt.result === null || hunt.result === 0).length
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="overflow-hidden rounded-xl border border-cyan-200/15 bg-slate-900/80 shadow-lg shadow-cyan-950/20">
-        <div className="flex flex-col gap-6 p-5 sm:p-7 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-cyan-200"><span className="size-2 animate-pulse rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,.9)]" /> Current bonus hunt</div>
-            <h2 className="text-balance text-3xl font-bold tracking-tight text-white sm:text-5xl">The hunt is moving.</h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">Live results, real-time progress, and every bonus in one focused view.</p>
-          </div>
-          <div className="rounded-2xl border border-cyan-200/15 bg-slate-950/60 px-5 py-4"><p className="text-xs uppercase tracking-wider text-slate-500">Completion</p><p className="mt-1 text-3xl font-bold text-cyan-200">{completed.length}<span className="text-lg text-slate-500">/{total}</span></p></div>
+    <div className="flex flex-col gap-2.5">
+      {/* Progress only — the page header above already names the page, so a
+          second hero here was two titles stacked on one screen. */}
+      <Panel className="px-4 py-3.5">
+        <div className="flex items-baseline justify-between gap-4">
+          <MonoLabel className="text-white/35">Opened</MonoLabel>
+          <p className="text-[13px] tabular-nums text-white/45">
+            <span className="text-[20px] font-semibold text-white">{completed.length}</span>
+            <span className="text-white/30"> / {total}</span>
+          </p>
         </div>
-        <div className="border-t border-slate-800/80 px-5 py-5 sm:px-7"><GamesProgressBar completed={completed.length} total={total} /><div className="mt-3 flex justify-between text-xs text-slate-500"><span>{progress}% complete</span><span>{remainingCount} bonuses left</span></div></div>
-      </section>
+        <GamesProgressBar completed={completed.length} total={total} />
+        <div className="mt-2.5 flex justify-between">
+          <MonoLabel className="text-white/25">{progress}% complete</MonoLabel>
+          <MonoLabel className="text-white/25">{remainingCount} left</MonoLabel>
+        </div>
+      </Panel>
 
       <HuntKpiBoard
         hunts={hunts}
