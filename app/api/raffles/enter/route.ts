@@ -1,104 +1,162 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
+import { NextResponse } from "next/server"
+import { serviceClient } from "@/lib/supabase/service"
+import { calculateRaffleStatus } from "@/lib/raffle-utils"
 
+/**
+ * Buying tickets for a raffle.
+ *
+ * Rewritten because the original could only ever sell one ticket per person: it
+ * treated any existing entry as "already entered" and refused, which made
+ * max_tickets meaningless and left tickets_sold at zero forever — so the
+ * progress bar on the public page never moved.
+ *
+ * Runs on the service role. The anon client it used before is subject to RLS on
+ * users, so deducting points was at the mercy of whatever policies happen to be
+ * on that table.
+ */
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerClient()
-    const { raffleId } = await request.json()
-
     const cookieStore = await cookies()
-    const userDbId = cookieStore.get("user_db_id")?.value
+    const userId = cookieStore.get("user_db_id")?.value
+    if (!userId) return NextResponse.json({ error: "Sign in to enter" }, { status: 401 })
 
-    if (!userDbId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const body = await request.json().catch(() => null)
+    const raffleId = String(body?.raffleId ?? "")
+    if (!raffleId) return NextResponse.json({ error: "Missing raffle" }, { status: 400 })
+
+    // How many tickets this call is buying. One unless asked otherwise, and
+    // capped at something sane so a crafted request cannot drain a balance.
+    const wanted = Math.max(1, Math.min(100, Math.floor(Number(body?.tickets ?? 1)) || 1))
+
+    const client = serviceClient()
+
+    const [{ data: user }, { data: raffle }] = await Promise.all([
+      client.from("users").select("id, username, points_balance").eq("id", userId).maybeSingle(),
+      client.from("raffles").select("*").eq("id", raffleId).maybeSingle(),
+    ])
+
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
+    if (!raffle) return NextResponse.json({ error: "Raffle not found" }, { status: 404 })
+
+    // Derived from the dates rather than trusting the status column, which is
+    // only refreshed by a stored procedure that may not have run.
+    const status = calculateRaffleStatus(raffle.start_date, raffle.end_date)
+    if (status !== "active") {
+      return NextResponse.json(
+        { error: status === "upcoming" ? "This raffle has not started yet" : "This raffle has ended" },
+        { status: 400 },
+      )
     }
+    if (raffle.winner_username) return NextResponse.json({ error: "This raffle has been drawn" }, { status: 400 })
 
-    console.log("[v0] Entering raffle - User ID:", userDbId, "Raffle ID:", raffleId)
+    const ticketPrice = Number(raffle.ticket_price) || 0
+    const isFree = ticketPrice === 0 || raffle.entry_type === "free"
 
-    // Get user data using the database ID from cookies
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("id, username, points_balance")
-      .eq("id", userDbId)
-      .single()
-
-    if (userError || !userData) {
-      console.error("[v0] User not found:", userError)
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
-    }
-
-    console.log("[v0] User found:", userData.username, "Balance:", userData.points_balance)
-
-    // Get raffle data
-    const { data: raffle, error: raffleError } = await supabase.from("raffles").select("*").eq("id", raffleId).single()
-
-    if (raffleError || !raffle) {
-      console.error("[v0] Raffle not found:", raffleError)
-      return NextResponse.json({ error: "Raffle not found" }, { status: 404 })
-    }
-
-    console.log("[v0] Raffle found:", raffle.title, "Status:", raffle.status)
-
-    // Check if raffle is active
-    if (raffle.status !== "active") {
-      return NextResponse.json({ error: "Raffle is not active" }, { status: 400 })
-    }
-
-    // Check if user already entered
-    const { data: existingEntry } = await supabase
+    // Existing entries, both this user's and everyone's, for the two caps.
+    const { data: allEntries, error: entriesError } = await client
       .from("raffle_entries")
-      .select("id")
+      .select("id, user_id, tickets_purchased, points_spent")
       .eq("raffle_id", raffleId)
-      .eq("user_id", userData.id)
-      .single()
 
-    if (existingEntry) {
-      console.log("[v0] User already entered this raffle")
-      return NextResponse.json({ error: "You have already entered this raffle" }, { status: 400 })
+    if (entriesError) {
+      console.error("[v0] Could not read raffle entries:", entriesError)
+      return NextResponse.json({ error: "Could not enter the raffle" }, { status: 500 })
     }
 
-    const isFree = raffle.entry_type === "free" || raffle.ticket_price === 0
+    const entries = allEntries ?? []
+    const mine = entries.find((entry) => entry.user_id === userId) ?? null
+    const myTickets = Number(mine?.tickets_purchased) || 0
+    const soldTotal = entries.reduce((sum, entry) => sum + (Number(entry.tickets_purchased) || 0), 0)
 
-    if (!isFree && userData.points_balance < raffle.ticket_price) {
-      console.log("[v0] Not enough points:", userData.points_balance, "<", raffle.ticket_price)
-      return NextResponse.json({ error: "Not enough points" }, { status: 400 })
+    const perUserCap = raffle.max_tickets == null ? null : Number(raffle.max_tickets)
+    if (perUserCap !== null && myTickets + wanted > perUserCap) {
+      const left = Math.max(0, perUserCap - myTickets)
+      return NextResponse.json(
+        { error: left === 0 ? `You already hold the maximum of ${perUserCap} tickets` : `You can only take ${left} more` },
+        { status: 400 },
+      )
     }
 
-    // Deduct points if not free
-    if (!isFree) {
-      const { error: deductError } = await supabase
+    const totalCap = raffle.total_tickets_available == null ? null : Number(raffle.total_tickets_available)
+    if (totalCap !== null && soldTotal + wanted > totalCap) {
+      const left = Math.max(0, totalCap - soldTotal)
+      return NextResponse.json(
+        { error: left === 0 ? "This raffle is sold out" : `Only ${left} tickets left` },
+        { status: 400 },
+      )
+    }
+
+    const cost = isFree ? 0 : ticketPrice * wanted
+    const balance = Number(user.points_balance) || 0
+    if (cost > balance) {
+      return NextResponse.json({ error: `Not enough points — this costs ${cost}` }, { status: 400 })
+    }
+
+    if (cost > 0) {
+      // Guarded on the balance we read: if anything else moved it in between,
+      // this matches no rows and we stop rather than writing a stale number
+      // over someone else's change.
+      const { data: deducted, error: deductError } = await client
         .from("users")
-        .update({ points_balance: userData.points_balance - raffle.ticket_price })
-        .eq("id", userData.id)
+        .update({ points_balance: balance - cost })
+        .eq("id", userId)
+        .eq("points_balance", balance)
+        .select("id")
 
-      if (deductError) {
-        console.error("[v0] Error deducting points:", deductError)
-        return NextResponse.json({ error: "Failed to deduct points" }, { status: 500 })
+      if (deductError || !deducted || deducted.length === 0) {
+        console.error("[v0] Could not deduct points:", deductError)
+        return NextResponse.json({ error: "Your balance changed — try again" }, { status: 409 })
       }
-      console.log("[v0] Points deducted successfully")
     }
 
-    const { error: entryError } = await supabase.from("raffle_entries").insert({
-      raffle_id: raffleId,
-      user_id: userData.id,
-      username: userData.username,
-      tickets_purchased: 1,
-      ticket_numbers: [], // Empty array for now
-      points_spent: isFree ? 0 : raffle.ticket_price,
-    })
+    const entryError = mine
+      ? (
+          await client
+            .from("raffle_entries")
+            .update({
+              tickets_purchased: myTickets + wanted,
+              points_spent: (Number(mine.points_spent) || 0) + cost,
+            })
+            .eq("id", mine.id)
+        ).error
+      : (
+          await client.from("raffle_entries").insert({
+            raffle_id: raffleId,
+            user_id: userId,
+            username: user.username,
+            tickets_purchased: wanted,
+            ticket_numbers: [],
+            points_spent: cost,
+          })
+        ).error
 
     if (entryError) {
-      console.error("[v0] Error creating entry:", entryError)
-      // Refund points if entry failed
-      if (!isFree) {
-        await supabase.from("users").update({ points_balance: userData.points_balance }).eq("id", userData.id)
+      console.error("[v0] Could not create raffle entry:", entryError)
+      // Give the points back by the amount taken, rather than restoring the
+      // old figure — the balance may have moved again since.
+      if (cost > 0) {
+        const { data: fresh } = await client.from("users").select("points_balance").eq("id", userId).maybeSingle()
+        const now = Number(fresh?.points_balance) || 0
+        await client.from("users").update({ points_balance: now + cost }).eq("id", userId)
       }
-      return NextResponse.json({ error: "Failed to enter raffle" }, { status: 500 })
+      return NextResponse.json({ error: "Could not enter the raffle" }, { status: 500 })
     }
 
-    console.log("[v0] Raffle entry created successfully")
-    return NextResponse.json({ success: true })
+    // Kept in step with the entries, since the public page reads it for the
+    // progress bar. Nothing was maintaining it before.
+    const { error: soldError } = await client
+      .from("raffles")
+      .update({ tickets_sold: soldTotal + wanted })
+      .eq("id", raffleId)
+    if (soldError) console.error("[v0] Could not update tickets_sold:", soldError)
+
+    return NextResponse.json({
+      success: true,
+      tickets: myTickets + wanted,
+      spent: cost,
+      balance: balance - cost,
+    })
   } catch (error) {
     console.error("[v0] Error entering raffle:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

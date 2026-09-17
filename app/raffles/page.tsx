@@ -1,244 +1,208 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Gift, Users, Ticket } from "lucide-react"
 import Link from "next/link"
-import { calculateRaffleStatus, isEndingSoon, formatDrawDate } from "@/lib/raffle-utils"
+import { Gift, Ticket, Trophy, Users } from "lucide-react"
+import { createServerClient } from "@/lib/supabase/server"
+import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
 import { RaffleCountdown } from "@/components/raffle-countdown"
+import { calculateRaffleStatus, formatDrawDate, isEndingSoon } from "@/lib/raffle-utils"
 
-interface Raffle {
+/**
+ * Every raffle, live ones first.
+ *
+ * Ticket counts come from the entries rather than raffles.tickets_sold: nothing
+ * maintained that column until the entry route started doing so, and rows from
+ * before then still hold a stale zero.
+ */
+
+type Raffle = {
   id: string
   title: string
-  description: string
+  description: string | null
   prize_name: string
-  prize_value: number
-  prize_image_url: string
+  prize_value: number | null
+  prize_image_url: string | null
   ticket_price: number
-  max_tickets: number
-  total_tickets_available: number
-  tickets_sold: number
+  max_tickets: number | null
+  total_tickets_available: number | null
   start_date: string
   end_date: string
-  draw_date: string
-  status: string
-  winner_username: string
-  winner_ticket_number: number
+  draw_date: string | null
+  winner_username: string | null
   featured: boolean
-  entry_type: string
+  entry_type: string | null
 }
 
-async function fetchRaffles() {
+type Counts = { tickets: number; entrants: number }
+
+const points = (value: number) => Math.round(Number(value) || 0).toLocaleString()
+
+async function fetchAll() {
   const supabase = await createServerClient()
-  await supabase.rpc("update_raffle_status")
 
-  const { data, error } = await supabase
-    .from("raffles")
-    .select("*")
-    .order("featured", { ascending: false })
-    .order("end_date", { ascending: true })
+  const [{ data: raffles, error }, { data: entries }] = await Promise.all([
+    supabase.from("raffles").select("*").order("featured", { ascending: false }).order("end_date"),
+    supabase.from("raffle_entries").select("raffle_id, tickets_purchased"),
+  ])
 
-  if (error) {
-    console.error("[v0] Error fetching raffles:", error)
-    return []
+  if (error) console.error("[v0] Error fetching raffles:", error)
+
+  // One pass, instead of a query per raffle.
+  const counts = new Map<string, Counts>()
+  for (const entry of entries ?? []) {
+    const current = counts.get(entry.raffle_id) ?? { tickets: 0, entrants: 0 }
+    current.tickets += Number(entry.tickets_purchased) || 0
+    current.entrants += 1
+    counts.set(entry.raffle_id, current)
   }
 
-  return data as Raffle[]
-}
-
-async function getRaffleEntries(raffleId: string) {
-  const supabase = await createServerClient()
-  const { data, error } = await supabase.from("raffle_entries").select("*").eq("raffle_id", raffleId)
-
-  if (error) {
-    console.error("[v0] Error fetching raffle entries:", error)
-    return []
-  }
-
-  return data
-}
-
-function RaffleCard({ raffle, entries }: { raffle: Raffle; entries: number }) {
-  const isFree = raffle.ticket_price === 0 || raffle.entry_type === "free"
-  const status = calculateRaffleStatus(raffle.start_date, raffle.end_date)
-  const endingSoon = isEndingSoon(raffle.end_date)
-  const drawDateFormatted = formatDrawDate(raffle.draw_date)
-
-  return (
-    <Link href={`/raffles/${raffle.id}`}>
-      <Card className="group relative overflow-hidden border-slate-700 bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur hover:border-cyan-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10 cursor-pointer">
-        {endingSoon && status === "active" && (
-          <div className="absolute top-3 left-3 z-10">
-            <Badge className="bg-red-500 text-white border-red-600 font-bold px-3 py-1">Ending Soon</Badge>
-          </div>
-        )}
-
-        <div className="flex items-center justify-center py-16 bg-gradient-to-br from-blue-500/10 to-purple-500/10 relative">
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <RaffleCountdown endDate={raffle.end_date} />
-          </div>
-          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-            <Gift className="w-12 h-12 text-white" />
-          </div>
-        </div>
-
-        <CardContent className="p-6 space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white group-hover:text-cyan-400 transition-colors">
-                {raffle.title}
-              </h3>
-              <Badge
-                className={
-                  status === "active"
-                    ? "bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/20"
-                    : status === "ended"
-                      ? "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/20"
-                      : "bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/20"
-                }
-              >
-                {status === "active" ? "Active" : status === "ended" ? "Ended" : "Upcoming"}
-              </Badge>
-            </div>
-            <p className="text-sm text-slate-400">
-              Draw: <span className="text-cyan-400 font-medium">{drawDateFormatted}</span>
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2 text-slate-400">
-                <Users className="w-4 h-4" />
-                <span>Entries</span>
-              </div>
-              <span className="text-white font-bold">{entries}</span>
-            </div>
-
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2 text-slate-400">
-                <Users className="w-4 h-4" />
-                <span>Winners</span>
-              </div>
-              <span className="text-white font-bold">1</span>
-            </div>
-
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2 text-slate-400">
-                <Ticket className="w-4 h-4" />
-                <span>Entry Types</span>
-              </div>
-              <span className="text-white font-bold">{isFree ? "Free" : `${raffle.ticket_price} pts`}</span>
-            </div>
-          </div>
-
-          <Button className="w-full bg-blue-600 hover:bg-blue-500 text-white">
-            <Gift className="w-4 h-4 mr-2" />
-            View Details
-          </Button>
-        </CardContent>
-      </Card>
-    </Link>
-  )
+  return { raffles: (raffles ?? []) as Raffle[], counts }
 }
 
 export default async function RafflesPage() {
-  const supabase = await createServerClient()
-  const { data: allRaffles, error } = await supabase
-    .from("raffles")
-    .select("*")
-    .order("featured", { ascending: false })
-    .order("end_date", { ascending: true })
+  const { raffles, counts } = await fetchAll()
 
-  if (error) {
-    console.error("[v0] Error fetching raffles:", error)
-  }
+  const withStatus = raffles.map((raffle) => ({
+    raffle,
+    counts: counts.get(raffle.id) ?? { tickets: 0, entrants: 0 },
+    status: raffle.winner_username ? "drawn" : calculateRaffleStatus(raffle.start_date, raffle.end_date),
+  }))
 
-  const raffles = (allRaffles as Raffle[]) || []
+  const live = withStatus.filter((entry) => entry.status === "active")
+  const upcoming = withStatus.filter((entry) => entry.status === "upcoming")
+  const past = withStatus.filter((entry) => entry.status === "ended" || entry.status === "drawn")
 
-  const activeRaffles = raffles.filter((r) => calculateRaffleStatus(r.start_date, r.end_date) === "active")
-  const endedRaffles = raffles.filter((r) => calculateRaffleStatus(r.start_date, r.end_date) === "ended")
-
-  const activeRafflesWithEntries = await Promise.all(
-    activeRaffles.map(async (raffle) => {
-      const entries = await getRaffleEntries(raffle.id)
-      return { raffle, entries: entries.length }
-    }),
-  )
-
-  const endedRafflesWithEntries = await Promise.all(
-    endedRaffles.map(async (raffle) => {
-      const entries = await getRaffleEntries(raffle.id)
-      return { raffle, entries: entries.length }
-    }),
-  )
+  const totalPrize = raffles.reduce((sum, raffle) => sum + (Number(raffle.prize_value) || 0), 0)
+  const totalEntrants = withStatus.reduce((sum, entry) => sum + entry.counts.entrants, 0)
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
-      <section className="relative overflow-hidden border-b border-slate-800">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5" />
-        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-5" />
+    <div className="mx-auto max-w-6xl space-y-4 px-5 py-6">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight text-white">Raffles</h1>
+        <p className="mt-1 text-[13px] text-white/40">Spend points on tickets. More tickets, better odds.</p>
+      </header>
 
-        <div className="relative container mx-auto px-4 py-20">
-          <div className="max-w-4xl mx-auto text-center space-y-6">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 mb-4">
-              <Gift className="w-10 h-10 text-white" />
+      <div className="grid gap-2.5 sm:grid-cols-3">
+        <StatTile label="Open now" value={live.length.toLocaleString()} accent="green" />
+        <StatTile label="Entries placed" value={totalEntrants.toLocaleString()} accent="blue" />
+        <StatTile label="Prize pool listed" value={"$" + points(totalPrize)} accent="amber" />
+      </div>
+
+      <Section title="Open now" entries={live} empty="No raffles are running right now." />
+      <Section title="Coming up" entries={upcoming} empty={null} />
+      <Section title="Finished" entries={past} empty={null} />
+    </div>
+  )
+}
+
+function Section({
+  title,
+  entries,
+  empty,
+}: {
+  title: string
+  entries: { raffle: Raffle; counts: Counts; status: string }[]
+  empty: string | null
+}) {
+  if (entries.length === 0 && !empty) return null
+
+  return (
+    <section className="space-y-2.5">
+      <MonoLabel className="text-white/30">{title}</MonoLabel>
+      {entries.length === 0 ? (
+        <Panel className="flex flex-col items-center gap-2 py-12">
+          <Gift className="h-7 w-7 text-white/10" />
+          <p className="text-[13px] text-white/30">{empty}</p>
+        </Panel>
+      ) : (
+        <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+          {entries.map((entry) => (
+            <RaffleCard key={entry.raffle.id} {...entry} />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function RaffleCard({ raffle, counts, status }: { raffle: Raffle; counts: Counts; status: string }) {
+  const isFree = Number(raffle.ticket_price) === 0 || raffle.entry_type === "free"
+  const cap = raffle.total_tickets_available == null ? null : Number(raffle.total_tickets_available)
+  const filled = cap ? Math.min(100, (counts.tickets / cap) * 100) : 0
+  const endingSoon = status === "active" && isEndingSoon(raffle.end_date)
+  const accent = status === "active" ? "green" : status === "upcoming" ? "blue" : "slate"
+
+  return (
+    <Link href={"/raffles/" + raffle.id} className="block">
+      <Panel accent={accent} className="h-full overflow-hidden transition hover:border-white/20">
+        <div className="relative">
+          {raffle.prize_image_url ? (
+            <img src={raffle.prize_image_url} alt="" className="h-32 w-full object-cover" />
+          ) : (
+            <div className="flex h-32 w-full items-center justify-center bg-white/[0.02]">
+              <Gift className="h-9 w-9 text-white/10" />
             </div>
-
-            <h1 className="text-6xl md:text-7xl font-black text-white">Raffles</h1>
-
-            <p className="text-xl text-slate-300 max-w-2xl mx-auto">Enter raffles to win amazing prizes and rewards!</p>
+          )}
+          <div className="absolute left-2 top-2 flex gap-1.5">
+            <Tag accent={accent}>{status}</Tag>
+            {endingSoon && <Tag accent="red">Ending soon</Tag>}
           </div>
         </div>
-      </section>
 
-      <section className="container mx-auto px-4 py-16">
-        <Tabs defaultValue="active" className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 bg-slate-800 border border-slate-700">
-            <TabsTrigger value="active" className="data-[state=active]:bg-cyan-600">
-              Active Raffles
-            </TabsTrigger>
-            <TabsTrigger value="ended" className="data-[state=active]:bg-slate-700">
-              Ended Raffles
-            </TabsTrigger>
-          </TabsList>
+        <div className="space-y-2 p-3.5">
+          <div>
+            <h3 className="truncate text-[14px] font-semibold text-white">{raffle.title}</h3>
+            <p className="truncate text-[12px] text-white/35">{raffle.prize_name}</p>
+          </div>
 
-          <TabsContent value="active" className="mt-8">
-            {activeRafflesWithEntries.length > 0 ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {activeRafflesWithEntries.map(({ raffle, entries }) => (
-                  <RaffleCard key={raffle.id} raffle={raffle} entries={entries} />
-                ))}
+          {raffle.winner_username ? (
+            <div className="flex items-center gap-1.5">
+              <Trophy className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.amber }} />
+              <span className="truncate text-[12.5px] text-white/70">{raffle.winner_username}</span>
+            </div>
+          ) : status === "active" ? (
+            <RaffleCountdown endDate={raffle.end_date} />
+          ) : (
+            <MonoLabel className="block text-white/25">
+              {status === "upcoming"
+                ? "Opens " + formatDrawDate(raffle.start_date)
+                : "Closed " + formatDrawDate(raffle.end_date)}
+            </MonoLabel>
+          )}
+
+          {cap !== null && (
+            <div>
+              <div className="flex items-baseline justify-between">
+                <MonoLabel className="text-white/25">
+                  {points(counts.tickets)} / {points(cap)}
+                </MonoLabel>
+                <MonoLabel className="text-white/25">{Math.round(filled)}%</MonoLabel>
               </div>
-            ) : (
-              <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
-                <CardContent className="py-16 text-center">
-                  <Gift className="w-16 h-16 mx-auto mb-4 text-slate-600" />
-                  <p className="text-slate-400 text-lg">No active raffles found.</p>
-                  <p className="text-slate-500 text-sm mt-2">Check back soon for new raffles!</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="ended" className="mt-8">
-            {endedRafflesWithEntries.length > 0 ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {endedRafflesWithEntries.map(({ raffle, entries }) => (
-                  <RaffleCard key={raffle.id} raffle={raffle} entries={entries} />
-                ))}
+              <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: filled + "%", backgroundColor: ACCENTS[accent] }}
+                />
               </div>
-            ) : (
-              <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
-                <CardContent className="py-16 text-center">
-                  <Gift className="w-16 h-16 mx-auto mb-4 text-slate-600" />
-                  <p className="text-slate-400 text-lg">No ended raffles yet.</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
-      </section>
-    </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 border-t border-white/[0.06] pt-2">
+            <span className="flex items-center gap-1.5 text-[12px] text-white/40">
+              <Users className="h-3 w-3" />
+              {counts.entrants}
+            </span>
+            <span className="flex items-center gap-1.5 text-[12px] text-white/40">
+              <Ticket className="h-3 w-3" />
+              {points(counts.tickets)}
+            </span>
+            <span
+              className="ml-auto text-[13px] font-semibold"
+              style={{ color: isFree ? ACCENTS.green : ACCENTS.blue }}
+            >
+              {isFree ? "Free" : points(raffle.ticket_price) + " pts"}
+            </span>
+          </div>
+        </div>
+      </Panel>
+    </Link>
   )
 }

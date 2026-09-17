@@ -1,248 +1,259 @@
-import { Button } from "@/components/ui/button"
-import { createServerClient } from "@/lib/supabase/server"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Gift, Users, ArrowLeft, RefreshCw, Ticket } from "lucide-react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { cookies } from "next/headers"
+import { ArrowLeft, Gift, Trophy, Users } from "lucide-react"
+import { createServerClient } from "@/lib/supabase/server"
+import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
+import { RaffleCountdown } from "@/components/raffle-countdown"
 import RaffleEntryButton from "@/components/raffle-entry-button"
+import { calculateRaffleStatus, formatDrawDate } from "@/lib/raffle-utils"
 
-interface RaffleEntry {
-  id: string
-  username: string
-  tickets_purchased: number
-}
+/**
+ * One raffle.
+ *
+ * `params` is awaited: it is a Promise in this version of Next, and reading
+ * `.id` straight off it gave undefined — so every raffle detail page 404'd.
+ * Nobody could open a raffle, let alone enter one.
+ */
+
+type Params = { params: Promise<{ id: string }> }
 
 async function getRaffle(id: string) {
   const supabase = await createServerClient()
-  const { data, error } = await supabase.from("raffles").select("*").eq("id", id).single()
-
-  if (error || !data) {
-    return null
-  }
-
+  const { data } = await supabase.from("raffles").select("*").eq("id", id).maybeSingle()
   return data
 }
 
-async function getRaffleEntries(id: string) {
+async function getEntries(id: string) {
   const supabase = await createServerClient()
-  const { data, error } = await supabase.from("raffle_entries").select("*").eq("raffle_id", id)
-
-  if (error) {
-    console.error("[v0] Error fetching raffle entries:", error)
-    return []
-  }
-
-  return data as RaffleEntry[]
+  const { data, error } = await supabase
+    .from("raffle_entries")
+    .select("id, username, tickets_purchased, user_id")
+    .eq("raffle_id", id)
+  if (error) console.error("[v0] Error fetching raffle entries:", error)
+  return data ?? []
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
-  const raffle = await getRaffle(params.id)
-
-  if (!raffle) {
-    return {
-      title: "Raffle Not Found",
-      description: "The raffle you're looking for doesn't exist.",
-    }
-  }
+export async function generateMetadata({ params }: Params) {
+  const { id } = await params
+  const raffle = await getRaffle(id)
+  if (!raffle) return { title: "Raffle not found" }
 
   return {
     title: `${raffle.title} | Raffles`,
-    description: raffle.description || "Enter this raffle to win amazing prizes!",
+    description: raffle.description || "Enter this raffle to win.",
     openGraph: {
       title: raffle.title,
-      description: raffle.description || "Enter this raffle to win amazing prizes!",
+      description: raffle.description || "Enter this raffle to win.",
       images: raffle.prize_image_url ? [raffle.prize_image_url] : [],
     },
   }
 }
 
-export default async function RaffleDetailPage({ params }: { params: { id: string } }) {
-  const raffle = await getRaffle(params.id)
+const points = (value: number) => Math.round(Number(value) || 0).toLocaleString()
 
-  if (!raffle) {
-    notFound()
-  }
+export default async function RaffleDetailPage({ params }: Params) {
+  const { id } = await params
+  const raffle = await getRaffle(id)
+  if (!raffle) notFound()
 
-  const entries = await getRaffleEntries(params.id)
-  const totalEntries = entries.reduce((sum, entry) => sum + entry.tickets_purchased, 0)
-  const isFree = raffle.ticket_price === 0 || raffle.entry_type === "free"
+  const [entries, cookieStore] = await Promise.all([getEntries(id), cookies()])
+  const userId = cookieStore.get("user_db_id")?.value ?? null
+
+  const totalTickets = entries.reduce((sum, entry) => sum + (Number(entry.tickets_purchased) || 0), 0)
+  const mine = userId ? entries.find((entry) => entry.user_id === userId) : null
+  const myTickets = Number(mine?.tickets_purchased) || 0
+
+  const ticketPrice = Number(raffle.ticket_price) || 0
+  const isFree = ticketPrice === 0 || raffle.entry_type === "free"
+  const status = calculateRaffleStatus(raffle.start_date, raffle.end_date)
+  const drawn = !!raffle.winner_username
+
+  const perUserCap = raffle.max_tickets == null ? null : Number(raffle.max_tickets)
+  const totalCap = raffle.total_tickets_available == null ? null : Number(raffle.total_tickets_available)
+  const soldOut = totalCap !== null && totalTickets >= totalCap
+  const atMyCap = perUserCap !== null && myTickets >= perUserCap
+
+  // Odds from the tickets actually held, not from the entrant count.
+  const odds = totalTickets > 0 && myTickets > 0 ? (myTickets / totalTickets) * 100 : 0
+
+  const leaderboard = [...entries]
+    .sort((a, b) => (Number(b.tickets_purchased) || 0) - (Number(a.tickets_purchased) || 0))
+    .slice(0, 12)
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden border-b border-slate-800">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5" />
+    <div className="mx-auto max-w-6xl space-y-4 px-5 py-6">
+      <Link
+        href="/raffles"
+        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white/30 transition hover:text-white"
+      >
+        <ArrowLeft className="h-3 w-3" />
+        All raffles
+      </Link>
 
-        <div className="relative container mx-auto px-4 py-20">
-          <div className="max-w-4xl mx-auto text-center space-y-6">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 mb-4">
-              <Gift className="w-10 h-10 text-white" />
-            </div>
-
-            <h1 className="text-5xl md:text-6xl font-black text-white">Raffle Details</h1>
-
-            <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-              View raffle information, entries, and participate to win amazing prizes!
-            </p>
-          </div>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight text-white">{raffle.title}</h1>
+          {raffle.description && <p className="mt-1 max-w-2xl text-[13px] text-white/40">{raffle.description}</p>}
         </div>
-      </section>
+        <Tag accent={drawn ? "slate" : status === "active" ? "green" : status === "upcoming" ? "blue" : "amber"}>
+          {drawn ? "Drawn" : status}
+        </Tag>
+      </header>
 
-      {/* Content */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="max-w-6xl mx-auto">
-          <Link
-            href="/raffles"
-            className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Raffles
-          </Link>
-
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Raffle Image */}
-              <Card className="border-slate-700 bg-slate-800/50 backdrop-blur overflow-hidden">
-                {raffle.prize_image_url ? (
-                  <img
-                    src={raffle.prize_image_url}
-                    alt={raffle.title}
-                    className="w-full h-64 object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center py-32 bg-gradient-to-br from-blue-500/10 to-purple-500/10">
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                      <Gift className="w-16 h-16 text-white" />
-                    </div>
-                  </div>
-                )}
-              </Card>
-
-              {/* Prize Details */}
-              <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
-                <CardContent className="p-6 space-y-4">
-                  <h2 className="text-3xl font-bold text-white">{raffle.title}</h2>
-                  <div className="space-y-2">
-                    <p className="text-slate-300 text-lg">
-                      <span className="text-slate-400">Prize:</span> <span className="text-cyan-400 font-bold">{raffle.prize_name}</span>
-                    </p>
-                    {raffle.prize_value > 0 && (
-                      <p className="text-slate-300 text-lg">
-                        <span className="text-slate-400">Value:</span> <span className="text-green-400 font-bold">${raffle.prize_value.toLocaleString()}</span>
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Description */}
-              <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
-                <CardContent className="p-6">
-                  <h2 className="text-2xl font-bold text-white mb-4">Description</h2>
-                  <p className="text-slate-300">{raffle.description || "No description provided."}</p>
-                </CardContent>
-              </Card>
-
-              {/* Entries List */}
-              <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-5 h-5 text-cyan-400" />
-                      <h2 className="text-xl font-bold text-white">Entries ({totalEntries})</h2>
-                    </div>
-                    <Button variant="outline" size="sm" className="border-slate-600 hover:bg-slate-700 bg-transparent">
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Refresh
-                    </Button>
-                  </div>
-
-                  <Input
-                    placeholder="Search participants..."
-                    className="mb-4 bg-slate-900 border-slate-700 text-white"
-                  />
-
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {entries.length > 0 ? (
-                      entries.map((entry, index) => {
-                        const winChance = totalEntries > 0 ? (entry.tickets_purchased / totalEntries) * 100 : 0
-                        return (
-                          <div
-                            key={entry.id}
-                            className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-700/50"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold">
-                                #{index + 1}
-                              </div>
-                              <div>
-                                <div className="text-white font-medium">{entry.username}</div>
-                                <div className="text-slate-400 text-sm">{entry.tickets_purchased} ticket(s)</div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-green-400 font-bold">{winChance.toFixed(2)}%</div>
-                              <div className="text-slate-500 text-xs">win chance</div>
-                            </div>
-                          </div>
-                        )
-                      })
-                    ) : (
-                      <div className="text-center py-8 text-slate-400">No entries yet. Be the first to enter!</div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Raffle Stats */}
-              <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
-                <CardContent className="p-6 space-y-4">
-                  <h3 className="text-lg font-bold text-white">Raffle Stats</h3>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <Users className="w-4 h-4" />
-                        <span className="text-sm">Total Entries</span>
-                      </div>
-                      <span className="text-white font-bold">{totalEntries}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <Users className="w-4 h-4" />
-                        <span className="text-sm">Winners</span>
-                      </div>
-                      <span className="text-white font-bold">1</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Entry Methods */}
-              <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
-                <CardContent className="p-6 space-y-4">
-                  <h3 className="text-lg font-bold text-white">Entry Methods</h3>
-
-                  <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700/50">
-                    <div className="flex items-center gap-2 text-green-400">
-                      <Ticket className="w-4 h-4" />
-                      <span className="font-medium">{isFree ? "Free Entry" : `${raffle.ticket_price} Points`}</span>
-                    </div>
-                  </div>
-
-                  <RaffleEntryButton raffleId={params.id} isFree={isFree} ticketPrice={raffle.ticket_price} />
-                </CardContent>
-              </Card>
-            </div>
+      {drawn && (
+        <Panel accent="amber" className="flex items-center gap-3 px-4 py-3">
+          <Trophy className="h-5 w-5 shrink-0" style={{ color: ACCENTS.amber }} />
+          <div className="min-w-0">
+            <MonoLabel className="block text-white/35">Winner</MonoLabel>
+            <p className="truncate text-[17px] font-semibold text-white">{raffle.winner_username}</p>
           </div>
+          {raffle.winner_ticket_number != null && (
+            <MonoLabel className="ml-auto shrink-0 text-white/30">Ticket #{raffle.winner_ticket_number}</MonoLabel>
+          )}
+        </Panel>
+      )}
+
+      <div className="grid gap-2.5 sm:grid-cols-4">
+        <StatTile
+          label="Prize"
+          value={raffle.prize_name}
+          accent="amber"
+          hint={raffle.prize_value ? `$${points(raffle.prize_value)} value` : undefined}
+        />
+        <StatTile
+          label="Tickets sold"
+          value={points(totalTickets)}
+          accent="blue"
+          hint={totalCap ? `of ${points(totalCap)}` : "No cap"}
+        />
+        <StatTile label="Entrants" value={entries.length.toLocaleString()} />
+        <StatTile
+          label="Your tickets"
+          value={points(myTickets)}
+          accent="green"
+          hint={odds > 0 ? `${odds.toFixed(1)}% of the pot` : undefined}
+        />
+      </div>
+
+      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
+        <Panel accent="purple">
+          <PanelHeader
+            title="Entrants"
+            accent="purple"
+            right={<MonoLabel className="text-white/25">{entries.length}</MonoLabel>}
+          />
+          {leaderboard.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-12">
+              <Users className="h-7 w-7 text-white/10" />
+              <p className="text-[13px] text-white/30">Nobody has entered yet.</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-white/[0.05]">
+              {leaderboard.map((entry, index) => {
+                const tickets = Number(entry.tickets_purchased) || 0
+                const share = totalTickets > 0 ? (tickets / totalTickets) * 100 : 0
+                return (
+                  <li key={entry.id} className="flex items-center gap-3 px-3.5 py-2.5">
+                    <span className="w-4 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/20">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[13px] text-white">{entry.username}</span>
+                    <MonoLabel className="shrink-0 text-white/25">{share.toFixed(1)}%</MonoLabel>
+                    <span
+                      className="w-16 shrink-0 text-right text-[13px] tabular-nums"
+                      style={{ color: ACCENTS.purple }}
+                    >
+                      {tickets}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </Panel>
+
+        <div className="space-y-3">
+          <Panel accent={status === "active" && !drawn ? "green" : "slate"} className="p-4">
+            {raffle.prize_image_url ? (
+              <img
+                src={raffle.prize_image_url}
+                alt=""
+                className="mb-3 h-36 w-full rounded-md border border-white/[0.08] object-cover"
+              />
+            ) : (
+              <div className="mb-3 flex h-36 w-full items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.02]">
+                <Gift className="h-10 w-10 text-white/10" />
+              </div>
+            )}
+
+            <div className="flex items-baseline justify-between">
+              <MonoLabel className="text-white/30">Entry</MonoLabel>
+              <span className="text-[15px] font-semibold" style={{ color: isFree ? ACCENTS.green : ACCENTS.blue }}>
+                {isFree ? "Free" : `${points(ticketPrice)} points`}
+              </span>
+            </div>
+
+            {perUserCap !== null && (
+              <div className="mt-1.5 flex items-baseline justify-between">
+                <MonoLabel className="text-white/30">Your limit</MonoLabel>
+                <span className="text-[13px] tabular-nums text-white/60">
+                  {myTickets}/{perUserCap}
+                </span>
+              </div>
+            )}
+
+            {status === "active" && !drawn && (
+              <div className="mt-3 border-t border-white/[0.06] pt-3">
+                <RaffleCountdown endDate={raffle.end_date} />
+              </div>
+            )}
+
+            <div className="mt-3">
+              {drawn ? (
+                <p className="text-center text-[13px] text-white/30">This raffle has been drawn.</p>
+              ) : status !== "active" ? (
+                <p className="text-center text-[13px] text-white/30">
+                  {status === "upcoming" ? "Not open yet." : "Entries are closed."}
+                </p>
+              ) : soldOut ? (
+                <p className="text-center text-[13px]" style={{ color: ACCENTS.amber }}>
+                  Sold out.
+                </p>
+              ) : atMyCap ? (
+                <p className="text-center text-[13px]" style={{ color: ACCENTS.amber }}>
+                  You hold the maximum of {perUserCap} tickets.
+                </p>
+              ) : !userId ? (
+                <p className="text-center text-[13px] text-white/30">Sign in to enter.</p>
+              ) : (
+                <RaffleEntryButton
+                  raffleId={raffle.id}
+                  isFree={isFree}
+                  ticketPrice={ticketPrice}
+                  alreadyHolding={myTickets}
+                  perUserCap={perUserCap}
+                />
+              )}
+            </div>
+          </Panel>
+
+          <Panel className="space-y-2 p-3.5">
+            <Row label="Opens" value={formatDrawDate(raffle.start_date)} />
+            <Row label="Closes" value={formatDrawDate(raffle.end_date)} />
+            {raffle.draw_date && <Row label="Draw" value={formatDrawDate(raffle.draw_date)} />}
+          </Panel>
         </div>
-      </section>
+      </div>
+    </div>
+  )
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <MonoLabel className="text-white/30">{label}</MonoLabel>
+      <span className="text-[12px] text-white/60">{value}</span>
     </div>
   )
 }
