@@ -88,10 +88,20 @@ function StreamWidget() {
   // recently is at the top regardless of what kind of event it is.
   const events: { key: string; startedAt: number; node: React.ReactNode }[] = []
 
+  // Parse helper: an unparseable or missing timestamp must not silently become
+  // NaN (which sorts unpredictably) or 0 (which pins the card to the bottom).
+  const startedAtOr = (value: string | null | undefined, fallback: number) => {
+    const parsed = value ? Date.parse(value) : NaN
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+
   if (giveawayVisible) {
     events.push({
       key: "giveaway",
-      startedAt: giveaway.started_at ? Date.parse(giveaway.started_at) : 0,
+      // Deliberately started_at, not updated_at: the row is touched every time
+      // someone enters, and ordering by that would throw the giveaway back to
+      // the top on every entry — the behaviour being fixed here.
+      startedAt: startedAtOr(giveaway.started_at, startedAtOr(giveaway.updated_at, 0)),
       node: <GiveawayCard state={giveaway} showElapsed fullWidth />,
     })
   }
@@ -101,9 +111,7 @@ function StreamWidget() {
       key: "prediction",
       // Falls back to "now minus what is left" when the window has no opens_at,
       // which still orders it correctly against the rest.
-      startedAt: prediction?.window?.opens_at
-        ? Date.parse(prediction.window.opens_at)
-        : Date.now() - predictionSeconds * 1000,
+      startedAt: startedAtOr(prediction?.window?.opens_at, Date.now() - predictionSeconds * 1000),
       node: <PredictionEventCard secondsLeft={predictionSeconds} />,
     })
   }
@@ -111,7 +119,7 @@ function StreamWidget() {
   for (const transaction of transactions) {
     events.push({
       key: transaction.id,
-      startedAt: Date.parse(transaction.created_at),
+      startedAt: startedAtOr(transaction.created_at, Date.now()),
       node: <TransactionEventCard event={transaction} />,
     })
   }
