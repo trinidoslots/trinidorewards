@@ -40,14 +40,20 @@ export default function AdminUsersPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    // Deliberately "*" rather than a column list. No migration ever created
+    // this table, so what is on it is whatever the dashboard was set up with —
+    // naming a column that does not exist turns the whole page into an error,
+    // which is exactly what naming avatar_url did.
     const { data, error } = await supabaseRef.current
       .from("users")
-      .select("id, username, kick_id, points_balance, avatar_url, created_at")
+      .select("*")
       .order("created_at", { ascending: false })
 
     if (error) {
       console.error("[v0] Could not load users:", error)
-      setNotice({ tone: "error", text: "Could not load users." })
+      // The real message, not a generic line: "column users.avatar_url does not
+      // exist" tells you what to do, "Could not load users" does not.
+      setNotice({ tone: "error", text: error.message || "Could not load users." })
     } else {
       setUsers((data ?? []) as User[])
     }

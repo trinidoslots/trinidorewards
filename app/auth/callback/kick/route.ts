@@ -176,16 +176,21 @@ export async function GET(request: NextRequest) {
     if (!existingUser) {
       // Create new user
       console.log("[v0] Creating new user in database")
-      const { data: newUser, error: insertError } = await supabase
+      const base = { kick_id: kickUserIdStr, username: kickUsername, points_balance: 0 }
+
+      let { data: newUser, error: insertError } = await supabase
         .from("users")
-        .insert({
-          kick_id: kickUserIdStr,
-          username: kickUsername,
-          avatar_url: kickAvatarUrl || null,
-          points_balance: 0,
-        })
+        .insert({ ...base, avatar_url: kickAvatarUrl || null })
         .select()
         .single()
+
+      // The avatar column is new (scripts/047). If the migration has not been
+      // run yet, signing in must still work — a missing picture is cosmetic,
+      // a login that fails is not.
+      if (insertError?.code === "PGRST204" || insertError?.code === "42703") {
+        console.warn("[v0] users.avatar_url missing, creating without it:", insertError.message)
+        ;({ data: newUser, error: insertError } = await supabase.from("users").insert(base).select().single())
+      }
 
       if (insertError) {
         console.error("[v0] Failed to create user:", insertError)
@@ -199,16 +204,19 @@ export async function GET(request: NextRequest) {
     } else {
       // Update existing user
       console.log("[v0] Updating existing user in database")
-      const { error: updateError } = await supabase
+      const patch = { username: kickUsername, updated_at: new Date().toISOString() }
+
+      let { error: updateError } = await supabase
         .from("users")
-        .update({
-          username: kickUsername,
-          // Refreshed on every login: people change their Kick picture, and a
-          // stale one in the admin panel is worse than none.
-          avatar_url: kickAvatarUrl || null,
-          updated_at: new Date().toISOString(),
-        })
+        // Refreshed on every login: people change their Kick picture, and a
+        // stale one in the admin panel is worse than none.
+        .update({ ...patch, avatar_url: kickAvatarUrl || null })
         .eq("kick_id", kickUserIdStr)
+
+      if (updateError?.code === "PGRST204" || updateError?.code === "42703") {
+        console.warn("[v0] users.avatar_url missing, updating without it:", updateError.message)
+        ;({ error: updateError } = await supabase.from("users").update(patch).eq("kick_id", kickUserIdStr))
+      }
 
       if (updateError) {
         console.error("[v0] Failed to update user:", updateError)

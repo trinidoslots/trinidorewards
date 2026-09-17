@@ -21,9 +21,11 @@ export async function GET(request: Request) {
 
   const client = serviceClient()
 
+  // "*" for the same reason as the user page: the table predates every
+  // migration, so a named column that is not there fails the request outright.
   const { data: match, error } = await client
     .from("users")
-    .select("id, username, kick_id, avatar_url, points_balance, created_at")
+    .select("*")
     .ilike("username", username)
     .limit(1)
     .maybeSingle()

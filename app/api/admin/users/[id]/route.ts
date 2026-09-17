@@ -20,11 +20,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params
   const client = serviceClient()
 
-  const { data: user, error } = await client
-    .from("users")
-    .select("id, username, kick_id, avatar_url, points_balance, created_at")
-    .eq("id", id)
-    .maybeSingle()
+  // "*" on purpose — no migration ever created this table, so naming a column
+  // it may not have (avatar_url, until scripts/047) fails the whole request.
+  const { data: user, error } = await client.from("users").select("*").eq("id", id).maybeSingle()
 
   if (error) {
     console.error("[v0] Could not load user:", error)
