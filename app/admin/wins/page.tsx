@@ -27,7 +27,7 @@ export default function AdminWinsPage() {
   const [source, setSource] = useState("all")
   const [status, setStatus] = useState("all")
   const [adding, setAdding] = useState(false)
-  const [manualName, setManualName] = useState("")
+  const [manualId, setManualId] = useState("")
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -106,9 +106,11 @@ export default function AdminWinsPage() {
           <button
             type="button"
             onClick={() => {
-              const name = prompt("Username of the winner")?.trim()
-              if (!name) return
-              setManualName(name)
+              // The onsite id, not a chat name: names change and two people
+              // can pick confusingly similar ones, so the log keys on the id.
+              const id = prompt("Onsite user ID of the winner")?.trim()
+              if (!id) return
+              setManualId(id)
               setAdding(true)
             }}
             className="inline-flex h-9 items-center gap-2 rounded-md border border-white/12 bg-white/[0.06] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12]"
@@ -203,12 +205,15 @@ export default function AdminWinsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
                       {win.user_id ? (
-                        <Link
-                          href={`/admin/users/${win.user_id}`}
-                          className="truncate text-[13px] font-medium text-white underline-offset-4 hover:underline"
-                        >
-                          {win.username}
-                        </Link>
+                        <>
+                          <Link
+                            href={`/admin/users/${win.user_id}`}
+                            className="truncate text-[13px] font-medium text-white underline-offset-4 hover:underline"
+                          >
+                            {win.username}
+                          </Link>
+                          <CopyableId value={win.user_id} chars={4} />
+                        </>
                       ) : (
                         <span className="flex items-baseline gap-1.5">
                           <span className="truncate text-[13px] font-medium text-white/70">{win.username}</span>
@@ -259,13 +264,13 @@ export default function AdminWinsPage() {
         )}
       </Panel>
 
-      {adding && manualName && (
+      {adding && manualId && (
         <RecordWinDialog
-          username={manualName}
+          userId={manualId}
           source="manual"
           onClose={() => {
             setAdding(false)
-            setManualName("")
+            setManualId("")
           }}
           onSaved={load}
         />

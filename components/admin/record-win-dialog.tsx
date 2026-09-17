@@ -32,13 +32,17 @@ const fieldClass =
 
 export function RecordWinDialog({
   username,
+  userId,
   source,
   sourceRef,
   defaultPrize = "",
   onClose,
   onSaved,
 }: {
-  username: string
+  /** The name as it appeared wherever they won. Optional when an id is given. */
+  username?: string
+  /** The onsite id. Preferred: names change, ids do not. */
+  userId?: string
   source: WinSource
   sourceRef?: string
   defaultPrize?: string
@@ -62,18 +66,24 @@ export function RecordWinDialog({
   const load = useCallback(async () => {
     setLooking(true)
     try {
-      const response = await fetch(`/api/admin/users/lookup?username=${encodeURIComponent(username)}`, {
-        cache: "no-store",
-      })
+      const query = userId
+        ? `id=${encodeURIComponent(userId)}`
+        : `username=${encodeURIComponent(username ?? "")}`
+      const response = await fetch(`/api/admin/users/lookup?${query}`, { cache: "no-store" })
+      const payload = await response.json().catch(() => null)
+
       if (response.ok) {
-        const payload = await response.json()
-        setUser(payload.user ?? null)
-        setRecent((payload.recentWins ?? []) as RecentWin[])
+        setUser(payload?.user ?? null)
+        setRecent((payload?.recentWins ?? []) as RecentWin[])
+        setError(null)
+      } else {
+        setUser(null)
+        setError(payload?.error ?? "Could not find that user")
       }
     } finally {
       setLooking(false)
     }
-  }, [username])
+  }, [userId, username])
 
   useEffect(() => {
     load()
@@ -90,6 +100,10 @@ export function RecordWinDialog({
       setError("Say what they won.")
       return
     }
+    if (!user && !username) {
+      setError("No user to record this against.")
+      return
+    }
     setBusy(true)
     setError(null)
 
@@ -97,7 +111,9 @@ export function RecordWinDialog({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username,
+        // The account's own name when it was matched, so the log does not
+        // preserve a chat nickname that has since been changed.
+        username: user?.username ?? username,
         user_id: user?.id ?? null,
         source,
         source_ref: sourceRef ?? null,
@@ -132,7 +148,7 @@ export function RecordWinDialog({
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div
         role="dialog"
-        aria-label={`Record a win for ${username}`}
+        aria-label={`Record a win for ${user?.username ?? username ?? userId}`}
         onClick={(event) => event.stopPropagation()}
         className="max-h-[88vh] w-full max-w-md overflow-auto rounded-lg border border-white/[0.10] bg-[#0E0E11]"
       >
@@ -167,15 +183,19 @@ export function RecordWinDialog({
           )}
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-semibold text-white">{username}</p>
+            <p className="truncate text-[15px] font-semibold text-white">
+              {user?.username ?? username ?? "Unknown"}
+            </p>
             {looking ? (
               <MonoLabel className="text-white/25">Looking up…</MonoLabel>
             ) : user ? (
               <div className="mt-0.5 flex items-center gap-2">
+                {/* The id first: it is what the win is filed under. */}
+                <MonoLabel className="text-white/25">ID</MonoLabel>
+                <CopyableId value={user.id} chars={6} />
                 <span className="text-[12px] tabular-nums" style={{ color: ACCENTS.green }}>
                   {Math.round(Number(user.points_balance) || 0).toLocaleString()} pts
                 </span>
-                <CopyableId value={user.id} chars={4} />
               </div>
             ) : (
               // Stated rather than hidden: the admin should know the win is

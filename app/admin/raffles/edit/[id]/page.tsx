@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel } from "@/components/ui/panel"
-import { RaffleForm, emptyDraft, toLocalInput, type RaffleDraft } from "@/components/admin/raffle-form"
+import { RaffleForm, draftFrom, type RaffleDraft } from "@/components/admin/raffle-form"
 
 export default function EditRafflePage() {
   const params = useParams()
@@ -27,25 +27,7 @@ export default function EditRafflePage() {
         setError(problem?.message || "That raffle does not exist")
         return
       }
-
-      setDraft({
-        ...emptyDraft,
-        title: data.title ?? "",
-        description: data.description ?? "",
-        prize_name: data.prize_name ?? "",
-        prize_value: data.prize_value == null ? "" : String(data.prize_value),
-        prize_image_url: data.prize_image_url ?? "",
-        ticket_price: String(data.ticket_price ?? 0),
-        entry_type: data.entry_type ?? (Number(data.ticket_price) === 0 ? "free" : "paid"),
-        max_tickets: data.max_tickets == null ? "" : String(data.max_tickets),
-        total_tickets_available:
-          data.total_tickets_available == null ? "" : String(data.total_tickets_available),
-        // Stored as instants, shown in the browser's own time.
-        start_date: toLocalInput(data.start_date),
-        end_date: toLocalInput(data.end_date),
-        draw_date: toLocalInput(data.draw_date),
-        featured: !!data.featured,
-      })
+      setDraft(draftFrom(data))
     })()
     return () => {
       cancelled = true

@@ -91,3 +91,35 @@ export function drawWinner(entries: DrawEntry[], random: () => number = Math.ran
   const last = eligible[eligible.length - 1]
   return { username: last.username, entryId: last.id, ticketNumber, totalTickets }
 }
+
+export const DURATION_UNITS = [
+  { id: "minutes", label: "minutes", ms: 60_000 },
+  { id: "hours", label: "hours", ms: 3_600_000 },
+  { id: "days", label: "days", ms: 86_400_000 },
+] as const
+
+export type DurationUnit = (typeof DURATION_UNITS)[number]["id"]
+
+export function durationToMs(amount: number, unit: DurationUnit): number {
+  const found = DURATION_UNITS.find((entry) => entry.id === unit) ?? DURATION_UNITS[1]
+  return Math.max(0, Math.round(amount)) * found.ms
+}
+
+/**
+ * A span back into the largest unit that divides it evenly.
+ *
+ * So a raffle stored as running for 7200000ms comes back as "2 hours" rather
+ * than "120 minutes" — which is what someone editing it would expect to see,
+ * since it is what they typed.
+ */
+export function msToDuration(ms: number): { amount: number; unit: DurationUnit } {
+  const value = Math.max(0, Math.round(Number(ms) || 0))
+  for (const unit of [...DURATION_UNITS].reverse()) {
+    if (value >= unit.ms && value % unit.ms === 0) {
+      return { amount: value / unit.ms, unit: unit.id }
+    }
+  }
+  // Nothing divides evenly — minutes, rounded up, so a 90-second raffle does
+  // not come back as zero and silently close the moment it is saved.
+  return { amount: Math.max(1, Math.ceil(value / 60_000)), unit: "minutes" }
+}

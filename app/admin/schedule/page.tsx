@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Ban, CalendarDays, Plus, RefreshCw, Save, Trash2, Undo2, X } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
-import { toInstant, toLocalInput } from "@/components/admin/raffle-form"
+import { toInstant, toLocalInput } from "@/lib/datetime"
 import { SCHEDULE_CATEGORIES, stateOf, timeRange, type ScheduleEntry } from "@/lib/schedule"
 
 /**
