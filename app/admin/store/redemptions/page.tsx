@@ -1,13 +1,20 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { useEffect, useState } from "react"
-import { useToast } from "@/hooks/use-toast"
-import { RefreshCw, Search, Check, X, Clock } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
+import { Check, Clock, Package, RefreshCw, Search, Undo2, X } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
+import { CopyableId } from "@/components/ui/copyable-id"
+
+/**
+ * What people have bought, and whether it has been handed over.
+ *
+ * The user is joined in a second query rather than through a foreign-key
+ * select: redemptions has no relationship declared to users in PostgREST, so
+ * an embedded select fails on some projects and silently returns nulls on
+ * others.
+ */
 
 type Redemption = {
   id: string
@@ -17,310 +24,242 @@ type Redemption = {
   cost: number
   status: string
   created_at: string
-  user?: {
-    username: string
-    kick_id: string
-  }
+}
+
+type UserRow = { id: string; username: string }
+
+const STATUSES = [
+  { id: "pending", label: "Pending", accent: "amber" as const },
+  { id: "completed", label: "Completed", accent: "green" as const },
+  { id: "cancelled", label: "Cancelled", accent: "red" as const },
+]
+
+const points = (value: number) => Math.round(Number(value) || 0).toLocaleString()
+
+const when = (iso: string) =>
+  new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+
+function statusMeta(status: string) {
+  return STATUSES.find((entry) => entry.id === status) ?? { id: status, label: status, accent: "slate" as const }
 }
 
 export default function StoreRedemptionsPage() {
+  const supabaseRef = useRef(createClient())
+
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
+  const [users, setUsers] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const { toast } = useToast()
-  const supabase = createClient()
-  const router = useRouter()
+  const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState("")
+  const [status, setStatus] = useState("all")
 
-  useEffect(() => {
-    checkUser()
-  }, [])
+  const load = useCallback(async () => {
+    setLoading(true)
+    const supabase = supabaseRef.current
 
-  async function checkUser() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      router.push("/auth/login")
-    } else {
-      await fetchRedemptions()
-      setLoading(false)
-    }
-  }
-
-  async function fetchRedemptions() {
-    console.log("[v0] Fetching redemptions...")
-
-    // Try to fetch redemptions with user join
-    const { data: redemptionsData, error: redemptionsError } = await supabase
+    const { data, error: problem } = await supabase
       .from("redemptions")
-      .select("*")
+      .select("id, user_id, item_id, item_name, cost, status, created_at")
       .order("created_at", { ascending: false })
 
-    if (redemptionsError) {
-      console.error("[v0] Error fetching redemptions:", redemptionsError)
-      console.error("[v0] Error details:", JSON.stringify(redemptionsError, null, 2))
-      toast({
-        title: "Error",
-        description: `Failed to fetch redemptions: ${redemptionsError.message}`,
-        variant: "destructive",
-      })
+    if (problem) {
+      console.error("[v0] Error fetching redemptions:", problem)
+      setError(problem.message || "Could not load redemptions")
+      setLoading(false)
       return
     }
 
-    console.log("[v0] Redemptions fetched:", redemptionsData?.length || 0)
+    const rows = (data ?? []) as Redemption[]
+    setRedemptions(rows)
+    setError(null)
 
-    // Fetch all users separately
-    const { data: usersData, error: usersError } = await supabase.from("users").select("id, username, kick_id")
-
-    if (usersError) {
-      console.error("[v0] Error fetching users:", usersError)
-      console.error("[v0] Error details:", JSON.stringify(usersError, null, 2))
+    const ids = Array.from(new Set(rows.map((row) => row.user_id).filter(Boolean)))
+    if (ids.length > 0) {
+      const { data: people } = await supabase.from("users").select("id, username").in("id", ids)
+      setUsers(new Map(((people ?? []) as UserRow[]).map((person) => [person.id, person.username])))
     }
+    setLoading(false)
+  }, [])
 
-    console.log("[v0] Users fetched:", usersData?.length || 0)
+  useEffect(() => {
+    load()
+  }, [load])
 
-    // Join redemptions with users client-side
-    const redemptionsWithUsers = (redemptionsData || []).map((redemption: any) => {
-      const user = usersData?.find((u) => u.id === redemption.user_id)
-      return {
-        ...redemption,
-        user: user
-          ? {
-              username: user.username,
-              kick_id: user.kick_id,
-            }
-          : undefined,
-      }
+  const rows = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    return redemptions.filter((row) => {
+      if (status !== "all" && row.status !== status) return false
+      if (!needle) return true
+      const username = users.get(row.user_id) ?? ""
+      return row.item_name.toLowerCase().includes(needle) || username.toLowerCase().includes(needle)
     })
+  }, [redemptions, query, status, users])
 
-    console.log("[v0] Redemptions with users:", redemptionsWithUsers.length)
-    setRedemptions(redemptionsWithUsers as Redemption[])
-  }
+  const totals = useMemo(
+    () => ({
+      all: redemptions.length,
+      pending: redemptions.filter((row) => row.status === "pending").length,
+      spent: redemptions
+        .filter((row) => row.status !== "cancelled")
+        .reduce((sum, row) => sum + (Number(row.cost) || 0), 0),
+    }),
+    [redemptions],
+  )
 
-  async function updateRedemptionStatus(id: string, status: string) {
-    const { error } = await supabase.from("redemptions").update({ status }).eq("id", id)
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update redemption status",
-        variant: "destructive",
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: `Redemption marked as ${status}`,
-      })
-      await fetchRedemptions()
+  async function setStatusOf(row: Redemption, next: string) {
+    const { error: problem } = await supabaseRef.current.from("redemptions").update({ status: next }).eq("id", row.id)
+    if (problem) {
+      setError(problem.message || "Could not update that redemption")
+      return
     }
-  }
-
-  const filteredRedemptions = redemptions.filter((redemption) => {
-    const matchesSearch =
-      redemption.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      redemption.user?.username?.toLowerCase().includes(searchQuery.toLowerCase())
-
-    const matchesStatus = statusFilter === "all" || redemption.status === statusFilter
-
-    return matchesSearch && matchesStatus
-  })
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <Check className="w-4 h-4 text-green-500" />
-      case "cancelled":
-        return <X className="w-4 h-4 text-red-500" />
-      default:
-        return <Clock className="w-4 h-4 text-yellow-500" />
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "text-green-500"
-      case "cancelled":
-        return "text-red-500"
-      default:
-        return "text-yellow-500"
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-white">Loading...</p>
-      </div>
-    )
+    setRedemptions((current) => current.map((entry) => (entry.id === row.id ? { ...entry, status: next } : entry)))
   }
 
   return (
-    <div className="p-4 min-h-screen bg-[#0B0B0D]">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white mb-2">Store Redemptions</h1>
-              <p className="text-white/40">Manage user purchases and redemptions</p>
-            </div>
-            <Link href="/admin/store">
-              <Button variant="outline" className="bg-transparent border-white/[0.12] hover:bg-white/[0.06] text-white">
-                Back to Store
-              </Button>
-            </Link>
-          </div>
+    <div className="space-y-4">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-white">Redemptions</h1>
+          <p className="mt-1 text-[13px] text-white/40">What people bought, and what still needs handing over.</p>
         </div>
+        <div className="flex gap-2">
+          <Link
+            href="/admin/store"
+            className="inline-flex h-9 items-center rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
+          >
+            Store
+          </Link>
+          <button
+            type="button"
+            onClick={load}
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        </div>
+      </header>
 
-        {/* Search and Filters */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-white/[0.06] border-white/[0.10] text-white pl-10 h-10"
-              placeholder="Search by item or user..."
+      {error && (
+        <Panel accent="red" className="px-3.5 py-2.5 text-[13px]" style={{ color: ACCENTS.red }}>
+          {error}
+        </Panel>
+      )}
+
+      <div className="grid gap-2.5 sm:grid-cols-3">
+        <StatTile label="Redemptions" value={totals.all.toLocaleString()} />
+        <StatTile label="Waiting on you" value={totals.pending.toLocaleString()} accent="amber" />
+        <StatTile label="Points spent" value={points(totals.spent)} accent="green" />
+      </div>
+
+      <Panel>
+        <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.08] p-3">
+          <div className="relative min-w-52 flex-1">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/25" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search item or user…"
+              className="h-9 w-full rounded-md border border-white/10 bg-black/40 pl-9 pr-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
             />
           </div>
           <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-white/[0.06] border-white/[0.10] text-white rounded-md h-10 px-3"
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            className="h-9 rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none focus:border-white/25"
           >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="all" className="bg-[#121216]">Any status</option>
+            {STATUSES.map((entry) => (
+              <option key={entry.id} value={entry.id} className="bg-[#121216]">
+                {entry.label}
+              </option>
+            ))}
           </select>
-          <div className="flex-1"></div>
-          <Button
-            onClick={fetchRedemptions}
-            variant="outline"
-            className="bg-transparent border-white/[0.12] hover:bg-white/[0.06] text-white h-10"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            REFRESH
-          </Button>
+          <MonoLabel className="text-white/25">{rows.length}</MonoLabel>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white/[0.022] backdrop-blur border border-white/[0.06] rounded-lg p-4">
-            <p className="text-white/40 text-sm mb-1">Total Redemptions</p>
-            <p className="text-2xl font-bold text-white">{redemptions.length}</p>
+        {loading ? (
+          <div className="py-16 text-center">
+            <MonoLabel className="text-white/25">Loading</MonoLabel>
           </div>
-          <div className="bg-white/[0.022] backdrop-blur border border-white/[0.06] rounded-lg p-4">
-            <p className="text-white/40 text-sm mb-1">Pending</p>
-            <p className="text-2xl font-bold text-yellow-500">
-              {redemptions.filter((r) => r.status === "pending").length}
+        ) : rows.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-16">
+            <Package className="h-7 w-7 text-white/10" />
+            <p className="text-[13px] text-white/30">
+              {redemptions.length === 0 ? "Nothing redeemed yet." : "Nothing matches those filters."}
             </p>
           </div>
-          <div className="bg-white/[0.022] backdrop-blur border border-white/[0.06] rounded-lg p-4">
-            <p className="text-white/40 text-sm mb-1">Completed</p>
-            <p className="text-2xl font-bold text-green-500">
-              {redemptions.filter((r) => r.status === "completed").length}
-            </p>
-          </div>
-          <div className="bg-white/[0.022] backdrop-blur border border-white/[0.06] rounded-lg p-4">
-            <p className="text-white/40 text-sm mb-1">Total Points Spent</p>
-            <p className="text-2xl font-bold text-white">
-              {redemptions.reduce((sum, r) => sum + r.cost, 0).toLocaleString()}
-            </p>
-          </div>
-        </div>
+        ) : (
+          <ul className="divide-y divide-white/[0.05]">
+            {rows.map((row) => {
+              const meta = statusMeta(row.status)
+              const username = users.get(row.user_id)
+              const done = row.status === "completed"
+              return (
+                <li key={row.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5">
+                  {row.status === "pending" ? (
+                    <Clock className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.amber }} />
+                  ) : done ? (
+                    <Check className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.green }} />
+                  ) : (
+                    <X className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.red }} />
+                  )}
 
-        {/* Table */}
-        <div className="bg-white/[0.022] backdrop-blur border border-white/[0.06] rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-white/[0.06]">
-                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">USER</th>
-                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">ITEM</th>
-                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">COST</th>
-                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">STATUS</th>
-                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">DATE</th>
-                <th className="text-left p-4 text-white/40 font-semibold text-sm uppercase tracking-wider">ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRedemptions.map((redemption) => (
-                <tr key={redemption.id} className="border-b border-white/[0.06] hover:bg-white/[0.06]/30 transition-colors">
-                  <td className="p-4">
-                    <div className="flex flex-col">
-                      <span className="text-white font-medium">{redemption.user?.username || "Unknown"}</span>
-                      <span className="text-white/30 text-xs">ID: {redemption.user?.kick_id || "N/A"}</span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <span className="text-white">{redemption.item_name}</span>
-                  </td>
-                  <td className="p-4">
-                    <span className="text-white font-mono">{redemption.cost.toLocaleString()}</span>
-                  </td>
-                  <td className="p-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] text-white">{row.item_name}</p>
                     <div className="flex items-center gap-2">
-                      {getStatusIcon(redemption.status)}
-                      <span className={`capitalize ${getStatusColor(redemption.status)}`}>{redemption.status}</span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <span className="text-white/40 text-sm">
-                      {new Date(redemption.created_at).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      {redemption.status === "pending" && (
-                        <>
-                          <Button
-                            onClick={() => updateRedemptionStatus(redemption.id, "completed")}
-                            size="sm"
-                            className="bg-green-500 hover:bg-green-600 text-white"
-                          >
-                            <Check className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            onClick={() => updateRedemptionStatus(redemption.id, "cancelled")}
-                            size="sm"
-                            variant="destructive"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                      {redemption.status !== "pending" && (
-                        <Button
-                          onClick={() => updateRedemptionStatus(redemption.id, "pending")}
-                          size="sm"
-                          variant="outline"
-                          className="bg-transparent border-white/[0.12] hover:bg-white/[0.06] text-white"
+                      {username ? (
+                        <Link
+                          href={`/admin/users/${row.user_id}`}
+                          className="truncate text-[11px] text-white/40 underline-offset-4 hover:text-white hover:underline"
                         >
-                          Reset
-                        </Button>
+                          {username}
+                        </Link>
+                      ) : (
+                        <CopyableId value={row.user_id} chars={4} />
                       )}
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
 
-          {filteredRedemptions.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-white/40">No redemptions found</p>
-            </div>
-          )}
-        </div>
-      </div>
+                  <Tag accent={meta.accent}>{meta.label}</Tag>
+
+                  <span className="w-20 shrink-0 text-right text-[13px] tabular-nums" style={{ color: ACCENTS.blue }}>
+                    {points(row.cost)}
+                  </span>
+
+                  <MonoLabel className="w-36 shrink-0 text-right text-white/20">{when(row.created_at)}</MonoLabel>
+
+                  <div className="flex shrink-0 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setStatusOf(row, done ? "pending" : "completed")}
+                      className="inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 font-mono text-[10px] uppercase tracking-[0.1em] transition"
+                      style={
+                        done
+                          ? { borderColor: `${ACCENTS.green}55`, color: ACCENTS.green }
+                          : { borderColor: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.4)" }
+                      }
+                    >
+                      {done ? <Undo2 className="h-3 w-3" /> : <Check className="h-3 w-3" />}
+                      {done ? "Done" : "Complete"}
+                    </button>
+                    {row.status !== "cancelled" && (
+                      <button
+                        type="button"
+                        onClick={() => setStatusOf(row, "cancelled")}
+                        aria-label={`Cancel ${row.item_name}`}
+                        className="rounded p-1.5 text-white/20 transition hover:bg-white/[0.06] hover:text-[#E5484D]"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </Panel>
     </div>
   )
 }

@@ -21,65 +21,7 @@ import {
 import { LoginModal } from "./login-modal"
 import { createClient } from "@/lib/supabase/client"
 import { MonoLabel } from "@/components/ui/panel"
-
-interface ModuleStatus {
-  stream_store: boolean
-  bonus_hunt: boolean
-  raffles: boolean
-  schedule: boolean
-  tournaments: boolean
-  leaderboard: boolean
-  claim_bonuses: boolean
-  active_bonuses: boolean
-  advent_calendar: boolean
-}
-
-/**
- * Everything on until the database says otherwise.
- *
- * It used to default to off, which meant a module with no row — or one whose
- * name did not line up — was hidden for good, with nothing in the admin panel
- * to turn it back on. lib/modules.ts already defaults to enabled on the server
- * for the same reason; this makes the nav agree with it.
- */
-const emptyModules: ModuleStatus = {
-  stream_store: true,
-  bonus_hunt: true,
-  raffles: true,
-  schedule: true,
-  tournaments: true,
-  leaderboard: true,
-  claim_bonuses: true,
-  active_bonuses: true,
-  advent_calendar: true,
-}
-
-/**
- * module_name in the database is not always the key used here. The seed row is
- * 'tournament', singular, so the plural key never matched and Tournaments was
- * hidden no matter what the admin toggled. Names are normalised and the known
- * odd ones mapped, rather than requiring the database to be renamed.
- */
-const MODULE_ALIASES: Record<string, keyof ModuleStatus> = {
-  tournament: "tournaments",
-  raffle: "raffles",
-  store: "stream_store",
-  streamstore: "stream_store",
-  bonushunt: "bonus_hunt",
-  hunt: "bonus_hunt",
-  advent: "advent_calendar",
-  adventcalendar: "advent_calendar",
-  leaderboards: "leaderboard",
-}
-
-function moduleKey(name: string): keyof ModuleStatus | null {
-  const normalised = name.trim().toLowerCase().replace(/[s-]+/g, "_")
-  if (normalised in emptyModules) return normalised as keyof ModuleStatus
-  if (normalised in MODULE_ALIASES) return MODULE_ALIASES[normalised]
-  const collapsed = normalised.replace(/_/g, "")
-  if (collapsed in MODULE_ALIASES) return MODULE_ALIASES[collapsed]
-  return null
-}
+import { ALL_OFF, readModules, type ModuleStatus } from "@/lib/site-modules"
 
 const groups = [
   {
@@ -94,7 +36,6 @@ const groups = [
     label: "Bonuses",
     icon: Gift,
     items: [
-      { label: "Bonus Hunts", href: "/bonushunt", icon: Gift, key: "bonus_hunt" as const },
       { label: "Active Bonuses", href: "/bonuses/active", icon: Gift, key: "active_bonuses" as const },
       { label: "Claim Bonuses", href: "/bonuses/claim", icon: WalletCards, key: "claim_bonuses" as const },
       { label: "Advent Calendar", href: "/advent", icon: Grid2X2, key: "advent_calendar" as const },
@@ -104,6 +45,7 @@ const groups = [
     label: "Community",
     icon: Users,
     items: [
+      { label: "Bonus Hunts", href: "/bonushunt", icon: Gift, key: "bonus_hunt" as const },
       { label: "Leaderboard", href: "/leaderboard", icon: Trophy, key: "leaderboard" as const },
       { label: "Raffles", href: "/raffles", icon: WalletCards, key: "raffles" as const },
       { label: "Tournaments", href: "/tournaments", icon: Trophy, key: "tournaments" as const },
@@ -127,7 +69,7 @@ export function MainNav() {
   const [username, setUsername] = useState<string | null>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [points, setPoints] = useState(0)
-  const [modules, setModules] = useState<ModuleStatus>(emptyModules)
+  const [modules, setModules] = useState<ModuleStatus>(ALL_OFF)
 
   useEffect(() => {
     document.documentElement.style.setProperty("--main-nav-width", collapsed ? "56px" : "224px")
@@ -150,12 +92,7 @@ export function MainNav() {
       .from("modules")
       .select("module_name, is_enabled")
       .then(({ data }) => {
-        const next = { ...emptyModules }
-        data?.forEach((item) => {
-          const key = moduleKey(String(item.module_name ?? ""))
-          if (key) next[key] = item.is_enabled !== false
-        })
-        setModules(next)
+        setModules(readModules(data ?? []))
       }, () => {})
   }, [])
 

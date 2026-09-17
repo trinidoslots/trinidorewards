@@ -1,11 +1,10 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Gift, ExternalLink, Star, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import { ExternalLink, Gift } from "lucide-react"
+import { createServerClient } from "@/lib/supabase/server"
+import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
+import { CopyableId } from "@/components/ui/copyable-id"
 
-interface Bonus {
+type Bonus = {
   id: string
   title: string
   description: string | null
@@ -17,12 +16,10 @@ interface Bonus {
   image_url: string | null
   is_active: boolean
   featured: boolean
-  created_at: string
 }
 
-async function fetchBonuses() {
+async function fetchBonuses(): Promise<{ bonuses: Bonus[]; error: string | null }> {
   const supabase = await createServerClient()
-
   const { data, error } = await supabase
     .from("bonuses")
     .select("*")
@@ -32,140 +29,107 @@ async function fetchBonuses() {
 
   if (error) {
     console.error("[v0] Error fetching bonuses:", error)
-    if (error.code === "PGRST205" || error.code === "PGRST204" || error.code === "42703") {
-      throw new Error("TABLE_NOT_FOUND")
-    }
-    return []
+    return { bonuses: [], error: error.message }
   }
-
-  return data as Bonus[]
+  return { bonuses: (data ?? []) as Bonus[], error: null }
 }
 
 export default async function BonusesPage() {
-  let bonuses: Bonus[] = []
-  let tableNotFound = false
-
-  try {
-    bonuses = await fetchBonuses()
-  } catch (error) {
-    if (error instanceof Error && error.message === "TABLE_NOT_FOUND") {
-      tableNotFound = true
-    }
-  }
-
-  if (tableNotFound) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
-        <div className="max-w-3xl mx-auto">
-          <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50 p-8">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="w-6 h-6 text-amber-400" />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-white text-xl font-bold mb-2">Database Setup Required</h2>
-                <p className="text-slate-300 mb-4">
-                  The bonuses table hasn't been created yet. Please run the database setup script to enable the bonuses
-                  feature.
-                </p>
-                <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-4">
-                  <p className="text-slate-400 text-sm mb-2">Run this script in your Supabase SQL editor:</p>
-                  <code className="text-cyan-400 text-sm font-mono">scripts/017_create_bonuses.sql</code>
-                </div>
-                <Link href="/admin/bonuses">
-                  <Button className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white">
-                    Go to Admin Panel
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
-    )
-  }
+  const { bonuses, error } = await fetchBonuses()
+  const casinos = new Set(bonuses.map((bonus) => bonus.casino_name).filter(Boolean))
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-              <Gift className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white">Exclusive Bonuses</h1>
-              <p className="text-slate-400 text-sm">Claim your rewards and start winning</p>
-            </div>
+    <div className="mx-auto max-w-6xl space-y-4 px-5 py-6">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight text-white">Bonuses</h1>
+        <p className="mt-1 text-[13px] text-white/40">Codes and offers worth using.</p>
+      </header>
+
+      {error ? (
+        <Panel accent="red" className="p-6 text-center">
+          <Gift className="mx-auto h-8 w-8 text-white/15" />
+          <p className="mt-3 text-[14px] text-white">Bonuses could not be loaded.</p>
+          <p className="mt-1 text-[12.5px] text-white/35">{error}</p>
+        </Panel>
+      ) : (
+        <>
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            <StatTile label="Offers live" value={bonuses.length.toLocaleString()} accent="green" />
+            <StatTile label="Casinos" value={casinos.size.toLocaleString()} accent="blue" />
           </div>
+
+          {bonuses.length === 0 ? (
+            <Panel className="flex flex-col items-center gap-2 py-16">
+              <Gift className="h-8 w-8 text-white/10" />
+              <p className="text-[13px] text-white/30">No bonuses right now.</p>
+            </Panel>
+          ) : (
+            <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+              {bonuses.map((bonus) => (
+                <BonusCard key={bonus.id} bonus={bonus} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function BonusCard({ bonus }: { bonus: Bonus }) {
+  return (
+    <Panel accent={bonus.featured ? "amber" : "blue"} className="flex h-full flex-col overflow-hidden">
+      {bonus.image_url ? (
+        <img src={bonus.image_url} alt="" className="h-28 w-full object-cover" />
+      ) : (
+        <div className="flex h-28 w-full items-center justify-center bg-white/[0.02]">
+          <Gift className="h-8 w-8 text-white/10" />
+        </div>
+      )}
+
+      <div className="flex flex-1 flex-col gap-2 p-3.5">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-[14px] font-semibold text-white">{bonus.title}</h3>
+            {bonus.casino_name && <MonoLabel className="text-white/25">{bonus.casino_name}</MonoLabel>}
+          </div>
+          {bonus.featured && <Tag accent="amber">Featured</Tag>}
         </div>
 
-        {/* Bonuses Grid */}
-        {bonuses.length === 0 ? (
-          <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50 p-12">
-            <div className="text-center">
-              <Gift className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-              <h3 className="text-white text-lg font-medium mb-2">No Bonuses Available</h3>
-              <p className="text-slate-400 text-sm">Check back soon for exclusive bonus offers!</p>
-            </div>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {bonuses.map((bonus) => (
-              <Card
-                key={bonus.id}
-                className="bg-slate-900/60 backdrop-blur border-slate-700/50 p-4 hover:border-cyan-500/50 transition-all duration-200"
-              >
-                {/* Featured Badge */}
-                {bonus.featured && (
-                  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 mb-3">
-                    <Star className="w-3 h-3 mr-1" />
-                    Featured
-                  </Badge>
-                )}
-
-                {/* Casino Name */}
-                {bonus.casino_name && <h3 className="text-white font-bold text-lg mb-2">{bonus.casino_name}</h3>}
-
-                {/* Title */}
-                <h4 className="text-cyan-400 font-semibold text-base mb-2">{bonus.title}</h4>
-
-                {/* Value */}
-                {bonus.value && (
-                  <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg p-3 mb-3">
-                    <p className="text-amber-400 font-bold text-xl text-center">{bonus.value}</p>
-                  </div>
-                )}
-
-                {/* Description */}
-                {bonus.description && <p className="text-slate-300 text-sm mb-3 line-clamp-3">{bonus.description}</p>}
-
-                {/* Bonus Code */}
-                {bonus.code && (
-                  <div className="bg-slate-800/50 border border-slate-700 rounded p-2 mb-3">
-                    <p className="text-slate-400 text-xs mb-1">Bonus Code:</p>
-                    <p className="text-white font-mono font-bold text-sm">{bonus.code}</p>
-                  </div>
-                )}
-
-                {/* Terms */}
-                {bonus.terms && <p className="text-slate-500 text-xs mb-4 line-clamp-2">{bonus.terms}</p>}
-
-                {/* Claim Button */}
-                {bonus.casino_url && (
-                  <a href={bonus.casino_url} target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white">
-                      Claim Bonus
-                      <ExternalLink className="w-4 h-4 ml-2" />
-                    </Button>
-                  </a>
-                )}
-              </Card>
-            ))}
-          </div>
+        {bonus.value && (
+          <p className="text-[17px] font-semibold" style={{ color: ACCENTS.green }}>
+            {bonus.value}
+          </p>
         )}
+
+        {bonus.description && <p className="line-clamp-3 text-[12px] text-white/35">{bonus.description}</p>}
+
+        <div className="mt-auto space-y-2 border-t border-white/[0.06] pt-2.5">
+          {bonus.code && (
+            <div className="flex items-center justify-between gap-2">
+              <MonoLabel className="text-white/25">Code</MonoLabel>
+              {/* Click to copy — a code you have to select by hand is the one
+                  thing on this card that has to be exact. */}
+              <CopyableId value={bonus.code} chars={12} />
+            </div>
+          )}
+
+          {bonus.casino_url && (
+            <Link
+              href={bonus.casino_url}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md font-mono text-[11px] uppercase tracking-[0.1em] text-black transition"
+              style={{ backgroundColor: ACCENTS.blue }}
+            >
+              Claim
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          )}
+
+          {bonus.terms && <p className="line-clamp-2 text-[10.5px] leading-snug text-white/20">{bonus.terms}</p>}
+        </div>
       </div>
-    </div>
+    </Panel>
   )
 }

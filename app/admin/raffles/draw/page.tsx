@@ -1,224 +1,134 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { createBrowserClient } from "@/lib/supabase/client"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Sparkles, Trophy, Ticket, Users, Trash2 } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { Sparkles, Trophy } from "lucide-react"
+import { ACCENTS, MonoLabel, Panel } from "@/components/ui/panel"
+import { RaffleHeader, RaffleRows, RaffleTotals, useAdminRaffles } from "@/components/admin/raffle-list"
+import { RecordWinDialog, WinnerName } from "@/components/admin/record-win-dialog"
 
-interface Raffle {
-  id: string
-  title: string
-  description: string
-  prize_name: string
-  prize_value: number
-  ticket_price: number
-  tickets_sold: number
-  status: string
-  end_date: string
-  raffle_entries?: Array<{ tickets_purchased: number }>
-}
-
+/**
+ * Raffles waiting on a draw.
+ *
+ * The draw itself moved to /api/raffles/draw. This page used to call a
+ * draw_raffle_winner stored procedure that is in no migration here, so on a
+ * database where it was never created the button just errored.
+ */
 export default function DrawRafflesPage() {
-  const [raffles, setRaffles] = useState<Raffle[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isDrawing, setIsDrawing] = useState(false)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const router = useRouter()
-  const supabase = createBrowserClient()
+  const { rows, loading, error, reload } = useAdminRaffles()
+  const [busy, setBusy] = useState<string | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
+  const [result, setResult] = useState<{ title: string; username: string; ticketNumber: number; totalTickets: number } | null>(
+    null,
+  )
+  const [logWinner, setLogWinner] = useState<{ username: string; title: string } | null>(null)
 
-  useEffect(() => {
-    fetchRaffles()
-  }, [])
+  const waiting = rows.filter((row) => row.phase === "ended")
 
-  async function fetchRaffles() {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from("raffles")
-      .select("*, raffle_entries(tickets_purchased)")
-      .eq("status", "ended")
-      .is("winner_username", null)
-      .order("end_date", { ascending: false })
-
-    if (error) {
-      console.error("Error fetching raffles:", error)
-    } else {
-      setRaffles(data || [])
-    }
-    setLoading(false)
-  }
-
-  function getTotalEntries(raffle: Raffle): number {
-    if (!raffle.raffle_entries || raffle.raffle_entries.length === 0) {
-      return 0
-    }
-    return raffle.raffle_entries.reduce((sum, entry) => sum + (entry.tickets_purchased || 0), 0)
-  }
-
-  async function handleDeleteRaffle(raffle: Raffle) {
-    const totalEntries = getTotalEntries(raffle)
-
-    if (!confirm(`Are you sure you want to delete "${raffle.title}"? This cannot be undone.`)) {
+  async function draw(raffleId: string, title: string, tickets: number) {
+    if (tickets === 0) {
+      setProblem(`"${title}" has no entries — there is nobody to draw.`)
       return
     }
+    if (!confirm(`Draw a winner for "${title}"? This cannot be undone.`)) return
 
-    setDeletingId(raffle.id)
+    setBusy(raffleId)
+    setProblem(null)
+    const response = await fetch("/api/raffles/draw", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ raffleId }),
+    })
+    const data = await response.json().catch(() => null)
+    setBusy(null)
 
-    try {
-      const response = await fetch("/api/raffles/delete", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ raffleId: raffle.id }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to delete raffle")
-      }
-
-      alert("Raffle deleted successfully!")
-      fetchRaffles()
-    } catch (err) {
-      console.error("Error deleting raffle:", err)
-      alert("Failed to delete raffle: " + (err instanceof Error ? err.message : "Unknown error"))
-    } finally {
-      setDeletingId(null)
-    }
-  }
-
-  async function handleDrawWinner(raffle: Raffle) {
-    const totalEntries = getTotalEntries(raffle)
-
-    if (totalEntries === 0) {
-      alert("This raffle has no entries. Please delete it instead of drawing a winner.")
+    if (!response.ok) {
+      setProblem(data?.error ?? "Could not draw a winner")
       return
     }
-
-    if (!confirm(`Are you sure you want to draw a winner for "${raffle.title}"? This cannot be undone.`)) return
-
-    setIsDrawing(true)
-
-    try {
-      const { data, error } = await supabase.rpc("draw_raffle_winner", {
-        raffle_id_param: raffle.id,
-      })
-
-      if (error) {
-        console.error("Error drawing winner:", error)
-        alert("Failed to draw winner: " + error.message)
-      } else if (data && data.length > 0) {
-        const result = data[0]
-        if (result.winner_username) {
-          alert(
-            `Winner drawn!\n\nWinner: ${result.winner_username}\nTicket #${result.winner_ticket_number}\nTotal Entries: ${result.total_entries}`,
-          )
-          fetchRaffles()
-        } else {
-          alert("No entries found for this raffle. Cannot draw a winner.")
-        }
-      }
-    } catch (err) {
-      console.error("Error:", err)
-      alert("An error occurred while drawing the winner")
-    } finally {
-      setIsDrawing(false)
-    }
+    setResult(data)
+    await reload()
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0D] p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Draw Raffles</h1>
-          <p className="text-white/40 mt-1">Draw winners for ended raffles</p>
-        </div>
+    <div className="space-y-4">
+      <RaffleHeader
+        title="Draw"
+        hint="Closed raffles that still need a winner."
+        loading={loading}
+        onReload={reload}
+      />
 
-        {loading ? (
-          <Card className="border-white/[0.10] bg-white/[0.04]">
-            <CardContent className="py-8 text-center text-white/40">Loading raffles...</CardContent>
-          </Card>
-        ) : raffles.length === 0 ? (
-          <Card className="border-white/[0.10] bg-white/[0.04]">
-            <CardContent className="py-8 text-center text-white/40">
-              No raffles ready to draw. All ended raffles have been drawn!
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4">
-            {raffles.map((raffle) => {
-              const totalEntries = getTotalEntries(raffle)
-              const hasEntries = totalEntries > 0
+      {(problem || error) && (
+        <Panel accent="red" className="px-3.5 py-2.5 text-[13px]" style={{ color: ACCENTS.red }}>
+          {problem ?? error}
+        </Panel>
+      )}
 
-              return (
-                <Card
-                  key={raffle.id}
-                  className="border-white/[0.10] bg-white/[0.04] hover:border-amber-500/50 transition-all"
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-3">
-                          <Trophy className="w-5 h-5 text-amber-500" />
-                          <h3 className="text-lg font-bold text-white">{raffle.title}</h3>
-                          {hasEntries ? (
-                            <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">
-                              Ready to Draw
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-red-500/20 text-red-400 border-red-500/30">No Entries</Badge>
-                          )}
-                        </div>
-                        <p className="text-white/40">{raffle.description}</p>
-                        <div className="flex items-center gap-6 text-sm">
-                          <div className="flex items-center gap-2">
-                            <Ticket className="w-4 h-4 text-[#5B8DEF]" />
-                            <span className="text-white/60">{raffle.ticket_price} pts/ticket</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4 text-purple-400" />
-                            <span className="text-white/60">Total Tickets: {totalEntries}</span>
-                          </div>
-                          {raffle.prize_value && (
-                            <div className="text-green-400 font-medium">${raffle.prize_value.toFixed(2)}</div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {hasEntries ? (
-                          <Button
-                            size="sm"
-                            onClick={() => handleDrawWinner(raffle)}
-                            disabled={isDrawing}
-                            className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500"
-                          >
-                            <Sparkles className="w-4 h-4 mr-1" />
-                            Draw Winner
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDeleteRaffle(raffle)}
-                            disabled={deletingId === raffle.id}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            {deletingId === raffle.id ? "Deleting..." : "Delete"}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
+      {result && (
+        <Panel accent="amber" className="flex flex-wrap items-center gap-3 px-4 py-3">
+          <Trophy className="h-5 w-5 shrink-0" style={{ color: ACCENTS.amber }} />
+          <div className="min-w-0">
+            <MonoLabel className="block text-white/35">{result.title}</MonoLabel>
+            <WinnerName
+              username={result.username}
+              onClick={() => setLogWinner({ username: result.username, title: result.title })}
+              className="text-[17px] font-semibold text-white"
+            />
           </div>
-        )}
-      </div>
+          <MonoLabel className="text-white/30">
+            Ticket #{result.ticketNumber} of {result.totalTickets}
+          </MonoLabel>
+          <button
+            type="button"
+            onClick={() => setLogWinner({ username: result.username, title: result.title })}
+            className="ml-auto inline-flex h-8 items-center rounded-md px-3 font-mono text-[10px] uppercase tracking-[0.1em] text-black transition"
+            style={{ backgroundColor: ACCENTS.amber }}
+          >
+            Log the win
+          </button>
+        </Panel>
+      )}
+
+      <RaffleTotals rows={waiting} />
+
+      {waiting.length > 0 && (
+        <Panel accent="blue">
+          <ul className="divide-y divide-white/[0.05]">
+            {waiting.map((row) => (
+              <li key={row.raffle.id} className="flex flex-wrap items-center gap-3 px-3.5 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium text-white">{row.raffle.title}</p>
+                  <p className="truncate text-[11px] text-white/30">
+                    {row.raffle.prize_name} · {row.entrants} {row.entrants === 1 ? "entrant" : "entrants"} ·{" "}
+                    {row.tickets} {row.tickets === 1 ? "ticket" : "tickets"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => draw(row.raffle.id, row.raffle.title, row.tickets)}
+                  disabled={busy === row.raffle.id || row.tickets === 0}
+                  className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-black transition disabled:cursor-not-allowed disabled:opacity-30"
+                  style={{ backgroundColor: ACCENTS.amber }}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {busy === row.raffle.id ? "Drawing…" : row.tickets === 0 ? "No entries" : "Draw"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+
+      <RaffleRows rows={waiting} loading={loading} empty="Nothing is waiting on a draw." />
+
+      {logWinner && (
+        <RecordWinDialog
+          username={logWinner.username}
+          source="raffle"
+          sourceRef={logWinner.title}
+          onClose={() => setLogWinner(null)}
+        />
+      )}
     </div>
   )
 }

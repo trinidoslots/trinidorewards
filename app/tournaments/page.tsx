@@ -1,379 +1,206 @@
-import { createServerClient } from "@/lib/supabase/server"
-import { Trophy, Users, Calendar, DollarSign, Award, Target, TrendingUp } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
+import { Swords, Trophy, Users } from "lucide-react"
+import { createServerClient } from "@/lib/supabase/server"
+import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
 
-interface Tournament {
+/**
+ * Tournaments, as the audience sees them.
+ *
+ * Counts come from the participants rather than tournaments.current_participants,
+ * which nothing maintains — the console writes participant rows and never that
+ * column, so it reads zero for every battle it created.
+ */
+
+type Tournament = {
   id: string
   title: string
-  description: string
-  image_url: string
-  prize_pool: number
-  entry_fee: number
-  max_participants: number
-  current_participants: number
-  tournament_type: string
-  game_type: string
+  description: string | null
+  image_url: string | null
+  prize_pool: number | null
+  max_participants: number | null
+  bracket_size: number | null
+  bracket_status: string | null
+  tournament_type: string | null
   status: string
   start_date: string
   end_date: string
-  registration_deadline: string
-  featured: boolean
   winner_username: string | null
-  winner_prize: number | null
+  featured: boolean
 }
 
-async function fetchTournaments(status: string) {
+const money = (value: number) => "$" + Math.round(Number(value) || 0).toLocaleString("en-US")
+
+async function fetchAll() {
   const supabase = await createServerClient()
 
-  try {
-    const { data, error } = await supabase
-      .from("tournaments")
-      .select("*")
-      .eq("status", status)
-      .order("featured", { ascending: false })
-      .order("start_date", { ascending: status === "active" || status === "registration" })
+  const [{ data: tournaments, error }, { data: participants }] = await Promise.all([
+    supabase.from("tournaments").select("*").order("featured", { ascending: false }).order("start_date", { ascending: false }),
+    supabase.from("tournament_participants").select("tournament_id"),
+  ])
 
-    if (error) {
-      console.error("[v0] Error fetching tournaments:", error)
-      // Check for table not found errors
-      if (
-        error.code === "PGRST205" ||
-        error.code === "PGRST204" ||
-        error.code === "42703" ||
-        error.message?.includes("Could not find the table")
-      ) {
-        return null
-      }
-      throw error
-    }
+  if (error) console.error("[v0] Error fetching tournaments:", error)
 
-    return data as Tournament[]
-  } catch (error: any) {
-    console.error("[v0] Caught error in fetchTournaments:", error)
-    // Additional catch for any errors that slip through
-    if (
-      error?.code === "PGRST205" ||
-      error?.code === "PGRST204" ||
-      error?.code === "42703" ||
-      error?.message?.includes("Could not find the table")
-    ) {
-      return null
-    }
-    throw error
+  const counts = new Map<string, number>()
+  for (const row of participants ?? []) {
+    counts.set(row.tournament_id, (counts.get(row.tournament_id) ?? 0) + 1)
   }
+
+  return { tournaments: (tournaments ?? []) as Tournament[], counts }
 }
 
-function TournamentCard({ tournament }: { tournament: Tournament }) {
-  const startDate = new Date(tournament.start_date)
-  const endDate = new Date(tournament.end_date)
-  const registrationDeadline = tournament.registration_deadline ? new Date(tournament.registration_deadline) : null
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "registration":
-        return "bg-blue-500/10 text-blue-400 border-blue-500/20"
-      case "active":
-        return "bg-green-500/10 text-green-400 border-green-500/20"
-      case "completed":
-        return "bg-slate-500/10 text-slate-400 border-slate-500/20"
-      default:
-        return "bg-amber-500/10 text-amber-400 border-amber-500/20"
-    }
+/** Battles run through the console carry their own lifecycle column. */
+function phaseOf(tournament: Tournament): "registration" | "running" | "finished" {
+  if (tournament.bracket_status) {
+    if (tournament.bracket_status === "finished") return "finished"
+    if (tournament.bracket_status === "running") return "running"
+    return "registration"
   }
-
-  const participationPercentage =
-    tournament.max_participants > 0 ? (tournament.current_participants / tournament.max_participants) * 100 : 0
-
-  return (
-    <Card className="bg-slate-900/70 border-slate-800 overflow-hidden hover:border-cyan-500/30 transition-colors duration-200 group rounded-xl">
-      {/* Tournament Image */}
-      {tournament.image_url && (
-        <div className="relative h-48 overflow-hidden">
-          <img
-            src={tournament.image_url || "/placeholder.svg"}
-            alt={tournament.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/50 to-transparent" />
-          {tournament.featured && (
-            <Badge className="absolute top-3 right-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
-              <Award className="w-3 h-3 mr-1" />
-              Featured
-            </Badge>
-          )}
-        </div>
-      )}
-
-      <div className="p-6 space-y-4">
-        {/* Header */}
-        <div className="space-y-2">
-          <div className="flex items-start justify-between gap-3">
-            <h3 className="text-xl font-bold text-white group-hover:text-cyan-400 transition-colors">
-              {tournament.title}
-            </h3>
-            <Badge className={getStatusColor(tournament.status)}>{tournament.status.toUpperCase()}</Badge>
-          </div>
-          {tournament.description && <p className="text-sm text-slate-400 line-clamp-2">{tournament.description}</p>}
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
-            <div className="flex items-center gap-2 text-amber-400 mb-1">
-              <DollarSign className="w-4 h-4" />
-              <span className="text-xs font-medium">Prize Pool</span>
-            </div>
-            <p className="text-lg font-bold text-white">${tournament.prize_pool.toFixed(2)}</p>
-          </div>
-
-          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
-            <div className="flex items-center gap-2 text-cyan-400 mb-1">
-              <Users className="w-4 h-4" />
-              <span className="text-xs font-medium">Participants</span>
-            </div>
-            <p className="text-lg font-bold text-white">
-              {tournament.current_participants}
-              {tournament.max_participants > 0 && (
-                <span className="text-sm text-slate-400">/{tournament.max_participants}</span>
-              )}
-            </p>
-          </div>
-
-          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
-            <div className="flex items-center gap-2 text-green-400 mb-1">
-              <Trophy className="w-4 h-4" />
-              <span className="text-xs font-medium">Entry Fee</span>
-            </div>
-            <p className="text-lg font-bold text-white">
-              {tournament.entry_fee === 0 ? "FREE" : `$${tournament.entry_fee.toFixed(2)}`}
-            </p>
-          </div>
-
-          <div className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/30">
-            <div className="flex items-center gap-2 text-purple-400 mb-1">
-              <Target className="w-4 h-4" />
-              <span className="text-xs font-medium">Type</span>
-            </div>
-            <p className="text-sm font-bold text-white capitalize">{tournament.tournament_type}</p>
-          </div>
-        </div>
-
-        {/* Participation Progress */}
-        {tournament.max_participants > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Spots Filled</span>
-              <span className="text-white font-medium">{participationPercentage.toFixed(0)}%</span>
-            </div>
-            <div className="h-2 bg-slate-900 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500"
-                style={{ width: `${participationPercentage}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Dates */}
-        <div className="space-y-2 pt-2 border-t border-slate-700/30">
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="w-4 h-4 text-slate-400" />
-            <span className="text-slate-400">Start:</span>
-            <span className="text-white font-medium">{startDate.toLocaleDateString()}</span>
-          </div>
-          {registrationDeadline && tournament.status === "registration" && (
-            <div className="flex items-center gap-2 text-sm">
-              <Calendar className="w-4 h-4 text-amber-400" />
-              <span className="text-slate-400">Registration Ends:</span>
-              <span className="text-amber-400 font-medium">{registrationDeadline.toLocaleDateString()}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Winner Display */}
-        {tournament.status === "completed" && tournament.winner_username && (
-          <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Award className="w-4 h-4 text-amber-400" />
-              <span className="text-xs font-medium text-amber-400">WINNER</span>
-            </div>
-            <p className="text-white font-bold">{tournament.winner_username}</p>
-            {tournament.winner_prize && (
-              <p className="text-sm text-slate-300">Prize: ${tournament.winner_prize.toFixed(2)}</p>
-            )}
-          </div>
-        )}
-
-        {/* Action Button */}
-        <Link href={`/tournaments/${tournament.id}`}>
-          <Button
-            className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold"
-            disabled={
-              tournament.status === "completed" ||
-              (tournament.max_participants > 0 && tournament.current_participants >= tournament.max_participants)
-            }
-          >
-            {tournament.status === "completed"
-              ? "Tournament Ended"
-              : tournament.status === "registration"
-                ? "Register Now"
-                : tournament.status === "active"
-                  ? "View Tournament"
-                  : "Coming Soon"}
-          </Button>
-        </Link>
-      </div>
-    </Card>
-  )
+  if (tournament.status === "completed") return "finished"
+  if (tournament.status === "registration" || tournament.status === "upcoming") return "registration"
+  return "running"
 }
 
 export default async function TournamentsPage() {
-  const activeTournaments = await fetchTournaments("active")
-  const registrationTournaments = await fetchTournaments("registration")
-  const completedTournaments = await fetchTournaments("completed")
+  const { tournaments, counts } = await fetchAll()
 
-  // Check if tables don't exist
-  if (activeTournaments === null) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-12 px-4">
-        <div className="max-w-4xl mx-auto">
-          <Card className="bg-slate-800/50 border-amber-500/20 p-8 text-center">
-            <Trophy className="w-16 h-16 text-amber-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-white mb-2">Database Setup Required</h2>
-            <p className="text-slate-300 mb-4">
-              The tournaments table hasn't been created yet. Please run the database setup script.
-            </p>
-            <div className="bg-slate-900/50 rounded-lg p-4 mb-4 text-left">
-              <p className="text-sm text-slate-400 mb-2">Run this script in your Supabase SQL editor:</p>
-              <code className="text-xs text-cyan-400">scripts/020_create_tournaments.sql</code>
-            </div>
-            <Button asChild className="bg-cyan-600 hover:bg-cyan-500">
-              <a href="/admin">Go to Admin Panel</a>
-            </Button>
-          </Card>
-        </div>
-      </div>
-    )
-  }
+  const rows = tournaments.map((tournament) => ({
+    tournament,
+    players: counts.get(tournament.id) ?? 0,
+    phase: phaseOf(tournament),
+  }))
 
-  const allActiveTournaments = [...(registrationTournaments || []), ...(activeTournaments || [])]
+  const live = rows.filter((row) => row.phase === "running")
+  const open = rows.filter((row) => row.phase === "registration")
+  const done = rows.filter((row) => row.phase === "finished")
+
+  const totalPrize = tournaments.reduce((sum, tournament) => sum + (Number(tournament.prize_pool) || 0), 0)
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(34,211,238,0.12),transparent_28%),radial-gradient(circle_at_85%_8%,rgba(37,99,235,0.12),transparent_25%)]" />
-      <section className="relative overflow-hidden px-4 pb-12 pt-10 sm:px-6 lg:px-8 lg:pb-16 lg:pt-14">
-        <div className="relative mx-auto flex max-w-7xl flex-col gap-8 rounded-xl border border-cyan-200/15 bg-slate-900/80 p-5 shadow-lg shadow-cyan-950/20 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
+    <div className="mx-auto max-w-6xl space-y-4 px-5 py-6">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight text-white">Tournaments</h1>
+        <p className="mt-1 text-[13px] text-white/40">Bonus battles, bracket by bracket.</p>
+      </header>
+
+      <div className="grid gap-2.5 sm:grid-cols-3">
+        <StatTile label="Running now" value={live.length.toLocaleString()} accent="green" />
+        <StatTile label="Taking entries" value={open.length.toLocaleString()} accent="blue" />
+        <StatTile label="Prize pool listed" value={money(totalPrize)} accent="amber" />
+      </div>
+
+      <Section title="Running now" rows={live} empty="Nothing is being played right now." />
+      <Section title="Taking entries" rows={open} empty={null} />
+      <Section title="Finished" rows={done} empty={null} />
+    </div>
+  )
+}
+
+function Section({
+  title,
+  rows,
+  empty,
+}: {
+  title: string
+  rows: { tournament: Tournament; players: number; phase: string }[]
+  empty: string | null
+}) {
+  if (rows.length === 0 && !empty) return null
+
+  return (
+    <section className="space-y-2.5">
+      <MonoLabel className="text-white/30">{title}</MonoLabel>
+      {rows.length === 0 ? (
+        <Panel className="flex flex-col items-center gap-2 py-12">
+          <Swords className="h-7 w-7 text-white/10" />
+          <p className="text-[13px] text-white/30">{empty}</p>
+        </Panel>
+      ) : (
+        <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
+          {rows.map((row) => (
+            <TournamentCard key={row.tournament.id} {...row} />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function TournamentCard({
+  tournament,
+  players,
+  phase,
+}: {
+  tournament: Tournament
+  players: number
+  phase: string
+}) {
+  const size = Number(tournament.bracket_size) || Number(tournament.max_participants) || 0
+  const filled = size > 0 ? Math.min(100, (players / size) * 100) : 0
+  const accent = phase === "running" ? "green" : phase === "registration" ? "blue" : "slate"
+
+  return (
+    <Link href={"/tournaments/" + tournament.id} className="block">
+      <Panel accent={accent} className="h-full overflow-hidden transition hover:border-white/20">
+        <div className="relative">
+          {tournament.image_url ? (
+            <img src={tournament.image_url} alt="" className="h-32 w-full object-cover" />
+          ) : (
+            <div className="flex h-32 w-full items-center justify-center bg-white/[0.02]">
+              <Swords className="h-9 w-9 text-white/10" />
+            </div>
+          )}
+          <div className="absolute left-2 top-2 flex gap-1.5">
+            <Tag accent={accent}>{phase}</Tag>
+            {tournament.featured && <Tag accent="amber">Featured</Tag>}
+          </div>
+        </div>
+
+        <div className="space-y-2 p-3.5">
           <div>
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-cyan-200/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100"><Trophy className="h-4 w-4 text-cyan-300" /> Competitive rewards</div>
-            <h1 className="max-w-3xl text-balance text-3xl font-bold tracking-tight text-white sm:text-5xl">Your next win starts here.</h1>
-            <p className="mt-4 max-w-2xl text-pretty text-base leading-7 text-slate-300 sm:text-lg">Enter the community arena, climb the rankings, and compete for prizes that are worth chasing.</p>
+            <h3 className="truncate text-[14px] font-semibold text-white">{tournament.title}</h3>
+            {tournament.description && (
+              <p className="line-clamp-2 text-[12px] text-white/35">{tournament.description}</p>
+            )}
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:flex"><div className="rounded-2xl border border-slate-700/70 bg-slate-950/60 px-4 py-3"><p className="text-xs uppercase tracking-wider text-slate-500">Format</p><p className="mt-1 font-semibold text-cyan-200">Live events</p></div><div className="rounded-2xl border border-slate-700/70 bg-slate-950/60 px-4 py-3"><p className="text-xs uppercase tracking-wider text-slate-500">Rewards</p><p className="mt-1 font-semibold text-cyan-200">Prize pools</p></div></div>
-        </div>
-      </section>
 
-      {/* How It Works Section */}
-      <section className="relative px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <div className="mx-auto max-w-7xl">
-          <h2 className="mb-10 text-center text-3xl font-bold sm:text-4xl">
-            <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
-              How It Works
+          {tournament.winner_username && (
+            <div className="flex items-center gap-1.5">
+              <Trophy className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.amber }} />
+              <span className="truncate text-[12.5px] text-white/70">{tournament.winner_username}</span>
+            </div>
+          )}
+
+          {size > 0 && (
+            <div>
+              <div className="flex items-baseline justify-between">
+                <MonoLabel className="text-white/25">
+                  {players} / {size} players
+                </MonoLabel>
+                <MonoLabel className="text-white/25">{Math.round(filled)}%</MonoLabel>
+              </div>
+              <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+                <div className="h-full rounded-full" style={{ width: filled + "%", backgroundColor: ACCENTS[accent] }} />
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 border-t border-white/[0.06] pt-2">
+            <span className="flex items-center gap-1.5 text-[12px] text-white/40">
+              <Users className="h-3 w-3" />
+              {players}
             </span>
-          </h2>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="bg-slate-800/50 border-slate-700/50 p-8 text-center hover:border-green-500/30 transition-all duration-300">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-2xl font-bold text-white">1</span>
-              </div>
-              <h3 className="text-xl font-bold text-green-400 mb-3 uppercase">Check Active Tournaments</h3>
-              <p className="text-slate-300">
-                Browse through our active tournaments and find one that matches your skill level and interests
-              </p>
-            </Card>
-
-            <Card className="bg-slate-800/50 border-slate-700/50 p-8 text-center hover:border-cyan-500/30 transition-all duration-300">
-              <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-2xl font-bold text-white">2</span>
-              </div>
-              <h3 className="text-xl font-bold text-cyan-400 mb-3 uppercase">Register & Compete</h3>
-              <p className="text-slate-300">
-                Register for the tournament and compete against other players to climb the leaderboard
-              </p>
-            </Card>
-
-            <Card className="bg-slate-800/50 border-slate-700/50 p-8 text-center hover:border-amber-500/30 transition-all duration-300">
-              <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <span className="text-2xl font-bold text-white">3</span>
-              </div>
-              <h3 className="text-xl font-bold text-amber-400 mb-3 uppercase">Win Prizes</h3>
-              <p className="text-slate-300">
-                Top performers win amazing prizes from the prize pool. The better you perform, the more you win!
-              </p>
-            </Card>
+            {tournament.prize_pool ? (
+              <span className="ml-auto text-[13px] font-semibold" style={{ color: ACCENTS.amber }}>
+                {money(tournament.prize_pool)}
+              </span>
+            ) : (
+              <MonoLabel className="ml-auto text-white/20">
+                {new Date(tournament.start_date).toLocaleDateString()}
+              </MonoLabel>
+            )}
           </div>
         </div>
-      </section>
-
-      {/* Tournaments Section */}
-      <section className="relative px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-        <div className="mx-auto max-w-7xl">
-          <Tabs defaultValue="active" className="space-y-8">
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 bg-slate-800/50 border border-slate-700/50">
-              <TabsTrigger
-                value="active"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:to-blue-600 data-[state=active]:text-white"
-              >
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Active
-              </TabsTrigger>
-              <TabsTrigger
-                value="completed"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white"
-              >
-                <Trophy className="w-4 h-4 mr-2" />
-                Completed
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="active" className="space-y-6">
-              {allActiveTournaments.length === 0 ? (
-                <Card className="bg-slate-800/50 border-slate-700/50 p-12 text-center">
-                  <Trophy className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-white mb-2">No Active Tournaments</h3>
-                  <p className="text-slate-400">Check back soon for new tournaments!</p>
-                </Card>
-              ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {allActiveTournaments.map((tournament) => (
-                    <TournamentCard key={tournament.id} tournament={tournament} />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="completed" className="space-y-6">
-              {!completedTournaments || completedTournaments.length === 0 ? (
-                <Card className="bg-slate-800/50 border-slate-700/50 p-12 text-center">
-                  <Trophy className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-white mb-2">No Completed Tournaments</h3>
-                  <p className="text-slate-400">Completed tournaments will appear here</p>
-                </Card>
-              ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {completedTournaments.map((tournament) => (
-                    <TournamentCard key={tournament.id} tournament={tournament} />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-      </section>
-    </main>
+      </Panel>
+    </Link>
   )
 }

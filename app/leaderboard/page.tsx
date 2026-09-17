@@ -1,22 +1,27 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Crown, Trophy, Users } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Crown, Medal } from "lucide-react"
-import Link from "next/link"
-import { prizeFor } from "@/lib/leaderboard-payouts"
+import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
+import { rankEntries } from "@/lib/leaderboard-payouts"
 import { DEFAULT_TIMEZONE, formatInZone, leaderboardStatus } from "@/lib/leaderboard-time"
 
-type LeaderboardEntry = {
+/**
+ * The public leaderboard.
+ *
+ * Standings are ranked here from the wagers rather than read from the stored
+ * rank column: rank is only written when a board is finalised, so a live board
+ * has it null on every row and the list came out in whatever order the database
+ * felt like.
+ */
+
+type Entry = {
   id: string
-  rank: number
   username: string
   avatar_url: string | null
   wager_amount: number
   prize_amount: number
-  isPlaceholder?: boolean
 }
 
 type Leaderboard = {
@@ -26,371 +31,247 @@ type Leaderboard = {
   prize_pool: number
   start_date: string
   end_date: string
-  status: string
-  how_it_works: any
-  announcements: string[] | null
-  prize_distribution_type?: string
-  payout_preset?: string
-  timezone?: string
-  image_url?: string | null
+  payout_preset?: string | null
+  prize_distribution_type?: string | null
+  timezone?: string | null
+}
+
+const money = (value: number) => "$" + Math.round(Number(value) || 0).toLocaleString("en-US")
+const PLACES = ["#E8C547", "#B9C0CC", "#C08552"]
+
+function useCountdown(endDate: string | undefined) {
+  const [left, setLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, over: true })
+
+  useEffect(() => {
+    if (!endDate) return
+    const tick = () => {
+      const diff = new Date(endDate).getTime() - Date.now()
+      if (diff <= 0) {
+        setLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, over: true })
+        return
+      }
+      setLeft({
+        days: Math.floor(diff / 86_400_000),
+        hours: Math.floor((diff % 86_400_000) / 3_600_000),
+        minutes: Math.floor((diff % 3_600_000) / 60_000),
+        seconds: Math.floor((diff % 60_000) / 1000),
+        over: false,
+      })
+    }
+    tick()
+    const timer = setInterval(tick, 1000)
+    return () => clearInterval(timer)
+  }, [endDate])
+
+  return left
 }
 
 export default function LeaderboardPage() {
-  const [leaderboards, setLeaderboards] = useState<Leaderboard[]>([])
-  const [selectedLeaderboardId, setSelectedLeaderboardId] = useState<string | null>(null)
-  const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(null)
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showAnnouncements, setShowAnnouncements] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 })
-  const supabase = createClient()
+  const supabaseRef = useRef(createClient())
 
-  useEffect(() => {
-    fetchLeaderboards()
+  const [boards, setBoards] = useState<Leaderboard[]>([])
+  const [selected, setSelected] = useState<string | null>(null)
+  const [entries, setEntries] = useState<Entry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const board = boards.find((entry) => entry.id === selected) ?? null
+  const countdown = useCountdown(board?.end_date)
+  const zone = board?.timezone || DEFAULT_TIMEZONE
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const { data, error: problem } = await supabaseRef.current
+      .from("leaderboards")
+      .select("*")
+      .order("created_at", { ascending: false })
+
+    if (problem) {
+      console.error("[v0] Error fetching leaderboards:", problem)
+      setError(problem.message || "Could not load the leaderboards")
+      setLoading(false)
+      return
+    }
+
+    const live = ((data ?? []) as Leaderboard[]).filter(
+      (entry) => leaderboardStatus(entry.start_date, entry.end_date) === "active",
+    )
+    setBoards(live)
+    setSelected((current) => current ?? live[0]?.id ?? null)
+    setError(null)
+    setLoading(false)
   }, [])
 
   useEffect(() => {
-    if (selectedLeaderboardId) {
-      fetchEntries(selectedLeaderboardId)
-    }
-  }, [selectedLeaderboardId])
+    load()
+  }, [load])
 
   useEffect(() => {
-    if (!leaderboard) return
+    if (!selected) return
+    let cancelled = false
+    ;(async () => {
+      const { data, error: problem } = await supabaseRef.current
+        .from("leaderboard_entries")
+        .select("id, username, avatar_url, wager_amount, prize_amount")
+        .eq("leaderboard_id", selected)
 
-    const updateTimer = () => {
-      const end = new Date(leaderboard.end_date)
-      const now = new Date()
-      const diff = end.getTime() - now.getTime()
-
-      if (diff <= 0) {
-        setTimeRemaining({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+      if (cancelled) return
+      if (problem) {
+        console.error("[v0] Error fetching entries:", problem)
+        setEntries([])
         return
       }
-
-      setTimeRemaining({
-        days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-        minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
-        seconds: Math.floor((diff % (1000 * 60)) / 1000),
-      })
+      setEntries((data ?? []) as Entry[])
+    })()
+    return () => {
+      cancelled = true
     }
+  }, [selected])
 
-    updateTimer()
-    const interval = setInterval(updateTimer, 1000)
+  const ranked = useMemo(() => {
+    if (!board) return []
+    return rankEntries(entries, Number(board.prize_pool) || 0, board.payout_preset ?? board.prize_distribution_type)
+  }, [entries, board])
 
-    return () => clearInterval(interval)
-  }, [leaderboard])
-
-  async function fetchLeaderboards() {
-    try {
-      const { data: leaderboardsData, error: lbError } = await supabase
-        .from("leaderboards")
-        .select("*")
-        .order("created_at", { ascending: false })
-
-      if (lbError) {
-        if (lbError.code === "PGRST205" || lbError.message?.includes("Could not find the table")) {
-          setError("database_not_setup")
-          setLoading(false)
-          return
-        }
-        console.error("[v0] Error fetching leaderboards:", lbError)
-        setLoading(false)
-        return
-      }
-
-      if (!leaderboardsData || leaderboardsData.length === 0) {
-        setLeaderboards([])
-        setLeaderboard(null)
-        setLoading(false)
-        return
-      }
-
-      const activeLeaderboards = leaderboardsData.filter((lb) => {
-        const status = leaderboardStatus(lb.start_date, lb.end_date)
-        return status === "active"
-      })
-
-      setLeaderboards(activeLeaderboards)
-      const firstLeaderboard = activeLeaderboards[0]
-      setSelectedLeaderboardId(firstLeaderboard?.id || null)
-      setLeaderboard(firstLeaderboard || null)
-      setLoading(false)
-    } catch (err) {
-      console.error("[v0] Unexpected error:", err)
-      setError("unexpected")
-      setLoading(false)
-    }
-  }
-
-  async function fetchEntries(leaderboardId: string) {
-    const { data: entriesData, error: entriesError } = await supabase
-      .from("leaderboard_entries")
-      .select("*")
-      .eq("leaderboard_id", leaderboardId)
-      .order("rank", { ascending: true })
-
-    if (entriesError) {
-      console.error("[v0] Error fetching entries:", entriesError)
-      setEntries([])
-    } else {
-      setEntries(entriesData || [])
-    }
-  }
-
-  function handleLeaderboardChange(leaderboardId: string) {
-    const selected = leaderboards.find((lb) => lb.id === leaderboardId)
-    if (selected) {
-      setSelectedLeaderboardId(leaderboardId)
-      setLeaderboard(selected)
-    }
-  }
-
-  function handleHeaderClick() {
-    if (leaderboards.length <= 1) return
-
-    const currentIndex = leaderboards.findIndex((lb) => lb.id === selectedLeaderboardId)
-    const nextIndex = (currentIndex + 1) % leaderboards.length
-    const nextLeaderboard = leaderboards[nextIndex]
-
-    setSelectedLeaderboardId(nextLeaderboard.id)
-    setLeaderboard(nextLeaderboard)
-  }
-
-  const allPositions = entries.map((entry) => ({
-    ...entry,
-    prize_amount: leaderboard ? prizeFor(entry.rank, leaderboard.prize_pool, leaderboard.payout_preset) : 0,
-  }))
-
-  const topThree = allPositions.slice(0, 3)
+  const totalWagered = ranked.reduce((sum, entry) => sum + (Number(entry.wager_amount) || 0), 0)
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-        <p className="text-white text-xs">Loading...</p>
+      <div className="mx-auto max-w-5xl px-5 py-16 text-center">
+        <MonoLabel className="text-white/25">Loading</MonoLabel>
       </div>
     )
   }
 
-  if (error === "database_not_setup") {
+  if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-3">
-        <Card className="bg-slate-900/60 backdrop-blur border border-slate-700/50 p-6 max-w-md text-center">
-          <h2 className="text-lg font-bold text-white mb-3">Database Setup Required</h2>
-          <p className="text-xs text-slate-400 mb-4">
-            The leaderboard tables haven't been created yet. Please run the SQL script to set up the database.
-          </p>
-          <div className="bg-slate-900/50 border border-slate-700/50 rounded p-3 mb-4 text-left">
-            <p className="text-[10px] text-slate-300 mb-2">Run this script in your Supabase SQL editor:</p>
-            <code className="text-[10px] text-cyan-400">scripts/014_create_leaderboards.sql</code>
-          </div>
-          <div className="flex gap-2 justify-center">
-            <Link href="/">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs border-slate-700 text-slate-300 bg-transparent"
-              >
-                Go Home
-              </Button>
-            </Link>
-            <Link href="/admin/leaderboards/overview">
-              <Button size="sm" className="bg-cyan-600 hover:bg-cyan-700 h-8 text-xs">
-                Go to Admin
-              </Button>
-            </Link>
-          </div>
-        </Card>
+      <div className="mx-auto max-w-5xl px-5 py-6">
+        <Panel accent="red" className="p-6 text-center">
+          <Trophy className="mx-auto h-8 w-8 text-white/15" />
+          <p className="mt-3 text-[14px] text-white">The leaderboard could not be loaded.</p>
+          <p className="mt-1 text-[12.5px] text-white/35">{error}</p>
+        </Panel>
       </div>
     )
   }
 
-  if (!leaderboard) {
+  if (!board) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-white text-sm mb-3">No active leaderboard</p>
-          <Link href="/">
-            <Button size="sm" className="bg-cyan-600 hover:bg-cyan-700 h-8 text-xs">
-              Go Home
-            </Button>
-          </Link>
-        </div>
+      <div className="mx-auto max-w-5xl px-5 py-6">
+        <header className="mb-4">
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Leaderboard</h1>
+        </header>
+        <Panel className="flex flex-col items-center gap-2 py-16">
+          <Trophy className="h-8 w-8 text-white/10" />
+          <p className="text-[13px] text-white/30">No leaderboard is running right now.</p>
+        </Panel>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-3">
-      <div className="container mx-auto max-w-7xl">
-        {/* Hero Section with Timer and Header Images */}
-        <div className="mb-6 text-center">
-          {/* Timer */}
-          <div className="mb-4">
-            <p className="text-slate-400 text-xs uppercase tracking-wider mb-2">
-              {formatInZone(leaderboard.start_date, leaderboard.timezone ?? DEFAULT_TIMEZONE, { month: "long" }).toUpperCase()}
-            </p>
-            <div className="flex items-center justify-center gap-3">
-              <div key={`days-${timeRemaining.days}`} className="transition-all duration-300">
-                <p className="text-white text-3xl font-bold">{String(timeRemaining.days).padStart(2, "0")}</p>
-                <p className="text-slate-500 text-[10px]">Days</p>
-              </div>
-              <div>
-                <p className="text-white text-3xl font-bold">{String(timeRemaining.hours).padStart(2, "0")}</p>
-                <p className="text-slate-500 text-[10px]">Hours</p>
-              </div>
-              <div>
-                <p className="text-white text-3xl font-bold">{String(timeRemaining.minutes).padStart(2, "0")}</p>
-                <p className="text-slate-500 text-[10px]">Minutes</p>
-              </div>
-              <div>
-                <p className="text-white text-3xl font-bold">{String(timeRemaining.seconds).padStart(2, "0")}</p>
-                <p className="text-slate-500 text-[10px]">Seconds</p>
-              </div>
-            </div>
-          </div>
-
-          {leaderboards.length > 0 && (
-            <div className="relative z-10 my-6">
-              <div className="flex justify-center gap-2 mb-6 w-fit mx-auto bg-slate-900/80 backdrop-blur-xl rounded-2xl p-2 border border-slate-700/50 shadow-2xl">
-                {leaderboards.map((lb) => (
-                  <button
-                    key={lb.id}
-                    onClick={() => handleLeaderboardChange(lb.id)}
-                    className={`relative px-6 py-3 rounded-xl transition-all duration-300 ${
-                      selectedLeaderboardId === lb.id ? "bg-slate-800/80" : "hover:bg-slate-800/40 opacity-60"
-                    }`}
-                  >
-                    {lb.image_url ? (
-                      <img
-                        src={lb.image_url || "/placeholder.svg"}
-                        alt={lb.title}
-                        className="mx-auto max-h-10 object-contain"
-                        width={120}
-                        height={40}
-                      />
-                    ) : (
-                      <span
-                        className={`text-sm font-bold whitespace-nowrap ${
-                          selectedLeaderboardId === lb.id ? "text-white" : "text-slate-500"
-                        }`}
-                      >
-                        {lb.title}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mb-4">
-            <p className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 text-3xl md:text-4xl font-bold">
-              ${leaderboard.prize_pool.toLocaleString()}
-            </p>
-            {leaderboard.subtitle && (
-              <p className="text-slate-400 text-sm mt-2 max-w-2xl mx-auto">{leaderboard.subtitle}</p>
-            )}
-          </div>
+    <div className="mx-auto max-w-5xl space-y-4 px-5 py-6">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight text-white">{board.title}</h1>
+          {board.subtitle && <p className="mt-1 text-[13px] text-white/40">{board.subtitle}</p>}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left Column - Top 3 */}
-          <div className="lg:col-span-1 space-y-4">
-            {/* Top 3 */}
-            <div className="bg-gradient-to-r from-amber-900/20 to-purple-900/20 backdrop-blur border border-amber-700/30 rounded-lg p-3">
-              <h2 className="text-white text-xs font-semibold mb-3 flex items-center gap-2">
-                <div className="w-1 h-3 bg-amber-500 rounded"></div>
-                TOP 3
-              </h2>
-              <div className="space-y-3">
-                {topThree.map((entry, index) => {
-                  const icons = [
-                    { Icon: Crown, color: "text-amber-400", bg: "bg-amber-500/20" },
-                    { Icon: Medal, color: "text-slate-400", bg: "bg-slate-500/20" },
-                    { Icon: Medal, color: "text-orange-500", bg: "bg-orange-500/20" },
-                  ]
-                  const { Icon, color, bg } = icons[index]
+        {boards.length > 1 && (
+          <select
+            value={selected ?? ""}
+            onChange={(event) => setSelected(event.target.value)}
+            className="h-9 rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none focus:border-white/25"
+          >
+            {boards.map((entry) => (
+              <option key={entry.id} value={entry.id} className="bg-[#121216]">
+                {entry.title}
+              </option>
+            ))}
+          </select>
+        )}
+      </header>
 
-                  return (
-                    <div key={entry.id} className="flex items-center gap-2 bg-slate-900/40 rounded p-2">
-                      <div className={`${bg} rounded p-1.5`}>
-                        <Icon className={`w-4 h-4 ${color}`} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-0.5">
-                          <p className={`${color}/70 text-[10px] uppercase tracking-wider`}>#{entry.rank}</p>
-                          <p className={`${color.replace("400", "300")} text-sm font-bold`}>
-                            ${entry.prize_amount.toLocaleString()}
-                          </p>
-                        </div>
-                        <p className={`${color} text-xs font-medium truncate`}>{entry.username}</p>
-                        <p className="text-slate-500 text-[10px]">${entry.wager_amount.toLocaleString()} wagered</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Full Rankings */}
-          <div className="lg:col-span-2">
-            <Card className="bg-slate-900/60 border-slate-700/50 backdrop-blur h-full">
-              <CardContent className="p-3">
-                <h2 className="text-white text-sm font-semibold mb-3 flex items-center gap-2">
-                  <div className="w-1 h-4 bg-cyan-500 rounded"></div>
-                  FULL RANKINGS ({allPositions.length} {allPositions.length === 1 ? "ENTRY" : "ENTRIES"})
-                </h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-slate-700">
-                        <th className="text-left py-1.5 px-2 text-slate-400 font-medium text-[10px] uppercase tracking-wider">
-                          Rank
-                        </th>
-                        <th className="text-left py-1.5 px-2 text-slate-400 font-medium text-[10px] uppercase tracking-wider">
-                          Username
-                        </th>
-                        <th className="text-left py-1.5 px-2 text-slate-400 font-medium text-[10px] uppercase tracking-wider">
-                          Wager
-                        </th>
-                        <th className="text-left py-1.5 px-2 text-slate-400 font-medium text-[10px] uppercase tracking-wider">
-                          Prize
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allPositions.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="py-4 text-center text-slate-500 text-xs">
-                            No entries yet
-                          </td>
-                        </tr>
-                      ) : (
-                        allPositions.map((entry) => (
-                          <tr key={entry.id} className="border-b border-slate-700/50 hover:bg-slate-700/20">
-                            <td className="py-1.5 px-2 text-white text-xs font-bold">{entry.rank}</td>
-                            <td className="py-1.5 px-2 text-xs text-white">{entry.username}</td>
-                            <td className="py-1.5 px-2 text-slate-400 text-xs">
-                              ${entry.wager_amount.toLocaleString()}
-                            </td>
-                            <td className="py-1.5 px-2 text-amber-400 text-xs font-bold">
-                              ${entry.prize_amount.toLocaleString()}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+      <div className="grid gap-2.5 sm:grid-cols-4">
+        <StatTile label="Prize pool" value={money(board.prize_pool)} accent="amber" />
+        <StatTile label="Players" value={ranked.length.toLocaleString()} accent="blue" />
+        <StatTile label="Total wagered" value={money(totalWagered)} accent="green" />
+        <StatTile
+          label={countdown.over ? "Closed" : "Time left"}
+          value={
+            countdown.over
+              ? "—"
+              : countdown.days > 0
+                ? `${countdown.days}d ${countdown.hours}h`
+                : `${countdown.hours}h ${countdown.minutes}m ${countdown.seconds}s`
+          }
+          hint={`Ends ${formatInZone(board.end_date, zone)}`}
+        />
       </div>
+
+      <Panel accent="amber">
+        <PanelHeader
+          title="Standings"
+          accent="amber"
+          right={<Tag accent="green">Live</Tag>}
+        />
+        {ranked.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-16">
+            <Users className="h-7 w-7 text-white/10" />
+            <p className="text-[13px] text-white/30">No entries yet.</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-white/[0.05]">
+            {ranked.map((entry) => {
+              const place = entry.rank <= 3 ? PLACES[entry.rank - 1] : null
+              return (
+                <li key={entry.id} className="flex items-center gap-3 px-3.5 py-2.5">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-[11px] font-bold tabular-nums"
+                    style={
+                      place
+                        ? { backgroundColor: place, color: "#0B0B0D" }
+                        : { color: "rgba(255,255,255,0.25)" }
+                    }
+                  >
+                    {entry.rank}
+                  </span>
+
+                  {entry.avatar_url ? (
+                    <img
+                      src={entry.avatar_url}
+                      alt=""
+                      className="h-7 w-7 shrink-0 rounded-full border border-white/[0.08] object-cover"
+                    />
+                  ) : (
+                    <div className="h-7 w-7 shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03]" />
+                  )}
+
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-white">
+                    {entry.username}
+                  </span>
+
+                  {entry.rank === 1 && <Crown className="h-3.5 w-3.5 shrink-0" style={{ color: PLACES[0] }} />}
+
+                  <span className="w-28 shrink-0 text-right text-[13px] tabular-nums text-white/60">
+                    {money(entry.wager_amount)}
+                  </span>
+                  <span
+                    className="w-24 shrink-0 text-right text-[13px] font-semibold tabular-nums"
+                    style={{ color: entry.prize_amount > 0 ? ACCENTS.green : "rgba(255,255,255,0.15)" }}
+                  >
+                    {entry.prize_amount > 0 ? money(entry.prize_amount) : "—"}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        <div className="flex items-center justify-between border-t border-white/[0.08] px-3.5 py-2">
+          <MonoLabel className="text-white/25">Wagers update as they come in</MonoLabel>
+          <MonoLabel className="text-white/25">{formatInZone(board.start_date, zone)} — {formatInZone(board.end_date, zone)}</MonoLabel>
+        </div>
+      </Panel>
     </div>
   )
 }

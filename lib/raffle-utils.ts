@@ -55,3 +55,39 @@ export function formatDrawDate(drawDate: string): string {
     hour12: true,
   })
 }
+
+export type DrawEntry = { id: string; username: string; tickets_purchased: number }
+
+export type DrawResult = { username: string; entryId: string; ticketNumber: number; totalTickets: number }
+
+/**
+ * Picks a winner, weighted by tickets held.
+ *
+ * Every ticket is one chance, which is the whole point of selling more than
+ * one — picking uniformly among *entrants* would make the second ticket
+ * worthless. Walks the cumulative total rather than building an array of every
+ * ticket, so a raffle with a large cap does not allocate a huge list.
+ *
+ * `random` is injectable so the draw can be tested; it must return [0, 1).
+ */
+export function drawWinner(entries: DrawEntry[], random: () => number = Math.random): DrawResult | null {
+  const eligible = entries.filter((entry) => (Number(entry.tickets_purchased) || 0) > 0)
+  const totalTickets = eligible.reduce((sum, entry) => sum + (Number(entry.tickets_purchased) || 0), 0)
+  if (totalTickets <= 0) return null
+
+  // 1-based: "ticket #1" is the first ticket, not the zeroth.
+  const ticketNumber = Math.min(totalTickets, Math.floor(random() * totalTickets) + 1)
+
+  let seen = 0
+  for (const entry of eligible) {
+    seen += Number(entry.tickets_purchased) || 0
+    if (ticketNumber <= seen) {
+      return { username: entry.username, entryId: entry.id, ticketNumber, totalTickets }
+    }
+  }
+
+  // Unreachable while the totals agree; falling back to the last entry beats
+  // returning null and telling the admin the raffle has no entries.
+  const last = eligible[eligible.length - 1]
+  return { username: last.username, entryId: last.id, ticketNumber, totalTickets }
+}
