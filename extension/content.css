@@ -1,0 +1,246 @@
+#tht-widget-root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-family: "proxima-nova", ui-sans-serif, -apple-system, system-ui, sans-serif;
+  z-index: 40;
+}
+
+/* Bet size pill — its own field next to the button, matching Stake's native
+   "CA$ 0,2" bet-amount pill that sits beside the game's built-in bonus menu.
+   Fully rounded, compact, tabular numerals so it reads like a currency
+   field rather than a generic form input. */
+.tht-bet-pill {
+  height: 36px;
+  width: 78px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  border-radius: 999px;
+  border: 1px solid #3e586c;
+  background: #213545;
+  color: #5baeff;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.tht-bet-pill::-webkit-outer-spin-button,
+.tht-bet-pill::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.tht-bet-pill::placeholder {
+  color: #82a5bf;
+  font-weight: 500;
+}
+
+.tht-bet-pill:focus {
+  outline: none;
+  border-color: #3591ff;
+}
+
+/* Inline status for the main-button flow — the main button adds the bonus
+   immediately (no dropdown), so success/error feedback shows directly on
+   the bet pill it read from instead of inside a panel. */
+.tht-bet-pill-error {
+  border-color: #ff2757 !important;
+  background: rgba(255, 39, 87, 0.12) !important;
+}
+
+.tht-bet-pill-success {
+  border-color: #21d00c !important;
+  background: rgba(33, 208, 12, 0.12) !important;
+}
+
+.tht-split-btn {
+  display: flex;
+  height: 36px;
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.tht-main-btn,
+.tht-arrow-btn {
+  background: #1475e1;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.tht-main-btn {
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.tht-arrow-btn {
+  width: 28px;
+  font-size: 10px;
+  border-left: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.tht-main-btn:hover,
+.tht-arrow-btn:hover {
+  background: #3591ff;
+}
+
+.tht-main-btn:active,
+.tht-arrow-btn:active {
+  background: #005dbc;
+}
+
+/* Success pulse on the main button when a bonus is added — a quick scale +
+   green-ring flash gives the same instant "it worked" feedback Stake's own
+   UI gives on state changes. */
+@keyframes tht-success-pop {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(33, 208, 12, 0);
+  }
+  35% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 5px rgba(33, 208, 12, 0.4);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(33, 208, 12, 0);
+  }
+}
+
+.tht-success-flash {
+  animation: tht-success-pop 0.5s ease-out;
+}
+
+/* Opens DOWNWARD, tucked directly under the button — matches Stake's own
+   native dropdowns (e.g. the game's built-in "Add Super Bonus" menu), which
+   never cover the game canvas above. */
+.tht-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 210px;
+  background: #213545;
+  border: 1px solid #3e586c;
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 2147483647;
+}
+
+.tht-panel.tht-hidden {
+  display: none;
+}
+
+.tht-hint {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a78bfa;
+  margin-bottom: 8px;
+  min-height: 14px;
+}
+
+.tht-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+  padding: 7px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid #2c2f42;
+  background: #0d0e16;
+  color: #fff;
+}
+
+.tht-input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+}
+
+.tht-menu-item {
+  padding: 9px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.tht-menu-item:hover {
+  background: rgba(139, 92, 246, 0.2);
+}
+
+.tht-menu-item.tht-muted {
+  color: #9a9ab0;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.tht-divider {
+  height: 1px;
+  background: #2c2f42;
+  margin: 8px 0;
+}
+
+.tht-custom-fields {
+  margin-top: 6px;
+}
+
+.tht-custom-fields.tht-hidden {
+  display: none;
+}
+
+.tht-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.tht-actions button {
+  flex: 1;
+  padding: 7px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tht-actions [data-role="confirm"] {
+  background: #7c3aed;
+  color: #fff;
+}
+
+.tht-actions [data-role="cancel"] {
+  background: #23263a;
+  color: #ccc;
+}
+
+.tht-status {
+  font-size: 11px;
+  margin-top: 8px;
+  min-height: 14px;
+  font-weight: 600;
+}
+
+.tht-status.success {
+  color: #4ade80;
+}
+
+.tht-status.error {
+  color: #f87171;
+}
+
+.tht-status.pending {
+  color: #facc15;
+}

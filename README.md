@@ -84,7 +84,7 @@ npm start
 - **Framework**: Next.js 14 (App Router)
 - **Database**: Supabase (PostgreSQL)
 - **Styling**: Tailwind CSS v4
-- **UI Components**: shadcn/ui
+- **UI Components**: Tailwind CSS v4 with custom components
 - **Real-time**: Supabase Subscriptions
 - **Authentication**: Supabase Auth
 

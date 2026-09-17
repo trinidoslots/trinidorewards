@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import Link from "next/link"
 
 interface Tournament {
   id: string
@@ -88,7 +89,7 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
     tournament.max_participants > 0 ? (tournament.current_participants / tournament.max_participants) * 100 : 0
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700/50 overflow-hidden hover:border-cyan-500/30 transition-all duration-300 group">
+    <Card className="bg-slate-900/70 border-slate-800 overflow-hidden hover:border-cyan-500/30 transition-colors duration-200 group rounded-xl">
       {/* Tournament Image */}
       {tournament.image_url && (
         <div className="relative h-48 overflow-hidden">
@@ -208,21 +209,23 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
         )}
 
         {/* Action Button */}
-        <Button
-          className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold"
-          disabled={
-            tournament.status === "completed" ||
-            (tournament.max_participants > 0 && tournament.current_participants >= tournament.max_participants)
-          }
-        >
-          {tournament.status === "completed"
-            ? "Tournament Ended"
-            : tournament.status === "registration"
-              ? "Register Now"
-              : tournament.status === "active"
-                ? "View Tournament"
-                : "Coming Soon"}
-        </Button>
+        <Link href={`/tournaments/${tournament.id}`}>
+          <Button
+            className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold"
+            disabled={
+              tournament.status === "completed" ||
+              (tournament.max_participants > 0 && tournament.current_participants >= tournament.max_participants)
+            }
+          >
+            {tournament.status === "completed"
+              ? "Tournament Ended"
+              : tournament.status === "registration"
+                ? "Register Now"
+                : tournament.status === "active"
+                  ? "View Tournament"
+                  : "Coming Soon"}
+          </Button>
+        </Link>
       </div>
     </Card>
   )
@@ -260,38 +263,23 @@ export default async function TournamentsPage() {
   const allActiveTournaments = [...(registrationTournaments || []), ...(activeTournaments || [])]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
-      {/* Hero Section */}
-      <section className="relative py-20 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-blue-500/5 to-purple-500/5" />
-        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-5" />
-
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center space-y-6">
-            <div className="inline-flex items-center gap-3 bg-slate-800/50 border border-cyan-500/20 rounded-full px-6 py-3">
-              <Trophy className="w-5 h-5 text-cyan-400" />
-              <span className="text-cyan-400 font-semibold text-sm uppercase tracking-wider">Compete & Win</span>
-            </div>
-
-            <h1 className="text-6xl md:text-7xl font-black">
-              <span className="text-white">PARTICIPATE IN</span>
-              <br />
-              <span className="bg-gradient-to-r from-green-400 via-emerald-400 to-green-500 bg-clip-text text-transparent">
-                TOURNAMENTS
-              </span>
-            </h1>
-
-            <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-              Join competitive tournaments, showcase your skills, and win amazing prizes
-            </p>
+    <main className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(34,211,238,0.12),transparent_28%),radial-gradient(circle_at_85%_8%,rgba(37,99,235,0.12),transparent_25%)]" />
+      <section className="relative overflow-hidden px-4 pb-12 pt-10 sm:px-6 lg:px-8 lg:pb-16 lg:pt-14">
+        <div className="relative mx-auto flex max-w-7xl flex-col gap-8 rounded-xl border border-cyan-200/15 bg-slate-900/80 p-5 shadow-lg shadow-cyan-950/20 sm:p-8 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-cyan-200/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100"><Trophy className="h-4 w-4 text-cyan-300" /> Competitive rewards</div>
+            <h1 className="max-w-3xl text-balance text-3xl font-bold tracking-tight text-white sm:text-5xl">Your next win starts here.</h1>
+            <p className="mt-4 max-w-2xl text-pretty text-base leading-7 text-slate-300 sm:text-lg">Enter the community arena, climb the rankings, and compete for prizes that are worth chasing.</p>
           </div>
+          <div className="grid grid-cols-2 gap-3 sm:flex"><div className="rounded-2xl border border-slate-700/70 bg-slate-950/60 px-4 py-3"><p className="text-xs uppercase tracking-wider text-slate-500">Format</p><p className="mt-1 font-semibold text-cyan-200">Live events</p></div><div className="rounded-2xl border border-slate-700/70 bg-slate-950/60 px-4 py-3"><p className="text-xs uppercase tracking-wider text-slate-500">Rewards</p><p className="mt-1 font-semibold text-cyan-200">Prize pools</p></div></div>
         </div>
       </section>
 
       {/* How It Works Section */}
-      <section className="py-16 px-4">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl font-bold text-center mb-12">
+      <section className="relative px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+        <div className="mx-auto max-w-7xl">
+          <h2 className="mb-10 text-center text-3xl font-bold sm:text-4xl">
             <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
               How It Works
             </span>
@@ -332,8 +320,8 @@ export default async function TournamentsPage() {
       </section>
 
       {/* Tournaments Section */}
-      <section className="py-16 px-4">
-        <div className="max-w-7xl mx-auto">
+      <section className="relative px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+        <div className="mx-auto max-w-7xl">
           <Tabs defaultValue="active" className="space-y-8">
             <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 bg-slate-800/50 border border-slate-700/50">
               <TabsTrigger
@@ -386,6 +374,6 @@ export default async function TournamentsPage() {
           </Tabs>
         </div>
       </section>
-    </div>
+    </main>
   )
 }

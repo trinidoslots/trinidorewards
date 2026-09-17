@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Trophy, Plus, Pencil, Trash2, Users, DollarSign, Play } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { Trophy, Plus } from "lucide-react"
+import { TournamentCard } from "@/components/tournament-card"
 
 interface Tournament {
   id: string
@@ -21,7 +21,6 @@ interface Tournament {
   prize_pool: number
   entry_fee: number
   max_participants: number
-  current_participants: number
   tournament_type: string
   game_type: string
   status: string
@@ -30,8 +29,8 @@ interface Tournament {
   registration_deadline: string
   rules: string
   featured: boolean
-  winner_username: string | null
-  winner_prize: number | null
+  current_participants: number
+  winner_username: string
 }
 
 export default function AdminTournamentsPage() {
@@ -48,10 +47,6 @@ export default function AdminTournamentsPage() {
     max_participants: "",
     tournament_type: "bracket",
     game_type: "",
-    status: "upcoming",
-    start_date: "",
-    end_date: "",
-    registration_deadline: "",
     rules: "",
     featured: false,
   })
@@ -61,19 +56,7 @@ export default function AdminTournamentsPage() {
 
   useEffect(() => {
     fetchTournaments()
-    // Update tournament statuses every minute
-    const interval = setInterval(updateTournamentStatuses, 60000)
-    return () => clearInterval(interval)
   }, [])
-
-  async function updateTournamentStatuses() {
-    try {
-      await supabase.rpc("update_tournament_status")
-      fetchTournaments()
-    } catch (error) {
-      console.error("Error updating tournament statuses:", error)
-    }
-  }
 
   async function fetchTournaments() {
     try {
@@ -99,10 +82,6 @@ export default function AdminTournamentsPage() {
       max_participants: (tournament.max_participants ?? 0).toString(),
       tournament_type: tournament.tournament_type,
       game_type: tournament.game_type ?? "",
-      status: tournament.status,
-      start_date: tournament.start_date ? tournament.start_date.slice(0, 16) : "",
-      end_date: tournament.end_date ? tournament.end_date.slice(0, 16) : "",
-      registration_deadline: tournament.registration_deadline ? tournament.registration_deadline.slice(0, 16) : "",
       rules: tournament.rules ?? "",
       featured: tournament.featured,
     })
@@ -113,6 +92,9 @@ export default function AdminTournamentsPage() {
     e.preventDefault()
 
     try {
+      const now = new Date().toISOString()
+      const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+
       const tournamentData = {
         title: formData.title,
         description: formData.description || null,
@@ -122,51 +104,36 @@ export default function AdminTournamentsPage() {
         max_participants: Number.parseInt(formData.max_participants) || 0,
         tournament_type: formData.tournament_type,
         game_type: formData.game_type || null,
-        status: formData.status,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
-        registration_deadline: formData.registration_deadline || null,
+        status: "active",
+        start_date: now,
+        end_date: futureDate,
         rules: formData.rules || null,
         featured: formData.featured,
       }
 
       if (editingId) {
         const { error } = await supabase.from("tournaments").update(tournamentData).eq("id", editingId)
-
         if (error) throw error
-
-        if (formData.status === "active") {
-          router.push("/admin/tournaments/opening")
-          return
-        }
+        setShowForm(false)
+        setEditingId(null)
+        setFormData({
+          title: "",
+          description: "",
+          image_url: "",
+          prize_pool: "",
+          entry_fee: "",
+          max_participants: "",
+          tournament_type: "bracket",
+          game_type: "",
+          rules: "",
+          featured: false,
+        })
+        fetchTournaments()
       } else {
         const { data, error } = await supabase.from("tournaments").insert([tournamentData]).select().single()
-
         if (error) throw error
-
-        router.push("/admin/tournaments/opening")
-        return
+        router.push(`/admin/tournaments/${data.id}/slots`)
       }
-
-      setShowForm(false)
-      setEditingId(null)
-      setFormData({
-        title: "",
-        description: "",
-        image_url: "",
-        prize_pool: "",
-        entry_fee: "",
-        max_participants: "",
-        tournament_type: "bracket",
-        game_type: "",
-        status: "upcoming",
-        start_date: "",
-        end_date: "",
-        registration_deadline: "",
-        rules: "",
-        featured: false,
-      })
-      fetchTournaments()
     } catch (error: any) {
       console.error("Error saving tournament:", error)
       alert("Error saving tournament: " + error.message)
@@ -174,11 +141,12 @@ export default function AdminTournamentsPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this tournament?")) return
+    if (!confirm("Are you sure you want to delete this tournament?")) {
+      return
+    }
 
     try {
       const { error } = await supabase.from("tournaments").delete().eq("id", id)
-
       if (error) throw error
       fetchTournaments()
     } catch (error) {
@@ -229,10 +197,6 @@ export default function AdminTournamentsPage() {
               max_participants: "",
               tournament_type: "bracket",
               game_type: "",
-              status: "upcoming",
-              start_date: "",
-              end_date: "",
-              registration_deadline: "",
               rules: "",
               featured: false,
             })
@@ -304,17 +268,27 @@ export default function AdminTournamentsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="max_participants" className="text-white">
+                <Label htmlFor="max_participants" className="text-white font-semibold">
                   Max Participants
                 </Label>
-                <Input
-                  id="max_participants"
-                  type="number"
+                <Select
                   value={formData.max_participants}
-                  onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
-                  placeholder="0 for unlimited"
-                  className="bg-slate-900 border-slate-700 text-white"
-                />
+                  onValueChange={(value) => setFormData({ ...formData, max_participants: value })}
+                >
+                  <SelectTrigger className="bg-slate-800/50 border-slate-700 text-white">
+                    <SelectValue placeholder="Select participant count" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2">2 Players</SelectItem>
+                    <SelectItem value="4">4 Players</SelectItem>
+                    <SelectItem value="8">8 Players</SelectItem>
+                    <SelectItem value="16">16 Players</SelectItem>
+                    <SelectItem value="32">32 Players</SelectItem>
+                    <SelectItem value="64">64 Players</SelectItem>
+                    <SelectItem value="128">128 Players</SelectItem>
+                    <SelectItem value="256">256 Players</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -334,64 +308,6 @@ export default function AdminTournamentsPage() {
                     <SelectItem value="leaderboard">Leaderboard</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="status" className="text-white">
-                  Status
-                </Label>
-                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
-                  <SelectTrigger className="bg-slate-900 border-slate-700 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="upcoming">Upcoming</SelectItem>
-                    <SelectItem value="registration">Registration</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="start_date" className="text-white">
-                  Start Date *
-                </Label>
-                <Input
-                  id="start_date"
-                  type="datetime-local"
-                  value={formData.start_date}
-                  onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                  className="bg-slate-900 border-slate-700 text-white"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="end_date" className="text-white">
-                  End Date *
-                </Label>
-                <Input
-                  id="end_date"
-                  type="datetime-local"
-                  value={formData.end_date}
-                  onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                  className="bg-slate-900 border-slate-700 text-white"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="registration_deadline" className="text-white">
-                  Registration Deadline
-                </Label>
-                <Input
-                  id="registration_deadline"
-                  type="datetime-local"
-                  value={formData.registration_deadline}
-                  onChange={(e) => setFormData({ ...formData, registration_deadline: e.target.value })}
-                  className="bg-slate-900 border-slate-700 text-white"
-                />
               </div>
 
               <div className="space-y-2">
@@ -454,85 +370,29 @@ export default function AdminTournamentsPage() {
         </Card>
       )}
 
-      <div className="grid gap-6">
+      <div className="grid gap-4">
         {tournaments.map((tournament) => (
-          <Card key={tournament.id} className="bg-slate-800/50 border-slate-700/50 p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 space-y-3">
-                <div className="flex items-start gap-3">
-                  <Trophy className="w-5 h-5 text-cyan-400 mt-1" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-bold text-white">{tournament.title}</h3>
-                      <Badge className={getStatusColor(tournament.status)}>{tournament.status.toUpperCase()}</Badge>
-                      {tournament.featured && (
-                        <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">FEATURED</Badge>
-                      )}
-                    </div>
-                    {tournament.description && <p className="text-slate-400 text-sm mb-3">{tournament.description}</p>}
-                    <div className="flex flex-wrap gap-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-amber-400" />
-                        <span className="text-slate-400">Prize Pool:</span>
-                        <span className="text-white font-semibold">${tournament.prize_pool.toFixed(2)}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-cyan-400" />
-                        <span className="text-slate-400">Participants:</span>
-                        <span className="text-white font-semibold">
-                          {tournament.current_participants}
-                          {tournament.max_participants > 0 && `/${tournament.max_participants}`}
-                        </span>
-                      </div>
-                      {tournament.game_type && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-400">Game:</span>
-                          <span className="text-white font-semibold">{tournament.game_type}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                {tournament.status === "active" && (
-                  <Button
-                    onClick={() => router.push("/admin/tournaments/opening")}
-                    variant="outline"
-                    size="sm"
-                    className="border-cyan-500/20 hover:bg-cyan-500/10 text-cyan-400"
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Opening Mode
-                  </Button>
-                )}
-                <Button
-                  onClick={() => handleEdit(tournament)}
-                  variant="outline"
-                  size="sm"
-                  className="border-slate-700 hover:bg-slate-700"
-                >
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={() => handleDelete(tournament.id)}
-                  variant="outline"
-                  size="sm"
-                  className="border-red-500/20 hover:bg-red-500/10 text-red-400"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </Card>
+          <TournamentCard
+            key={tournament.id}
+            tournament={tournament}
+            getStatusColor={getStatusColor}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
         ))}
 
         {tournaments.length === 0 && (
-          <Card className="bg-slate-800/50 border-slate-700/50 p-12 text-center">
+          <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50 p-12 text-center">
             <Trophy className="w-16 h-16 text-slate-600 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-white mb-2">No Tournaments Yet</h3>
-            <p className="text-slate-400">Create your first tournament to get started</p>
+            <p className="text-slate-400 mb-6">Create your first tournament bracket to get started</p>
+            <Button
+              onClick={() => setShowForm(true)}
+              className="bg-cyan-600 hover:bg-cyan-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Tournament
+            </Button>
           </Card>
         )}
       </div>

@@ -10,18 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { DollarSign, Gift } from "lucide-react"
-
-type BonusHunt = {
-  id: string
-  game_name: string
-  provider: string | null
-  bet_size: number
-  result: number | null
-  starting_balance: number | null
-  opening_balance: number | null
-  created_at: string
-}
+import { DollarSign, Gift, Twitch } from "lucide-react"
 
 type DepositsWithdrawals = {
   id: string
@@ -32,12 +21,11 @@ type DepositsWithdrawals = {
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [bonusHunts, setBonusHunts] = useState<BonusHunt[]>([])
-  const [startingBalance, setStartingBalance] = useState("")
-  const [openingBalance, setOpeningBalance] = useState("")
   const [depositAmount, setDepositAmount] = useState("")
   const [withdrawAmount, setWithdrawAmount] = useState("")
   const [totalGivenAway, setTotalGivenAway] = useState("")
+  const [kickMcpClientId, setKickMcpClientId] = useState("")
+  const [kickMcpClientSecret, setKickMcpClientSecret] = useState("")
   const router = useRouter()
   const supabase = createClient()
   const { toast } = useToast()
@@ -45,20 +33,6 @@ export default function SettingsPage() {
   useEffect(() => {
     checkUser()
   }, [])
-
-  useEffect(() => {
-    if (bonusHunts.length > 0) {
-      const firstHunt = bonusHunts[0]
-      if (firstHunt) {
-        if (firstHunt.starting_balance !== null && firstHunt.starting_balance !== undefined) {
-          setStartingBalance(firstHunt.starting_balance.toString())
-        }
-        if (firstHunt.opening_balance !== null && firstHunt.opening_balance !== undefined) {
-          setOpeningBalance(firstHunt.opening_balance.toString())
-        }
-      }
-    }
-  }, [bonusHunts])
 
   async function checkUser() {
     const {
@@ -70,19 +44,8 @@ export default function SettingsPage() {
       setUser(user)
       await fetchTotalGivenAway()
       await fetchDepositsWithdrawals()
+      await fetchKickSettings()
       setLoading(false)
-    }
-  }
-
-  async function fetchBonusHunts() {
-    const { data, error } = await supabase.from("bonus_hunts").select("*").order("created_at", { ascending: true })
-
-    if (error) {
-      console.error("[v0] Error fetching bonus hunts:", error)
-    } else {
-      const hunts = (data || []) as BonusHunt[]
-      const filtered = hunts.filter((h) => h.game_name !== "_temp_balance_holder")
-      setBonusHunts(filtered)
     }
   }
 
@@ -107,90 +70,25 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleUpdateBalances(e: React.FormEvent) {
-    e.preventDefault()
+  async function fetchKickSettings() {
+    const keys = ["kickmcp_client_id", "kickmcp_client_secret"]
 
-    const startBalance = Number.parseFloat(startingBalance)
-    const openBalance = Number.parseFloat(openingBalance)
-
-    if (bonusHunts.length === 0) {
-      const { data: existingHolder } = await supabase
-        .from("bonus_hunts")
+    for (const key of keys) {
+      const { data, error } = await supabase
+        .from("settings")
         .select("*")
-        .eq("game_name", "_temp_balance_holder")
-        .single()
+        .eq("key", key)
+        .maybeSingle()
 
-      if (existingHolder) {
-        const { error } = await supabase
-          .from("bonus_hunts")
-          .update({ starting_balance: startBalance, opening_balance: openBalance })
-          .eq("game_name", "_temp_balance_holder")
-
-        if (error) {
-          console.error("Error updating balance holder:", error)
-          toast({
-            title: "Error",
-            description: "Failed to update balances",
-            variant: "destructive",
-          })
-        } else {
-          toast({
-            title: "Success",
-            description: "Balances updated successfully",
-            className: "bg-green-600 text-white",
-          })
-          fetchBonusHunts()
-        }
-      } else {
-        const { error } = await supabase.from("bonus_hunts").insert([
-          {
-            game_name: "_temp_balance_holder",
-            provider: null,
-            bet_size: 0,
-            result: 0,
-            starting_balance: startBalance,
-            opening_balance: openBalance,
-          },
-        ])
-
-        if (error) {
-          console.error("Error creating balance holder:", error)
-          toast({
-            title: "Error",
-            description: "Failed to update balances",
-            variant: "destructive",
-          })
-        } else {
-          toast({
-            title: "Success",
-            description: "Balances updated successfully",
-            className: "bg-green-600 text-white",
-          })
-          fetchBonusHunts()
-        }
+      if (error) {
+        console.error(`[v0] Error fetching ${key}:`, error)
+        continue
       }
-      return
-    }
 
-    const { error } = await supabase
-      .from("bonus_hunts")
-      .update({ starting_balance: startBalance, opening_balance: openBalance })
-      .neq("id", "00000000-0000-0000-0000-000000000000")
-
-    if (error) {
-      console.error("Error updating balances:", error)
-      toast({
-        title: "Error",
-        description: "Failed to update balances",
-        variant: "destructive",
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Balances updated successfully",
-        className: "bg-green-600 text-white",
-      })
-      fetchBonusHunts()
+      if (data) {
+        if (key === "kickmcp_client_id") setKickMcpClientId(data.value || "")
+        if (key === "kickmcp_client_secret") setKickMcpClientSecret(data.value || "")
+      }
     }
   }
 
@@ -203,6 +101,20 @@ export default function SettingsPage() {
     const { data: existing } = await supabase.from("deposits_withdrawals").select("*").limit(1).single()
 
     if (existing) {
+      // The totals row alone can't tell the OBS widget that money just moved, so
+      // record the delta against what was stored as its own event. Announcements
+      // are best-effort: a failure here must not block the totals from saving.
+      const movements: { kind: "deposit" | "cashout"; amount: number }[] = []
+      const depositDelta = deposit - (Number(existing.deposit_amount) || 0)
+      const withdrawDelta = withdraw - (Number(existing.withdraw_amount) || 0)
+      if (depositDelta > 0) movements.push({ kind: "deposit", amount: depositDelta })
+      if (withdrawDelta > 0) movements.push({ kind: "cashout", amount: withdrawDelta })
+
+      if (movements.length > 0) {
+        const { error: eventError } = await supabase.from("transaction_events").insert(movements)
+        if (eventError) console.error("[v0] Error recording transaction event:", eventError)
+      }
+
       const { error } = await supabase
         .from("deposits_withdrawals")
         .update({
@@ -250,6 +162,45 @@ export default function SettingsPage() {
         fetchDepositsWithdrawals()
       }
     }
+  }
+
+  async function handleUpdateKickSettings(e: React.FormEvent) {
+    e.preventDefault()
+
+    const updates = [
+      { key: "kickmcp_client_id", value: kickMcpClientId },
+      { key: "kickmcp_client_secret", value: kickMcpClientSecret },
+    ]
+
+    for (const update of updates) {
+      const { data: existing } = await supabase.from("settings").select("*").eq("key", update.key).maybeSingle()
+
+      if (existing) {
+        const { error } = await supabase
+          .from("settings")
+          .update({
+            value: update.value,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("key", update.key)
+
+        if (error) {
+          console.error("[v0] Error updating KickMCP setting:", error)
+        }
+      } else {
+        const { error } = await supabase.from("settings").insert([{ key: update.key, value: update.value }])
+
+        if (error) {
+          console.error("[v0] Error creating KickMCP setting:", error)
+        }
+      }
+    }
+
+    toast({
+      title: "Success",
+      description: "KickMCP settings updated successfully",
+      className: "bg-green-600 text-white",
+    })
   }
 
   async function handleUpdateTotalGivenAway(e: React.FormEvent) {
@@ -317,6 +268,58 @@ export default function SettingsPage() {
   return (
     <div>
       <div className="max-w-2xl mx-auto space-y-4">
+        <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
+          <CardHeader className="p-3">
+            <CardTitle className="text-white flex items-center gap-2 text-sm">
+              <Twitch className="w-4 h-4" />
+              KickMCP Configuration
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            <form onSubmit={handleUpdateKickSettings} className="space-y-3">
+              <div>
+                <Label htmlFor="kickmcp_client_id" className="text-slate-300 text-xs">
+                  Client ID
+                </Label>
+                <p className="text-[10px] text-slate-400 mb-1">Your KickMCP Client ID from Kick Developer Settings</p>
+                <Input
+                  id="kickmcp_client_id"
+                  type="text"
+                  value={kickMcpClientId}
+                  onChange={(e) => setKickMcpClientId(e.target.value)}
+                  className="bg-slate-900 border-slate-700 text-white h-8 text-xs"
+                  placeholder="Your KickMCP Client ID"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="kickmcp_client_secret" className="text-slate-300 text-xs">
+                  Client Secret
+                </Label>
+                <p className="text-[10px] text-slate-400 mb-1">Your KickMCP Client Secret from Kick Developer Settings</p>
+                <Input
+                  id="kickmcp_client_secret"
+                  type="password"
+                  value={kickMcpClientSecret}
+                  onChange={(e) => setKickMcpClientSecret(e.target.value)}
+                  className="bg-slate-900 border-slate-700 text-white h-8 text-xs font-mono text-[10px]"
+                  placeholder="Your KickMCP Client Secret"
+                />
+              </div>
+
+              <div className="bg-cyan-900/20 border border-cyan-600/30 rounded p-2">
+                <p className="text-[10px] text-cyan-300">
+                  <strong>How to get credentials:</strong> Log into your Kick Developer account, create or select an application, and copy the Client ID and Client Secret from the OAuth credentials section.
+                </p>
+              </div>
+
+              <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 h-8 text-xs">
+                Update KickMCP Settings
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
         <Card className="bg-slate-900/60 backdrop-blur border-slate-700/50">
           <CardHeader className="p-3">
             <CardTitle className="text-white flex items-center gap-2 text-sm">

@@ -36,6 +36,27 @@ async function getRaffleEntries(id: string) {
   return data as RaffleEntry[]
 }
 
+export async function generateMetadata({ params }: { params: { id: string } }) {
+  const raffle = await getRaffle(params.id)
+
+  if (!raffle) {
+    return {
+      title: "Raffle Not Found",
+      description: "The raffle you're looking for doesn't exist.",
+    }
+  }
+
+  return {
+    title: `${raffle.title} | Raffles`,
+    description: raffle.description || "Enter this raffle to win amazing prizes!",
+    openGraph: {
+      title: raffle.title,
+      description: raffle.description || "Enter this raffle to win amazing prizes!",
+      images: raffle.prize_image_url ? [raffle.prize_image_url] : [],
+    },
+  }
+}
+
 export default async function RaffleDetailPage({ params }: { params: { id: string } }) {
   const raffle = await getRaffle(params.id)
 
@@ -84,11 +105,36 @@ export default async function RaffleDetailPage({ params }: { params: { id: strin
             <div className="lg:col-span-2 space-y-6">
               {/* Raffle Image */}
               <Card className="border-slate-700 bg-slate-800/50 backdrop-blur overflow-hidden">
-                <div className="flex items-center justify-center py-32 bg-gradient-to-br from-blue-500/10 to-purple-500/10">
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                    <Gift className="w-16 h-16 text-white" />
+                {raffle.prize_image_url ? (
+                  <img
+                    src={raffle.prize_image_url}
+                    alt={raffle.title}
+                    className="w-full h-64 object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center py-32 bg-gradient-to-br from-blue-500/10 to-purple-500/10">
+                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                      <Gift className="w-16 h-16 text-white" />
+                    </div>
                   </div>
-                </div>
+                )}
+              </Card>
+
+              {/* Prize Details */}
+              <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
+                <CardContent className="p-6 space-y-4">
+                  <h2 className="text-3xl font-bold text-white">{raffle.title}</h2>
+                  <div className="space-y-2">
+                    <p className="text-slate-300 text-lg">
+                      <span className="text-slate-400">Prize:</span> <span className="text-cyan-400 font-bold">{raffle.prize_name}</span>
+                    </p>
+                    {raffle.prize_value > 0 && (
+                      <p className="text-slate-300 text-lg">
+                        <span className="text-slate-400">Value:</span> <span className="text-green-400 font-bold">${raffle.prize_value.toLocaleString()}</span>
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
               </Card>
 
               {/* Description */}

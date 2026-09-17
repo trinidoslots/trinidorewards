@@ -3,43 +3,89 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { getActiveHunt, type ActiveHunt } from "@/lib/active-hunt"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { ArrowLeft, ChevronRight, Copy, Check } from "lucide-react"
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Crown,
+  Flag,
+  Keyboard,
+  Percent,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Users,
+  Activity,
+  Target,
+  Layers,
+  Scale,
+  CheckCircle2,
+  ImageIcon,
+} from "lucide-react"
 
-type BonusHunt = {
+type HuntBonus = {
   id: string
+  hunt_id: string
   game_name: string
   provider: string | null
   bet_size: number
   result: number | null
-  hunt_id: string | null
   created_at: string
-  starting_balance: number
-  opening_balance: number
+  is_super: boolean
+  image_url: string | null
+}
+
+function money(value: number) {
+  return `C$${value.toFixed(2)}`
 }
 
 export default function OpeningModePage() {
-  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [openingBonuses, setOpeningBonuses] = useState<BonusHunt[]>([])
+  const [activeHunt, setActiveHunt] = useState<ActiveHunt | null>(null)
+  const [openingBonuses, setOpeningBonuses] = useState<HuntBonus[]>([])
   const [currentOpeningIndex, setCurrentOpeningIndex] = useState(0)
   const [payout, setPayout] = useState("")
   const [multiplier, setMultiplier] = useState("")
-  const [spinsUsed, setSpinsUsed] = useState("")
-  const [showSaveModal, setShowSaveModal] = useState(false)
-  const [huntName, setHuntName] = useState("")
-  const [isSaving, setIsSaving] = useState(false)
+  const [notes, setNotes] = useState("")
+  const [obsViewMode, setObsViewMode] = useState<"opening" | "normal">("opening")
   const router = useRouter()
   const supabase = createClient()
   const { toast } = useToast()
 
   useEffect(() => {
     checkUser()
+    loadObsViewMode()
   }, [])
+
+  async function loadObsViewMode() {
+    const { data } = await supabase.from("settings").select("value").eq("key", "obs_view_mode").single()
+    if (data) {
+      setObsViewMode(data.value as "opening" | "normal")
+    }
+  }
+
+  async function toggleObsViewMode() {
+    const newMode = obsViewMode === "opening" ? "normal" : "opening"
+    setObsViewMode(newMode)
+
+    const { error } = await supabase
+      .from("settings")
+      .upsert({ key: "obs_view_mode", value: newMode }, { onConflict: "key" })
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update OBS view mode",
+        variant: "destructive",
+      })
+    }
+  }
 
   async function checkUser() {
     const {
@@ -48,17 +94,25 @@ export default function OpeningModePage() {
     if (!user) {
       router.push("/auth/login")
     } else {
-      setUser(user)
       await startOpeningMode()
       setLoading(false)
     }
   }
 
   async function startOpeningMode() {
-    const { data, error } = await supabase.from("bonus_hunts").select("*").order("created_at", { ascending: true })
+    const hunt = await getActiveHunt(supabase)
+    setActiveHunt(hunt)
+
+    const { data, error } = hunt
+      ? await supabase
+          .from("hunt_bonuses")
+          .select("*")
+          .eq("hunt_id", hunt.id)
+          .order("position", { ascending: true })
+      : { data: [], error: null }
 
     if (error || !data) {
-      console.error("[v0] Error fetching bonus hunts:", error)
+      console.error("[v0] Error fetching hunt bonuses:", error)
       toast({
         title: "Error",
         description: "Failed to fetch bonus hunts",
@@ -67,7 +121,7 @@ export default function OpeningModePage() {
       return
     }
 
-    const allBonuses = data.filter((hunt) => hunt.game_name !== "_temp_balance_holder")
+    const allBonuses = data as HuntBonus[]
 
     if (allBonuses.length === 0) {
       toast({
@@ -85,7 +139,7 @@ export default function OpeningModePage() {
     setMultiplier(
       firstBonus?.result && firstBonus?.bet_size ? (firstBonus.result / firstBonus.bet_size).toFixed(2) : "",
     )
-    setSpinsUsed("")
+    setNotes("")
 
     // Update opening state in database
     await supabase.from("opening_state").upsert({
@@ -113,7 +167,7 @@ export default function OpeningModePage() {
       return
     }
 
-    const { error } = await supabase.from("bonus_hunts").update({ result }).eq("id", currentBonus.id)
+    const { error } = await supabase.from("hunt_bonuses").update({ result }).eq("id", currentBonus.id)
     if (error) {
       toast({ title: "Error", description: "Failed to update bonus hunt", variant: "destructive" })
       return
@@ -129,7 +183,7 @@ export default function OpeningModePage() {
       const nextBonus = updatedBonuses[nextIndex]
       setPayout(nextBonus?.result?.toString() || "")
       setMultiplier(nextBonus?.result && nextBonus?.bet_size ? (nextBonus.result / nextBonus.bet_size).toFixed(2) : "")
-      setSpinsUsed("")
+      setNotes("")
 
       setTimeout(() => {
         const input = document.getElementById("payout_input")
@@ -151,11 +205,12 @@ export default function OpeningModePage() {
   }
 
   function selectBonusInOpening(index: number) {
+    if (index < 0 || index >= openingBonuses.length) return
     setCurrentOpeningIndex(index)
     const bonus = openingBonuses[index]
     setPayout(bonus.result?.toString() || "")
     setMultiplier(bonus.result && bonus.bet_size ? (bonus.result / bonus.bet_size).toFixed(2) : "")
-    setSpinsUsed("")
+    setNotes("")
 
     setTimeout(() => {
       const input = document.getElementById("payout_input")
@@ -164,9 +219,11 @@ export default function OpeningModePage() {
   }
 
   function goBackBonus() {
-    if (currentOpeningIndex > 0) {
-      selectBonusInOpening(currentOpeningIndex - 1)
-    }
+    selectBonusInOpening(currentOpeningIndex - 1)
+  }
+
+  function goForwardBonus() {
+    selectBonusInOpening(currentOpeningIndex + 1)
   }
 
   function copySlotName() {
@@ -180,93 +237,58 @@ export default function OpeningModePage() {
     }
   }
 
-  async function saveHuntToPreviousHunts() {
-    if (!huntName.trim()) {
+  async function endHunt() {
+    if (!activeHunt) return
+    if (!confirm("End this hunt? It will move to Past Hunts and a new hunt can be started.")) return
+
+    const { error } = await supabase
+      .from("bonus_hunts")
+      .update({ status: "ended", ended_at: new Date().toISOString() })
+      .eq("id", activeHunt.id)
+
+    if (error) {
+      console.error("[v0] Error ending hunt:", error)
       toast({
         title: "Error",
-        description: "Please enter a hunt name",
+        description: "Failed to end hunt",
         variant: "destructive",
       })
       return
     }
 
-    setIsSaving(true)
+    await supabase.from("opening_state").upsert({ id: 1, is_opening: false })
 
-    try {
-      const huntId = openingBonuses[0]?.hunt_id || "unknown"
-      const startingBalance = openingBonuses[0]?.starting_balance || 0
-      const openingBalance = openingBonuses[0]?.opening_balance || 0
+    toast({
+      title: "Success",
+      description: "Hunt ended and moved to Past Hunts",
+      className: "bg-green-600 text-white",
+    })
 
-      const totalBonuses = openingBonuses.length
-      const totalBetSize = openingBonuses.reduce((sum, b) => sum + Number(b.bet_size), 0)
-      const totalResult = openingBonuses.reduce((sum, b) => sum + (Number(b.result) || 0), 0)
-      const profitLoss = totalResult - startingBalance
-
-      const bonusesData = openingBonuses.map((b) => ({
-        id: b.id,
-        game_name: b.game_name,
-        provider: b.provider,
-        bet_size: b.bet_size,
-        result: b.result,
-        starting_balance: b.starting_balance,
-        opening_balance: b.opening_balance,
-        created_at: b.created_at,
-      }))
-
-      const { error } = await supabase.from("past_bonushunts").insert({
-        hunt_id: huntId,
-        hunt_name: huntName.trim(),
-        starting_balance: startingBalance,
-        opening_balance: openingBalance,
-        total_bonuses: totalBonuses,
-        total_bet_size: totalBetSize,
-        total_result: totalResult,
-        profit_loss: profitLoss,
-        bonuses: JSON.stringify(bonusesData),
-        status: "completed",
-      })
-
-      if (error) {
-        console.error("[v0] Error saving hunt:", error)
-        toast({
-          title: "Error",
-          description: "Failed to save hunt to previous hunts",
-          variant: "destructive",
-        })
-      } else {
-        toast({
-          title: "Success",
-          description: "Hunt saved to previous hunts!",
-          className: "bg-green-600 text-white",
-        })
-        setShowSaveModal(false)
-        setHuntName("")
-      }
-    } catch (error) {
-      console.error("[v0] Error saving hunt:", error)
-      toast({
-        title: "Error",
-        description: "Failed to save hunt",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSaving(false)
-    }
+    router.push("/admin/bonushunt")
   }
 
   async function resetHunt() {
+    if (!activeHunt) return
     if (!confirm("Are you sure you want to reset this hunt? This will delete all bonuses and cannot be undone.")) {
       return
     }
 
     try {
-      const huntId = openingBonuses[0]?.hunt_id
+      const { error: predictionsError } = await supabase.from("hunt_predictions").delete().eq("hunt_id", activeHunt.id)
+      if (predictionsError) {
+        console.error("[v0] Error deleting predictions:", predictionsError)
+        // Continue anyway, don't block the reset
+      }
 
-      // Delete all bonus hunts for this hunt_id
-      const { error: deleteError } = await supabase.from("bonus_hunts").delete().eq("hunt_id", huntId)
+      await supabase.from("prediction_windows").delete().eq("hunt_id", activeHunt.id)
+
+      const { error: deleteBonusesError } = await supabase.from("hunt_bonuses").delete().eq("hunt_id", activeHunt.id)
+      const { error: deleteError } = deleteBonusesError
+        ? { error: deleteBonusesError }
+        : await supabase.from("bonus_hunts").delete().eq("id", activeHunt.id)
 
       if (deleteError) {
-        console.error("[v0] Error deleting bonuses:", deleteError)
+        console.error("[v0] Error deleting hunt:", deleteError)
         toast({
           title: "Error",
           description: "Failed to reset hunt",
@@ -287,8 +309,7 @@ export default function OpeningModePage() {
         className: "bg-green-600 text-white",
       })
 
-      // Redirect to users page
-      router.push("/admin/users")
+      router.push("/admin/bonushunt")
     } catch (error) {
       console.error("[v0] Error resetting hunt:", error)
       toast({
@@ -301,20 +322,20 @@ export default function OpeningModePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-        <p className="text-white">Loading...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+        <p className="text-slate-300">Loading...</p>
       </div>
     )
   }
 
   if (openingBonuses.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4">
-        <div className="bg-slate-900/60 backdrop-blur border border-slate-700/50 rounded-2xl p-8 max-w-md w-full text-center">
-          <h2 className="text-white text-2xl font-bold mb-4">No Bonuses to Open</h2>
-          <p className="text-slate-400 mb-6">Add bonuses to your hunt first</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4">
+        <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/70 p-8 text-center">
+          <h2 className="mb-4 text-2xl font-bold text-white">No Bonuses to Open</h2>
+          <p className="mb-6 text-slate-400">Add bonuses to your hunt first</p>
           <Button onClick={() => router.push("/admin/bonushunt")} className="bg-cyan-600 hover:bg-cyan-700">
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Bonus Hunt
           </Button>
         </div>
@@ -327,310 +348,353 @@ export default function OpeningModePage() {
   const total = openingBonuses.length
 
   const openedBonuses = openingBonuses.filter((b) => b.result !== null)
-  const startingBalanceVal = openingBonuses[0]?.starting_balance || 0
+  const startingBalanceVal = Number(activeHunt?.starting_balance ?? 0)
   const totalWon = openedBonuses.reduce((sum, b) => sum + (Number(b.result) || 0), 0)
   const profitLoss = totalWon - startingBalanceVal
-  const winRate = startingBalanceVal > 0 ? (totalWon / startingBalanceVal) * 100 : 0
+
+  const totalMultiplierSum = openedBonuses.reduce((sum, b) => {
+    if (b.result && b.bet_size) return sum + Number(b.result) / Number(b.bet_size)
+    return sum
+  }, 0)
+  const runAvgX = openedBonuses.length > 0 ? totalMultiplierSum / openedBonuses.length : 0
 
   const remainingToOpen = openingBonuses.filter((b) => b.result === null)
   const remainingBetSize = remainingToOpen.reduce((sum, b) => sum + Number(b.bet_size), 0)
-  const breakEvenX = remainingBetSize > 0 ? (startingBalanceVal - totalWon) / remainingBetSize : 0
+  const breakEvenAmount = Math.max(0, startingBalanceVal - totalWon)
+  const reqAvgX = remainingBetSize > 0 ? breakEvenAmount / remainingBetSize : 0
 
-  let highestMultiplier = 0
-  let highestWin = { amount: 0, game: "", multiplier: 0 }
+  const nextBonus = openingBonuses[currentOpeningIndex + 1] ?? null
 
-  openedBonuses.forEach((bonus) => {
-    const mult = bonus.result && bonus.bet_size ? bonus.result / bonus.bet_size : 0
-    if (mult > highestMultiplier) {
-      highestMultiplier = mult
-    }
-    if (bonus.result && bonus.result > highestWin.amount) {
-      highestWin = {
-        amount: bonus.result,
-        game: bonus.game_name,
-        multiplier: mult,
-      }
-    }
-  })
+  const kpis: { label: string; value: string; icon: typeof Percent; accent?: "up" | "down" }[] = [
+    { label: "Progress", value: `${progress} / ${total}`, icon: Percent },
+    { label: "Start Cost", value: money(startingBalanceVal), icon: DollarSign },
+    { label: "Winnings", value: money(totalWon), icon: TrendingUp },
+    {
+      label: "P&L",
+      value: `${profitLoss >= 0 ? "+" : ""}${money(profitLoss)}`,
+      icon: profitLoss >= 0 ? TrendingUp : TrendingDown,
+      accent: profitLoss >= 0 ? "up" : "down",
+    },
+    { label: "Remaining", value: `${remainingToOpen.length}`, icon: Users },
+    { label: "Run Avg", value: `${runAvgX.toFixed(2)}x`, icon: Activity },
+    { label: "Req Avg", value: `${reqAvgX.toFixed(2)}x`, icon: Target },
+    { label: "Cum. X", value: `${totalMultiplierSum.toFixed(2)}x`, icon: Layers },
+    { label: "Break Even", value: money(breakEvenAmount), icon: Scale },
+    { label: "Opened", value: `${openedBonuses.length} / ${total}`, icon: CheckCircle2 },
+  ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4">
-      <div className="container mx-auto max-w-7xl">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-white">Opening Mode</h1>
-          <div className="flex gap-3">
-            <Button onClick={() => setShowSaveModal(true)} className="bg-green-600 hover:bg-green-700 text-white">
-              Save to Previous Hunts
+    <div className="min-h-screen bg-slate-950 p-4 sm:p-6">
+      <div className="mx-auto max-w-6xl">
+        {/* Header */}
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-white sm:text-2xl">
+              {activeHunt?.streamer || "Bonus Hunt"}
+              {activeHunt?.title ? ` — ${activeHunt.title}` : ""}
+            </h1>
+            <p className="text-sm text-slate-500">
+              {activeHunt?.created_at
+                ? new Date(activeHunt.created_at).toLocaleDateString(undefined, {
+                    month: "2-digit",
+                    day: "2-digit",
+                    year: "numeric",
+                  })
+                : ""}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={toggleObsViewMode}
+              size="sm"
+              className={
+                obsViewMode === "opening"
+                  ? "bg-cyan-600 text-white hover:bg-cyan-500"
+                  : "bg-slate-800 text-slate-200 hover:bg-slate-700"
+              }
+              title={obsViewMode === "opening" ? "Switch OBS to normal view" : "Switch OBS to opening view"}
+            >
+              OBS: {obsViewMode === "opening" ? "Opening" : "Normal"}
             </Button>
-            <Button onClick={resetHunt} variant="destructive" className="bg-red-600 hover:bg-red-700 text-white">
+            <Button onClick={endHunt} size="sm" className="bg-emerald-600 text-white hover:bg-emerald-500">
+              <Flag className="mr-1.5 h-3.5 w-3.5" />
+              End Hunt
+            </Button>
+            <Button onClick={resetHunt} size="sm" variant="destructive">
               Reset Hunt
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-          <Card className="bg-slate-800/80 border-slate-700 backdrop-blur">
-            <CardContent className="p-3">
-              <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">START</p>
-              <p className="text-white text-xl font-bold">${startingBalanceVal.toFixed(0)}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800/80 border-slate-700 backdrop-blur">
-            <CardContent className="p-3">
-              <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">TOTAL WON</p>
-              <p className="text-white text-xl font-bold">${totalWon.toFixed(0)}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800/80 border-slate-700 backdrop-blur">
-            <CardContent className="p-3">
-              <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">PROFIT/LOSS</p>
-              <p className={`text-xl font-bold ${profitLoss >= 0 ? "text-green-400" : "text-red-400"}`}>
-                ${profitLoss.toFixed(0)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800/80 border-slate-700 backdrop-blur">
-            <CardContent className="p-3">
-              <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">WIN RATE</p>
-              <p className="text-white text-xl font-bold">{winRate.toFixed(1)}%</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800/80 border-slate-700 backdrop-blur">
-            <CardContent className="p-3">
-              <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">BREAK EVEN</p>
-              <p className="text-white text-xl font-bold">{breakEvenX.toFixed(1)}x</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800/80 border-slate-700 backdrop-blur md:col-span-3">
-            <CardContent className="p-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">HIGHEST MULTIPLIER</p>
-                  <p className="text-white text-xl font-bold">{highestMultiplier.toFixed(1)}x</p>
-                </div>
-                <div>
-                  <p className="text-slate-400 text-xs uppercase tracking-wide mb-1">HIGHEST WIN</p>
-                  <p className="text-amber-400 text-base font-medium">{highestWin.game || "N/A"}</p>
-                  <p className="text-amber-400 text-lg font-bold">
-                    ${highestWin.amount.toFixed(0)}
-                    {highestWin.multiplier > 0 && (
-                      <span className="text-base"> ({highestWin.multiplier.toFixed(1)}x)</span>
-                    )}
-                  </p>
-                </div>
+        {/* KPI grid */}
+        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          {kpis.map(({ label, value, icon: Icon, accent }) => (
+            <div
+              key={label}
+              className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/70 p-3.5 transition hover:-translate-y-0.5 hover:border-cyan-200/25"
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-cyan-300/10 text-cyan-200">
+                <Icon className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+                <p
+                  className={`truncate text-base font-bold ${
+                    accent === "up" ? "text-emerald-400" : accent === "down" ? "text-rose-400" : "text-white"
+                  }`}
+                >
+                  {value}
+                </p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left panel: Input form */}
-          <div className="lg:col-span-1">
-            <Card className="bg-slate-800/50 border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-white">
-                  {currentBonus.game_name} ({progress} / {total})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button
-                  onClick={() => copySlotName()}
-                  variant="outline"
-                  className="w-full border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white bg-transparent"
-                >
-                  <Copy className="w-4 h-4 mr-2" />
-                  Copy Slot Name
-                </Button>
+        {/* Back to hunt / hotkeys row */}
+        <div className="mb-4 flex items-center justify-between">
+          <button
+            onClick={() => router.push("/admin/bonushunt")}
+            className="flex items-center gap-1.5 text-sm text-slate-400 transition hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Hunt
+          </button>
+          <div
+            className="flex items-center gap-1.5 text-sm text-slate-500"
+            title="Enter = Save &amp; continue · Esc = Exit opening mode"
+          >
+            <Keyboard className="h-4 w-4" />
+            Hotkeys
+          </div>
+        </div>
 
-                <div>
-                  <Label htmlFor="payout_input" className="text-slate-300">
-                    Payout
-                  </Label>
-                  <Input
-                    id="payout_input"
-                    type="number"
-                    step="0.01"
-                    value={payout}
-                    onChange={(e) => {
-                      setPayout(e.target.value)
-                      const payoutVal = Number.parseFloat(e.target.value)
-                      if (!isNaN(payoutVal) && currentBonus.bet_size) {
-                        setMultiplier((payoutVal / currentBonus.bet_size).toFixed(2))
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveAndNextOpening()
-                      if (e.key === "Escape") exitOpeningMode()
-                    }}
-                    className="bg-slate-900 border-slate-700 text-white h-12"
-                    placeholder="0.00"
-                    autoFocus
+        {/* Main opening card */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
+                {currentBonus.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
+                  <img
+                    src={currentBonus.image_url || "/placeholder.svg"}
+                    alt={currentBonus.game_name}
+                    className="h-full w-full object-cover"
                   />
-                </div>
-
-                <div>
-                  <Label htmlFor="multiplier_input" className="text-slate-300">
-                    Multiplier
-                  </Label>
-                  <Input
-                    id="multiplier_input"
-                    type="number"
-                    step="0.01"
-                    value={multiplier}
-                    onChange={(e) => setMultiplier(e.target.value)}
-                    className="bg-slate-900 border-slate-700 text-white h-12"
-                    placeholder="23"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="betsize_input" className="text-slate-300">
-                    Betsize
-                  </Label>
-                  <Input
-                    id="betsize_input"
-                    type="number"
-                    step="0.01"
-                    value={currentBonus.bet_size}
-                    disabled
-                    className="bg-slate-900 border-slate-700 text-white h-12"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="spins_input" className="text-slate-300">
-                    Spins used
-                  </Label>
-                  <Input
-                    id="spins_input"
-                    type="number"
-                    value={spinsUsed}
-                    onChange={(e) => setSpinsUsed(e.target.value)}
-                    className="bg-slate-900 border-slate-700 text-white h-12"
-                    placeholder="Spins used.."
-                  />
-                </div>
-
-                <Button onClick={saveAndNextOpening} className="w-full h-12 bg-green-600 hover:bg-green-700 text-white">
-                  Save & continue <ChevronRight className="w-5 h-5 ml-2" />
-                </Button>
-
-                {currentOpeningIndex > 0 && (
-                  <Button
-                    onClick={goBackBonus}
-                    variant="outline"
-                    className="w-full h-12 border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white bg-transparent"
-                  >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    Go Back
-                  </Button>
+                ) : (
+                  <ImageIcon className="h-5 w-5 text-slate-600" />
                 )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-white">{currentBonus.game_name}</h2>
+                  {currentBonus.is_super && (
+                    <span className="flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300">
+                      <Crown className="h-3 w-3" /> Super
+                    </span>
+                  )}
+                  {currentBonus.provider && (
+                    <span className="rounded-full border border-slate-700 bg-slate-800/80 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
+                      {currentBonus.provider}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500">
+                  Game {progress} / {total}
+                </p>
+              </div>
+            </div>
 
-                <Button
-                  onClick={exitOpeningMode}
-                  variant="outline"
-                  className="w-full h-12 border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white bg-transparent"
-                >
-                  Exit Opening Mode
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                onClick={goBackBonus}
+                disabled={currentOpeningIndex === 0}
+                className="flex size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition hover:border-cyan-200/30 hover:text-white disabled:opacity-30 disabled:hover:border-slate-800 disabled:hover:text-slate-400"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={goForwardBonus}
+                disabled={currentOpeningIndex === total - 1}
+                className="flex size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition hover:border-cyan-200/30 hover:text-white disabled:opacity-30 disabled:hover:border-slate-800 disabled:hover:text-slate-400"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
-          {/* Right panel: Bonus grid */}
-          <div className="lg:col-span-2">
-            <h2 className="text-white text-xl font-semibold mb-4">Bonuses</h2>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-              {openingBonuses.map((bonus, index) => {
-                const isOpened = bonus.result !== null
-                const isCurrent = index === currentOpeningIndex
+          <button
+            onClick={copySlotName}
+            className="mt-4 flex items-center gap-1.5 rounded-lg border border-slate-800 px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:border-cyan-200/25 hover:text-white"
+          >
+            <Copy className="h-3.5 w-3.5" />
+            Copy Slot Name
+          </button>
 
-                return (
-                  <button
-                    key={bonus.id}
-                    onClick={() => selectBonusInOpening(index)}
-                    className={`
-                      relative aspect-square rounded-lg border-2 transition-all p-2
-                      ${
-                        isCurrent
-                          ? "border-amber-500 bg-slate-700"
-                          : isOpened
-                            ? "border-slate-600 bg-slate-800/50"
-                            : "border-slate-600 bg-slate-900/50"
-                      }
-                      hover:border-slate-500 hover:bg-slate-700/50
-                    `}
-                  >
-                    <div className="flex flex-col items-center justify-center h-full">
-                      <p className="text-white text-xs font-medium text-center line-clamp-2 mb-1">{bonus.game_name}</p>
-                      <p className="text-slate-400 text-xs">${bonus.bet_size.toFixed(0)}</p>
-                      {isOpened && (
-                        <div className="absolute top-1 right-1">
-                          <Check className="w-4 h-4 text-green-400" />
-                        </div>
-                      )}
-                      {isOpened && (
-                        <p className="text-green-400 text-xs font-semibold mt-1">${bonus.result?.toFixed(0)}</p>
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <Label htmlFor="betsize_input" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Bet Size (CAD)
+              </Label>
+              <Input
+                id="betsize_input"
+                type="number"
+                step="0.01"
+                value={currentBonus.bet_size}
+                disabled
+                className="mt-1.5 h-11 rounded-xl border-slate-800 bg-slate-950 text-white disabled:opacity-70"
+              />
             </div>
+
+            <div>
+              <Label htmlFor="payout_input" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Payout (CAD)
+              </Label>
+              <Input
+                id="payout_input"
+                type="number"
+                step="0.01"
+                value={payout}
+                onChange={(e) => {
+                  setPayout(e.target.value)
+                  const payoutVal = Number.parseFloat(e.target.value)
+                  if (!isNaN(payoutVal) && currentBonus.bet_size) {
+                    setMultiplier((payoutVal / currentBonus.bet_size).toFixed(2))
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveAndNextOpening()
+                  if (e.key === "Escape") exitOpeningMode()
+                }}
+                className="mt-1.5 h-11 rounded-xl border-slate-800 bg-slate-950 text-white focus-visible:ring-cyan-200/40"
+                placeholder="0.00"
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <Label
+                htmlFor="multiplier_input"
+                className="text-xs font-semibold uppercase tracking-wide text-slate-500"
+              >
+                Multiplier
+              </Label>
+              <Input
+                id="multiplier_input"
+                type="number"
+                step="0.01"
+                value={multiplier}
+                onChange={(e) => setMultiplier(e.target.value)}
+                className="mt-1.5 h-11 rounded-xl border-slate-800 bg-slate-950 text-white focus-visible:ring-cyan-200/40"
+                placeholder="0.00x"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <Label htmlFor="notes_input" className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Notes
+            </Label>
+            <Input
+              id="notes_input"
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="mt-1.5 h-11 rounded-xl border-slate-800 bg-slate-950 text-white focus-visible:ring-cyan-200/40"
+              placeholder="Type a note..."
+            />
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-5">
+            <Button
+              onClick={exitOpeningMode}
+              variant="outline"
+              className="border-slate-700 bg-transparent text-slate-300 hover:bg-slate-800 hover:text-white"
+            >
+              Cancel
+            </Button>
+
+            {nextBonus ? (
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <span>Next Game:</span>
+                <span className="flex size-6 items-center justify-center overflow-hidden rounded-md border border-slate-800 bg-slate-950">
+                  {nextBonus.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
+                    <img
+                      src={nextBonus.image_url || "/placeholder.svg"}
+                      alt={nextBonus.game_name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <ImageIcon className="h-3 w-3 text-slate-600" />
+                  )}
+                </span>
+                <span className="font-semibold text-white">{nextBonus.game_name}</span>
+              </div>
+            ) : (
+              <span className="text-sm text-slate-500">Last bonus in this hunt</span>
+            )}
+
+            <Button onClick={saveAndNextOpening} className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+              Continue
+              <ChevronRight className="ml-1.5 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Bonus grid */}
+        <div className="mt-6">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">All Bonuses</h2>
+          <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-6 md:grid-cols-8">
+            {openingBonuses.map((bonus, index) => {
+              const isOpened = bonus.result !== null
+              const isCurrent = index === currentOpeningIndex
+
+              return (
+                <button
+                  key={bonus.id}
+                  onClick={() => selectBonusInOpening(index)}
+                  className={`relative aspect-square overflow-hidden rounded-lg border-2 transition-all ${
+                    isCurrent
+                      ? "border-cyan-300 bg-slate-800"
+                      : isOpened
+                        ? "border-slate-800 bg-slate-900/50"
+                        : "border-slate-800 bg-slate-950"
+                  } hover:border-cyan-200/40`}
+                >
+                  {bonus.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
+                    <img
+                      src={bonus.image_url || "/placeholder.svg"}
+                      alt={bonus.game_name}
+                      className={`h-full w-full object-cover ${isOpened ? "opacity-60" : ""}`}
+                    />
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center p-1.5">
+                      <p className="line-clamp-2 text-center text-[10px] font-medium text-white">
+                        {bonus.game_name}
+                      </p>
+                      <p className="text-[10px] text-slate-500">${bonus.bet_size.toFixed(0)}</p>
+                    </div>
+                  )}
+
+                  {bonus.is_super && (
+                    <div className="absolute left-1 top-1">
+                      <Crown className="h-3 w-3 text-amber-400 drop-shadow" />
+                    </div>
+                  )}
+                  {isOpened && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60">
+                      <span className="rounded-md bg-slate-950/80 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                        ${bonus.result?.toFixed(0)}
+                      </span>
+                    </div>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
-
-      {showSaveModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <Card className="bg-slate-900 border-slate-700 max-w-md w-full">
-            <CardHeader>
-              <CardTitle className="text-white">Save Hunt to Previous Hunts</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="hunt_name" className="text-slate-300">
-                  Hunt Name
-                </Label>
-                <Input
-                  id="hunt_name"
-                  type="text"
-                  value={huntName}
-                  onChange={(e) => setHuntName(e.target.value)}
-                  placeholder="Enter hunt name..."
-                  className="bg-slate-800 border-slate-700 text-white"
-                  autoFocus
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  onClick={saveHuntToPreviousHunts}
-                  disabled={isSaving}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {isSaving ? "Saving..." : "Save Hunt"}
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowSaveModal(false)
-                    setHuntName("")
-                  }}
-                  variant="outline"
-                  className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white bg-transparent"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
     </div>
   )
 }

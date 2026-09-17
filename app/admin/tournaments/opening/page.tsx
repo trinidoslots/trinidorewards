@@ -84,9 +84,38 @@ export default function TournamentOpeningPage() {
   }
 
   async function fetchAllSlots() {
-    const { data } = await supabase.from("slots").select("game_name, provider").order("game_name")
+    let allSlotsData: Slot[] = []
+    let from = 0
+    const pageSize = 1000
+    let hasMore = true
 
-    if (data) setAllSlots(data)
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("slots")
+        .select("game_name, provider")
+        .order("game_name")
+        .range(from, from + pageSize - 1)
+
+      if (error) {
+        console.error("[v0] Error fetching slots:", error)
+        break
+      }
+
+      if (data && data.length > 0) {
+        allSlotsData = [...allSlotsData, ...data]
+        from += pageSize
+
+        // If we got less than pageSize, we've reached the end
+        if (data.length < pageSize) {
+          hasMore = false
+        }
+      } else {
+        hasMore = false
+      }
+    }
+
+    console.log(`[v0] Fetched ${allSlotsData.length} total slots`)
+    setAllSlots(allSlotsData)
   }
 
   async function startTournament() {

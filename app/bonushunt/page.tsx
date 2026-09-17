@@ -1,7 +1,15 @@
 import { createClient } from "@/lib/supabase/server"
-import { Card, CardContent } from "@/components/ui/card"
-import { TrendingUp, Sparkles } from "lucide-react"
-import { PageTransition } from "@/components/page-transition"
+import { getActiveHunt } from "@/lib/active-hunt"
+import { BonusHuntClient, type HuntKpis } from "@/components/bonus-hunt-client"
+import { GuessTheBalancePanel } from "@/components/guess-the-balance-panel"
+import { getCurrentExternalHuntMapped } from "@/lib/bonushunt-api"
+import { cookies } from "next/headers"
+import { PreviousHuntsPanel } from "@/components/previous-hunts-panel"
+import { BonusHuntTabs } from "@/components/bonus-hunt-tabs"
+
+type PageProps = {
+  searchParams: Promise<{ tab?: string }>
+}
 
 type BonusHunt = {
   id: string
@@ -12,38 +20,74 @@ type BonusHunt = {
   starting_balance: number | null
   opening_balance: number | null
   created_at: string
+  is_super: boolean
+  image_url?: string | null
 }
 
-export default async function BonusHuntPage() {
+export default async function BonusHuntPage({ searchParams }: PageProps) {
+  const params = await searchParams
+  const activeTab = params.tab || "current"
+
   const supabase = await createClient()
+  const cookieStore = await cookies()
 
-  const { data: bonusHunts, error } = await supabase
-    .from("bonus_hunts")
-    .select("*")
-    .order("created_at", { ascending: true })
+  const username = cookieStore.get("kick_username")?.value
+  const isLoggedIn = !!username
 
-  if (error) {
-    console.error("[v0] Error fetching bonus hunts:", error)
+  const { data: huntSourceData } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "hunt_source")
+    .maybeSingle()
+
+  const huntSource = huntSourceData?.value === "external" ? "external" : "integrated"
+
+  let allHunts: BonusHunt[] = []
+  let externalHuntId: string | null = null
+  let externalHuntTitle: string | null = null
+  let activeStartingBalance = 0
+  let initialKpis: HuntKpis | null = null
+
+  if (huntSource === "external") {
+    try {
+      const { hunt, rows } = await getCurrentExternalHuntMapped()
+      allHunts = rows as BonusHunt[]
+      externalHuntId = hunt?.id ?? null
+      externalHuntTitle = hunt?.title ?? null
+    } catch (e) {
+      console.error("[v0] Error fetching external hunt:", e)
+      allHunts = []
+    }
+  } else {
+    const activeHunt = await getActiveHunt(supabase)
+    if (activeHunt) {
+      activeStartingBalance = Number(activeHunt.starting_balance ?? 0)
+      const { data: bonuses, error: bonusError } = await supabase
+        .from("hunt_bonuses")
+        .select("id, game_name, provider, bet_size, result, created_at, is_super, image_url, position")
+        .eq("hunt_id", activeHunt.id)
+        .order("position", { ascending: true })
+      if (bonusError) console.error("[v0] Error fetching hunt bonuses:", bonusError)
+      allHunts = (bonuses || []).map((bonus) => ({ ...bonus, opening_balance: 0, starting_balance: activeHunt.starting_balance })) as BonusHunt[]
+      externalHuntId = activeHunt.id
+
+      const { data: kpiRow, error: kpiError } = await supabase
+        .from("bonus_hunt_kpis")
+        .select("*")
+        .eq("hunt_id", activeHunt.id)
+        .maybeSingle()
+      if (kpiError) console.error("[v0] Error fetching hunt kpis:", kpiError)
+      initialKpis = (kpiRow as HuntKpis | null) ?? null
+    }
   }
 
-  const allHunts = (bonusHunts || []) as BonusHunt[]
-
-  const tempBalanceHolder = allHunts.find((hunt) => hunt.game_name === "_temp_balance_holder")
-  const hunts = allHunts.filter((hunt) => hunt.game_name !== "_temp_balance_holder")
+  const hunts = allHunts
 
   const totalBetSize = hunts.reduce((sum, hunt) => sum + Number(hunt.bet_size), 0)
   const totalWinsSoFar = hunts.reduce((sum, hunt) => sum + (Number(hunt.result) || 0), 0)
 
-  const startingBalance = tempBalanceHolder?.starting_balance
-    ? Number(tempBalanceHolder.starting_balance)
-    : hunts.length > 0 && hunts[0].starting_balance
-      ? Number(hunts[0].starting_balance)
-      : 0
-  const openingBalance = tempBalanceHolder?.opening_balance
-    ? Number(tempBalanceHolder.opening_balance)
-    : hunts.length > 0 && hunts[0].opening_balance
-      ? Number(hunts[0].opening_balance)
-      : 0
+  const startingBalance = activeStartingBalance || Number(hunts[0]?.starting_balance ?? 0)
+  const openingBalance = Number(hunts[0]?.opening_balance ?? 0)
 
   const remainingBonuses = hunts.filter((hunt) => hunt.result === null || hunt.result === 0)
   const remainingStakes = remainingBonuses.map((hunt) => Number(hunt.bet_size))
@@ -109,143 +153,53 @@ export default async function BonusHuntPage() {
 
   const profitLoss = totalWinsSoFar - startingBalance
 
+  const hasActiveHunt = hunts.length > 0
+
   return (
-    <PageTransition>
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-3">
-        <div className="container mx-auto max-w-7xl">
-          <div className="mb-3">
-            <h1 className="text-xl font-bold text-white">Bonus Hunt Tracker</h1>
-            <p className="text-slate-400 text-xs">Track your casino bonus hunts in real-time</p>
-          </div>
-
-          <div className="bg-slate-900/60 backdrop-blur border border-slate-700/50 rounded-lg p-3 mb-4">
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-              <div className="text-center">
-                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Start</p>
-                <p className="text-white text-base font-bold">${startingBalance.toFixed(0)}</p>
+    <main className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(34,211,238,0.12),transparent_28%),radial-gradient(circle_at_88%_10%,rgba(37,99,235,0.12),transparent_24%)]" />
+      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+        <section className="mb-8 overflow-hidden rounded-xl border border-cyan-200/15 bg-slate-900/80 p-5 shadow-lg shadow-cyan-950/20 sm:p-7">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-cyan-200/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,0.8)]" /> Live community tracker
               </div>
-              <div className="text-center">
-                <p className="text-cyan-500 text-[10px] uppercase tracking-wider mb-0.5">Win</p>
-                <p className="text-cyan-400 text-base font-bold">${totalWinsSoFar.toFixed(0)}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">P/L</p>
-                <p className={`text-base font-bold ${profitLoss >= 0 ? "text-green-400" : "text-red-400"}`}>
-                  {profitLoss >= 0 ? "+" : ""}${profitLoss.toFixed(0)}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Bonuses</p>
-                <p className="text-white text-base font-bold">
-                  {completedHunts.length}
-                  <span className="text-slate-600 text-xs">/{totalBonuses}</span>
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Win Rate</p>
-                <p className="text-white text-base font-bold">{winRate.toFixed(1)}x</p>
-              </div>
-              <div className="text-center">
-                <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-0.5">Break Even</p>
-                <p className="text-white text-base font-bold">{breakEvenX > 0 ? breakEvenX.toFixed(1) : "0.0"}x</p>
-              </div>
+              <h1 className="text-balance text-4xl font-bold tracking-tight text-white sm:text-6xl">Bonus hunts, live.</h1>
+              <p className="mt-3 max-w-2xl text-pretty text-base leading-7 text-slate-300">Follow every hunt, watch the numbers move, and make your next spin count.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:flex">
+              <div className="rounded-2xl border border-slate-700/70 bg-slate-950/60 px-4 py-3"><p className="text-xs uppercase tracking-wider text-slate-500">Mode</p><p className="mt-1 font-semibold text-cyan-200">Live hunt</p></div>
+              <div className="rounded-2xl border border-slate-700/70 bg-slate-950/60 px-4 py-3"><p className="text-xs uppercase tracking-wider text-slate-500">Updates</p><p className="mt-1 font-semibold text-cyan-200">Realtime</p></div>
             </div>
           </div>
+        </section>
 
-          <div className="bg-gradient-to-r from-amber-900/20 to-purple-900/20 backdrop-blur border border-amber-700/30 rounded-lg p-2.5 mb-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center gap-2">
-                <div className="bg-amber-500/20 rounded p-1.5">
-                  <TrendingUp className="w-4 h-4 text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-amber-400/70 text-[10px] uppercase tracking-wider">Highest Multi</p>
-                  <p className="text-amber-400 text-xs font-medium truncate">{highestMultiplierData.game || "N/A"}</p>
-                  <p className="text-amber-300 text-sm font-bold">
-                    {highestMultiplierData.multiplier.toFixed(2)}x
-                    {highestMultiplierData.betsize > 0 && (
-                      <span className="text-xs ml-1">(${highestMultiplierData.betsize.toFixed(2)})</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="bg-purple-500/20 rounded p-1.5">
-                  <Sparkles className="w-4 h-4 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-purple-400/70 text-[10px] uppercase tracking-wider">Highest Win</p>
-                  <p className="text-purple-400 text-xs font-medium truncate">{highestWin.game || "N/A"}</p>
-                  <p className="text-purple-300 text-sm font-bold">
-                    ${highestWin.amount.toFixed(2)}
-                    {highestWinMultiplier > 0 && (
-                      <span className="text-xs ml-1">({highestWinMultiplier.toFixed(0)}x)</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Card className="bg-slate-900/60 border-slate-700/50 backdrop-blur">
-            <CardContent className="p-3">
-              <h2 className="text-white text-sm font-semibold mb-3 flex items-center gap-2">
-                <div className="w-1 h-4 bg-cyan-500 rounded"></div>
-                CURRENT BONUS HUNT
-              </h2>
-              {hunts.length === 0 ? (
-                <p className="text-slate-400 text-center py-6 text-xs">
-                  No bonuses yet. Bonuses will be added shortly!
-                </p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-slate-700">
-                        <th className="text-left py-1.5 px-2 text-slate-400 font-medium text-[10px] uppercase tracking-wider">
-                          Game
-                        </th>
-                        <th className="text-left py-1.5 px-2 text-slate-400 font-medium text-[10px] uppercase tracking-wider">
-                          Provider
-                        </th>
-                        <th className="text-left py-1.5 px-2 text-slate-400 font-medium text-[10px] uppercase tracking-wider">
-                          Bet Size
-                        </th>
-                        <th className="text-left py-1.5 px-2 text-slate-400 font-medium text-[10px] uppercase tracking-wider">
-                          Result
-                        </th>
-                        <th className="text-left py-1.5 px-2 text-slate-400 font-medium text-[10px] uppercase tracking-wider">
-                          Multiplier
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {hunts.map((hunt) => {
-                        const multiplier =
-                          hunt.result && hunt.bet_size ? (Number(hunt.result) / Number(hunt.bet_size)).toFixed(2) : null
-
-                        return (
-                          <tr key={hunt.id} className="border-b border-slate-700/50 hover:bg-slate-700/20">
-                            <td className="py-1.5 px-2 text-white text-xs">{hunt.game_name}</td>
-                            <td className="py-1.5 px-2 text-slate-400 text-[10px]">{hunt.provider || "-"}</td>
-                            <td className="py-1.5 px-2 text-red-400 text-xs">${Number(hunt.bet_size).toFixed(2)}</td>
-                            <td className="py-1.5 px-2 text-green-400 text-xs">
-                              {hunt.result !== null ? `$${Number(hunt.result).toFixed(2)}` : "-"}
-                            </td>
-                            <td className="py-1.5 px-2 text-amber-400 text-xs">
-                              {multiplier ? `${multiplier}x` : "-"}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+        <BonusHuntTabs
+          initialTab={activeTab === "previous" ? "previous" : "current"}
+          currentContent={
+            <>
+              {huntSource === "external" && (
+                <GuessTheBalancePanel
+                  externalHuntId={externalHuntId}
+                  huntTitle={externalHuntTitle}
+                  currentUsername={username}
+                />
               )}
-            </CardContent>
-          </Card>
-        </div>
+              <BonusHuntClient
+                initialHunts={allHunts}
+                activeTab="current"
+                huntSource={huntSource}
+                huntId={externalHuntId}
+                initialStartingBalance={startingBalance}
+                initialKpis={initialKpis}
+                currentUsername={username}
+              />
+            </>
+          }
+          previousContent={<PreviousHuntsPanel />}
+        />
       </div>
-    </PageTransition>
+    </main>
   )
 }

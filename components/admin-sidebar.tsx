@@ -20,6 +20,10 @@ import {
   Users,
   ChevronDown,
   Circle,
+  Calendar,
+  Monitor,
+  Radio,
+  Puzzle,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -28,16 +32,23 @@ export default function AdminSidebar({ onCollapse }: { onCollapse?: (collapsed: 
   const [collapsed, setCollapsed] = useState(false)
   const [storeExpanded, setStoreExpanded] = useState(pathname.startsWith("/admin/store"))
   const [rafflesExpanded, setRafflesExpanded] = useState(pathname.startsWith("/admin/raffles"))
+  const [leaderboardsExpanded, setLeaderboardsExpanded] = useState(pathname.startsWith("/admin/leaderboards"))
+  const [obsExpanded, setObsExpanded] = useState(pathname.startsWith("/admin/obs"))
 
   const navItems = [
     { href: "/admin/users", label: "Users", icon: Users },
     { href: "/admin/bonushunt", label: "Bonushunt", icon: Plus },
+    { href: "/admin/hunt-source", label: "Hunt Source", icon: Radio },
+    { href: "/admin/predictions", label: "Predictions", icon: Trophy },
+    { href: "/admin/extension", label: "Extension", icon: Puzzle },
+    { href: "/admin/giveaway", label: "Kick Giveaway", icon: Gift },
+    { href: "/admin/modules", label: "Modules", icon: Settings },
     { href: "/admin/settings", label: "Settings", icon: Settings },
     { href: "/admin/slots", label: "Edit Slots", icon: Database },
     { href: "/admin/history", label: "History", icon: History },
     { href: "/admin/random", label: "Random", icon: Shuffle },
-    { href: "/admin/leaderboards", label: "Leaderboards", icon: Trophy },
     { href: "/admin/bonuses", label: "Bonuses", icon: Gift },
+    { href: "/admin/advent-calendar", label: "Advent Calendar", icon: Calendar },
     { href: "/admin/tournaments", label: "Tournaments", icon: Swords },
   ]
 
@@ -51,6 +62,11 @@ export default function AdminSidebar({ onCollapse }: { onCollapse?: (collapsed: 
     { href: "/admin/raffles/active", label: "Active Raffles" },
     { href: "/admin/raffles/history", label: "History" },
     { href: "/admin/raffles/draw", label: "Draw Raffles" },
+  ]
+
+  const leaderboardsSubItems = [
+    { href: "/admin/leaderboards/overview", label: "Overview" },
+    { href: "/admin/leaderboards/manage", label: "Manage" },
   ]
 
   const handleToggle = () => {
@@ -85,7 +101,7 @@ export default function AdminSidebar({ onCollapse }: { onCollapse?: (collapsed: 
       </div>
 
       {/* Navigation */}
-      <nav className="p-2 space-y-1">
+      <nav className="absolute top-[57px] bottom-[57px] left-0 right-0 overflow-y-auto p-2 space-y-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = pathname === item.href
@@ -108,6 +124,54 @@ export default function AdminSidebar({ onCollapse }: { onCollapse?: (collapsed: 
             </Link>
           )
         })}
+
+        <div>
+          <button
+            onClick={() => setLeaderboardsExpanded(!leaderboardsExpanded)}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+              pathname.startsWith("/admin/leaderboards")
+                ? "bg-slate-800 text-white"
+                : "text-slate-300 hover:bg-slate-800 hover:text-white",
+              collapsed && "justify-center",
+            )}
+            title={collapsed ? "Leaderboards" : undefined}
+          >
+            <Trophy className="w-4 h-4 flex-shrink-0" />
+            {!collapsed && <span>Leaderboards</span>}
+            {!collapsed && (
+              <ChevronDown
+                className={cn(
+                  "w-3 h-3 ml-auto transition-transform duration-200",
+                  leaderboardsExpanded && "rotate-180",
+                )}
+              />
+            )}
+          </button>
+
+          {!collapsed && leaderboardsExpanded && (
+            <div className="mt-1 space-y-1 ml-3 pl-3 border-l border-slate-700/50">
+              {leaderboardsSubItems.map((subItem) => {
+                const isActive = pathname === subItem.href
+                return (
+                  <Link
+                    key={subItem.href}
+                    href={subItem.href}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                      isActive
+                        ? "bg-cyan-600 text-white shadow-lg shadow-cyan-600/20"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white",
+                    )}
+                  >
+                    <Circle className="w-2 h-2 flex-shrink-0" />
+                    <span>{subItem.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
         <div>
           <button
@@ -198,6 +262,46 @@ export default function AdminSidebar({ onCollapse }: { onCollapse?: (collapsed: 
             </div>
           )}
         </div>
+
+        <div>
+          <button
+            onClick={() => setObsExpanded(!obsExpanded)}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+              pathname.startsWith("/admin/obs")
+                ? "bg-slate-800 text-white"
+                : "text-slate-300 hover:bg-slate-800 hover:text-white",
+              collapsed && "justify-center",
+            )}
+            title={collapsed ? "OBS Widgets" : undefined}
+          >
+            <Monitor className="w-4 h-4 flex-shrink-0" />
+            {!collapsed && <span>OBS Widgets</span>}
+            {!collapsed && (
+              <ChevronDown
+                className={cn("w-3 h-3 ml-auto transition-transform duration-200", obsExpanded && "rotate-180")}
+              />
+            )}
+          </button>
+
+          {!collapsed && obsExpanded && (
+            <div className="mt-1 space-y-1 ml-3 pl-3 border-l border-slate-700/50">
+              <Link
+                href="/admin/obs/widget-settings"
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                  pathname === "/admin/obs/widget-settings"
+                    ? "bg-cyan-600 text-white shadow-lg shadow-cyan-600/20"
+                    : "text-slate-300 hover:bg-slate-800 hover:text-white",
+                )}
+              >
+                <Circle className="w-2 h-2 flex-shrink-0" />
+                <span>Widget Settings</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
       </nav>
 
       {/* Footer */}

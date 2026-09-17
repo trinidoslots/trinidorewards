@@ -1,9 +1,24 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@keyframes prediction-category-enter {
+  from { opacity: 0; transform: translate3d(10px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+.prediction-category-transition,
+.prediction-leaderboard-transition {
+  animation: prediction-category-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prediction-category-transition,
+  .prediction-leaderboard-transition { animation: none; }
+}
+
 @custom-variant dark (&:is(.dark *));
 
-/* Updated to match reference design with proper OKLCH colors */
 :root {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -76,8 +91,7 @@
 }
 
 @theme inline {
-  --font-sans: "Geist", "Geist Fallback";
-  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  /* optional: --font-sans, --font-serif, --font-mono if they are applied in the layout.tsx */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -128,6 +142,19 @@
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@keyframes landing-pulse {
+  0%, 100% { opacity: .55; }
+  50% { opacity: 1; }
+}
+
+.landing-pulse {
+  animation: landing-pulse 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-pulse { animation: none; }
 }
 
 .hide-scrollbar::-webkit-scrollbar {

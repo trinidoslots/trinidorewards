@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Trinidorewards Hunt Tracker",
+  "version": "1.0.0",
+  "description": "Add bonuses (game + bet size) to the active Trinidorewards bonus hunt directly from Stake.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://stake.com/*", "https://*.stake.com/*", "https://trinidorewards.vercel.app/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://stake.com/*", "https://*.stake.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Trinidorewards Hunt Tracker"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
