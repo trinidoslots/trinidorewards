@@ -2,7 +2,8 @@
 
 import { Check, Swords, Trophy } from "lucide-react"
 import { useTournamentLive, currentMatch, type TournamentSnapshot } from "@/hooks/use-tournament-live"
-import { BRACKET, RoundMatchCard } from "@/components/obs/tournament-cards"
+import { RoundMatchCard, STREAM_BRACKET } from "@/components/obs/tournament-cards"
+import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
 import { multiplier, roundCount, roundLabel, tournamentTotals, type Match } from "@/lib/tournament"
 
 /**
@@ -63,51 +64,61 @@ export function TournamentEventCard({ snapshot }: { snapshot: TournamentSnapshot
     .sort((a, b) => a.match_number - b.match_number)
 
   return (
+    // Same shell as the other event tiles — surface, hairline, radius and the
+    // 36px icon tile — so this reads as one of the column's cards rather than a
+    // bracket that happens to be parked in it.
     <div
-      className="w-full overflow-hidden rounded-xl"
-      style={{ backgroundColor: BRACKET.card, border: "1px solid " + BRACKET.cardBorder }}
+      className="w-full overflow-hidden border shadow-lg"
+      style={{
+        backgroundColor: OBS.card,
+        borderColor: OBS.cardBorder,
+        borderRadius: OBS_RADIUS.card,
+      }}
     >
-      <header
-        className="flex items-center gap-1.5 px-2.5 py-1.5"
-        style={{ backgroundColor: BRACKET.header, borderBottom: "1px solid " + BRACKET.cardBorder }}
-      >
-        <Swords className="h-3.5 w-3.5 shrink-0" style={{ color: BRACKET.spine }} />
+      <header className="flex items-center gap-3 px-3 pb-2 pt-2.5">
+        <div
+          className="flex h-9 w-9 shrink-0 items-center justify-center"
+          style={{ backgroundColor: OBS.iconTile, borderRadius: OBS_RADIUS.iconTile }}
+        >
+          <Swords className="h-5 w-5" style={{ color: OBS.label }} />
+        </div>
         <span
-          className="truncate text-[10px] font-bold uppercase tracking-[0.12em]"
-          style={{ color: BRACKET.spine }}
+          className="truncate text-[11px] font-bold uppercase tracking-[0.10em]"
+          style={{ color: OBS.label }}
         >
           {size ? roundLabel(round, size) : "Bonus Battle"}
         </span>
-        <span className="ml-auto shrink-0 text-[10px] tabular-nums" style={{ color: BRACKET.muted }}>
+        <span className="ml-auto shrink-0 text-[10px] font-medium tabular-nums" style={{ color: OBS.muted }}>
           {totals.matchesPlayed}/{totals.matchesTotal}
         </span>
       </header>
 
       {champion ? (
-        <div className="flex items-center gap-2 px-2.5 py-2.5">
-          <Trophy className="h-4 w-4 shrink-0" style={{ color: BRACKET.gold }} />
+        <div className="flex items-center gap-2 px-3 pb-2.5">
+          <Trophy className="h-4 w-4 shrink-0" style={{ color: OBS.cashout }} />
           <div className="min-w-0">
-            <p className="text-[9px] font-bold uppercase tracking-[0.14em]" style={{ color: BRACKET.gold }}>
+            <p className="text-[10px] font-bold uppercase tracking-[0.10em]" style={{ color: OBS.cashout }}>
               Champion
             </p>
-            <p className="truncate text-[14px] font-bold leading-tight" style={{ color: BRACKET.text }}>
+            <p className="truncate text-[20px] font-extrabold leading-tight" style={{ color: OBS.value }}>
               {champion.username}
             </p>
           </div>
         </div>
       ) : (
         match && (
-          <div className="p-1.5">
+          <div className="px-3 pb-2.5">
             <RoundMatchCard
               match={match}
               p1={match.p1_id ? byId.get(match.p1_id) ?? null : null}
               p2={match.p2_id ? byId.get(match.p2_id) ?? null : null}
+              palette={STREAM_BRACKET}
             />
           </div>
         )
       )}
 
-      <ul style={{ borderTop: "1px solid " + BRACKET.cardBorder }}>
+      <ul style={{ borderTop: "1px solid " + OBS.cardBorder }}>
         {inRound.map((entry) => (
           <RoundLine key={entry.id} match={entry} byId={byId} live={entry.id === match?.id} />
         ))}
@@ -131,22 +142,22 @@ function RoundLine({
   const times = winner ? multiplier(payout === null ? null : Number(payout), Number(winner.buy_amount)) : null
 
   return (
-    <li className="flex items-center gap-2 px-2.5 py-[5px] text-[11px]">
-      <span className="w-4 shrink-0 tabular-nums" style={{ color: BRACKET.muted }}>
+    <li className="flex items-center gap-2 px-3 py-[5px] text-[11px]">
+      <span className="w-4 shrink-0 tabular-nums" style={{ color: OBS.muted }}>
         M{match.match_number}
       </span>
       {winner ? (
         <>
-          <Check className="h-3 w-3 shrink-0" style={{ color: BRACKET.win }} />
-          <span className="truncate" style={{ color: BRACKET.text }}>
+          <Check className="h-3 w-3 shrink-0" style={{ color: OBS.cashout }} />
+          <span className="truncate" style={{ color: OBS.value }}>
             {winner.username}
           </span>
-          <span className="ml-auto shrink-0 tabular-nums" style={{ color: BRACKET.win }}>
+          <span className="ml-auto shrink-0 tabular-nums" style={{ color: OBS.cashout }}>
             {times === null ? "" : times.toFixed(2) + "x"}
           </span>
         </>
       ) : (
-        <span style={{ color: live ? BRACKET.spine : BRACKET.muted }}>
+        <span style={{ color: live ? OBS.label : OBS.muted }}>
           {live ? "Opening now" : match.p1_id && match.p2_id ? "Up next" : "Awaiting winners"}
         </span>
       )}

@@ -2,6 +2,7 @@
 
 import { Check, Trophy } from "lucide-react"
 import { money, multiplier, type Match, type Participant } from "@/lib/tournament"
+import { OBS } from "@/lib/obs-theme"
 
 /**
  * Bracket pieces for the OBS sources.
@@ -26,12 +27,48 @@ export const BRACKET = {
   seedIdle: "#232329",
 } as const
 
+// Widened off the literal types `as const` gives BRACKET, so a second palette
+// can supply different values for the same keys.
+export type BracketPalette = Record<keyof typeof BRACKET, string>
+
+/**
+ * The same pieces in the stream column's colours.
+ *
+ * The bracket sources are their own scene element and can carry violet and
+ * gold; inside the event column the card has to read as one of the tiles, so it
+ * borrows the shared OBS palette and drops the accents that are not in it.
+ */
+export const STREAM_BRACKET: BracketPalette = {
+  card: "rgba(255, 255, 255, 0.035)",
+  cardBorder: OBS.cardBorder,
+  header: "transparent",
+  spine: OBS.label,
+  win: OBS.cashout,
+  winFill: "rgba(52, 211, 153, 0.10)",
+  winBorder: "rgba(52, 211, 153, 0.35)",
+  // No gold in the column's palette — a champion is green like any good result.
+  gold: OBS.cashout,
+  goldFill: "rgba(52, 211, 153, 0.10)",
+  goldBorder: "rgba(52, 211, 153, 0.35)",
+  text: OBS.value,
+  muted: OBS.muted,
+  seedIdle: "rgba(255, 255, 255, 0.09)",
+}
+
 /** The little square a slot thumbnail sits in. Grey tile when there is none. */
-function Thumb({ participant, size = 30 }: { participant: Participant; size?: number }) {
+function Thumb({
+  participant,
+  size = 30,
+  palette = BRACKET,
+}: {
+  participant: Participant
+  size?: number
+  palette?: BracketPalette
+}) {
   return (
     <span
       className="block shrink-0 overflow-hidden rounded"
-      style={{ width: size, height: size * 0.82, backgroundColor: BRACKET.seedIdle }}
+      style={{ width: size, height: size * 0.82, backgroundColor: palette.seedIdle }}
     >
       {participant.game_image_url && (
         <img
@@ -48,15 +85,25 @@ function Thumb({ participant, size = 30 }: { participant: Participant; size?: nu
   )
 }
 
-function SeedBadge({ seed, won, gold }: { seed: number | null; won: boolean; gold?: boolean }) {
-  const accent = gold ? BRACKET.gold : BRACKET.win
+function SeedBadge({
+  seed,
+  won,
+  gold,
+  palette = BRACKET,
+}: {
+  seed: number | null
+  won: boolean
+  gold?: boolean
+  palette?: BracketPalette
+}) {
+  const accent = gold ? palette.gold : palette.win
   return (
     <span
       className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded text-[11px] font-bold tabular-nums"
       style={
         won
           ? { backgroundColor: accent, color: "#0B0B0D" }
-          : { backgroundColor: BRACKET.seedIdle, color: BRACKET.muted }
+          : { backgroundColor: palette.seedIdle, color: palette.muted }
       }
     >
       {seed ?? "-"}
@@ -187,12 +234,18 @@ export function BracketMatchCard({
   )
 }
 
-function UpNext({ participant }: { participant: Participant | null }) {
+function UpNext({
+  participant,
+  palette,
+}: {
+  participant: Participant | null
+  palette: BracketPalette
+}) {
   if (!participant) {
     return (
       <div className="flex items-center gap-2 px-2.5 py-2">
-        <span className="h-[22px] w-[22px] shrink-0 rounded" style={{ backgroundColor: BRACKET.seedIdle }} />
-        <span className="text-[12px]" style={{ color: BRACKET.muted }}>
+        <span className="h-[22px] w-[22px] shrink-0 rounded" style={{ backgroundColor: palette.seedIdle }} />
+        <span className="text-[12px]" style={{ color: palette.muted }}>
           Awaiting winner
         </span>
       </div>
@@ -200,13 +253,13 @@ function UpNext({ participant }: { participant: Participant | null }) {
   }
   return (
     <div className="flex items-center gap-2 px-2.5 py-1.5">
-      <SeedBadge seed={participant.seed} won={false} />
-      <Thumb participant={participant} />
+      <SeedBadge seed={participant.seed} won={false} palette={palette} />
+      <Thumb participant={participant} palette={palette} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[12.5px] font-semibold leading-tight" style={{ color: BRACKET.text }}>
+        <p className="truncate text-[12.5px] font-semibold leading-tight" style={{ color: palette.text }}>
           {participant.username}
         </p>
-        <p className="truncate text-[11px] leading-tight" style={{ color: BRACKET.muted }}>
+        <p className="truncate text-[11px] leading-tight" style={{ color: palette.muted }}>
           {participant.game_name ?? "No slot"}
         </p>
       </div>
@@ -223,22 +276,24 @@ export function RoundMatchCard({
   match,
   p1,
   p2,
+  palette = BRACKET,
 }: {
   match: Match
   p1: Participant | null
   p2: Participant | null
+  palette?: BracketPalette
 }) {
   return (
     <div
       className="relative w-full overflow-hidden rounded-lg"
       style={{
-        backgroundColor: BRACKET.card,
-        border: "1px solid " + BRACKET.cardBorder,
-        borderLeft: "2px solid " + BRACKET.spine,
+        backgroundColor: palette.card,
+        border: "1px solid " + palette.cardBorder,
+        borderLeft: "2px solid " + palette.spine,
       }}
     >
       <header className="px-2.5 pb-0.5 pt-1.5">
-        <span className="text-[11px]" style={{ color: BRACKET.muted }}>
+        <span className="text-[11px]" style={{ color: palette.muted }}>
           Match {match.match_number}
         </span>
       </header>
@@ -246,11 +301,11 @@ export function RoundMatchCard({
       {/* The pill is positioned against the two rows, not the card, so the
           header height cannot push it off the seam between them. */}
       <div className="relative">
-        <UpNext participant={p1} />
-        <UpNext participant={p2} />
+        <UpNext participant={p1} palette={palette} />
+        <UpNext participant={p2} palette={palette} />
         <span
           className="absolute right-6 top-1/2 flex h-[22px] -translate-y-1/2 items-center rounded-full px-2.5 text-[10px] font-bold uppercase tracking-wider"
-          style={{ backgroundColor: BRACKET.seedIdle, color: BRACKET.text }}
+          style={{ backgroundColor: palette.seedIdle, color: palette.text }}
         >
           vs
         </span>
