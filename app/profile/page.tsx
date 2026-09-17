@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { User, Package, Plus, Trash2, Coins } from "lucide-react"
-import { PageTransition } from "@/components/page-transition"
 
 type Redemption = {
   id: string
@@ -150,140 +149,136 @@ export default function ProfilePage() {
   }
 
   return (
-    <PageTransition>
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
-        <div className="max-w-6xl mx-auto space-y-6">
-          {/* Header */}
-          <div className="flex items-center gap-4">
-            {user.avatar_url ? (
-              <img src={user.avatar_url || "/placeholder.svg"} alt={user.username} className="w-16 h-16 rounded-full" />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                <User className="w-8 h-8 text-white" />
-              </div>
-            )}
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-white">{user.username}</h1>
-              <div className="flex items-center gap-2 text-cyan-400">
-                <Coins className="w-4 h-4" />
-                <span className="font-semibold">{user.points_balance} Points</span>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          {user.avatar_url ? (
+            <img src={user.avatar_url || "/placeholder.svg"} alt={user.username} className="w-16 h-16 rounded-full" />
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+              <User className="w-8 h-8 text-white" />
+            </div>
+          )}
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-white">{user.username}</h1>
+            <div className="flex items-center gap-2 text-cyan-400">
+              <Coins className="w-4 h-4" />
+              <span className="font-semibold">{user.points_balance} Points</span>
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Site Usernames */}
-            <Card className="bg-slate-900/60 border-slate-700/50 backdrop-blur">
-              <CardHeader className="p-4">
-                <CardTitle className="text-white flex items-center gap-2">
-                  <User className="w-5 h-5" />
-                  Site Usernames
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0 space-y-4">
-                <form onSubmit={handleAddSiteUsername} className="space-y-3">
-                  <div>
-                    <Label htmlFor="site" className="text-slate-300 text-sm">
-                      Site Name
-                    </Label>
-                    <Input
-                      id="site"
-                      value={newSite}
-                      onChange={(e) => setNewSite(e.target.value)}
-                      placeholder="e.g., Twitch, Discord, Steam"
-                      className="bg-slate-800 border-slate-700 text-white"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="username" className="text-slate-300 text-sm">
-                      Username
-                    </Label>
-                    <Input
-                      id="username"
-                      value={newUsername}
-                      onChange={(e) => setNewUsername(e.target.value)}
-                      placeholder="Your username on that site"
-                      className="bg-slate-800 border-slate-700 text-white"
-                    />
-                  </div>
-                  <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Username
-                  </Button>
-                </form>
-
-                <div className="space-y-2">
-                  {siteUsernames.length === 0 ? (
-                    <p className="text-slate-400 text-sm text-center py-4">No usernames added yet</p>
-                  ) : (
-                    siteUsernames.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between p-3 bg-slate-800/50 rounded border border-slate-700"
-                      >
-                        <div>
-                          <p className="text-white font-medium text-sm">{item.site_name}</p>
-                          <p className="text-slate-400 text-xs">{item.username}</p>
-                        </div>
-                        <Button
-                          onClick={() => handleDeleteSiteUsername(item.id)}
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-400 hover:text-red-300 hover:bg-slate-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))
-                  )}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Site Usernames */}
+          <Card className="bg-slate-900/60 border-slate-700/50 backdrop-blur">
+            <CardHeader className="p-4">
+              <CardTitle className="text-white flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Site Usernames
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-4">
+              <form onSubmit={handleAddSiteUsername} className="space-y-3">
+                <div>
+                  <Label htmlFor="site" className="text-slate-300 text-sm">
+                    Site Name
+                  </Label>
+                  <Input
+                    id="site"
+                    value={newSite}
+                    onChange={(e) => setNewSite(e.target.value)}
+                    placeholder="e.g., Twitch, Discord, Steam"
+                    className="bg-slate-800 border-slate-700 text-white"
+                  />
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <Label htmlFor="username" className="text-slate-300 text-sm">
+                    Username
+                  </Label>
+                  <Input
+                    id="username"
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value)}
+                    placeholder="Your username on that site"
+                    className="bg-slate-800 border-slate-700 text-white"
+                  />
+                </div>
+                <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Username
+                </Button>
+              </form>
 
-            {/* Redemption History */}
-            <Card className="bg-slate-900/60 border-slate-700/50 backdrop-blur">
-              <CardHeader className="p-4">
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Package className="w-5 h-5" />
-                  Redemption History
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                {redemptions.length === 0 ? (
-                  <p className="text-slate-400 text-sm text-center py-8">No redemptions yet</p>
+              <div className="space-y-2">
+                {siteUsernames.length === 0 ? (
+                  <p className="text-slate-400 text-sm text-center py-4">No usernames added yet</p>
                 ) : (
-                  <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                    {redemptions.map((redemption) => (
-                      <div key={redemption.id} className="p-3 bg-slate-800/50 rounded border border-slate-700">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="text-white font-medium text-sm">{redemption.item_name}</p>
-                            <p className="text-slate-400 text-xs">
-                              {new Date(redemption.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-cyan-400 font-semibold text-sm">{redemption.cost} points</p>
-                            <span
-                              className={`text-xs px-2 py-0.5 rounded ${
-                                redemption.status === "completed"
-                                  ? "bg-green-600 text-white"
-                                  : "bg-yellow-600 text-white"
-                              }`}
-                            >
-                              {redemption.status}
-                            </span>
-                          </div>
+                  siteUsernames.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-3 bg-slate-800/50 rounded border border-slate-700"
+                    >
+                      <div>
+                        <p className="text-white font-medium text-sm">{item.site_name}</p>
+                        <p className="text-slate-400 text-xs">{item.username}</p>
+                      </div>
+                      <Button
+                        onClick={() => handleDeleteSiteUsername(item.id)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-400 hover:text-red-300 hover:bg-slate-700"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Redemption History */}
+          <Card className="bg-slate-900/60 border-slate-700/50 backdrop-blur">
+            <CardHeader className="p-4">
+              <CardTitle className="text-white flex items-center gap-2">
+                <Package className="w-5 h-5" />
+                Redemption History
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0">
+              {redemptions.length === 0 ? (
+                <p className="text-slate-400 text-sm text-center py-8">No redemptions yet</p>
+              ) : (
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {redemptions.map((redemption) => (
+                    <div key={redemption.id} className="p-3 bg-slate-800/50 rounded border border-slate-700">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-white font-medium text-sm">{redemption.item_name}</p>
+                          <p className="text-slate-400 text-xs">
+                            {new Date(redemption.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-cyan-400 font-semibold text-sm">{redemption.cost} points</p>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded ${
+                              redemption.status === "completed" ? "bg-green-600 text-white" : "bg-yellow-600 text-white"
+                            }`}
+                          >
+                            {redemption.status}
+                          </span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
-    </PageTransition>
+    </div>
   )
 }

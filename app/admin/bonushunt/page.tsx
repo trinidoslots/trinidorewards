@@ -5,23 +5,42 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { getActiveHunt, type ActiveHunt } from "@/lib/active-hunt"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Trash2, Search, Play, Save, RotateCcw } from "lucide-react"
+import { Plus, Trash2, Search, Play, Flag, RotateCcw, GripVertical, Crown } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
-type BonusHunt = {
+type HuntBonus = {
   id: string
+  hunt_id: string
   game_name: string
   provider: string | null
   bet_size: number
   result: number | null
-  hunt_id: string | null
   created_at: string
-  starting_balance: number
-  opening_balance: number
+  is_super: boolean
+  image_url?: string | null
+  position: number
 }
 
 type Slot = {
@@ -30,18 +49,99 @@ type Slot = {
   provider: string
 }
 
+function SortableBonusItem({
+  bonus,
+  onDelete,
+  onToggleSuper,
+}: {
+  bonus: HuntBonus
+  onDelete: (id: string) => void
+  onToggleSuper: (id: string, isSuper: boolean) => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: bonus.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-slate-800/50 border rounded-lg p-4 flex items-center justify-between ${bonus.is_super ? "border-amber-500/50 bg-amber-900/10" : "border-slate-700"}`}
+    >
+      <div className="flex items-center gap-3 flex-1">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="text-slate-400 hover:text-slate-300 cursor-grab active:cursor-grabbing"
+        >
+          <GripVertical className="w-5 h-5" />
+        </button>
+        <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-slate-700 bg-slate-950">
+          {bonus.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
+            <img src={bonus.image_url || "/placeholder.svg"} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="size-2 rounded-full bg-slate-600" />
+          )}
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            {bonus.is_super && <Crown className="w-4 h-4 text-amber-400" />}
+            <div className={`w-2 h-2 rounded-full ${bonus.is_super ? "bg-amber-400" : "bg-cyan-400"}`}></div>
+            <h3 className="text-white font-semibold">{bonus.game_name}</h3>
+          </div>
+          <div className="flex items-center gap-4 text-sm">
+            <div>
+              <span className="text-slate-400">Bet</span>
+              <span className="text-red-400 ml-2 font-semibold">${bonus.bet_size.toFixed(2)}</span>
+            </div>
+            <div>
+              <span className="text-slate-400">Result</span>
+              <span className="text-white ml-2 font-semibold">
+                {bonus.result !== null ? `$${bonus.result.toFixed(2)}` : "-"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          onClick={() => onToggleSuper(bonus.id, !bonus.is_super)}
+          variant="ghost"
+          size="sm"
+          className={`${bonus.is_super ? "text-amber-400 hover:text-amber-300 hover:bg-amber-900/20" : "text-slate-500 hover:text-amber-400 hover:bg-amber-900/20"}`}
+          title={bonus.is_super ? "Remove Super" : "Mark as Super"}
+        >
+          <Crown className="w-4 h-4" />
+        </Button>
+        <Button
+          onClick={() => onDelete(bonus.id)}
+          variant="ghost"
+          size="sm"
+          className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminBonusHuntPage() {
-  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [bonusHunts, setBonusHunts] = useState<BonusHunt[]>([])
-  const [activeHuntId, setActiveHuntId] = useState<string | null>(null)
+  const [activeHunt, setActiveHunt] = useState<ActiveHunt | null>(null)
+  const [bonuses, setBonuses] = useState<HuntBonus[]>([])
   const [slots, setSlots] = useState<Slot[]>([])
   const [filteredSlots, setFilteredSlots] = useState<Slot[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showSaveModal, setShowSaveModal] = useState(false)
-  const [huntName, setHuntName] = useState("")
-  const [huntId, setHuntId] = useState("")
+  const [streamer, setStreamer] = useState("")
+  const [title, setTitle] = useState("")
   const [startingBalance, setStartingBalance] = useState("")
   const [formData, setFormData] = useState({
     game_name: "",
@@ -76,26 +176,31 @@ export default function AdminBonusHuntPage() {
     if (!user) {
       router.push("/auth/login")
     } else {
-      setUser(user)
-      await fetchBonusHunts()
+      await fetchActiveHuntAndBonuses()
       await fetchSlots()
       setLoading(false)
     }
   }
 
-  async function fetchBonusHunts() {
-    const { data, error } = await supabase.from("bonus_hunts").select("*").order("created_at", { ascending: true })
+  async function fetchActiveHuntAndBonuses() {
+    const hunt = await getActiveHunt(supabase)
+    setActiveHunt(hunt)
+
+    if (!hunt) {
+      setBonuses([])
+      return
+    }
+
+    const { data, error } = await supabase
+      .from("hunt_bonuses")
+      .select("*")
+      .eq("hunt_id", hunt.id)
+      .order("position", { ascending: true })
 
     if (error) {
-      console.error("[v0] Error fetching bonus hunts:", error)
+      console.error("[v0] Error fetching hunt bonuses:", error)
     } else {
-      const hunts = (data || []) as BonusHunt[]
-      const activeHunt = hunts.find((h) => h.hunt_id)
-      if (activeHunt) {
-        setActiveHuntId(activeHunt.hunt_id)
-      }
-      const filtered = hunts.filter((h) => h.game_name !== "_temp_balance_holder")
-      setBonusHunts(filtered)
+      setBonuses((data || []) as HuntBonus[])
     }
   }
 
@@ -130,37 +235,27 @@ export default function AdminBonusHuntPage() {
   }
 
   async function handleCreateHunt() {
-    if (!huntId || !startingBalance) {
+    if (!streamer.trim() || !startingBalance) {
       toast({
         title: "Error",
-        description: "Please fill in all fields",
+        description: "Please fill in streamer and starting balance",
         variant: "destructive",
       })
       return
     }
 
-    const { data: existing } = await supabase.from("bonus_hunts").select("*").eq("hunt_id", huntId).limit(1)
+    await supabase.from("bonus_hunts").update({ status: "ended", ended_at: new Date().toISOString() }).eq("status", "active")
 
-    if (existing && existing.length > 0) {
-      toast({
-        title: "Error",
-        description: "A hunt with this ID already exists",
-        variant: "destructive",
-      })
-      return
-    }
-
-    const { error } = await supabase.from("bonus_hunts").insert([
-      {
-        game_name: "_temp_balance_holder",
-        provider: null,
-        bet_size: 0,
-        result: 0,
-        hunt_id: huntId,
+    const { data: created, error } = await supabase
+      .from("bonus_hunts")
+      .insert({
+        streamer: streamer.trim(),
+        title: title.trim() || null,
         starting_balance: Number.parseFloat(startingBalance),
-        opening_balance: Number.parseFloat(startingBalance),
-      },
-    ])
+        status: "active",
+      })
+      .select("id, status, starting_balance, streamer, title, created_at, ended_at")
+      .single()
 
     if (error) {
       console.error("[v0] Error creating hunt:", error)
@@ -175,26 +270,29 @@ export default function AdminBonusHuntPage() {
         description: "Hunt created successfully",
         className: "bg-green-600 text-white",
       })
-      setActiveHuntId(huntId)
+      setActiveHunt(created as ActiveHunt)
+      setBonuses([])
       setShowCreateModal(false)
-      setHuntId("")
+      setStreamer("")
+      setTitle("")
       setStartingBalance("")
-      await fetchBonusHunts()
     }
   }
 
   async function handleAddBonus(e: React.FormEvent) {
     e.preventDefault()
 
-    const { error } = await supabase.from("bonus_hunts").insert([
-      {
-        game_name: formData.game_name,
-        provider: null,
-        bet_size: Number.parseFloat(formData.bet_size),
-        result: formData.result ? Number.parseFloat(formData.result) : null,
-        hunt_id: activeHuntId,
-      },
-    ])
+    if (!activeHunt) return
+
+    // New bonuses always join the end of the queue.
+    const { error } = await supabase.from("hunt_bonuses").insert({
+      game_name: formData.game_name,
+      provider: null,
+      bet_size: Number.parseFloat(formData.bet_size),
+      result: formData.result ? Number.parseFloat(formData.result) : null,
+      hunt_id: activeHunt.id,
+      position: bonuses.length,
+    })
 
     if (error) {
       console.error("[v0] Error adding bonus:", error)
@@ -210,14 +308,33 @@ export default function AdminBonusHuntPage() {
         className: "bg-green-600 text-white",
       })
       setFormData({ game_name: "", bet_size: "", result: "" })
-      fetchBonusHunts()
+      fetchActiveHuntAndBonuses()
+    }
+  }
+
+  async function handleToggleSuper(id: string, isSuper: boolean) {
+    const { error } = await supabase.from("hunt_bonuses").update({ is_super: isSuper }).eq("id", id)
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update super status",
+        variant: "destructive",
+      })
+    } else {
+      setBonuses((prev) => prev.map((b) => (b.id === id ? { ...b, is_super: isSuper } : b)))
+      toast({
+        title: isSuper ? "Super Bonus!" : "Super Removed",
+        description: isSuper ? "Bonus marked as Super" : "Super status removed",
+        className: "bg-green-600 text-white",
+      })
     }
   }
 
   async function handleDeleteBonus(id: string) {
     if (!confirm("Are you sure you want to delete this bonus?")) return
 
-    const { error } = await supabase.from("bonus_hunts").delete().eq("id", id)
+    const { error } = await supabase.from("hunt_bonuses").delete().eq("id", id)
 
     if (error) {
       toast({
@@ -231,73 +348,55 @@ export default function AdminBonusHuntPage() {
         description: "Bonus deleted successfully",
         className: "bg-green-600 text-white",
       })
-      fetchBonusHunts()
+      fetchActiveHuntAndBonuses()
     }
   }
 
-  async function handleSaveHunt() {
-    if (!huntName.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a hunt name",
-        variant: "destructive",
-      })
-      return
-    }
+  async function handleEndHunt() {
+    if (!activeHunt) return
+    if (!confirm("End this hunt? It will move to Past Hunts and a new hunt can be started.")) return
 
-    const totalBonuses = bonusHunts.length
-    const totalBetSize = bonusHunts.reduce((sum, b) => sum + b.bet_size, 0)
-    const totalResult = bonusHunts.reduce((sum, b) => sum + (b.result || 0), 0)
-    const startingBal = bonusHunts[0]?.starting_balance || 0
-    const profitLoss = totalResult - totalBetSize
-
-    const bonusesData = bonusHunts.map((b) => ({
-      game_name: b.game_name,
-      provider: b.provider,
-      bet_size: b.bet_size,
-      result: b.result,
-      multiplier: b.result && b.bet_size ? b.result / b.bet_size : 0,
-    }))
-
-    const { error } = await supabase.from("past_bonushunts").insert([
-      {
-        hunt_id: activeHuntId,
-        hunt_name: huntName,
-        starting_balance: startingBal,
-        opening_balance: startingBal,
-        total_bonuses: totalBonuses,
-        total_bet_size: totalBetSize,
-        total_result: totalResult,
-        profit_loss: profitLoss,
-        bonuses: bonusesData,
-        status: "completed",
-      },
-    ])
+    const { error } = await supabase
+      .from("bonus_hunts")
+      .update({ status: "ended", ended_at: new Date().toISOString() })
+      .eq("id", activeHunt.id)
 
     if (error) {
-      console.error("[v0] Error saving hunt:", error)
+      console.error("[v0] Error ending hunt:", error)
       toast({
         title: "Error",
-        description: "Failed to save hunt to previous hunts",
+        description: "Failed to end hunt",
         variant: "destructive",
       })
     } else {
       toast({
         title: "Success",
-        description: "Hunt saved to previous hunts successfully",
+        description: "Hunt ended and moved to Past Hunts",
         className: "bg-green-600 text-white",
       })
-      setShowSaveModal(false)
-      setHuntName("")
+      setActiveHunt(null)
+      setBonuses([])
     }
   }
 
   async function handleResetHunt() {
+    if (!activeHunt) return
     if (!confirm("Are you sure you want to reset this hunt? This will delete all bonuses and cannot be undone.")) {
       return
     }
 
-    const { error: deleteError } = await supabase.from("bonus_hunts").delete().eq("hunt_id", activeHuntId)
+    const { error: predictionsError } = await supabase.from("hunt_predictions").delete().eq("hunt_id", activeHunt.id)
+    if (predictionsError) {
+      console.error("[v0] Error deleting predictions:", predictionsError)
+    }
+
+    await supabase.from("prediction_windows").delete().eq("hunt_id", activeHunt.id)
+    await supabase.from("opening_state").upsert({ id: 1, is_opening: false })
+
+    const { error: deleteBonusesError } = await supabase.from("hunt_bonuses").delete().eq("hunt_id", activeHunt.id)
+    const { error: deleteError } = deleteBonusesError
+      ? { error: deleteBonusesError }
+      : await supabase.from("bonus_hunts").delete().eq("id", activeHunt.id)
 
     if (deleteError) {
       console.error("[v0] Error deleting hunt:", deleteError)
@@ -309,15 +408,14 @@ export default function AdminBonusHuntPage() {
       return
     }
 
-    await supabase.from("opening_state").delete().eq("hunt_id", activeHuntId)
-
     toast({
       title: "Success",
       description: "Hunt reset successfully",
       className: "bg-green-600 text-white",
     })
 
-    router.push("/admin/users")
+    setActiveHunt(null)
+    setBonuses([])
   }
 
   function selectSlot(slot: Slot) {
@@ -336,6 +434,40 @@ export default function AdminBonusHuntPage() {
     {} as Record<string, Slot[]>,
   )
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) {
+      return
+    }
+
+    const oldIndex = bonuses.findIndex((b) => b.id === active.id)
+    const newIndex = bonuses.findIndex((b) => b.id === over.id)
+
+    const reorderedBonuses = arrayMove(bonuses, oldIndex, newIndex)
+    setBonuses(reorderedBonuses)
+
+    // Persist the new order to the stable `position` column (the source of
+    // truth the extension reads as `order`). created_at is left untouched so
+    // it keeps reflecting true insertion time.
+    await Promise.all(
+      reorderedBonuses.map((bonus, i) => supabase.from("hunt_bonuses").update({ position: i }).eq("id", bonus.id)),
+    )
+
+    toast({
+      title: "Success",
+      description: "Bonus order updated",
+      className: "bg-green-600 text-white",
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -344,7 +476,7 @@ export default function AdminBonusHuntPage() {
     )
   }
 
-  if (!activeHuntId) {
+  if (!activeHunt) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
         <div className="bg-slate-900/60 backdrop-blur border border-slate-700/50 rounded-2xl p-8 max-w-md w-full text-center">
@@ -363,15 +495,27 @@ export default function AdminBonusHuntPage() {
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="hunt_id" className="text-slate-300">
-                  Hunt ID
+                <Label htmlFor="streamer" className="text-slate-300">
+                  Streamer
                 </Label>
                 <Input
-                  id="hunt_id"
-                  value={huntId}
-                  onChange={(e) => setHuntId(e.target.value)}
+                  id="streamer"
+                  value={streamer}
+                  onChange={(e) => setStreamer(e.target.value)}
                   className="bg-slate-800 border-slate-700 text-white"
-                  placeholder="e.g., hunt-001"
+                  placeholder="e.g., Syztmz"
+                />
+              </div>
+              <div>
+                <Label htmlFor="title" className="text-slate-300">
+                  Title <span className="text-slate-500">(optional)</span>
+                </Label>
+                <Input
+                  id="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="bg-slate-800 border-slate-700 text-white"
+                  placeholder="e.g., Friday Night Hunt"
                 />
               </div>
               <div>
@@ -496,16 +640,17 @@ export default function AdminBonusHuntPage() {
 
           <div className="bg-slate-900/80 backdrop-blur border border-slate-700/50 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-white text-xl font-bold">Current Hunt</h2>
+              <div>
+                <h2 className="text-white text-xl font-bold">Current Hunt</h2>
+                <p className="text-slate-400 text-sm">
+                  {activeHunt.streamer}
+                  {activeHunt.title ? ` · ${activeHunt.title}` : ""} · ${activeHunt.starting_balance.toFixed(2)} start
+                </p>
+              </div>
               <div className="flex items-center gap-2">
-                <Button
-                  onClick={() => setShowSaveModal(true)}
-                  className="bg-green-600 hover:bg-green-700"
-                  size="sm"
-                  disabled={bonusHunts.length === 0}
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Hunt
+                <Button onClick={handleEndHunt} className="bg-green-600 hover:bg-green-700" size="sm">
+                  <Flag className="w-4 h-4 mr-2" />
+                  End Hunt
                 </Button>
                 <Button
                   onClick={handleResetHunt}
@@ -527,92 +672,22 @@ export default function AdminBonusHuntPage() {
               </div>
             </div>
 
-            {bonusHunts.length === 0 ? (
+            {bonuses.length === 0 ? (
               <p className="text-slate-400 text-center py-8">No bonuses added yet</p>
             ) : (
-              <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                {bonusHunts.map((bonus) => (
-                  <div
-                    key={bonus.id}
-                    className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 flex items-center justify-between"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
-                        <h3 className="text-white font-semibold">{bonus.game_name}</h3>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm">
-                        <div>
-                          <span className="text-slate-400">Bet</span>
-                          <span className="text-red-400 ml-2 font-semibold">${bonus.bet_size.toFixed(2)}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400">Result</span>
-                          <span className="text-white ml-2 font-semibold">
-                            {bonus.result !== null ? `$${bonus.result.toFixed(2)}` : "-"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => handleDeleteBonus(bonus.id)}
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={bonuses.map((b) => b.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                    {bonuses.map((bonus) => (
+                      <SortableBonusItem key={bonus.id} bonus={bonus} onDelete={handleDeleteBonus} onToggleSuper={handleToggleSuper} />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
             )}
           </div>
         </div>
       </div>
-
-      <Dialog open={showSaveModal} onOpenChange={setShowSaveModal}>
-        <DialogContent className="bg-slate-900 border-slate-700 text-white">
-          <DialogHeader>
-            <DialogTitle>Save Hunt to Previous Hunts</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="hunt_name" className="text-slate-300">
-                Hunt Name
-              </Label>
-              <Input
-                id="hunt_name"
-                value={huntName}
-                onChange={(e) => setHuntName(e.target.value)}
-                className="bg-slate-800 border-slate-700 text-white"
-                placeholder="e.g., Epic Bonus Hunt #1"
-              />
-            </div>
-            <div className="bg-slate-800 rounded-lg p-4 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Total Bonuses:</span>
-                <span className="text-white font-semibold">{bonusHunts.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Total Bet:</span>
-                <span className="text-white font-semibold">
-                  ${bonusHunts.reduce((sum, b) => sum + b.bet_size, 0).toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Total Result:</span>
-                <span className="text-white font-semibold">
-                  ${bonusHunts.reduce((sum, b) => sum + (b.result || 0), 0).toFixed(2)}
-                </span>
-              </div>
-            </div>
-            <Button onClick={handleSaveHunt} className="w-full bg-green-600 hover:bg-green-700">
-              <Save className="w-4 h-4 mr-2" />
-              Save to Previous Hunts
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { Search, Pencil, RefreshCw, Filter, X } from "lucide-react"
-import { PageTransition } from "@/components/page-transition"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 type User = {
@@ -120,29 +119,19 @@ export default function AdminUsersPage() {
     }
 
     try {
-      const endpoint =
-        pointsAction === "add"
-          ? "/api/kicklet/points/add"
-          : pointsAction === "remove"
-            ? "/api/kicklet/points/remove"
-            : "/api/kicklet/points/set"
+      let newBalance = selectedUser.points_balance
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username: selectedUser.username,
-          points: points,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to update points")
+      if (pointsAction === "add") {
+        newBalance = selectedUser.points_balance + points
+      } else if (pointsAction === "remove") {
+        newBalance = Math.max(0, selectedUser.points_balance - points)
+      } else {
+        newBalance = points
       }
+
+      const { error } = await supabase.from("users").update({ points_balance: newBalance }).eq("id", selectedUser.id)
+
+      if (error) throw error
 
       const actionText =
         pointsAction === "add"
@@ -182,7 +171,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <PageTransition>
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -419,6 +408,6 @@ export default function AdminUsersPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </PageTransition>
+    </>
   )
 }

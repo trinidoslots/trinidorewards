@@ -2,7 +2,8 @@
 
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
-import { Receipt, AArrowDown as BanknoteArrowDown, BanknoteIcon as BanknoteArrowUp } from "lucide-react"
+import { Receipt } from "lucide-react"
+import { AnimatedAmount } from "@/components/animated-amount"
 
 export default function DepositsWithdrawalsWidget() {
   const [depositAmount, setDepositAmount] = useState(0)
@@ -48,9 +49,20 @@ export default function DepositsWithdrawalsWidget() {
     return <div className="min-h-screen bg-transparent flex items-center justify-center text-white">Loading...</div>
   }
 
+  // Data URLs with stroke set to the exact Tailwind hex values:
+  // red-400:   #fb7185
+  // emerald-400: #34D399
+  const banknoteArrowDown =
+    "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmYjcxODUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLXdpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTEgMThINGEyIDIgMCAwIDEtMi0yVjhhMiAyIDAgMCAxIDItMmgxNmEyIDIgMCAwIDEgMiAydjUiLz48cGF0aCBkPSJtMTYgMTkgMyAzIDMtMyIvPjxwYXRoIGQ9Ik0xOCAxMmguMDEiLz48cGF0aCBkPSJNM" +
+    "TkgMTZ2NiIvPjxwYXRoIGQ9Ik02IDEyIGguMDEiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIyIi8+PC9zdmc+"
+
+  const banknoteArrowUp =
+    "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMzNEQzOTkiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLXdpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTEgMThINGEyIDIgMCAwIDEtMi0yVjhhMiAyIDAgMCAxIDItMmgxNmEyIDIgMCAwIDEgMiAydjUiLz48cGF0aCBkPSJtMTggMTJoLjAxIi8+PHBhdGggZD0iTTE5IDIydi02Ii8+PHBhdGggZD0ibTIyIDE5LTMtMy0zIDMiLz48cGF0aCBkPSJNNiAxMmguMDEiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIyIi8+PC9zdmc+"
+
   return (
     <div className="min-h-screen bg-transparent p-4">
       <div className="w-[320px] bg-gradient-to-b from-[#1A1F2B]/95 to-[#0B0E13]/95 backdrop-blur-sm rounded-xl shadow-2xl border border-[#4D84FF]/30 overflow-hidden relative">
+        {/* Background accents */}
         <div
           className="absolute bottom-0 left-0 w-64 h-64 pointer-events-none opacity-60"
           style={{
@@ -61,7 +73,6 @@ export default function DepositsWithdrawalsWidget() {
             `,
           }}
         />
-
         <div
           className="absolute bottom-0 right-0 w-64 h-64 pointer-events-none opacity-60"
           style={{
@@ -85,17 +96,17 @@ export default function DepositsWithdrawalsWidget() {
         <div className="px-5 py-3 space-y-2 text-base border-b border-[#4D84FF]/20">
           <div className="flex justify-between">
             <div className="flex items-center gap-2">
-              <BanknoteArrowDown className="w-6 h-6 text-red-400" />
+              <img src={banknoteArrowDown} alt="Deposit" className="w-6 h-6" />
               <span className="text-[#7FB3FF] text-base">Deposit:</span>
             </div>
             <div className="flex items-center gap-2">
-              <BanknoteArrowUp className="w-6 h-6 text-emerald-400" />
+              <img src={banknoteArrowUp} alt="Withdraw" className="w-6 h-6" />
               <span className="text-[#7FB3FF] text-base">Withdraw:</span>
             </div>
           </div>
           <div className="flex justify-between">
-            <span className="text-red-400 font-bold text-xl">-${depositAmount.toLocaleString()}</span>
-            <span className="text-emerald-400 font-bold text-xl">+${withdrawAmount.toLocaleString()}</span>
+            <AnimatedAmount value={depositAmount} sign="-" className="text-red-400 font-bold text-xl" />
+            <AnimatedAmount value={withdrawAmount} sign="+" className="text-emerald-400 font-bold text-xl" />
           </div>
         </div>
       </div>

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html><body style="margin:0;background:#111">
+<video id="v" src="ref.mp4" style="width:600px" muted playsinline></video>
+<script>
+  window.seekTo = (t) => new Promise((resolve) => {
+    const v = document.getElementById('v');
+    const handler = () => { v.removeEventListener('seeked', handler); resolve(); };
+    v.addEventListener('seeked', handler);
+    v.currentTime = t;
+  });
+</script>
+</body></html>
