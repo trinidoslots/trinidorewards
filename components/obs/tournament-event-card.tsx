@@ -9,8 +9,12 @@ import { multiplier, roundCount, roundLabel, tournamentTotals, type Match } from
 /**
  * A finished battle stays on the event column this long before it drops off,
  * so the champion is seen without the card sitting there until the next one.
+ *
+ * The card is only re-evaluated when the component renders, which the live
+ * hook's 5s poll guarantees — so it clears within a few seconds of the minute
+ * rather than hanging around until something else happens on the page.
  */
-const CHAMPION_LINGER_MS = 10 * 60_000
+const CHAMPION_LINGER_MS = 60_000
 
 /**
  * The tournament, as one card in the stream column.

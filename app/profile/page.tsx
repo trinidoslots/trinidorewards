@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { User, Package, Plus, Trash2, Coins } from "lucide-react"
+import { ProfilePaymentMethods } from "@/components/profile-payment-methods"
 
 type Redemption = {
   id: string
@@ -169,7 +170,8 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+          <div className="space-y-6">
           {/* Site Usernames */}
           <Card className="bg-white/[0.022] border-white/[0.08] backdrop-blur">
             <CardHeader className="p-4">
@@ -237,6 +239,9 @@ export default function ProfilePage() {
               </div>
             </CardContent>
           </Card>
+
+          <ProfilePaymentMethods />
+          </div>
 
           {/* Redemption History */}
           <Card className="bg-white/[0.022] border-white/[0.08] backdrop-blur">
