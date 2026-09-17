@@ -1,10 +1,11 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { cookies } from "next/headers"
-import { ArrowLeft, Gift, Trophy, Users } from "lucide-react"
+import { ArrowLeft, Gift, Users } from "lucide-react"
 import { createServerClient } from "@/lib/supabase/server"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
 import { RaffleCountdown } from "@/components/raffle-countdown"
+import { RaffleLiveDraw } from "@/components/raffle-live-draw"
 import RaffleEntryButton from "@/components/raffle-entry-button"
 import { calculateRaffleStatus, formatDrawDate } from "@/lib/raffle-utils"
 
@@ -102,18 +103,16 @@ export default async function RaffleDetailPage({ params }: Params) {
         </Tag>
       </header>
 
-      {drawn && (
-        <Panel accent="amber" className="flex items-center gap-3 px-4 py-3">
-          <Trophy className="h-5 w-5 shrink-0" style={{ color: ACCENTS.amber }} />
-          <div className="min-w-0">
-            <MonoLabel className="block text-white/35">Winner</MonoLabel>
-            <p className="truncate text-[17px] font-semibold text-white">{raffle.winner_username}</p>
-          </div>
-          {raffle.winner_ticket_number != null && (
-            <MonoLabel className="ml-auto shrink-0 text-white/30">Ticket #{raffle.winner_ticket_number}</MonoLabel>
-          )}
-        </Panel>
-      )}
+      <RaffleLiveDraw
+        raffleId={raffle.id}
+        endsAt={raffle.end_date}
+        initialWinner={raffle.winner_username ?? null}
+        initialTicketNumber={raffle.winner_ticket_number ?? null}
+        entries={entries.map((entry) => ({
+          username: entry.username,
+          tickets_purchased: Number(entry.tickets_purchased) || 0,
+        }))}
+      />
 
       <div className="grid gap-2.5 sm:grid-cols-4">
         <StatTile
