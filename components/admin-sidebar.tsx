@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { useState } from "react"
 import {
   Calendar,
+  CalendarDays,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -58,6 +59,7 @@ const NAV: Item[] = [
       { href: "/admin/wins", label: "Winner Logs" },
     ],
   },
+  { kind: "link", href: "/admin/schedule", label: "Schedule", icon: CalendarDays },
   { kind: "link", href: "/admin/predictions", label: "Predictions", icon: Trophy },
   { kind: "link", href: "/admin/giveaway", label: "Kick Giveaway", icon: Gift },
   { kind: "link", href: "/admin/bonuses", label: "Bonuses", icon: Gift },
