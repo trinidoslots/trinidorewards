@@ -285,3 +285,63 @@
     transform: none;
   }
 }
+
+/* ---------------------------------------------------------------- Landing */
+
+/*
+ * The winners ticker.
+ *
+ * Two identical tracks side by side, the pair translated by exactly half its
+ * own width — so the moment the first track leaves, the second is sitting
+ * where it started and the loop has no seam. Duration is set per instance
+ * from the number of items, so a short list does not race.
+ */
+@keyframes marquee-track {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-track var(--marquee-duration, 40s) linear infinite;
+}
+
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+/* Fades the strip out at both ends instead of cutting it off mid-word. */
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+}
+
+/*
+ * The hero's texture: a fine grid that keeps a very large dark area from
+ * reading as an empty rectangle. Low contrast on purpose — it should register
+ * as material, not as a chart.
+ */
+.hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+/* A word painted with a gradient rather than a flat colour. */
+.text-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+}

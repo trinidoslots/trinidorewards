@@ -166,3 +166,80 @@ export function SectionRule({ label, right }: { label: string; right?: React.Rea
     </div>
   )
 }
+
+/**
+ * A tile in the bento grid.
+ *
+ * Six identical cards in a 3×2 grid is a menu, and it reads as one — nothing
+ * on it is more important than anything else, so the eye has nowhere to land.
+ * `span` lets the flagship take twice the room and gives the grid a shape.
+ */
+export function BentoTile({
+  href,
+  code,
+  accent,
+  title,
+  copy,
+  icon: Icon,
+  span = false,
+  children,
+}: {
+  href: string
+  code: string
+  accent: Accent
+  title: string
+  copy: string
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
+  span?: boolean
+  children?: React.ReactNode
+}) {
+  const color = ACCENTS[accent]
+  return (
+    <Link
+      href={href}
+      className={`group relative block overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.018] p-5 transition hover:border-white/20 hover:bg-white/[0.04] sm:p-6 ${
+        span ? "sm:col-span-2" : ""
+      }`}
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full opacity-[0.10] blur-[50px] transition-opacity duration-500 group-hover:opacity-[0.20]"
+        style={{ background: color }}
+      />
+      <div className="relative flex h-full flex-col">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="flex h-8 w-8 items-center justify-center rounded-lg border"
+            style={{ borderColor: `${color}33`, backgroundColor: `${color}14` }}
+          >
+            <Icon className="h-4 w-4" style={{ color }} />
+          </span>
+          <MonoLabel style={{ color }}>{code}</MonoLabel>
+          <ArrowUpRight className="ml-auto h-4 w-4 text-white/20 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-white/70" />
+        </div>
+
+        <h3 className={`mt-4 font-semibold text-white ${span ? "text-[20px]" : "text-[16px]"}`}>{title}</h3>
+        <p className={`mt-2 leading-[1.65] text-white/40 ${span ? "max-w-md text-[13.5px]" : "text-[12.5px]"}`}>
+          {copy}
+        </p>
+
+        {children && <div className="mt-auto pt-5">{children}</div>}
+      </div>
+    </Link>
+  )
+}
+
+/** One of the three numbered steps. */
+export function Step({ n, title, copy }: { n: number; title: string; copy: string }) {
+  return (
+    <div className="relative pl-12">
+      <span
+        className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] font-mono text-[12px] tabular-nums text-white/50"
+      >
+        {n}
+      </span>
+      <h3 className="text-[15px] font-semibold text-white">{title}</h3>
+      <p className="mt-1.5 text-[13px] leading-[1.7] text-white/40">{copy}</p>
+    </div>
+  )
+}

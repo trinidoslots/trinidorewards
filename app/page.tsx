@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
-import { ArrowUpRight, Calendar, Crosshair, Crown, Gift, ShoppingBag, Swords, Ticket } from "lucide-react"
+import { Calendar, Crosshair, Crown, Gift, Play, ShoppingBag, Swords, Ticket } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel } from "@/components/ui/panel"
 import { WordsIn } from "@/components/reveal"
@@ -13,13 +13,17 @@ import { countdownTo } from "@/lib/schedule-week"
 import { money, moneyExact } from "@/lib/leaderboard-format"
 import { readMetric } from "@/lib/leaderboard-metric"
 import {
-  HeroActions,
+  BentoTile,
   LiveCard,
+  LiveDot,
   MiniPodium,
   ProgressBar,
   SectionRule,
-  StatusPill,
+  Step,
 } from "@/components/landing-blocks"
+import { Hero } from "@/components/landing-hero"
+import { MarqueeHeading, WinnersMarquee, type MarqueeWin } from "@/components/landing-marquee"
+import { sourceMeta, winValue } from "@/lib/wins"
 
 const KICK_URL = "https://kick.com/trinidoslots"
 
@@ -50,6 +54,7 @@ export default function LandingPage() {
   const [hunt, setHunt] = useState<Hunt | null>(null)
   const [board, setBoard] = useState<Board | null>(null)
   const [raffle, setRaffle] = useState<Raffle | null>(null)
+  const [wins, setWins] = useState<MarqueeWin[]>([])
   const [tick, setTick] = useState(0)
 
   // One ticking clock for every countdown on the page, rather than one each.
@@ -206,195 +211,259 @@ export default function LandingPage() {
     }
   }, [])
 
+
+  // --- recent winners, for the ticker ---------------------------------------
+  useEffect(() => {
+    const supabase = supabaseRef.current
+    let cancelled = false
+    void (async () => {
+      try {
+        const { data } = await supabase
+          .from("win_logs")
+          .select("id, username, prize, amount, points, source")
+          .order("created_at", { ascending: false })
+          .limit(12)
+        if (cancelled || !data) return
+        setWins(
+          data.map((row: any) => ({
+            id: String(row.id),
+            username: String(row.username ?? "Anonymous"),
+            prize: winValue(row) === "—" ? String(row.prize ?? "") : winValue(row),
+            accent: ACCENTS[sourceMeta(String(row.source)).accent] as string,
+          })).filter((win) => win.prize),
+        )
+      } catch (error) {
+        console.log("[v0] landing: winners unavailable", error)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const sections = visibleSections(SECTIONS, modules) as (Section & { icon: typeof Crosshair })[]
   const progress = hunt ? huntProgress(hunt) : null
   const boardLeft = board ? countdownTo(board.endsAt) : null
   const raffleLeft = raffle?.endsAt ? countdownTo(raffle.endsAt) : null
   const streamLeft = stream.kind === "next" ? countdownTo(stream.startsAt) : null
-  const anythingLive = Boolean(hunt || board || raffle)
 
   // The interval above is what re-runs this render each second, which is what
   // moves the countdowns; countdownTo is called fresh every time. Touching the
   // value keeps it from reading as unused state.
   void tick
 
-  return (
-    <div className="mx-auto max-w-6xl px-5 py-10 lg:px-8 lg:py-14">
-      {/* -------------------------------------------------------------- Hero */}
-      <header className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0E0E12] px-6 py-10 sm:px-10 sm:py-14">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -left-20 -top-24 h-[420px] w-[560px] opacity-[0.13]"
-          style={{ background: `radial-gradient(ellipse at 30% 20%, ${ACCENTS.blue}, transparent 65%)` }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -bottom-32 -right-16 h-[380px] w-[520px] opacity-[0.10]"
-          style={{ background: `radial-gradient(ellipse at 70% 80%, ${ACCENTS.amber}, transparent 65%)` }}
-        />
+  const status =
+    stream.kind === "live"
+      ? { live: true, label: "On air now", detail: stream.title }
+      : stream.kind === "next" && streamLeft && !streamLeft.over
+        ? { live: false, label: "Next stream", detail: `in ${streamLeft.days}d ${streamLeft.hours}h ${streamLeft.minutes}m` }
+        : { live: false, label: "Free to enter", detail: "No deposit to take part" }
 
-        <div className="relative max-w-3xl">
-          {stream.kind === "live" ? (
-            <StatusPill live label="On air now" detail={stream.title} />
-          ) : stream.kind === "next" && streamLeft && !streamLeft.over ? (
-            <StatusPill
-              live={false}
-              label="Next stream"
-              detail={`in ${streamLeft.days}d ${streamLeft.hours}h ${streamLeft.minutes}m`}
-            />
-          ) : (
-            <StatusPill live={false} label="Free to enter" detail="No deposit to take part" />
-          )}
-
-          <h1 className="mt-5 text-[38px] font-bold leading-[1.05] tracking-tight text-white sm:text-[54px]">
-            <WordsIn text="TrinidoRewards" />
-          </h1>
-
-          <p className="mt-4 max-w-xl text-[14px] leading-7 text-white/50">
-            Bonus hunts, leaderboards, raffles and tournaments — all running alongside the stream, all free to take
-            part in.
-          </p>
-
-          {givenAway !== null && (
-            <p className="mt-6 flex flex-wrap items-baseline gap-2.5">
-              <span
-                className="text-[30px] font-bold leading-none tabular-nums sm:text-[36px]"
-                style={{ color: ACCENTS.green }}
-              >
-                {money(givenAway)}
-              </span>
-              <MonoLabel className="text-white/35">Given away so far</MonoLabel>
-            </p>
-          )}
-
-          <div className="mt-7">
-            <HeroActions
-              kickUrl={KICK_URL}
-              primary={
-                modules.bonus_hunt
-                  ? { href: "/bonushunt", label: "Live hunt" }
-                  : sections[0]
-                    ? { href: sections[0].href, label: sections[0].title }
-                    : undefined
-              }
-            />
+  /** The card that floats beside the headline: whatever is most live. */
+  const aside = hunt && progress ? (
+    <div className="lift relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full opacity-[0.18] blur-[60px]"
+        style={{ background: ACCENTS.amber }}
+      />
+      <div className="relative">
+        <div className="flex items-center gap-2">
+          <LiveDot color={ACCENTS.amber} />
+          <MonoLabel style={{ color: ACCENTS.amber }}>Hunt in progress</MonoLabel>
+        </div>
+        <p className="mt-5 text-[40px] font-black leading-none tabular-nums text-white">
+          {moneyExact(hunt.currentBalance)}
+        </p>
+        <p className="mt-2 text-[13px] text-white/40">
+          <span style={{ color: progress.ahead ? ACCENTS.green : ACCENTS.red }}>
+            {progress.ahead ? "+" : "−"}
+            {moneyExact(Math.abs(progress.profit)).replace("-", "")}
+          </span>{" "}
+          against a {moneyExact(hunt.startingBalance)} start
+        </p>
+        <div className="mt-6 space-y-2.5">
+          <ProgressBar percent={progress.percent} color={ACCENTS.amber} />
+          <div className="flex items-center justify-between">
+            <MonoLabel className="text-white/30">{progress.label}</MonoLabel>
+            {hunt.bestMultiplier > 0 && (
+              <MonoLabel style={{ color: ACCENTS.amber }}>Best {hunt.bestMultiplier.toFixed(0)}x</MonoLabel>
+            )}
           </div>
         </div>
-      </header>
+      </div>
+    </div>
+  ) : board ? (
+    <div className="lift relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full opacity-[0.18] blur-[60px]"
+        style={{ background: ACCENTS.blue }}
+      />
+      <div className="relative">
+        <MonoLabel style={{ color: ACCENTS.blue }}>Leaderboard live</MonoLabel>
+        <p className="mt-5 text-[40px] font-black leading-none tabular-nums text-white">{money(board.pool)}</p>
+        <p className="mt-2 text-[13px] text-white/40">
+          {boardLeft && !boardLeft.over
+            ? `Ends in ${boardLeft.days}d ${boardLeft.hours}h ${boardLeft.minutes}m`
+            : board.title}
+        </p>
+        {board.top.length > 0 && (
+          <div className="mt-6">
+            <MiniPodium names={board.top} />
+          </div>
+        )}
+      </div>
+    </div>
+  ) : null
 
-      {/* -------------------------------------------------------- Live right now */}
-      {anythingLive && (
-        <>
-          <SectionRule label="Running right now" />
-          <div className="mt-4 grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
-            {hunt && progress && (
-              <LiveCard
-                href="/bonushunt"
-                code="Bonus hunt"
-                accent="amber"
-                headline={moneyExact(hunt.currentBalance)}
-                sub={`${progress.ahead ? "+" : "−"}${moneyExact(Math.abs(progress.profit)).replace("-", "")} against a ${moneyExact(hunt.startingBalance)} start`}
-              >
-                <div className="space-y-2">
+  return (
+    <div>
+      <Hero
+        status={status}
+        givenAway={givenAway === null ? null : money(givenAway)}
+        kickUrl={KICK_URL}
+        primary={
+          modules.bonus_hunt
+            ? { href: "/bonushunt", label: "Live hunt" }
+            : sections[0]
+              ? { href: sections[0].href, label: sections[0].title }
+              : undefined
+        }
+        aside={aside}
+      />
+
+      {wins.length > 0 && (
+        <div className="mx-auto max-w-6xl px-5 lg:px-8">
+          <MarqueeHeading />
+          <WinnersMarquee wins={wins} />
+        </div>
+      )}
+
+      <div className="mx-auto max-w-6xl px-5 pb-16 lg:px-8">
+        {/* --------------------------------------------------- Running now */}
+        {(hunt || board || raffle) && (
+          <>
+            <SectionRule label="Running right now" />
+            <div className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {hunt && progress && (
+                <LiveCard
+                  href="/bonushunt"
+                  code="Bonus hunt"
+                  accent="amber"
+                  headline={moneyExact(hunt.currentBalance)}
+                  sub={progress.label}
+                >
                   <ProgressBar percent={progress.percent} color={ACCENTS.amber} />
-                  <div className="flex items-center justify-between">
-                    <MonoLabel className="text-white/30">{progress.label}</MonoLabel>
-                    {hunt.bestMultiplier > 0 && (
-                      <MonoLabel style={{ color: ACCENTS.amber }}>
-                        Best {hunt.bestMultiplier.toFixed(0)}x
-                      </MonoLabel>
-                    )}
-                  </div>
-                </div>
-              </LiveCard>
-            )}
-
-            {board && (
-              <LiveCard
-                href="/leaderboard"
-                code="Leaderboard"
-                accent="blue"
-                headline={money(board.pool)}
-                sub={
-                  boardLeft && !boardLeft.over
-                    ? `Ends in ${boardLeft.days}d ${boardLeft.hours}h ${boardLeft.minutes}m`
-                    : board.title
-                }
-              >
-                {board.top.length > 0 ? (
-                  <MiniPodium names={board.top} />
-                ) : (
-                  <MonoLabel className="text-white/25">No entries yet</MonoLabel>
-                )}
-              </LiveCard>
-            )}
-
-            {raffle && (
-              <LiveCard
-                href="/raffles"
-                code="Raffle"
-                accent="green"
-                headline={raffle.prize || raffle.title}
-                sub={
-                  raffleLeft && !raffleLeft.over
-                    ? `Draws in ${raffleLeft.days}d ${raffleLeft.hours}h ${raffleLeft.minutes}m`
-                    : "Drawing soon"
-                }
-              >
-                <div className="flex items-center gap-2">
-                  <Ticket className="h-3.5 w-3.5" style={{ color: ACCENTS.green }} />
-                  <MonoLabel className="text-white/40">
-                    {raffle.tickets.toLocaleString("en-US")} {raffle.tickets === 1 ? "ticket" : "tickets"} in
-                  </MonoLabel>
-                </div>
-              </LiveCard>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* ---------------------------------------------------------- Sections */}
-      {sections.length > 0 && (
-        <>
-          <SectionRule label="Everything on the site" />
-          <div className="mt-4 grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
-            {sections.map(({ href, code, accent, icon: Icon, title, copy }) => (
-              <Link key={href} href={href} className="group block">
-                <Panel accent={accent} className="h-full p-4 transition hover:border-white/20 hover:bg-white/[0.05]">
+                </LiveCard>
+              )}
+              {board && (
+                <LiveCard
+                  href="/leaderboard"
+                  code="Leaderboard"
+                  accent="blue"
+                  headline={money(board.pool)}
+                  sub={
+                    boardLeft && !boardLeft.over
+                      ? `Ends in ${boardLeft.days}d ${boardLeft.hours}h ${boardLeft.minutes}m`
+                      : board.title
+                  }
+                >
+                  {board.top.length > 0 ? (
+                    <MiniPodium names={board.top} />
+                  ) : (
+                    <MonoLabel className="text-white/25">No entries yet</MonoLabel>
+                  )}
+                </LiveCard>
+              )}
+              {raffle && (
+                <LiveCard
+                  href="/raffles"
+                  code="Raffle"
+                  accent="green"
+                  headline={raffle.prize || raffle.title}
+                  sub={
+                    raffleLeft && !raffleLeft.over
+                      ? `Draws in ${raffleLeft.days}d ${raffleLeft.hours}h ${raffleLeft.minutes}m`
+                      : "Drawing soon"
+                  }
+                >
                   <div className="flex items-center gap-2">
-                    <Icon className="h-3.5 w-3.5" style={{ color: ACCENTS[accent] }} />
-                    <MonoLabel style={{ color: ACCENTS[accent] }}>{code}</MonoLabel>
-                    <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-white/20 transition group-hover:text-white/60" />
+                    <Ticket className="h-3.5 w-3.5" style={{ color: ACCENTS.green }} />
+                    <MonoLabel className="text-white/40">
+                      {raffle.tickets.toLocaleString("en-US")} {raffle.tickets === 1 ? "ticket" : "tickets"} in
+                    </MonoLabel>
                   </div>
-                  <h2 className="mt-3 text-[15px] font-semibold text-white">{title}</h2>
-                  <p className="mt-1.5 text-[12.5px] leading-[1.6] text-white/40">{copy}</p>
-                </Panel>
-              </Link>
-            ))}
-          </div>
-        </>
-      )}
+                </LiveCard>
+              )}
+            </div>
+          </>
+        )}
 
-      {/* -------------------------------------------------------------- Kick */}
-      <div className="relative mt-12 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0E0E12] p-6 sm:p-8">
+        {/* ------------------------------------------------------ How it works */}
+        <SectionRule label="How it works" />
+        <div className="mt-6 grid gap-8 sm:grid-cols-3">
+          <Step n={1} title="Watch the stream" copy="Everything starts on Kick. Being there is the entry — there is nothing to buy." />
+          <Step n={2} title="Take part" copy="Call the bonus hunt balance, enter a raffle, climb the leaderboard, join a tournament." />
+          <Step n={3} title="Get paid" copy="Winners are recorded and paid out. The log on this site is the same one used to settle them." />
+        </div>
+
+        {/* ------------------------------------------------------------ Bento */}
+        {sections.length > 0 && (
+          <>
+            <SectionRule label="Everything on the site" />
+            <div className="mt-5 grid auto-rows-fr gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {sections.map((section, index) => (
+                <BentoTile
+                  key={section.href}
+                  href={section.href}
+                  code={section.code}
+                  accent={section.accent}
+                  title={section.title}
+                  copy={section.copy}
+                  icon={section.icon}
+                  // The first tile takes two columns, so the grid has a
+                  // shape and the eye has somewhere to start.
+                  span={index === 0}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* --------------------------------------------------------- Kick band */}
+      <section className="relative w-full overflow-hidden border-y border-white/[0.06] bg-[#08080A]">
+        <div aria-hidden className="hero-grid pointer-events-none absolute inset-0 opacity-60" />
         <div
           aria-hidden
-          className="pointer-events-none absolute -right-10 -top-16 h-64 w-96 opacity-[0.12]"
-          style={{ background: "radial-gradient(ellipse at 70% 30%, #53FC18, transparent 65%)" }}
+          className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[720px] -translate-x-1/2 rounded-full opacity-[0.12] blur-[100px]"
+          style={{ background: "#53FC18" }}
         />
-        <div className="relative flex flex-wrap items-center gap-x-8 gap-y-5">
+        <div className="relative mx-auto flex max-w-6xl flex-wrap items-center gap-x-10 gap-y-6 px-5 py-14 lg:px-8 lg:py-16">
           <div className="min-w-0 flex-1">
-            <h2 className="text-[19px] font-semibold text-white">Giveaways run live on stream</h2>
-            <p className="mt-1.5 max-w-lg text-[13px] leading-6 text-white/45">
+            <h2 className="text-[clamp(22px,3.4vw,32px)] font-black uppercase leading-tight tracking-tight text-white">
+              Giveaways run live on stream
+            </h2>
+            <p className="mt-3 max-w-lg text-[13.5px] leading-7 text-white/45">
               A keyword drops in chat, the wheel spins live, the winner is paid on the spot. Nothing to buy — being
               there is the whole entry.
             </p>
           </div>
-          <HeroActions kickUrl={KICK_URL} />
+          <a
+            href={KICK_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="lift inline-flex shrink-0 items-center gap-2 rounded-lg px-6 py-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-[#08080A]"
+            style={{ backgroundColor: "#53FC18", boxShadow: "0 8px 30px -10px #53FC18" }}
+          >
+            <Play className="h-3.5 w-3.5 fill-current" />
+            Watch on Kick
+          </a>
         </div>
-      </div>
+      </section>
 
-      <p className="mt-10 font-mono text-[10px] uppercase tracking-[0.12em] text-white/20">
+      <p className="mx-auto max-w-6xl px-5 py-10 font-mono text-[10px] uppercase tracking-[0.12em] text-white/20 lg:px-8">
         18+ · Play responsibly
       </p>
     </div>
