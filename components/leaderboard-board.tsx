@@ -3,6 +3,7 @@
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { money, moneyExact, moneyParts, ordinal } from "@/lib/leaderboard-format"
 import { amountFor, metricLabel, type Metric } from "@/lib/leaderboard-metric"
+import { Swap } from "@/components/swap"
 
 /**
  * The board, laid out the way casino leaderboards are: a hero carrying the
@@ -288,6 +289,7 @@ export function BoardHero({
   range,
   switcher,
   actions,
+  swapKey,
 }: {
   prizePool: number
   title: string
@@ -298,6 +300,8 @@ export function BoardHero({
   range: string
   switcher?: React.ReactNode
   actions?: React.ReactNode
+  /** Changes when the board does; everything below the switcher re-enters. */
+  swapKey: string
 }) {
   return (
     <section className="relative overflow-hidden rounded-b-[40px] border-b border-white/[0.06] bg-[#0E0E12] px-5 pb-12 pt-10 text-center sm:px-8 sm:pb-14">
@@ -309,30 +313,40 @@ export function BoardHero({
       />
 
       <div className="relative mx-auto max-w-5xl">
-        <p
-          className="text-[44px] font-bold leading-none tracking-tight tabular-nums sm:text-[60px]"
-          style={{ color: ACCENTS.amber }}
-        >
-          {money(prizePool)}
-        </p>
-        <h1 className="mt-2 text-[17px] font-bold uppercase italic tracking-wide text-white sm:text-[22px]">
-          {title}
-        </h1>
-        {subtitle && <p className="mt-1.5 text-[12.5px] text-white/35">{subtitle}</p>}
-        <MonoLabel className="mt-2 block text-white/25">Ranked by {metricLabel(metric)}</MonoLabel>
+        {/*
+          The switcher sits above everything that changes, and outside the
+          animation, because it is the control. It used to be inside: you
+          clicked a board and the button you had just pressed faded to nothing
+          and slid upwards under your cursor. A control that leaves when you
+          use it reads as a glitch, whatever the timing.
+        */}
+        {switcher && <div className="mb-6 flex justify-center">{switcher}</div>}
 
-        {actions && <div className="mt-5 flex flex-wrap items-center justify-center gap-2">{actions}</div>}
-        {switcher && <div className="mt-5 flex justify-center">{switcher}</div>}
+        <Swap on={swapKey}>
+          <p
+            className="text-[44px] font-bold leading-none tracking-tight tabular-nums sm:text-[60px]"
+            style={{ color: ACCENTS.amber }}
+          >
+            {money(prizePool)}
+          </p>
+          <h1 className="mt-2 text-[17px] font-bold uppercase italic tracking-wide text-white sm:text-[22px]">
+            {title}
+          </h1>
+          {subtitle && <p className="mt-1.5 text-[12.5px] text-white/35">{subtitle}</p>}
+          <MonoLabel className="mt-2 block text-white/25">Ranked by {metricLabel(metric)}</MonoLabel>
 
-        <Podium top={podium} metric={metric} />
+          {actions && <div className="mt-5 flex flex-wrap items-center justify-center gap-2">{actions}</div>}
 
-        <div className="mt-10">
-          <MonoLabel className="mb-3 block text-white/30">
-            {countdown.over ? "Closed" : "Time remaining"}
-          </MonoLabel>
-          <CountdownTiles left={countdown} />
-          <p className="mt-3 text-[11.5px] text-white/25">{range}</p>
-        </div>
+          <Podium top={podium} metric={metric} />
+
+          <div className="mt-10">
+            <MonoLabel className="mb-3 block text-white/30">
+              {countdown.over ? "Closed" : "Time remaining"}
+            </MonoLabel>
+            <CountdownTiles left={countdown} />
+            <p className="mt-3 text-[11.5px] text-white/25">{range}</p>
+          </div>
+        </Swap>
       </div>
     </section>
   )

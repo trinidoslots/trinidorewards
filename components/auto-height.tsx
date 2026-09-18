@@ -19,10 +19,13 @@ import { motion } from "framer-motion"
 export function AutoHeight({
   children,
   duration = 0.34,
+  ease = [0.22, 1, 0.36, 1],
   className,
 }: {
   children: React.ReactNode
   duration?: number
+  /** Override so a caller can keep the height on the same curve as its content. */
+  ease?: [number, number, number, number]
   className?: string
 }) {
   const inner = useRef<HTMLDivElement>(null)
@@ -43,7 +46,7 @@ export function AutoHeight({
   return (
     <motion.div
       animate={{ height }}
-      transition={{ duration, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration, ease }}
       style={{ overflow: "hidden" }}
       className={className}
     >

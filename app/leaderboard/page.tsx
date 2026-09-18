@@ -77,9 +77,21 @@ export default function LeaderboardPage() {
   const [entries, setEntries] = useState<Entry[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState("")
+  /**
+   * The board whose entries are actually in `entries`.
+   *
+   * Clicking a board used to clear the table and start a height animation
+   * immediately, then start a second one when the fetch landed — a blank
+   * flash and two reflows for one click. Holding the previous board until its
+   * replacement has arrived means one switch, with the right numbers and the
+   * right final height, animated once.
+   */
+  const [loadedFor, setLoadedFor] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const board = boards.find((entry) => entry.id === selected) ?? null
+  // What is on screen, which lags the click by exactly one fetch.
+  const shownId = loadedFor ?? selected
+  const board = boards.find((entry) => entry.id === shownId) ?? null
   const countdown = useCountdown(board?.end_date)
   const zone = board?.timezone || DEFAULT_TIMEZONE
 
@@ -112,9 +124,6 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     if (!selected) return
-    // Clear first. Otherwise the new board's title sits above the old board's
-    // players until the fetch lands — briefly, but wrong.
-    setEntries([])
     let cancelled = false
     ;(async () => {
       const { data, error: problem } = await supabaseRef.current
@@ -126,6 +135,7 @@ export default function LeaderboardPage() {
       if (problem) {
         console.error("[v0] Error fetching entries:", problem)
         setEntries([])
+        setLoadedFor(selected)
         return
       }
       // entryAmounts reads total_wagered, or wager_amount while the
@@ -139,6 +149,9 @@ export default function LeaderboardPage() {
           ...entryAmounts(row),
         })),
       )
+      // Entries and identity land in the same commit, so the swap animates
+      // once, against content that is already final.
+      setLoadedFor(selected)
     })()
     return () => {
       cancelled = true
@@ -206,8 +219,8 @@ export default function LeaderboardPage() {
 
   return (
     <div className="pb-10">
-      <Swap on={board.id}>
       <BoardHero
+        swapKey={board.id}
         prizePool={board.prize_pool}
         title={board.title}
         subtitle={board.subtitle}
@@ -242,7 +255,6 @@ export default function LeaderboardPage() {
           ) : undefined
         }
       />
-      </Swap>
 
       <div className="mx-auto mt-8 max-w-4xl space-y-3 px-5">
         <div className="flex flex-wrap items-center gap-2">
