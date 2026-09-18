@@ -16,6 +16,20 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const isOBSPage =
     pathname === "/predictionobs" || pathname === "/obs-widget" || pathname.startsWith("/obs/")
 
+  // The admin panel and the auth screens bring their own chrome. MainNav and
+  // Footer already bow out of both by returning null, but the wrapper below
+  // stayed, and with it two things that did not belong:
+  //
+  //  - a padding-left reserved for a nav that is not rendered, which pushed
+  //    the login card 224px off centre; and
+  //  - the page transition, whose transform makes the motion.div the
+  //    containing block for every position: fixed descendant. The admin
+  //    sidebar is fixed left-0, so on each navigation it was measured from
+  //    that padded box instead of the viewport: it jumped 224px inward and
+  //    8px down, then snapped back the moment framer dropped the transform.
+  //    That snap is what you see on every page switch.
+  const isBarePage = isOBSPage || pathname.startsWith("/admin") || pathname.startsWith("/auth")
+
   // OBS browser sources need a truly transparent page so the stream
   // compositor shows through. The root layout's <body> always carries
   // bg-[#0B0B0D], which paints an opaque color behind these widgets, so we
@@ -25,10 +39,11 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
     document.body.classList.toggle("bg-transparent", isOBSPage)
   }, [isOBSPage])
 
-  // OBS sources get none of this. A drifting background behind a browser
-  // source would be composited over the stream, and a page transition on a
-  // widget that never navigates is dead weight.
-  if (isOBSPage) {
+  // These pages get none of this. A drifting background behind a browser
+  // source would be composited over the stream, a page transition on a widget
+  // that never navigates is dead weight, and the admin panel draws its own
+  // sidebar, spacing and transition in app/admin/layout.tsx.
+  if (isBarePage) {
     return <>{children}</>
   }
 
