@@ -4,6 +4,7 @@ import type { ReactNode } from "react"
 import { useState } from "react"
 import { HuntRefreshButton } from "@/components/hunt-refresh-button"
 import { MonoLabel } from "@/components/ui/panel"
+import { Swap } from "@/components/swap"
 
 type BonusHuntTabsProps = {
   initialTab: "current" | "previous"
@@ -57,14 +58,15 @@ export function BonusHuntTabs({ initialTab, currentContent, previousContent }: B
         )}
       </div>
 
-      <div className="relative">
-        <div key="current" className={tab === "current" ? "block animate-in fade-in duration-300" : "hidden"}>
-          {currentContent}
-        </div>
-        <div key="previous" className={tab === "previous" ? "block animate-in fade-in duration-300" : "hidden"}>
-          {previousContent}
-        </div>
-      </div>
+      {/* Both panels stay mounted — the previous-hunts panel fetches on mount,
+          and remounting it on every switch back would refetch. Swap replays
+          the entry animation and eases the height, which is the part that was
+          missing: the fade was already running, but the container snapped
+          between the two panels' heights in one frame and swallowed it. */}
+      <Swap on={tab}>
+        <div className={tab === "current" ? "block" : "hidden"}>{currentContent}</div>
+        <div className={tab === "previous" ? "block" : "hidden"}>{previousContent}</div>
+      </Swap>
     </>
   )
 }

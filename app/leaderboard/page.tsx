@@ -8,6 +8,7 @@ import { rankEntries } from "@/lib/leaderboard-payouts"
 import { DEFAULT_TIMEZONE, formatInZone, leaderboardStatus } from "@/lib/leaderboard-time"
 import { moneyExact } from "@/lib/leaderboard-format"
 import { BoardHero, StandingsTable, type RankedEntry } from "@/components/leaderboard-board"
+import { Swap } from "@/components/swap"
 import { entryAmounts, metricLabel, readMetric } from "@/lib/leaderboard-metric"
 
 /**
@@ -111,6 +112,9 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     if (!selected) return
+    // Clear first. Otherwise the new board's title sits above the old board's
+    // players until the fetch lands — briefly, but wrong.
+    setEntries([])
     let cancelled = false
     ;(async () => {
       const { data, error: problem } = await supabaseRef.current
@@ -202,6 +206,7 @@ export default function LeaderboardPage() {
 
   return (
     <div className="pb-10">
+      <Swap on={board.id}>
       <BoardHero
         prizePool={board.prize_pool}
         title={board.title}
@@ -237,6 +242,7 @@ export default function LeaderboardPage() {
           ) : undefined
         }
       />
+      </Swap>
 
       <div className="mx-auto mt-8 max-w-4xl space-y-3 px-5">
         <div className="flex flex-wrap items-center gap-2">
@@ -260,17 +266,19 @@ export default function LeaderboardPage() {
           </div>
         </div>
 
-        <StandingsTable
-          rows={filtered}
-          metric={metric}
-          emptyNote={
-            ranked.length === 0
-              ? "No entries yet."
-              : query.trim()
-                ? "Nobody by that name."
-                : "Only the podium so far."
-          }
-        />
+        <Swap on={`${board.id}:${metric}`}>
+          <StandingsTable
+            rows={filtered}
+            metric={metric}
+            emptyNote={
+              ranked.length === 0
+                ? "No entries yet."
+                : query.trim()
+                  ? "Nobody by that name."
+                  : "Only the podium so far."
+            }
+          />
+        </Swap>
 
         <p className="text-center text-[11.5px] text-white/20">Wagers update as they come in</p>
       </div>
