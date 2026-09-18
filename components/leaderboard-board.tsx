@@ -2,7 +2,7 @@
 
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { money, moneyExact, moneyParts, ordinal } from "@/lib/leaderboard-format"
-import { amountFor, metricLabel, otherMetric, type Metric } from "@/lib/leaderboard-metric"
+import { amountFor, metricLabel, type Metric } from "@/lib/leaderboard-metric"
 
 /**
  * The board, laid out the way casino leaderboards are: a hero carrying the
@@ -192,8 +192,6 @@ export function CountdownTiles({ left }: { left: Countdown }) {
 /** Fourth place down: one table row. */
 export function StandingRow({ entry, metric }: { entry: RankedEntry; metric: Metric }) {
   const headline = moneyParts(amountFor(entry, metric))
-  const other = otherMetric(metric)
-  const secondary = amountFor(entry, other)
   const prize = moneyParts(entry.prize_amount)
 
   return (
@@ -207,10 +205,6 @@ export function StandingRow({ entry, metric }: { entry: RankedEntry; metric: Met
           <Avatar src={entry.avatar_url} name={entry.username} size={28} />
           <span className="min-w-0 truncate font-medium text-white">{entry.username}</span>
         </div>
-      </td>
-
-      <td className="hidden py-2.5 pr-2 text-right tabular-nums text-white/30 sm:table-cell">
-        {secondary !== 0 ? moneyExact(secondary) : "—"}
       </td>
 
       <td className="py-2.5 pr-2 text-right tabular-nums text-white/75">
@@ -242,8 +236,6 @@ export function StandingsTable({
   metric: Metric
   emptyNote: string
 }) {
-  const other = otherMetric(metric)
-
   return (
     <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.015]">
       <table className="w-full table-auto border-collapse">
@@ -254,9 +246,6 @@ export function StandingsTable({
             </th>
             <th className="py-2.5 pr-2 text-left font-normal">
               <MonoLabel className="text-white/30">Player</MonoLabel>
-            </th>
-            <th className="hidden py-2.5 pr-2 text-right font-normal sm:table-cell">
-              <MonoLabel className="text-white/20">{metricLabel(other)}</MonoLabel>
             </th>
             <th className="py-2.5 pr-2 text-right font-normal">
               <MonoLabel className="text-white/30">{metricLabel(metric)}</MonoLabel>
@@ -269,7 +258,7 @@ export function StandingsTable({
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={5} className="py-14 text-center text-[13px] text-white/25">
+              <td colSpan={4} className="py-14 text-center text-[13px] text-white/25">
                 {emptyNote}
               </td>
             </tr>

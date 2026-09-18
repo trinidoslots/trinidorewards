@@ -10,7 +10,7 @@ import { LeaderboardEntriesDialog } from "@/components/admin/leaderboard-entries
 import { DEFAULT_PRESET_ID, PAYOUT_PRESETS, payoutSummary, rankEntries } from "@/lib/leaderboard-payouts"
 import { COMMON_TIMEZONES, DEFAULT_TIMEZONE, leaderboardStatus, utcToZonedInput, zonedInputToUtc } from "@/lib/leaderboard-time"
 import { parseLeaderboardCsv, type CsvResult } from "@/lib/leaderboard-csv"
-import { METRICS, readMetric, type Metric } from "@/lib/leaderboard-metric"
+import { METRICS, metricLabel, readMetric, type Metric } from "@/lib/leaderboard-metric"
 
 /**
  * Creating and filling leaderboards.
@@ -95,8 +95,7 @@ export default function LeaderboardsManagePage() {
   const [showEntries, setShowEntries] = useState(false)
 
   const [entryName, setEntryName] = useState("")
-  const [entryWager, setEntryWager] = useState("")
-  const [entryEarned, setEntryEarned] = useState("")
+  const [entryAmount, setEntryAmount] = useState("")
   const [csv, setCsv] = useState<CsvResult | null>(null)
 
   const board = boards.find((entry) => entry.id === selected) ?? null
@@ -162,6 +161,11 @@ export default function LeaderboardsManagePage() {
     () => payoutSummary(Number.parseFloat(draft.prize_pool) || 0, draft.payout_preset),
     [draft.prize_pool, draft.payout_preset],
   )
+
+  // The saved board's metric, not the draft's: an entry or an import lands
+  // against what is stored, so an unsaved switch in the form must not change
+  // which column the file is read into.
+  const boardMetric = readMetric(board?.ranking_metric)
 
   const set = (changes: Partial<Draft>) => setDraft((current) => ({ ...current, ...changes }))
 
@@ -236,8 +240,10 @@ export default function LeaderboardsManagePage() {
       {
         leaderboard_id: board.id,
         username: entryName.trim(),
-        total_wagered: Number.parseFloat(entryWager) || 0,
-        total_earned: Number.parseFloat(entryEarned) || 0,
+        // Written to whichever column this board runs on. The other stays at
+        // its default, which is what it would be for a manual entry anyway.
+        [boardMetric === "earned" ? "total_earned" : "total_wagered"]:
+          Number.parseFloat(entryAmount) || 0,
         // Rank and prize are derived from the field, so they are left to the
         // ranking rather than guessed one row at a time.
         rank: 0,
@@ -251,15 +257,14 @@ export default function LeaderboardsManagePage() {
       return
     }
     setEntryName("")
-    setEntryWager("")
-    setEntryEarned("")
+    setEntryAmount("")
     setEntryCount((current) => current + 1)
     setNotice({ tone: "info", text: "Entry added." })
   }
 
   function readCsv(file: File) {
     const reader = new FileReader()
-    reader.onload = (event) => setCsv(parseLeaderboardCsv(String(event.target?.result ?? "")))
+    reader.onload = (event) => setCsv(parseLeaderboardCsv(String(event.target?.result ?? ""), boardMetric))
     reader.readAsText(file)
   }
 
@@ -281,7 +286,7 @@ export default function LeaderboardsManagePage() {
       csv.rows,
       Number(board.prize_pool) || 0,
       board.payout_preset ?? board.prize_distribution_type,
-      readMetric(board.ranking_metric),
+      boardMetric,
     )
     const { error } = await supabase.from("leaderboard_entries").insert(
       ranked.map((entry) => ({
@@ -305,7 +310,11 @@ export default function LeaderboardsManagePage() {
   }
 
   function downloadTemplate() {
-    const blob = new Blob(["username,total_wagered,total_earned\nexample_player,1500,220.50\n"], {
+    // The template offers the column this board is actually ranked on, so the
+    // file that comes back is one the import will accept.
+    const column = boardMetric === "earned" ? "total_earned" : "total_wagered"
+    const example = boardMetric === "earned" ? "220.50" : "1500"
+    const blob = new Blob(["username," + column + "\nexample_player," + example + "\n"], {
       type: "text/csv",
     })
     const url = URL.createObjectURL(blob)
@@ -575,27 +584,17 @@ export default function LeaderboardsManagePage() {
                     <MonoLabel className="mb-1.5 block text-white/30">Username</MonoLabel>
                     <input value={entryName} onChange={(e) => setEntryName(e.target.value)} className={field} />
                   </div>
-                  <div className="w-32">
-                    <MonoLabel className="mb-1.5 block text-white/30">Wagered</MonoLabel>
+                  <div className="w-36">
+                    <MonoLabel className="mb-1.5 block text-white/30">{metricLabel(boardMetric)}</MonoLabel>
+                    {/* No min when the board runs on earnings: a losing player
+                        earned a negative number, and refusing to record that
+                        would rank them above someone who broke even. */}
                     <input
                       type="number"
-                      min="0"
+                      min={boardMetric === "earned" ? undefined : "0"}
                       step="0.01"
-                      value={entryWager}
-                      onChange={(e) => setEntryWager(e.target.value)}
-                      className={field + " tabular-nums"}
-                    />
-                  </div>
-                  <div className="w-32">
-                    <MonoLabel className="mb-1.5 block text-white/30">Earned</MonoLabel>
-                    {/* No min: a losing player earned a negative number, and
-                        refusing to record that would quietly rank them above
-                        someone who broke even. */}
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={entryEarned}
-                      onChange={(e) => setEntryEarned(e.target.value)}
+                      value={entryAmount}
+                      onChange={(e) => setEntryAmount(e.target.value)}
                       className={field + " tabular-nums"}
                     />
                   </div>
@@ -633,7 +632,9 @@ export default function LeaderboardsManagePage() {
                       <Download className="h-3.5 w-3.5" />
                       Template
                     </button>
-                    <MonoLabel className="text-white/25">Username and wager columns, comma or semicolon</MonoLabel>
+                    <MonoLabel className="text-white/25">
+                      Username and {metricLabel(boardMetric).toLowerCase()} columns, comma or semicolon
+                    </MonoLabel>
                   </div>
 
                   {csv && (
@@ -683,10 +684,10 @@ export default function LeaderboardsManagePage() {
                                 </span>
                                 <span className="min-w-0 flex-1 truncate text-white/70">{row.username}</span>
                                 <span className="tabular-nums text-white/50">
-                                  {row.total_wagered.toLocaleString("en-US")}
-                                </span>
-                                <span className="w-20 shrink-0 text-right tabular-nums text-white/30">
-                                  {row.total_earned.toLocaleString("en-US")}
+                                  {(boardMetric === "earned"
+                                    ? row.total_earned
+                                    : row.total_wagered
+                                  ).toLocaleString("en-US")}
                                 </span>
                               </li>
                             ))}

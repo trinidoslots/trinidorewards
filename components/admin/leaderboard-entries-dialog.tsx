@@ -44,7 +44,7 @@ export function LeaderboardEntriesDialog({ leaderboard, onClose }: Props) {
   const [query, setQuery] = useState("")
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [editing, setEditing] = useState<string | null>(null)
-  const [draft, setDraft] = useState({ username: "", total_wagered: "", total_earned: "", prize_amount: "" })
+  const [draft, setDraft] = useState({ username: "", amount: "", prize_amount: "" })
   const metric = readMetric(leaderboard.ranking_metric)
   const supabaseRef = useRef(createClient())
 
@@ -105,8 +105,9 @@ export function LeaderboardEntriesDialog({ leaderboard, onClose }: Props) {
   async function saveEdit(id: string) {
     const patch = {
       username: draft.username,
-      total_wagered: Number.parseFloat(draft.total_wagered) || 0,
-      total_earned: Number.parseFloat(draft.total_earned) || 0,
+      // Only the column this board runs on. Editing a wager race must not
+      // quietly zero an earnings figure it never showed you.
+      [metric === "earned" ? "total_earned" : "total_wagered"]: Number.parseFloat(draft.amount) || 0,
       prize_amount: Number.parseFloat(draft.prize_amount) || 0,
     }
     const { error } = await supabaseRef.current.from("leaderboard_entries").update(patch).eq("id", id)
@@ -199,12 +200,9 @@ export function LeaderboardEntriesDialog({ leaderboard, onClose }: Props) {
                     className="h-3.5 w-3.5 accent-[#5B8DEF]"
                   />
                 </th>
-                {["Place", "Id", "User", "Wagered", "Earned", "Payout", "Actions"].map((column) => (
+                {["Place", "Id", "User", metricLabel(metric), "Payout", "Actions"].map((column) => (
                   <th key={column} className="px-3 py-2.5 font-normal">
-                    <MonoLabel className="text-white/30">
-                      {column}
-                      {column === metricLabel(metric) && <span className="ml-1 text-white/50">★</span>}
-                    </MonoLabel>
+                    <MonoLabel className="text-white/30">{column}</MonoLabel>
                   </th>
                 ))}
               </tr>
@@ -212,13 +210,13 @@ export function LeaderboardEntriesDialog({ leaderboard, onClose }: Props) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center font-mono text-[11px] uppercase tracking-widest text-white/25">
+                  <td colSpan={7} className="py-10 text-center font-mono text-[11px] uppercase tracking-widest text-white/25">
                     Loading
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-10 text-center text-[12.5px] text-white/30">
+                  <td colSpan={7} className="py-10 text-center text-[12.5px] text-white/30">
                     No entries{query ? " match that search" : " yet"}.
                   </td>
                 </tr>
@@ -261,24 +259,12 @@ export function LeaderboardEntriesDialog({ leaderboard, onClose }: Props) {
                         {isEditing ? (
                           <input
                             type="number"
-                            value={draft.total_wagered}
-                            onChange={(event) => setDraft({ ...draft, total_wagered: event.target.value })}
-                            className="h-7 w-24 rounded border border-white/15 bg-black/50 px-2 text-[12.5px] tabular-nums text-white outline-none"
+                            value={draft.amount}
+                            onChange={(event) => setDraft({ ...draft, amount: event.target.value })}
+                            className="h-7 w-28 rounded border border-white/15 bg-black/50 px-2 text-[12.5px] tabular-nums text-white outline-none"
                           />
                         ) : (
-                          row.total_wagered.toLocaleString("en-US")
-                        )}
-                      </td>
-                      <td className="px-3 py-2 tabular-nums text-white/70">
-                        {isEditing ? (
-                          <input
-                            type="number"
-                            value={draft.total_earned}
-                            onChange={(event) => setDraft({ ...draft, total_earned: event.target.value })}
-                            className="h-7 w-24 rounded border border-white/15 bg-black/50 px-2 text-[12.5px] tabular-nums text-white outline-none"
-                          />
-                        ) : (
-                          row.total_earned.toLocaleString("en-US")
+                          amountFor(row, metric).toLocaleString("en-US")
                         )}
                       </td>
                       <td className="px-3 py-2 tabular-nums" style={{ color: ACCENTS.green }}>
@@ -321,8 +307,7 @@ export function LeaderboardEntriesDialog({ leaderboard, onClose }: Props) {
                               setEditing(row.id)
                               setDraft({
                                 username: row.username ?? "",
-                                total_wagered: String(row.total_wagered ?? 0),
-                                total_earned: String(row.total_earned ?? 0),
+                                amount: String(amountFor(row, metric)),
                                 prize_amount: String(row.payout ?? 0),
                               })
                             }}

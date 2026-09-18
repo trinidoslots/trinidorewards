@@ -8,6 +8,8 @@
  * as NaN wagers without saying anything.
  */
 
+import type { Metric } from "@/lib/leaderboard-metric"
+
 export type CsvRow = { username: string; total_wagered: number; total_earned: number }
 
 export type CsvResult = {
@@ -78,7 +80,19 @@ export function parseAmount(raw: string): number {
   return Number(`${whole}.${tail}`)
 }
 
-export function parseLeaderboardCsv(text: string): CsvResult {
+/**
+ * Reads an export into leaderboard entries.
+ *
+ * `metric` is the board's own — it decides which column the file must have.
+ * A wager race needs a wager column and a profit race needs an earnings one;
+ * demanding both would make a perfectly good export unusable because it was
+ * missing a number the board never asks about.
+ *
+ * The other column is still read when it happens to be there. Nothing shows
+ * it, but it means switching a board's metric later finds the data already
+ * imported rather than needing the file again.
+ */
+export function parseLeaderboardCsv(text: string, metric: Metric = "wagered"): CsvResult {
   const lines = text
     .replace(/\r\n?/g, "\n")
     .split("\n")
@@ -94,10 +108,18 @@ export function parseLeaderboardCsv(text: string): CsvResult {
   const wagerAt = headers.findIndex((header) => WAGER_HEADERS.includes(header))
   const earnedAt = headers.findIndex((header) => EARNED_HEADERS.includes(header))
 
-  if (nameAt === -1 || wagerAt === -1) {
+  const requiredAt = metric === "earned" ? earnedAt : wagerAt
+  const requiredName = metric === "earned" ? "earnings" : "wager"
+
+  if (nameAt === -1 || requiredAt === -1) {
     return {
       rows: [],
-      skipped: [{ line: 1, reason: `Needs a username column and a wager column. Found: ${headers.join(", ")}` }],
+      skipped: [
+        {
+          line: 1,
+          reason: `Needs a username column and a ${requiredName} column. Found: ${headers.join(", ")}`,
+        },
+      ],
     }
   }
 
@@ -107,23 +129,31 @@ export function parseLeaderboardCsv(text: string): CsvResult {
   lines.slice(1).forEach((line, index) => {
     const values = splitLine(line, separator)
     const username = (values[nameAt] ?? "").trim()
-    const wager = parseAmount(values[wagerAt] ?? "")
 
     if (!username) {
       skipped.push({ line: index + 2, reason: "No username" })
       return
     }
-    if (!Number.isFinite(wager)) {
-      skipped.push({ line: index + 2, reason: `"${values[wagerAt] ?? ""}" is not a number` })
+
+    const required = parseAmount(values[requiredAt] ?? "")
+    if (!Number.isFinite(required)) {
+      skipped.push({ line: index + 2, reason: `"${values[requiredAt] ?? ""}" is not a number` })
       return
     }
-    // A blank or unreadable earned cell is 0, not a skipped row: the wager is
-    // the column the board needs, and refusing the whole line over an optional
-    // one would drop players silently.
-    const earnedRaw = earnedAt === -1 ? "" : (values[earnedAt] ?? "")
-    const earned = parseAmount(earnedRaw)
 
-    rows.push({ username, total_wagered: wager, total_earned: Number.isFinite(earned) ? earned : 0 })
+    // The column the board does not rank on is a bonus, never a reason to drop
+    // a player: blank, missing or unreadable all mean zero.
+    const spare = (at: number) => {
+      if (at === -1) return 0
+      const value = parseAmount(values[at] ?? "")
+      return Number.isFinite(value) ? value : 0
+    }
+
+    rows.push({
+      username,
+      total_wagered: metric === "earned" ? spare(wagerAt) : required,
+      total_earned: metric === "earned" ? required : spare(earnedAt),
+    })
   })
 
   return { rows, skipped }
