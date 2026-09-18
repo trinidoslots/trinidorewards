@@ -1,13 +1,13 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Trophy, Users } from "lucide-react"
+import { Search, Trophy } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { MonoLabel, Panel, PanelHeader, Tag } from "@/components/ui/panel"
+import { MonoLabel } from "@/components/ui/panel"
 import { rankEntries } from "@/lib/leaderboard-payouts"
 import { DEFAULT_TIMEZONE, formatInZone, leaderboardStatus } from "@/lib/leaderboard-time"
-import { countdownLabel, money, moneyExact } from "@/lib/leaderboard-format"
-import { BoardHero, RankRow, type RankedEntry } from "@/components/leaderboard-board"
+import { moneyExact } from "@/lib/leaderboard-format"
+import { BoardHero, StandingsTable, type RankedEntry } from "@/components/leaderboard-board"
 import { entryAmounts, metricLabel, readMetric } from "@/lib/leaderboard-metric"
 
 /**
@@ -75,6 +75,7 @@ export default function LeaderboardPage() {
   const [selected, setSelected] = useState<string | null>(null)
   const [entries, setEntries] = useState<Entry[]>([])
   const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState("")
   const [error, setError] = useState<string | null>(null)
 
   const board = boards.find((entry) => entry.id === selected) ?? null
@@ -157,9 +158,18 @@ export default function LeaderboardPage() {
   const totalWagered = ranked.reduce((sum, entry) => sum + entry.total_wagered, 0)
   const totalEarned = ranked.reduce((sum, entry) => sum + entry.total_earned, 0)
 
+
+  // Search filters the table, never the podium: the top three are the
+  // headline of the board, not a result set.
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return rest
+    return rest.filter((entry) => entry.username.toLowerCase().includes(needle))
+  }, [rest, query])
+
   if (loading) {
     return (
-      <div className="mx-auto max-w-3xl px-5 py-16 text-center">
+      <div className="px-5 py-16 text-center">
         <MonoLabel className="text-white/25">Loading</MonoLabel>
       </div>
     )
@@ -168,97 +178,112 @@ export default function LeaderboardPage() {
   if (error) {
     return (
       <div className="mx-auto max-w-3xl px-5 py-6">
-        <Panel accent="red" className="p-6 text-center">
+        <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-8 text-center">
           <Trophy className="mx-auto h-8 w-8 text-white/15" />
           <p className="mt-3 text-[14px] text-white">The leaderboard could not be loaded.</p>
           <p className="mt-1 text-[12.5px] text-white/35">{error}</p>
-        </Panel>
+        </div>
       </div>
     )
   }
 
   if (!board) {
     return (
-      <div className="mx-auto max-w-3xl px-5 py-6">
-        <header className="mb-4">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Leaderboard</h1>
-        </header>
-        <Panel className="flex flex-col items-center gap-2 py-16">
+      <div className="mx-auto max-w-3xl px-5 py-16">
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] py-16">
           <Trophy className="h-8 w-8 text-white/10" />
           <p className="text-[13px] text-white/30">No leaderboard is running right now.</p>
-        </Panel>
+        </div>
       </div>
     )
   }
 
-  return (
-    <div className="mx-auto max-w-3xl space-y-4 px-5 py-6">
-      {boards.length > 1 && (
-        <div className="flex justify-end">
-          <select
-            value={selected ?? ""}
-            onChange={(event) => setSelected(event.target.value)}
-            aria-label="Choose a leaderboard"
-            className="h-9 rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none focus:border-white/25"
-          >
-            {boards.map((entry) => (
-              <option key={entry.id} value={entry.id} className="bg-[#121216]">
-                {entry.title}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+  const zoneRange = `${formatInZone(board.start_date, zone)} — ${formatInZone(board.end_date, zone)}`
 
+  return (
+    <div className="pb-10">
       <BoardHero
         prizePool={board.prize_pool}
         title={board.title}
         subtitle={board.subtitle}
-        countdown={countdownLabel(countdown)}
-        podium={podium}
         metric={metric}
+        podium={podium}
+        countdown={countdown}
+        range={zoneRange}
+        switcher={
+          // Several live boards become a segmented switch rather than a
+          // dropdown: with two or three of them the choices are worth seeing.
+          boards.length > 1 ? (
+            <div className="inline-flex flex-wrap justify-center gap-1 rounded-full border border-white/[0.08] bg-black/40 p-1">
+              {boards.map((entry) => {
+                const active = entry.id === selected
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => setSelected(entry.id)}
+                    className="rounded-full px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.1em] transition"
+                    style={
+                      active
+                        ? { backgroundColor: "rgba(255,255,255,0.10)", color: "#fff" }
+                        : { color: "rgba(255,255,255,0.4)" }
+                    }
+                  >
+                    {entry.title}
+                  </button>
+                )
+              })}
+            </div>
+          ) : undefined
+        }
       />
 
-      {ranked.length === 0 ? (
-        <Panel className="flex flex-col items-center gap-2 py-16">
-          <Users className="h-7 w-7 text-white/10" />
-          <p className="text-[13px] text-white/30">No entries yet.</p>
-        </Panel>
-      ) : (
-        rest.length > 0 && (
-          <Panel>
-            <PanelHeader title="The chase" right={<Tag accent="green">Live</Tag>} />
-            <ul className="divide-y divide-white/[0.05]">
-              {rest.map((entry) => (
-                <RankRow key={entry.id} entry={entry} metric={metric} />
-              ))}
-            </ul>
-          </Panel>
-        )
-      )}
+      <div className="mx-auto mt-8 max-w-4xl space-y-3 px-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/25" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search players…"
+              aria-label="Search players"
+              className="h-9 w-full rounded-md border border-white/[0.10] bg-black/40 pl-9 pr-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
+            />
+          </div>
 
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-        <Panel className="px-3.5 py-3">
-          <p className="text-[17px] font-semibold leading-none tabular-nums text-white">
-            {ranked.length.toLocaleString("en-US")}
-          </p>
-          <MonoLabel className="mt-1.5 block text-white/30">Players</MonoLabel>
-        </Panel>
-        <Panel className="px-3.5 py-3">
-          <p className="text-[17px] font-semibold leading-none tabular-nums text-white">
-            {moneyExact(metric === "earned" ? totalEarned : totalWagered)}
-          </p>
-          <MonoLabel className="mt-1.5 block text-white/30">Total {metricLabel(metric).toLowerCase()}</MonoLabel>
-        </Panel>
-        <Panel className="col-span-2 px-3.5 py-3 sm:col-span-1">
-          <p className="text-[13px] leading-none text-white/70">{formatInZone(board.end_date, zone)}</p>
-          <MonoLabel className="mt-1.5 block text-white/30">Closes</MonoLabel>
-        </Panel>
+          <div className="flex shrink-0 items-center gap-2">
+            <Stat label="Players" value={ranked.length.toLocaleString("en-US")} />
+            <Stat
+              label={`Total ${metricLabel(metric).toLowerCase()}`}
+              value={moneyExact(metric === "earned" ? totalEarned : totalWagered)}
+            />
+          </div>
+        </div>
+
+        <StandingsTable
+          rows={filtered}
+          metric={metric}
+          emptyNote={
+            ranked.length === 0
+              ? "No entries yet."
+              : query.trim()
+                ? "Nobody by that name."
+                : "Only the podium so far."
+          }
+        />
+
+        <p className="text-center text-[11.5px] text-white/20">Wagers update as they come in</p>
       </div>
+    </div>
+  )
+}
 
-      <p className="text-center text-[11.5px] text-white/20">
-        Wagers update as they come in · {formatInZone(board.start_date, zone)} — {formatInZone(board.end_date, zone)}
-      </p>
+/** A figure with its caption, sized to sit next to the search field. */
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 text-right">
+      <p className="text-[13px] font-semibold leading-none tabular-nums text-white">{value}</p>
+      <MonoLabel className="mt-1 block text-white/25">{label}</MonoLabel>
     </div>
   )
 }

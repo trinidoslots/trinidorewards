@@ -54,3 +54,36 @@ export function countdownLabel(left: {
   parts.push(`${left.seconds}s`)
   return parts.join(" ")
 }
+
+/**
+ * The same amount, split so the cents can be set quieter than the dollars.
+ *
+ * On a board of ten-thousand-dollar wagers the cents are noise you still have
+ * to print — dropping them makes the number look rounded, and giving them the
+ * same weight as the dollars makes every row harder to scan. Muting them is
+ * the way out.
+ */
+export function moneyParts(value: number | string): { whole: string; cents: string } {
+  const amount = Number(value) || 0
+  const text = moneyExact(amount)
+  const dot = text.lastIndexOf(".")
+  return dot === -1 ? { whole: text, cents: "" } : { whole: text.slice(0, dot), cents: text.slice(dot) }
+}
+
+/** Ordinal place: 1st, 2nd, 3rd, 4th, 11th, 21st. */
+export function ordinal(n: number): string {
+  const value = Math.trunc(Number(n) || 0)
+  const lastTwo = Math.abs(value) % 100
+  // 11th, 12th and 13th break the rule that the last digit decides.
+  if (lastTwo >= 11 && lastTwo <= 13) return `${value}th`
+  switch (Math.abs(value) % 10) {
+    case 1:
+      return `${value}st`
+    case 2:
+      return `${value}nd`
+    case 3:
+      return `${value}rd`
+    default:
+      return `${value}th`
+  }
+}
