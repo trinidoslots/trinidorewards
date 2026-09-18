@@ -9,6 +9,12 @@ export type ScheduleEntry = {
   category: string | null
   url: string | null
   is_cancelled: boolean
+  /** One of the board accents, for the dot beside the segment. */
+  color?: string | null
+  /** A day marked off, rather than a day with nothing announced. */
+  is_day_off?: boolean
+  /** Position within its day. */
+  sort_order?: number
 }
 
 /** Suggestions in the admin form. Free text is still accepted. */
