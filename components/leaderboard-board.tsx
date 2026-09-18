@@ -290,6 +290,7 @@ export function BoardHero({
   switcher,
   actions,
   swapKey,
+  swapReady,
 }: {
   prizePool: number
   title: string
@@ -302,6 +303,8 @@ export function BoardHero({
   actions?: React.ReactNode
   /** Changes when the board does; everything below the switcher re-enters. */
   swapKey: string
+  /** False while the board named by swapKey is still being fetched. */
+  swapReady?: boolean
 }) {
   return (
     <section className="relative overflow-hidden rounded-b-[40px] border-b border-white/[0.06] bg-[#0E0E12] px-5 pb-12 pt-10 text-center sm:px-8 sm:pb-14">
@@ -322,7 +325,7 @@ export function BoardHero({
         */}
         {switcher && <div className="mb-6 flex justify-center">{switcher}</div>}
 
-        <Swap on={swapKey}>
+        <Swap on={swapKey} ready={swapReady}>
           <p
             className="text-[44px] font-bold leading-none tracking-tight tabular-nums sm:text-[60px]"
             style={{ color: ACCENTS.amber }}

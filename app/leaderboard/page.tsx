@@ -220,7 +220,11 @@ export default function LeaderboardPage() {
   return (
     <div className="pb-10">
       <BoardHero
-        swapKey={board.id}
+        // The click starts the exit; the fetch releases the entry. Keyed on
+        // the clicked board rather than the shown one so nothing sits still
+        // for the length of a round trip.
+        swapKey={selected ?? board.id}
+        swapReady={loadedFor === selected}
         prizePool={board.prize_pool}
         title={board.title}
         subtitle={board.subtitle}
@@ -278,7 +282,7 @@ export default function LeaderboardPage() {
           </div>
         </div>
 
-        <Swap on={`${board.id}:${metric}`}>
+        <Swap on={`${selected}:${metric}`} ready={loadedFor === selected}>
           <StandingsTable
             rows={filtered}
             metric={metric}
