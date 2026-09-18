@@ -16,7 +16,10 @@ import { ACCENTS, MonoLabel } from "@/components/ui/panel"
  * items so a short list does not race past.
  */
 
-export type MarqueeWin = { id: string; username: string; prize: string; accent: string }
+// No per-source colour. Five sources meant five colours scrolling past in a
+// row, which is a rainbow, not a palette. Every row is set the same way: the
+// name in white, the figure in the one green the palette uses for money.
+export type MarqueeWin = { id: string; username: string; prize: string }
 
 export function WinnersMarquee({ wins }: { wins: MarqueeWin[] }) {
   if (wins.length === 0) return null
@@ -36,9 +39,9 @@ export function WinnersMarquee({ wins }: { wins: MarqueeWin[] }) {
             // list once.
             aria-hidden={index >= wins.length}
           >
-            <Trophy className="h-3.5 w-3.5 shrink-0" style={{ color: win.accent }} />
+            <Trophy className="h-3.5 w-3.5 shrink-0 text-white/25" />
             <span className="whitespace-nowrap text-[13px] font-medium text-white/80">{win.username}</span>
-            <span className="whitespace-nowrap text-[13px] tabular-nums" style={{ color: win.accent }}>
+            <span className="whitespace-nowrap text-[13px] tabular-nums" style={{ color: ACCENTS.green }}>
               {win.prize}
             </span>
             <span className="h-3 w-px bg-white/10" />

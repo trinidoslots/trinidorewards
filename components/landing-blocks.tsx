@@ -74,15 +74,13 @@ export function LiveCard({
   const color = ACCENTS[accent]
   return (
     <Link href={href} className="group block">
+      {/* One coloured edge, per the shared surface language. The wash that
+          used to sit behind this was a filled block of colour, which is the
+          thing that language exists to avoid. */}
       <div
         className="relative h-full overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.022] p-4 transition hover:border-white/20 hover:bg-white/[0.05]"
-        style={{ borderTopColor: `${color}55` }}
+        style={{ borderLeft: `2px solid ${color}` }}
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-20 opacity-[0.10]"
-          style={{ background: `radial-gradient(ellipse at 50% 0%, ${color}, transparent 70%)` }}
-        />
         <div className="relative">
           <div className="flex items-center gap-2">
             <MonoLabel style={{ color }}>{code}</MonoLabel>
@@ -109,17 +107,20 @@ export function ProgressBar({ percent, color }: { percent: number; color: string
   )
 }
 
-/** The top three of a board, small enough to sit inside a card. */
+/**
+ * The top three of a board, small enough to sit inside a card.
+ *
+ * Gold, silver and bronze belong on the leaderboard's own podium, where the
+ * cards are large and the placing is the point. Three more hues for three
+ * 16px discs on the landing page is just three more hues; rank reads fine
+ * from the number and the order.
+ */
 export function MiniPodium({ names }: { names: string[] }) {
-  const colors = ["#E8C547", "#B9C0CC", "#C08552"]
   return (
     <ol className="space-y-1.5">
       {names.map((name, index) => (
         <li key={name + index} className="flex items-center gap-2 text-[12.5px]">
-          <span
-            className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold"
-            style={{ backgroundColor: colors[index], color: "#0B0B0D" }}
-          >
+          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/[0.12] font-mono text-[9px] tabular-nums text-white/45">
             {index + 1}
           </span>
           <span className="min-w-0 truncate text-white/70">{name}</span>
@@ -137,8 +138,8 @@ export function HeroActions({ kickUrl, primary }: { kickUrl: string; primary?: {
         href={kickUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 rounded-md px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.1em] text-[#0B0B0D] transition hover:brightness-110"
-        style={{ backgroundColor: "#53FC18" }}
+        className="inline-flex items-center gap-2 rounded-md border px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.1em] transition hover:brightness-125"
+        style={{ borderColor: `${ACCENTS.blue}77`, backgroundColor: `${ACCENTS.blue}1f`, color: ACCENTS.blue }}
       >
         <Play className="h-3 w-3 fill-current" />
         Watch on Kick
@@ -200,18 +201,11 @@ export function BentoTile({
       className={`group relative block overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.018] p-5 transition hover:border-white/20 hover:bg-white/[0.04] sm:p-6 ${
         span ? "sm:col-span-2" : ""
       }`}
+      style={{ borderLeft: `2px solid ${color}` }}
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full opacity-[0.10] blur-[50px] transition-opacity duration-500 group-hover:opacity-[0.20]"
-        style={{ background: color }}
-      />
       <div className="relative flex h-full flex-col">
         <div className="flex items-center gap-2.5">
-          <span
-            className="flex h-8 w-8 items-center justify-center rounded-lg border"
-            style={{ borderColor: `${color}33`, backgroundColor: `${color}14` }}
-          >
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.10]">
             <Icon className="h-4 w-4" style={{ color }} />
           </span>
           <MonoLabel style={{ color }}>{code}</MonoLabel>

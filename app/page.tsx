@@ -23,7 +23,7 @@ import {
 } from "@/components/landing-blocks"
 import { Hero } from "@/components/landing-hero"
 import { MarqueeHeading, WinnersMarquee, type MarqueeWin } from "@/components/landing-marquee"
-import { sourceMeta, winValue } from "@/lib/wins"
+import { winValue } from "@/lib/wins"
 
 const KICK_URL = "https://kick.com/trinidoslots"
 
@@ -229,7 +229,6 @@ export default function LandingPage() {
             id: String(row.id),
             username: String(row.username ?? "Anonymous"),
             prize: winValue(row) === "—" ? String(row.prize ?? "") : winValue(row),
-            accent: ACCENTS[sourceMeta(String(row.source)).accent] as string,
           })).filter((win) => win.prize),
         )
       } catch (error) {
@@ -261,12 +260,7 @@ export default function LandingPage() {
 
   /** The card that floats beside the headline: whatever is most live. */
   const aside = hunt && progress ? (
-    <div className="lift relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full opacity-[0.18] blur-[60px]"
-        style={{ background: ACCENTS.amber }}
-      />
+    <div className="lift relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6">
       <div className="relative">
         <div className="flex items-center gap-2">
           <LiveDot color={ACCENTS.amber} />
@@ -294,12 +288,7 @@ export default function LandingPage() {
       </div>
     </div>
   ) : board ? (
-    <div className="lift relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full opacity-[0.18] blur-[60px]"
-        style={{ background: ACCENTS.blue }}
-      />
+    <div className="lift relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6">
       <div className="relative">
         <MonoLabel style={{ color: ACCENTS.blue }}>Leaderboard live</MonoLabel>
         <p className="mt-5 text-[40px] font-black leading-none tabular-nums text-white">{money(board.pool)}</p>
@@ -435,11 +424,6 @@ export default function LandingPage() {
       {/* --------------------------------------------------------- Kick band */}
       <section className="relative w-full overflow-hidden border-y border-white/[0.06] bg-[#08080A]">
         <div aria-hidden className="hero-grid pointer-events-none absolute inset-0 opacity-60" />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[720px] -translate-x-1/2 rounded-full opacity-[0.12] blur-[100px]"
-          style={{ background: "#53FC18" }}
-        />
         <div className="relative mx-auto flex max-w-6xl flex-wrap items-center gap-x-10 gap-y-6 px-5 py-14 lg:px-8 lg:py-16">
           <div className="min-w-0 flex-1">
             <h2 className="text-[clamp(22px,3.4vw,32px)] font-black uppercase leading-tight tracking-tight text-white">
@@ -454,8 +438,8 @@ export default function LandingPage() {
             href={KICK_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="lift inline-flex shrink-0 items-center gap-2 rounded-lg px-6 py-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-[#08080A]"
-            style={{ backgroundColor: "#53FC18", boxShadow: "0 8px 30px -10px #53FC18" }}
+            className="lift inline-flex shrink-0 items-center gap-2 rounded-lg border px-6 py-3.5 font-mono text-[11px] uppercase tracking-[0.1em]"
+            style={{ borderColor: `${ACCENTS.blue}77`, backgroundColor: `${ACCENTS.blue}1f`, color: ACCENTS.blue }}
           >
             <Play className="h-3.5 w-3.5 fill-current" />
             Watch on Kick
