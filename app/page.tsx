@@ -1,198 +1,398 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
-import { ArrowUpRight, Calendar, Crosshair, Crown, Gift, Play, ShoppingBag, Swords } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { ArrowUpRight, Calendar, Crosshair, Crown, Gift, ShoppingBag, Swords, Ticket } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { ACCENTS, MonoLabel, Panel, StatTile, type Accent } from "@/components/ui/panel"
+import { ACCENTS, MonoLabel, Panel } from "@/components/ui/panel"
 import { WordsIn } from "@/components/reveal"
+import { ALL_OFF, readModules, type ModuleStatus } from "@/lib/site-modules"
+import { streamState, type ScheduleEntry, type StreamState } from "@/lib/schedule"
+import { huntProgress, visibleSections, type Section } from "@/lib/landing"
+import { countdownTo } from "@/lib/schedule-week"
+import { money, moneyExact } from "@/lib/leaderboard-format"
+import { readMetric } from "@/lib/leaderboard-metric"
+import {
+  HeroActions,
+  LiveCard,
+  MiniPodium,
+  ProgressBar,
+  SectionRule,
+  StatusPill,
+} from "@/components/landing-blocks"
 
 const KICK_URL = "https://kick.com/trinidoslots"
 
-const SECTIONS: {
-  href: string
-  code: string
-  accent: Accent
-  icon: typeof Crosshair
-  title: string
-  copy: string
-}[] = [
-  {
-    href: "/bonushunt",
-    code: "HUNT",
-    accent: "amber",
-    icon: Crosshair,
-    title: "Bonus hunt",
-    copy: "Follow the bonuses as they are collected, then call the final balance before the opening starts.",
-  },
-  {
-    href: "/leaderboard",
-    code: "BOARD",
-    accent: "blue",
-    icon: Crown,
-    title: "Leaderboard",
-    copy: "Wagering moves you up the table. The top places are paid out at the end of every month.",
-  },
-  {
-    href: "/raffles",
-    code: "RAFFLE",
-    accent: "green",
-    icon: Gift,
-    title: "Raffles",
-    copy: "Low-entry draws running alongside the stream, with winners pulled live.",
-  },
-  {
-    href: "/tournaments",
-    code: "VERSUS",
-    accent: "purple",
-    icon: Swords,
-    title: "Tournaments",
-    copy: "Bracket play against the rest of the community until one name is left.",
-  },
-  {
-    href: "/store",
-    code: "STORE",
-    accent: "pink",
-    icon: ShoppingBag,
-    title: "Store",
-    copy: "Points earned watching the stream convert into rewards you can actually redeem.",
-  },
-  {
-    href: "/advent-calendar",
-    code: "DEC",
-    accent: "red",
-    icon: Calendar,
-    title: "Advent calendar",
-    copy: "One door a day through December, each with something behind it.",
-  },
+const SECTIONS: (Section & { icon: typeof Crosshair })[] = [
+  { href: "/bonushunt", code: "HUNT", accent: "amber", icon: Crosshair, module: "bonus_hunt", title: "Bonus hunt",
+    copy: "Follow the bonuses as they are collected, then call the final balance before the opening starts." },
+  { href: "/leaderboard", code: "BOARD", accent: "blue", icon: Crown, module: "leaderboard", title: "Leaderboard",
+    copy: "Wagering moves you up the table. The top places are paid out at the end of every month." },
+  { href: "/raffles", code: "RAFFLE", accent: "green", icon: Gift, module: "raffles", title: "Raffles",
+    copy: "Low-entry draws running alongside the stream, with winners pulled live." },
+  { href: "/tournaments", code: "VERSUS", accent: "purple", icon: Swords, module: "tournaments", title: "Tournaments",
+    copy: "Bracket play against the rest of the community until one name is left." },
+  { href: "/store", code: "STORE", accent: "pink", icon: ShoppingBag, module: "stream_store", title: "Store",
+    copy: "Points earned watching the stream convert into rewards you can actually redeem." },
+  { href: "/advent-calendar", code: "DEC", accent: "red", icon: Calendar, module: "advent_calendar", title: "Advent calendar",
+    copy: "One door a day through December, each with something behind it." },
 ]
 
+type Hunt = { openedBonuses: number; totalBonuses: number; startingBalance: number; currentBalance: number; bestMultiplier: number; bestMultiplierGame: string | null }
+type Board = { id: string; title: string; pool: number; endsAt: string; metric: string; top: string[] }
+type Raffle = { id: string; title: string; prize: string | null; endsAt: string | null; tickets: number }
+
 export default function LandingPage() {
+  const supabaseRef = useRef(createClient())
   const [givenAway, setGivenAway] = useState<number | null>(null)
+  const [modules, setModules] = useState<ModuleStatus>(ALL_OFF)
+  const [stream, setStream] = useState<StreamState>({ kind: "none" })
+  const [hunt, setHunt] = useState<Hunt | null>(null)
+  const [board, setBoard] = useState<Board | null>(null)
+  const [raffle, setRaffle] = useState<Raffle | null>(null)
+  const [tick, setTick] = useState(0)
+
+  // One ticking clock for every countdown on the page, rather than one each.
+  useEffect(() => {
+    const timer = setInterval(() => setTick((value) => value + 1), 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   useEffect(() => {
-    const load = async () => {
+    const supabase = supabaseRef.current
+    let cancelled = false
+
+    /**
+     * Each block is loaded on its own and allowed to fail on its own. A landing
+     * page that renders nothing because one table was unreachable is worse than
+     * one that renders four fifths of itself.
+     */
+    const safely = async <T,>(what: string, run: () => Promise<T>): Promise<T | null> => {
       try {
-        const supabase = createClient()
-        const { data } = await supabase
-          .from("settings")
-          .select("value")
-          .eq("key", "total_given_away")
-          .maybeSingle()
-        const parsed = Number.parseInt(data?.value ?? "", 10)
-        if (Number.isFinite(parsed)) setGivenAway(parsed)
+        return await run()
       } catch (error) {
-        // The page reads fine without it; never let one stat break it.
-        console.log("[v0] Error fetching total given away:", error)
+        console.log(`[v0] landing: ${what} unavailable`, error)
+        return null
       }
     }
-    load()
+
+    void (async () => {
+      const [settings, moduleRows, schedule] = await Promise.all([
+        safely("settings", async () =>
+          (await supabase.from("settings").select("value").eq("key", "total_given_away").maybeSingle()).data),
+        safely("modules", async () =>
+          (await supabase.from("modules").select("module_name, is_enabled")).data),
+        safely("schedule", async () =>
+          (await supabase
+            .from("stream_schedule")
+            .select("*")
+            .gte("starts_at", new Date(Date.now() - 6 * 3600_000).toISOString())
+            .order("starts_at", { ascending: true })
+            .limit(20)).data),
+      ])
+      if (cancelled) return
+
+      const parsed = Number.parseInt(settings?.value ?? "", 10)
+      if (Number.isFinite(parsed)) setGivenAway(parsed)
+      if (moduleRows) setModules(readModules(moduleRows))
+      if (schedule) setStream(streamState(schedule as ScheduleEntry[]))
+    })()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
+
+  // The live blocks. Kept out of the first effect so a slow leaderboard never
+  // holds up the hero, which is the part that has to be there immediately.
+  useEffect(() => {
+    const supabase = supabaseRef.current
+    let cancelled = false
+
+    void (async () => {
+      // --- the running hunt -------------------------------------------------
+      try {
+        const { data } = await supabase
+          .from("bonus_hunt_kpis")
+          .select("*")
+          .eq("status", "active")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (!cancelled && data) {
+          setHunt({
+            openedBonuses: Number(data.opened_bonuses) || 0,
+            totalBonuses: Number(data.total_bonuses) || 0,
+            startingBalance: Number(data.starting_balance) || 0,
+            currentBalance: Number(data.current_balance) || 0,
+            bestMultiplier: Number(data.best_multiplier) || 0,
+            bestMultiplierGame: data.best_multiplier_game ?? null,
+          })
+        }
+      } catch (error) {
+        console.log("[v0] landing: hunt unavailable", error)
+      }
+
+      // --- the running leaderboard, and its top three -----------------------
+      try {
+        const { data: boards } = await supabase
+          .from("leaderboards")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(6)
+
+        const now = Date.now()
+        const live = (boards ?? []).find(
+          (row: any) => Date.parse(row.start_date) <= now && now < Date.parse(row.end_date),
+        )
+
+        if (live && !cancelled) {
+          const metric = readMetric(live.ranking_metric)
+          const column = metric === "earned" ? "total_earned" : "total_wagered"
+          // Ordering in the database rather than reading the whole field to
+          // show three names. If the column is not there yet — 054 unrun — the
+          // card still has its pool and simply has no podium.
+          const { data: top } = await supabase
+            .from("leaderboard_entries")
+            .select("username")
+            .eq("leaderboard_id", live.id)
+            .order(column, { ascending: false })
+            .limit(3)
+
+          setBoard({
+            id: live.id,
+            title: live.title,
+            pool: Number(live.prize_pool) || 0,
+            endsAt: live.end_date,
+            metric,
+            top: (top ?? []).map((row: any) => String(row.username)),
+          })
+        }
+      } catch (error) {
+        console.log("[v0] landing: leaderboard unavailable", error)
+      }
+
+      // --- a running raffle -------------------------------------------------
+      try {
+        const { data } = await supabase
+          .from("raffles")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(8)
+
+        const now = Date.now()
+        const live = (data ?? []).find(
+          (row: any) =>
+            !row.is_hidden &&
+            !row.winner_username &&
+            (!row.end_date || Date.parse(row.end_date) > now),
+        )
+        if (live && !cancelled) {
+          setRaffle({
+            id: live.id,
+            title: live.title,
+            prize: live.prize ?? live.prize_description ?? null,
+            endsAt: live.end_date ?? null,
+            tickets: Number(live.tickets_sold) || 0,
+          })
+        }
+      } catch (error) {
+        console.log("[v0] landing: raffles unavailable", error)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const sections = visibleSections(SECTIONS, modules) as (Section & { icon: typeof Crosshair })[]
+  const progress = hunt ? huntProgress(hunt) : null
+  const boardLeft = board ? countdownTo(board.endsAt) : null
+  const raffleLeft = raffle?.endsAt ? countdownTo(raffle.endsAt) : null
+  const streamLeft = stream.kind === "next" ? countdownTo(stream.startsAt) : null
+  const anythingLive = Boolean(hunt || board || raffle)
+
+  // The interval above is what re-runs this render each second, which is what
+  // moves the countdowns; countdownTo is called fresh every time. Touching the
+  // value keeps it from reading as unused state.
+  void tick
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-10 lg:px-8 lg:py-14">
-      {/* ------------------------------------------------------------ Header */}
-      <header className="flex flex-wrap items-start justify-between gap-6">
-        <div className="max-w-2xl">
-          <h1 className="text-[28px] font-semibold leading-tight tracking-tight text-white sm:text-[34px]">
-            {/* Word by word, which is what makes the landing read as arriving
-                rather than as already having been there. */}
+      {/* -------------------------------------------------------------- Hero */}
+      <header className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0E0E12] px-6 py-10 sm:px-10 sm:py-14">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -left-20 -top-24 h-[420px] w-[560px] opacity-[0.13]"
+          style={{ background: `radial-gradient(ellipse at 30% 20%, ${ACCENTS.blue}, transparent 65%)` }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-32 -right-16 h-[380px] w-[520px] opacity-[0.10]"
+          style={{ background: `radial-gradient(ellipse at 70% 80%, ${ACCENTS.amber}, transparent 65%)` }}
+        />
+
+        <div className="relative max-w-3xl">
+          {stream.kind === "live" ? (
+            <StatusPill live label="On air now" detail={stream.title} />
+          ) : stream.kind === "next" && streamLeft && !streamLeft.over ? (
+            <StatusPill
+              live={false}
+              label="Next stream"
+              detail={`in ${streamLeft.days}d ${streamLeft.hours}h ${streamLeft.minutes}m`}
+            />
+          ) : (
+            <StatusPill live={false} label="Free to enter" detail="No deposit to take part" />
+          )}
+
+          <h1 className="mt-5 text-[38px] font-bold leading-[1.05] tracking-tight text-white sm:text-[54px]">
             <WordsIn text="TrinidoRewards" />
           </h1>
-          <p className="mt-2 text-[13px] leading-6 text-white/45">
-            Everything running alongside the stream — <span className="text-white/70">bonus hunts</span>,{" "}
-            <span className="text-white/70">predictions</span>, <span className="text-white/70">leaderboards</span>,{" "}
-            <span className="text-white/70">raffles</span> and <span className="text-white/70">giveaways</span>. Free to
-            take part in. Pick a section below.
-          </p>
-        </div>
 
-        <div className="flex shrink-0 gap-2">
-          <Link
-            href="/bonushunt"
-            className="rounded-md border border-white/12 bg-white/[0.06] px-3.5 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12]"
-          >
-            Live hunt
-          </Link>
-          <a
-            href={KICK_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-md border border-white/12 px-3.5 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-white/60 transition hover:border-white/25 hover:text-white"
-          >
-            <Play className="h-3 w-3 fill-current" />
-            Kick
-          </a>
+          <p className="mt-4 max-w-xl text-[14px] leading-7 text-white/50">
+            Bonus hunts, leaderboards, raffles and tournaments — all running alongside the stream, all free to take
+            part in.
+          </p>
+
+          {givenAway !== null && (
+            <p className="mt-6 flex flex-wrap items-baseline gap-2.5">
+              <span
+                className="text-[30px] font-bold leading-none tabular-nums sm:text-[36px]"
+                style={{ color: ACCENTS.green }}
+              >
+                {money(givenAway)}
+              </span>
+              <MonoLabel className="text-white/35">Given away so far</MonoLabel>
+            </p>
+          )}
+
+          <div className="mt-7">
+            <HeroActions
+              kickUrl={KICK_URL}
+              primary={
+                modules.bonus_hunt
+                  ? { href: "/bonushunt", label: "Live hunt" }
+                  : sections[0]
+                    ? { href: sections[0].href, label: sections[0].title }
+                    : undefined
+              }
+            />
+          </div>
         </div>
       </header>
 
-      {/* ------------------------------------------------------------- Stats */}
-      <div className="mt-8 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        <StatTile
-          label="Given away"
-          accent="green"
-          value={givenAway === null ? "—" : `$${givenAway.toLocaleString()}`}
-        />
-        <StatTile label="Members" value="10K+" />
-        <StatTile label="Entry cost" accent="blue" value="Free" hint="No deposit to take part" />
-        <StatTile label="Sections" accent="purple" value={SECTIONS.length} />
-      </div>
+      {/* -------------------------------------------------------- Live right now */}
+      {anythingLive && (
+        <>
+          <SectionRule label="Running right now" />
+          <div className="mt-4 grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+            {hunt && progress && (
+              <LiveCard
+                href="/bonushunt"
+                code="Bonus hunt"
+                accent="amber"
+                headline={moneyExact(hunt.currentBalance)}
+                sub={`${progress.ahead ? "+" : "−"}${moneyExact(Math.abs(progress.profit)).replace("-", "")} against a ${moneyExact(hunt.startingBalance)} start`}
+              >
+                <div className="space-y-2">
+                  <ProgressBar percent={progress.percent} color={ACCENTS.amber} />
+                  <div className="flex items-center justify-between">
+                    <MonoLabel className="text-white/30">{progress.label}</MonoLabel>
+                    {hunt.bestMultiplier > 0 && (
+                      <MonoLabel style={{ color: ACCENTS.amber }}>
+                        Best {hunt.bestMultiplier.toFixed(0)}x
+                      </MonoLabel>
+                    )}
+                  </div>
+                </div>
+              </LiveCard>
+            )}
+
+            {board && (
+              <LiveCard
+                href="/leaderboard"
+                code="Leaderboard"
+                accent="blue"
+                headline={money(board.pool)}
+                sub={
+                  boardLeft && !boardLeft.over
+                    ? `Ends in ${boardLeft.days}d ${boardLeft.hours}h ${boardLeft.minutes}m`
+                    : board.title
+                }
+              >
+                {board.top.length > 0 ? (
+                  <MiniPodium names={board.top} />
+                ) : (
+                  <MonoLabel className="text-white/25">No entries yet</MonoLabel>
+                )}
+              </LiveCard>
+            )}
+
+            {raffle && (
+              <LiveCard
+                href="/raffles"
+                code="Raffle"
+                accent="green"
+                headline={raffle.prize || raffle.title}
+                sub={
+                  raffleLeft && !raffleLeft.over
+                    ? `Draws in ${raffleLeft.days}d ${raffleLeft.hours}h ${raffleLeft.minutes}m`
+                    : "Drawing soon"
+                }
+              >
+                <div className="flex items-center gap-2">
+                  <Ticket className="h-3.5 w-3.5" style={{ color: ACCENTS.green }} />
+                  <MonoLabel className="text-white/40">
+                    {raffle.tickets.toLocaleString("en-US")} {raffle.tickets === 1 ? "ticket" : "tickets"} in
+                  </MonoLabel>
+                </div>
+              </LiveCard>
+            )}
+          </div>
+        </>
+      )}
 
       {/* ---------------------------------------------------------- Sections */}
-      <div className="mt-10 flex items-center gap-3">
-        <MonoLabel className="text-white/35">Sections</MonoLabel>
-        <span className="h-px flex-1 bg-white/[0.08]" />
-      </div>
+      {sections.length > 0 && (
+        <>
+          <SectionRule label="Everything on the site" />
+          <div className="mt-4 grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+            {sections.map(({ href, code, accent, icon: Icon, title, copy }) => (
+              <Link key={href} href={href} className="group block">
+                <Panel accent={accent} className="h-full p-4 transition hover:border-white/20 hover:bg-white/[0.05]">
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-3.5 w-3.5" style={{ color: ACCENTS[accent] }} />
+                    <MonoLabel style={{ color: ACCENTS[accent] }}>{code}</MonoLabel>
+                    <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-white/20 transition group-hover:text-white/60" />
+                  </div>
+                  <h2 className="mt-3 text-[15px] font-semibold text-white">{title}</h2>
+                  <p className="mt-1.5 text-[12.5px] leading-[1.6] text-white/40">{copy}</p>
+                </Panel>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
 
-      <div className="mt-4 grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
-        {SECTIONS.map(({ href, code, accent, icon: Icon, title, copy }) => (
-          <Link key={href} href={href} className="group block">
-            <Panel
-              accent={accent}
-              className="h-full p-4 transition hover:border-white/20 hover:bg-white/[0.05]"
-            >
-              <div className="flex items-center gap-2">
-                <Icon className="h-3.5 w-3.5" style={{ color: ACCENTS[accent] }} />
-                <MonoLabel style={{ color: ACCENTS[accent] }}>{code}</MonoLabel>
-                <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-white/20 transition group-hover:text-white/60" />
-              </div>
-              <h2 className="mt-3 text-[15px] font-semibold text-white">{title}</h2>
-              <p className="mt-1.5 text-[12.5px] leading-[1.6] text-white/40">{copy}</p>
-            </Panel>
-          </Link>
-        ))}
-      </div>
-
-      {/* ------------------------------------------------------------- Live */}
-      <div className="mt-10 flex items-center gap-3">
-        <MonoLabel className="text-white/35">Live</MonoLabel>
-        <span className="h-px flex-1 bg-white/[0.08]" />
-      </div>
-
-      <Panel className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-4 p-5">
-        <span className="relative flex h-2 w-2 shrink-0">
-          <span
-            className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60"
-            style={{ backgroundColor: ACCENTS.red }}
-          />
-          <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: ACCENTS.red }} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[15px] font-semibold text-white">Giveaways run on stream</p>
-          <p className="mt-1 text-[12.5px] leading-6 text-white/40">
-            A keyword drops in chat, the wheel spins live, the winner is paid on the spot.
-          </p>
+      {/* -------------------------------------------------------------- Kick */}
+      <div className="relative mt-12 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0E0E12] p-6 sm:p-8">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-10 -top-16 h-64 w-96 opacity-[0.12]"
+          style={{ background: "radial-gradient(ellipse at 70% 30%, #53FC18, transparent 65%)" }}
+        />
+        <div className="relative flex flex-wrap items-center gap-x-8 gap-y-5">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[19px] font-semibold text-white">Giveaways run live on stream</h2>
+            <p className="mt-1.5 max-w-lg text-[13px] leading-6 text-white/45">
+              A keyword drops in chat, the wheel spins live, the winner is paid on the spot. Nothing to buy — being
+              there is the whole entry.
+            </p>
+          </div>
+          <HeroActions kickUrl={KICK_URL} />
         </div>
-        <a
-          href={KICK_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/12 bg-white/[0.06] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12]"
-        >
-          <Play className="h-3 w-3 fill-current" />
-          Watch
-        </a>
-      </Panel>
+      </div>
 
       <p className="mt-10 font-mono text-[10px] uppercase tracking-[0.12em] text-white/20">
         18+ · Play responsibly

@@ -71,3 +71,37 @@ export function timeRange(entry: ScheduleEntry): string {
   const end = new Date(entry.ends_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
   return `${start} — ${end}`
 }
+
+export type StreamState =
+  | { kind: "live"; title: string }
+  | { kind: "next"; startsAt: string; title: string; msAway: number }
+  | { kind: "none" }
+
+/**
+ * On air, or the next thing scheduled.
+ *
+ * Reads the same `stateOf` the schedule page does, so the two can never
+ * disagree about whether a stream is running.
+ */
+export function streamState(entries: ScheduleEntry[], now = Date.now()): StreamState {
+  // A cancelled entry or a day marked off is not a stream, and neither is a row
+  // whose date will not parse.
+  const usable = entries.filter(
+    (entry) => !entry.is_day_off && !entry.is_cancelled && Number.isFinite(Date.parse(entry.starts_at)),
+  )
+
+  const live = usable.find((entry) => stateOf(entry, now) === "live")
+  if (live) return { kind: "live", title: live.title || "On air" }
+
+  const upcoming = usable
+    .filter((entry) => Date.parse(entry.starts_at) > now)
+    .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at))[0]
+
+  if (!upcoming) return { kind: "none" }
+  return {
+    kind: "next",
+    startsAt: upcoming.starts_at,
+    title: upcoming.title || "Stream",
+    msAway: Date.parse(upcoming.starts_at) - now,
+  }
+}
