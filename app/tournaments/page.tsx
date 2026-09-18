@@ -144,7 +144,7 @@ function TournamentCard({
 
   return (
     <Link href={"/tournaments/" + tournament.id} className="block">
-      <Panel accent={accent} className="h-full overflow-hidden transition hover:border-white/20">
+      <Panel accent={accent} className="lift h-full overflow-hidden hover:border-white/20">
         <div className="relative">
           {tournament.image_url ? (
             <img src={tournament.image_url} alt="" className="h-32 w-full object-cover" />

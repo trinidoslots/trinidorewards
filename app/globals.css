@@ -160,3 +160,128 @@
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* ---------------------------------------------------------------------------
+   Motion
+   ---------------------------------------------------------------------------
+   Plain CSS rather than an animation library: every one of these runs on the
+   compositor (opacity, transform, filter, background-position) and costs
+   nothing on a page that is mostly sitting still — which matters on an overlay
+   machine that is also encoding a stream.
+
+   Everything here is switched off under prefers-reduced-motion at the bottom of
+   the file. That is not politeness: parallax and drifting backgrounds are a
+   known migraine and nausea trigger, and the setting is how people say so.
+--------------------------------------------------------------------------- */
+
+/* The reveal every section uses on its way in. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Headings, word by word. The blur is what makes it read as focusing rather
+   than merely sliding. */
+@keyframes word-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+/* Background: slow enough that you notice it only if you look for it. */
+@keyframes orb-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(9vw, 8vh, 0) scale(1.18);
+  }
+}
+
+@keyframes grid-scroll {
+  from {
+    background-position: 0 0, 0 0;
+  }
+  to {
+    background-position: 0 44px, 44px 0;
+  }
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Hidden until observed, so nothing flashes in before it is scrolled to. */
+.reveal {
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.reveal.is-visible {
+  animation: rise-in 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+.word-in {
+  display: inline-block;
+  opacity: 0;
+  animation: word-in 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--word-delay, 0ms);
+}
+
+.float-soft {
+  animation: float-soft 7s ease-in-out infinite;
+}
+
+/* Cards that lift a little under the cursor. */
+.lift {
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal.is-visible,
+  .word-in {
+    opacity: 1;
+    animation: none;
+    transform: none;
+    filter: none;
+  }
+
+  .float-soft,
+  .ambient-orb,
+  .ambient-grid {
+    animation: none;
+  }
+
+  .lift:hover {
+    transform: none;
+  }
+}

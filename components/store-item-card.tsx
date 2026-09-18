@@ -57,7 +57,7 @@ export function StoreItemCard({
   }
 
   return (
-    <Panel accent={available ? "blue" : "slate"} className="flex h-full flex-col overflow-hidden">
+    <Panel accent={available ? "blue" : "slate"} className="lift flex h-full flex-col overflow-hidden">
       {item.icon ? (
         <img src={item.icon} alt="" className="h-32 w-full object-cover" />
       ) : (

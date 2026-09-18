@@ -7,6 +7,9 @@ import { usePathname } from "next/navigation"
 import { MainNav } from "@/components/main-nav"
 import { Footer } from "@/components/footer"
 import { RouteTransitionOverlay } from "@/components/route-transition-overlay"
+import { AmbientBackground } from "@/components/ambient-background"
+import { PageTransition } from "@/components/page-transition"
+import { Reveal } from "@/components/reveal"
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -23,15 +26,22 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
     document.body.classList.toggle("bg-transparent", isOBSPage)
   }, [isOBSPage])
 
+  // OBS sources get none of this. A drifting background behind a browser
+  // source would be composited over the stream, and a page transition on a
+  // widget that never navigates is dead weight.
   if (isOBSPage) {
     return <>{children}</>
   }
 
   return (
     <div className="min-h-screen transition-[padding-left] duration-300 ease-in-out md:pl-[var(--main-nav-width,238px)]">
+      <AmbientBackground />
       <MainNav />
       <RouteTransitionOverlay>
-        <main className="min-h-screen">{children}</main>
+        <main className="min-h-screen">
+          <PageTransition>{children}</PageTransition>
+        </main>
+        <Reveal />
         <Footer />
       </RouteTransitionOverlay>
     </div>

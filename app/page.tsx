@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { ArrowUpRight, Calendar, Crosshair, Crown, Gift, Play, ShoppingBag, Swords } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, StatTile, type Accent } from "@/components/ui/panel"
+import { WordsIn } from "@/components/reveal"
 
 const KICK_URL = "https://kick.com/trinidoslots"
 
@@ -94,7 +95,9 @@ export default function LandingPage() {
       <header className="flex flex-wrap items-start justify-between gap-6">
         <div className="max-w-2xl">
           <h1 className="text-[28px] font-semibold leading-tight tracking-tight text-white sm:text-[34px]">
-            TrinidoRewards
+            {/* Word by word, which is what makes the landing read as arriving
+                rather than as already having been there. */}
+            <WordsIn text="TrinidoRewards" />
           </h1>
           <p className="mt-2 text-[13px] leading-6 text-white/45">
             Everything running alongside the stream — <span className="text-white/70">bonus hunts</span>,{" "}

@@ -83,7 +83,7 @@ export default async function BonusesPage() {
 
 function BonusCard({ bonus }: { bonus: Bonus }) {
   return (
-    <Panel accent={bonus.featured ? "amber" : "blue"} className="flex h-full flex-col overflow-hidden">
+    <Panel accent={bonus.featured ? "amber" : "blue"} className="lift flex h-full flex-col overflow-hidden">
       {bonus.image_url ? (
         <img src={bonus.image_url} alt="" className="h-28 w-full object-cover" />
       ) : (

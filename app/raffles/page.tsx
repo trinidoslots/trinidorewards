@@ -153,7 +153,7 @@ function RaffleCard({ raffle, counts, status }: { raffle: Raffle; counts: Counts
 
   return (
     <Link href={"/raffles/" + raffle.id} className="block">
-      <Panel accent={accent} className="h-full overflow-hidden transition hover:border-white/20">
+      <Panel accent={accent} className="lift h-full overflow-hidden hover:border-white/20">
         <div className="relative">
           {raffle.prize_image_url ? (
             <img src={raffle.prize_image_url} alt="" className="h-32 w-full object-cover" />
