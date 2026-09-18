@@ -1,10 +1,11 @@
 import { rankEntries } from "@/lib/leaderboard-payouts"
+import { entryAmounts, readMetric } from "@/lib/leaderboard-metric"
 
 /**
  * Closing a leaderboard.
  *
  * A board whose window has passed is only half-done: the standings still sort
- * live off wager_amount, so a late CSV import or an API refresh could still
+ * live off the wagers, so a late CSV import or an API refresh could still
  * reshuffle who "won" after the fact. Finalising writes the ranks and prizes
  * once, stamps finalized_at, and from then on the row is the record of who won
  * and what they were owed.
@@ -32,7 +33,7 @@ export async function finalizeLeaderboard(
 ): Promise<FinalizeResult | null> {
   const { data: board, error: boardError } = await supabase
     .from("leaderboards")
-    .select("id, title, prize_pool, payout_preset, prize_distribution_type, finalized_at")
+    .select("*")
     .eq("id", leaderboardId)
     .maybeSingle()
 
@@ -44,7 +45,7 @@ export async function finalizeLeaderboard(
 
   const { data: entries, error: entriesError } = await supabase
     .from("leaderboard_entries")
-    .select("id, username, user_ref, wager_amount")
+    .select("*")
     .eq("leaderboard_id", leaderboardId)
 
   if (entriesError) {
@@ -53,7 +54,17 @@ export async function finalizeLeaderboard(
   }
 
   const preset = board.payout_preset ?? board.prize_distribution_type
-  const ranked = rankEntries<{ id: string; wager_amount: number }>(entries ?? [], Number(board.prize_pool) || 0, preset)
+  const metric = readMetric(board.ranking_metric)
+
+  // The frozen ranks must come out of the same comparison the public page
+  // showed all month, so the metric is read from the board rather than assumed.
+  const amounts: { id: string; total_wagered: number; total_earned: number }[] = (entries ?? []).map(
+    (entry: Record<string, unknown>) => ({
+      id: String(entry.id),
+      ...entryAmounts(entry),
+    }),
+  )
+  const ranked = rankEntries(amounts, Number(board.prize_pool) || 0, preset, metric)
 
   // Written one row at a time: the ranks are derived from the whole field, so
   // there is no single-statement update that expresses this.

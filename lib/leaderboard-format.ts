@@ -9,25 +9,32 @@
  * Pinned to en-US on purpose: a German locale renders 12.500,00 next to a "$",
  * which reads as twelve and a half dollars, and it differs between the server
  * and the browser, which is a hydration mismatch.
+ *
+ * Earnings can be negative — a player down on the month — so the sign goes in
+ * front of the symbol. "$-320.50" is where you get if you just concatenate.
  */
+
+function withSign(amount: number, body: string): string {
+  return amount < 0 ? "-$" + body : "$" + body
+}
 
 export function moneyExact(value: number | string): string {
   const amount = Number(value) || 0
-  return (
-    "$" +
-    amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return withSign(
+    amount,
+    Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
   )
 }
 
 export function money(value: number | string): string {
   const amount = Number(value) || 0
   const whole = Number.isInteger(amount)
-  return (
-    "$" +
-    amount.toLocaleString("en-US", {
+  return withSign(
+    amount,
+    Math.abs(amount).toLocaleString("en-US", {
       minimumFractionDigits: whole ? 0 : 2,
       maximumFractionDigits: whole ? 0 : 2,
-    })
+    }),
   )
 }
 

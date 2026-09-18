@@ -1,3 +1,5 @@
+import type { Metric } from "@/lib/leaderboard-metric"
+
 // The payout ladder — the single source of truth for what each rank wins.
 //
 // This used to live twice: the admin computed prizes on CSV upload and wrote
@@ -103,16 +105,24 @@ export function paidPlaces(presetId: string | null | undefined): number {
 }
 
 /**
- * Ranks entries by wager (highest first) and attaches the prize each one wins.
- * Used by the CSV import and anywhere a full table is rendered.
+ * Ranks entries by the board's own metric (highest first) and attaches the
+ * prize each one wins.
+ *
+ * Which metric that is comes from the board, not from here: a wager race
+ * sorts on total_wagered, a profit race on total_earned. Ties keep their
+ * incoming order, which for a CSV import is the order the casino exported.
  */
-export function rankEntries<T extends { wager_amount: number | string }>(
+export function rankEntries<T extends { total_wagered: number | string; total_earned?: number | string }>(
   entries: T[],
   prizePool: number,
   presetId: string | null | undefined,
+  metric: Metric = 'wagered',
 ): (T & { rank: number; prize_amount: number })[] {
+  const amount = (entry: T) =>
+    Number(metric === 'earned' ? (entry.total_earned ?? 0) : entry.total_wagered) || 0
+
   return [...entries]
-    .sort((a, b) => Number(b.wager_amount) - Number(a.wager_amount))
+    .sort((a, b) => amount(b) - amount(a))
     .map((entry, index) => ({
       ...entry,
       rank: index + 1,

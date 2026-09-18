@@ -18,6 +18,7 @@ type Board = {
   cadence: string | null
   prize_pool: number
   payout_preset: string | null
+  ranking_metric: string | null
   timezone: string | null
   start_date: string
   end_date: string
@@ -65,9 +66,10 @@ export default function LeaderboardsOverviewPage() {
 
     const { data: rows, error } = await supabase
       .from("leaderboards")
-      .select(
-        "id, title, category, cadence, prize_pool, payout_preset, timezone, start_date, end_date, created_at, finalized_at, credited, credited_at",
-      )
+      // The row rather than a column list: ranking_metric arrives with the
+      // migration, and naming a column that is not there yet fails the whole
+      // query rather than just that field.
+      .select("*")
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -460,6 +462,7 @@ export default function LeaderboardsOverviewPage() {
             title: entriesFor.title,
             prize_pool: Number(entriesFor.prize_pool),
             payout_preset: entriesFor.payout_preset,
+            ranking_metric: entriesFor.ranking_metric,
             finalized_at: entriesFor.finalized_at,
           }}
           onClose={() => {

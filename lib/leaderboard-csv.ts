@@ -8,7 +8,7 @@
  * as NaN wagers without saying anything.
  */
 
-export type CsvRow = { username: string; wager_amount: number }
+export type CsvRow = { username: string; total_wagered: number; total_earned: number }
 
 export type CsvResult = {
   rows: CsvRow[]
@@ -17,7 +17,10 @@ export type CsvResult = {
 }
 
 const USERNAME_HEADERS = ["username", "user", "name", "player", "nickname"]
-const WAGER_HEADERS = ["wager_amount", "wager", "wagered", "amount", "total", "points", "volume"]
+const WAGER_HEADERS = ["total_wagered", "wager_amount", "wager", "wagered", "amount", "total", "points", "volume"]
+// Earned is optional: a wager-race export has no such column, and that is not
+// an error — those rows simply earn nothing on the board.
+const EARNED_HEADERS = ["total_earned", "earned", "profit", "net", "net_profit", "winnings", "payout"]
 
 /** Comma or semicolon, whichever the header row actually uses. */
 function detectSeparator(header: string): string {
@@ -89,6 +92,7 @@ export function parseLeaderboardCsv(text: string): CsvResult {
 
   const nameAt = headers.findIndex((header) => USERNAME_HEADERS.includes(header))
   const wagerAt = headers.findIndex((header) => WAGER_HEADERS.includes(header))
+  const earnedAt = headers.findIndex((header) => EARNED_HEADERS.includes(header))
 
   if (nameAt === -1 || wagerAt === -1) {
     return {
@@ -113,7 +117,13 @@ export function parseLeaderboardCsv(text: string): CsvResult {
       skipped.push({ line: index + 2, reason: `"${values[wagerAt] ?? ""}" is not a number` })
       return
     }
-    rows.push({ username, wager_amount: wager })
+    // A blank or unreadable earned cell is 0, not a skipped row: the wager is
+    // the column the board needs, and refusing the whole line over an optional
+    // one would drop players silently.
+    const earnedRaw = earnedAt === -1 ? "" : (values[earnedAt] ?? "")
+    const earned = parseAmount(earnedRaw)
+
+    rows.push({ username, total_wagered: wager, total_earned: Number.isFinite(earned) ? earned : 0 })
   })
 
   return { rows, skipped }

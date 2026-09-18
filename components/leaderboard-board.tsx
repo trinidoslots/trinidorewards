@@ -2,6 +2,7 @@
 
 import { ACCENTS, MonoLabel, Panel } from "@/components/ui/panel"
 import { money, moneyExact } from "@/lib/leaderboard-format"
+import { amountFor, metricLabel, otherMetric, type Metric } from "@/lib/leaderboard-metric"
 
 /**
  * The board, in the shape people actually read it: the pool first, then the
@@ -16,7 +17,8 @@ export type RankedEntry = {
   id: string
   username: string
   avatar_url: string | null
-  wager_amount: number
+  total_wagered: number
+  total_earned: number
   prize_amount: number
   rank: number
 }
@@ -58,7 +60,7 @@ function Avatar({ src, size, ring }: { src: string | null; size: number; ring?: 
  * `raised` is what makes first place read as first at a glance, before anyone
  * has read a number: a bigger avatar and a taller plinth.
  */
-function PodiumSlot({ entry, raised }: { entry: RankedEntry; raised: boolean }) {
+function PodiumSlot({ entry, raised, metric }: { entry: RankedEntry; raised: boolean; metric: Metric }) {
   const color = placeColor(entry.rank) ?? "rgba(255,255,255,0.2)"
 
   return (
@@ -66,7 +68,9 @@ function PodiumSlot({ entry, raised }: { entry: RankedEntry; raised: boolean }) 
       <Avatar src={entry.avatar_url} size={raised ? 72 : 56} ring={color} />
 
       <p className="mt-2 w-full truncate text-center text-[13px] font-semibold text-white">{entry.username}</p>
-      <p className="mt-0.5 text-center text-[11.5px] tabular-nums text-white/35">{moneyExact(entry.wager_amount)}</p>
+      <p className="mt-0.5 text-center text-[11.5px] tabular-nums text-white/35">
+        {moneyExact(amountFor(entry, metric))}
+      </p>
 
       <div
         className="mt-2.5 flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border px-2"
@@ -95,7 +99,7 @@ function PodiumSlot({ entry, raised }: { entry: RankedEntry; raised: boolean }) 
  *
  * A board with one or two entries still has a podium; it just has fewer steps.
  */
-export function Podium({ top }: { top: RankedEntry[] }) {
+export function Podium({ top, metric }: { top: RankedEntry[]; metric: Metric }) {
   const [first, second, third] = top
   const order = [second, first, third].filter(Boolean) as RankedEntry[]
   if (order.length === 0) return null
@@ -103,14 +107,18 @@ export function Podium({ top }: { top: RankedEntry[] }) {
   return (
     <div className="flex items-end gap-2.5 sm:gap-4">
       {order.map((entry) => (
-        <PodiumSlot key={entry.id} entry={entry} raised={entry.rank === 1} />
+        <PodiumSlot key={entry.id} entry={entry} raised={entry.rank === 1} metric={metric} />
       ))}
     </div>
   )
 }
 
 /** Everyone from fourth down. */
-export function RankRow({ entry }: { entry: RankedEntry }) {
+export function RankRow({ entry, metric }: { entry: RankedEntry; metric: Metric }) {
+  const headline = amountFor(entry, metric)
+  const other = otherMetric(metric)
+  const secondary = amountFor(entry, other)
+
   return (
     <li className="flex items-center gap-3 px-3.5 py-2.5">
       <span className="w-8 shrink-0 font-mono text-[12px] tabular-nums text-white/25">#{entry.rank}</span>
@@ -120,7 +128,16 @@ export function RankRow({ entry }: { entry: RankedEntry }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-medium text-white">{entry.username}</p>
         <p className="truncate text-[11.5px] tabular-nums text-white/30">
-          Wagered {moneyExact(entry.wager_amount)}
+          {metricLabel(metric)} {moneyExact(headline)}
+          {/* The other figure only earns its space when there is one. On a
+              wager race nobody has filled in earnings, and a column of
+              "Earned $0.00" says nothing. */}
+          {secondary !== 0 && (
+            <span className="text-white/20">
+              {" · "}
+              {metricLabel(other)} {moneyExact(secondary)}
+            </span>
+          )}
         </p>
       </div>
 
@@ -150,12 +167,14 @@ export function BoardHero({
   subtitle,
   countdown,
   podium,
+  metric,
 }: {
   prizePool: number
   title: string
   subtitle?: string | null
   countdown: string
   podium: RankedEntry[]
+  metric: Metric
 }) {
   const closed = countdown === "Closed"
 
@@ -181,12 +200,17 @@ export function BoardHero({
         </p>
 
         <h1 className="mt-4 text-[15px] font-semibold text-white">{title}</h1>
+        <p className="mt-1 text-[11.5px] text-white/30">
+          {/* Two boards can look identical and be won by different people.
+              Saying which number decides it is not decoration. */}
+          Ranked by {metricLabel(metric).toLowerCase()}
+        </p>
         {subtitle && <p className="mt-0.5 text-[12.5px] text-white/35">{subtitle}</p>}
       </div>
 
       {podium.length > 0 && (
         <div className="mt-7">
-          <Podium top={podium} />
+          <Podium top={podium} metric={metric} />
         </div>
       )}
     </Panel>

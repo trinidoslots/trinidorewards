@@ -8,6 +8,7 @@ import { rankEntries } from "@/lib/leaderboard-payouts"
 import { DEFAULT_TIMEZONE, formatInZone, leaderboardStatus } from "@/lib/leaderboard-time"
 import { countdownLabel, money, moneyExact } from "@/lib/leaderboard-format"
 import { BoardHero, RankRow, type RankedEntry } from "@/components/leaderboard-board"
+import { entryAmounts, metricLabel, readMetric } from "@/lib/leaderboard-metric"
 
 /**
  * The public leaderboard.
@@ -22,7 +23,8 @@ type Entry = {
   id: string
   username: string
   avatar_url: string | null
-  wager_amount: number
+  total_wagered: number
+  total_earned: number
   prize_amount: number
 }
 
@@ -36,6 +38,7 @@ type Leaderboard = {
   payout_preset?: string | null
   prize_distribution_type?: string | null
   timezone?: string | null
+  ranking_metric?: string | null
 }
 
 function useCountdown(endDate: string | undefined) {
@@ -111,7 +114,7 @@ export default function LeaderboardPage() {
     ;(async () => {
       const { data, error: problem } = await supabaseRef.current
         .from("leaderboard_entries")
-        .select("id, username, avatar_url, wager_amount, prize_amount")
+        .select("*")
         .eq("leaderboard_id", selected)
 
       if (cancelled) return
@@ -120,21 +123,39 @@ export default function LeaderboardPage() {
         setEntries([])
         return
       }
-      setEntries((data ?? []) as Entry[])
+      // entryAmounts reads total_wagered, or wager_amount while the
+      // migration has not run yet, so neither deploy order breaks the page.
+      setEntries(
+        (data ?? []).map((row: Record<string, unknown>) => ({
+          id: String(row.id),
+          username: String(row.username ?? ""),
+          avatar_url: (row.avatar_url as string | null) ?? null,
+          prize_amount: Number(row.prize_amount) || 0,
+          ...entryAmounts(row),
+        })),
+      )
     })()
     return () => {
       cancelled = true
     }
   }, [selected])
 
+  const metric = readMetric(board?.ranking_metric)
+
   const ranked = useMemo<RankedEntry[]>(() => {
     if (!board) return []
-    return rankEntries(entries, Number(board.prize_pool) || 0, board.payout_preset ?? board.prize_distribution_type)
-  }, [entries, board])
+    return rankEntries(
+      entries,
+      Number(board.prize_pool) || 0,
+      board.payout_preset ?? board.prize_distribution_type,
+      metric,
+    )
+  }, [entries, board, metric])
 
   const podium = ranked.slice(0, 3)
   const rest = ranked.slice(3)
-  const totalWagered = ranked.reduce((sum, entry) => sum + (Number(entry.wager_amount) || 0), 0)
+  const totalWagered = ranked.reduce((sum, entry) => sum + entry.total_wagered, 0)
+  const totalEarned = ranked.reduce((sum, entry) => sum + entry.total_earned, 0)
 
   if (loading) {
     return (
@@ -195,6 +216,7 @@ export default function LeaderboardPage() {
         subtitle={board.subtitle}
         countdown={countdownLabel(countdown)}
         podium={podium}
+        metric={metric}
       />
 
       {ranked.length === 0 ? (
@@ -208,7 +230,7 @@ export default function LeaderboardPage() {
             <PanelHeader title="The chase" right={<Tag accent="green">Live</Tag>} />
             <ul className="divide-y divide-white/[0.05]">
               {rest.map((entry) => (
-                <RankRow key={entry.id} entry={entry} />
+                <RankRow key={entry.id} entry={entry} metric={metric} />
               ))}
             </ul>
           </Panel>
@@ -223,8 +245,10 @@ export default function LeaderboardPage() {
           <MonoLabel className="mt-1.5 block text-white/30">Players</MonoLabel>
         </Panel>
         <Panel className="px-3.5 py-3">
-          <p className="text-[17px] font-semibold leading-none tabular-nums text-white">{moneyExact(totalWagered)}</p>
-          <MonoLabel className="mt-1.5 block text-white/30">Total wagered</MonoLabel>
+          <p className="text-[17px] font-semibold leading-none tabular-nums text-white">
+            {moneyExact(metric === "earned" ? totalEarned : totalWagered)}
+          </p>
+          <MonoLabel className="mt-1.5 block text-white/30">Total {metricLabel(metric).toLowerCase()}</MonoLabel>
         </Panel>
         <Panel className="col-span-2 px-3.5 py-3 sm:col-span-1">
           <p className="text-[13px] leading-none text-white/70">{formatInZone(board.end_date, zone)}</p>

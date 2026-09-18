@@ -10,6 +10,7 @@ import { LeaderboardEntriesDialog } from "@/components/admin/leaderboard-entries
 import { DEFAULT_PRESET_ID, PAYOUT_PRESETS, payoutSummary, rankEntries } from "@/lib/leaderboard-payouts"
 import { COMMON_TIMEZONES, DEFAULT_TIMEZONE, leaderboardStatus, utcToZonedInput, zonedInputToUtc } from "@/lib/leaderboard-time"
 import { parseLeaderboardCsv, type CsvResult } from "@/lib/leaderboard-csv"
+import { METRICS, readMetric, type Metric } from "@/lib/leaderboard-metric"
 
 /**
  * Creating and filling leaderboards.
@@ -26,6 +27,7 @@ type Leaderboard = {
   prize_pool: number
   prize_distribution_type: string | null
   payout_preset: string | null
+  ranking_metric: string | null
   timezone: string | null
   api_url: string | null
   api_key: string | null
@@ -40,6 +42,7 @@ type Draft = {
   subtitle: string
   prize_pool: string
   payout_preset: string
+  ranking_metric: Metric
   timezone: string
   image_url: string
   api_url: string
@@ -53,6 +56,7 @@ const emptyDraft = (): Draft => ({
   subtitle: "",
   prize_pool: "",
   payout_preset: DEFAULT_PRESET_ID,
+  ranking_metric: "wagered",
   timezone: DEFAULT_TIMEZONE,
   image_url: "",
   api_url: "",
@@ -92,6 +96,7 @@ export default function LeaderboardsManagePage() {
 
   const [entryName, setEntryName] = useState("")
   const [entryWager, setEntryWager] = useState("")
+  const [entryEarned, setEntryEarned] = useState("")
   const [csv, setCsv] = useState<CsvResult | null>(null)
 
   const board = boards.find((entry) => entry.id === selected) ?? null
@@ -128,6 +133,7 @@ export default function LeaderboardsManagePage() {
       subtitle: board.subtitle ?? "",
       prize_pool: String(board.prize_pool ?? ""),
       payout_preset: board.payout_preset ?? board.prize_distribution_type ?? DEFAULT_PRESET_ID,
+      ranking_metric: readMetric(board.ranking_metric),
       timezone: board.timezone ?? DEFAULT_TIMEZONE,
       image_url: board.image_url ?? "",
       api_url: board.api_url ?? "",
@@ -180,6 +186,7 @@ export default function LeaderboardsManagePage() {
       prize_pool: Number.parseFloat(draft.prize_pool) || 0,
       payout_preset: draft.payout_preset,
       prize_distribution_type: draft.payout_preset,
+      ranking_metric: draft.ranking_metric,
       timezone: zone,
       image_url: draft.image_url.trim() || null,
       api_url: draft.api_url.trim() || null,
@@ -229,7 +236,8 @@ export default function LeaderboardsManagePage() {
       {
         leaderboard_id: board.id,
         username: entryName.trim(),
-        wager_amount: Number.parseFloat(entryWager) || 0,
+        total_wagered: Number.parseFloat(entryWager) || 0,
+        total_earned: Number.parseFloat(entryEarned) || 0,
         // Rank and prize are derived from the field, so they are left to the
         // ranking rather than guessed one row at a time.
         rank: 0,
@@ -244,6 +252,7 @@ export default function LeaderboardsManagePage() {
     }
     setEntryName("")
     setEntryWager("")
+    setEntryEarned("")
     setEntryCount((current) => current + 1)
     setNotice({ tone: "info", text: "Entry added." })
   }
@@ -268,13 +277,19 @@ export default function LeaderboardsManagePage() {
       }
     }
 
-    const ranked = rankEntries(csv.rows, Number(board.prize_pool) || 0, board.payout_preset ?? board.prize_distribution_type)
+    const ranked = rankEntries(
+      csv.rows,
+      Number(board.prize_pool) || 0,
+      board.payout_preset ?? board.prize_distribution_type,
+      readMetric(board.ranking_metric),
+    )
     const { error } = await supabase.from("leaderboard_entries").insert(
       ranked.map((entry) => ({
         leaderboard_id: board.id,
         rank: entry.rank,
         username: entry.username,
-        wager_amount: entry.wager_amount,
+        total_wagered: entry.total_wagered,
+        total_earned: entry.total_earned,
         prize_amount: entry.prize_amount,
       })),
     )
@@ -290,7 +305,9 @@ export default function LeaderboardsManagePage() {
   }
 
   function downloadTemplate() {
-    const blob = new Blob(["username,wager_amount\nexample_player,1500\n"], { type: "text/csv" })
+    const blob = new Blob(["username,total_wagered,total_earned\nexample_player,1500,220.50\n"], {
+      type: "text/csv",
+    })
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
@@ -442,6 +459,29 @@ export default function LeaderboardsManagePage() {
                       ))}
                     </select>
                   </Field>
+                  <Field label="Ranked by" hint={METRICS.find((m) => m.id === draft.ranking_metric)?.hint}>
+                    <div className="grid grid-cols-2 gap-2">
+                      {METRICS.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => set({ ranking_metric: option.id })}
+                          className="h-9 rounded-md border font-mono text-[11px] uppercase tracking-[0.1em] transition"
+                          style={
+                            draft.ranking_metric === option.id
+                              ? {
+                                  borderColor: ACCENTS.blue + "77",
+                                  backgroundColor: ACCENTS.blue + "1f",
+                                  color: ACCENTS.blue,
+                                }
+                              : { borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }
+                          }
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
                   <Field label="Timezone" hint="The dates below are read in this zone.">
                     <select value={draft.timezone} onChange={(e) => set({ timezone: e.target.value })} className={field}>
                       {COMMON_TIMEZONES.map((zone) => (
@@ -535,7 +575,7 @@ export default function LeaderboardsManagePage() {
                     <MonoLabel className="mb-1.5 block text-white/30">Username</MonoLabel>
                     <input value={entryName} onChange={(e) => setEntryName(e.target.value)} className={field} />
                   </div>
-                  <div className="w-36">
+                  <div className="w-32">
                     <MonoLabel className="mb-1.5 block text-white/30">Wagered</MonoLabel>
                     <input
                       type="number"
@@ -543,6 +583,19 @@ export default function LeaderboardsManagePage() {
                       step="0.01"
                       value={entryWager}
                       onChange={(e) => setEntryWager(e.target.value)}
+                      className={field + " tabular-nums"}
+                    />
+                  </div>
+                  <div className="w-32">
+                    <MonoLabel className="mb-1.5 block text-white/30">Earned</MonoLabel>
+                    {/* No min: a losing player earned a negative number, and
+                        refusing to record that would quietly rank them above
+                        someone who broke even. */}
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={entryEarned}
+                      onChange={(e) => setEntryEarned(e.target.value)}
                       className={field + " tabular-nums"}
                     />
                   </div>
@@ -629,7 +682,12 @@ export default function LeaderboardsManagePage() {
                                   {index + 1}
                                 </span>
                                 <span className="min-w-0 flex-1 truncate text-white/70">{row.username}</span>
-                                <span className="tabular-nums text-white/50">{row.wager_amount.toLocaleString()}</span>
+                                <span className="tabular-nums text-white/50">
+                                  {row.total_wagered.toLocaleString("en-US")}
+                                </span>
+                                <span className="w-20 shrink-0 text-right tabular-nums text-white/30">
+                                  {row.total_earned.toLocaleString("en-US")}
+                                </span>
                               </li>
                             ))}
                           </ul>
