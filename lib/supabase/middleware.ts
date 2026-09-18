@@ -1,10 +1,22 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { isAdminPath, isAllowedAdmin, resolvePath, safeNext } from "@/lib/admin-host"
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+  // Where this request actually lands, once ADMIN_HOST has had its say. Every
+  // decision below is made about *this*, not about the URL in the address bar,
+  // so admin.trinidorewards.com/users is guarded exactly like /admin/users.
+  const pathname = resolvePath(request.nextUrl.pathname, request.headers.get("host"), process.env.ADMIN_HOST)
+
+  // The session lookup is a network round-trip to Supabase's auth server, and
+  // only the admin routes ask anything of it. Everything else leaves here
+  // before paying for it — the rest of the site authenticates with a Kick
+  // cookie and never had a Supabase session to refresh.
+  if (!isAdminPath(pathname)) {
+    return rewriteIfNeeded(request, pathname)
+  }
+
+  let supabaseResponse = rewriteIfNeeded(request, pathname)
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,9 +28,7 @@ export async function updateSession(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
-          })
+          supabaseResponse = rewriteIfNeeded(request, pathname)
           cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options))
         },
       },
@@ -29,12 +39,28 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protect admin routes
-  if (request.nextUrl.pathname.startsWith("/admin") && !user) {
+  // Signed in is not the same as allowed. See isAllowedAdmin: without
+  // ADMIN_EMAILS set this is the old behaviour, and with it set a stray
+  // sign-up is just a stray account.
+  if (!user || !isAllowedAdmin(user.email, process.env.ADMIN_EMAILS)) {
     const url = request.nextUrl.clone()
     url.pathname = "/auth/login"
+    url.search = ""
+    // Come back to the page that was asked for, rather than dropping everyone
+    // on the dashboard.
+    url.searchParams.set("next", safeNext(pathname))
     return NextResponse.redirect(url)
   }
 
   return supabaseResponse
+}
+
+/** NextResponse.next(), or a rewrite when the host implied a different path. */
+function rewriteIfNeeded(request: NextRequest, pathname: string) {
+  if (pathname === request.nextUrl.pathname) {
+    return NextResponse.next({ request })
+  }
+  const url = request.nextUrl.clone()
+  url.pathname = pathname
+  return NextResponse.rewrite(url, { request })
 }

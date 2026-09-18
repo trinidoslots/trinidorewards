@@ -3,21 +3,24 @@
 import type React from "react"
 
 import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-import { ArrowLeft } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useState } from "react"
+import { AuthShell, Field, FormError, SubmitButton } from "@/components/auth-shell"
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const params = useSearchParams()
+
+  // The middleware sends you here from wherever you were headed. Going back to
+  // /admin afterwards would lose that, so the page you asked for is carried
+  // through the round-trip — but only as a path on this site, never an
+  // arbitrary URL somebody put in the query string.
+  const nextParam = params.get("next")
+  const next = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/admin"
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,12 +29,9 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
-      router.push("/admin")
+      router.push(next)
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
@@ -40,65 +40,39 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-white mb-6 transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Bonus Hunt
-        </Link>
+    <AuthShell title="Admin" subtitle="Sign in to reach the admin panel.">
+      <form onSubmit={handleLogin} className="space-y-4">
+        <Field
+          label="Email"
+          id="email"
+          type="email"
+          autoComplete="username"
+          placeholder="you@example.com"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <Field
+          label="Password"
+          id="password"
+          type="password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <FormError message={error} />
+        <SubmitButton busy={isLoading}>{isLoading ? "Signing in…" : "Sign in"}</SubmitButton>
+      </form>
+    </AuthShell>
+  )
+}
 
-        <Card className="bg-slate-800/50 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-2xl text-white">Admin Login</CardTitle>
-            <CardDescription className="text-slate-400">
-              Enter your credentials to access the admin panel
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin}>
-              <div className="flex flex-col gap-6">
-                <div className="grid gap-2">
-                  <Label htmlFor="email" className="text-slate-300">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="admin@example.com"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="bg-slate-900 border-slate-700 text-white"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="password" className="text-slate-300">
-                    Password
-                  </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="bg-slate-900 border-slate-700 text-white"
-                  />
-                </div>
-                {error && <p className="text-sm text-red-400">{error}</p>}
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Logging in..." : "Login"}
-                </Button>
-              </div>
-              <div className="mt-4 text-center text-sm text-slate-400">
-                Don&apos;t have an account?{" "}
-                <Link href="/auth/sign-up" className="text-blue-400 hover:text-blue-300 underline underline-offset-4">
-                  Sign up
-                </Link>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+export default function LoginPage() {
+  // useSearchParams needs a suspense boundary to keep this page prerenderable.
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0B0B0D]" />}>
+      <LoginForm />
+    </Suspense>
   )
 }

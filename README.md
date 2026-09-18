@@ -139,3 +139,14 @@ npm start
 ## Support
 
 For issues or questions, please refer to the v0 documentation or Supabase documentation.
+
+## Admin access
+
+Two optional environment variables, both inert when unset.
+
+| Variable | Effect when unset | Effect when set |
+| --- | --- | --- |
+| `ADMIN_EMAILS` | **Any** signed-in Supabase user reaches /admin, and /auth/sign-up is public — so anyone who finds it can sign up and walk in. | Comma-separated allowlist. Only those addresses reach /admin; a stray sign-up is just a stray account. |
+| `ADMIN_HOST` | The panel lives at trinidorewards.com/admin only. | That hostname also serves the panel, with the /admin prefix implied: admin.trinidorewards.com/users is /admin/users. Add the domain in Vercel and point a CNAME at it first. |
+
+The subdomain is an address, not a lock. `ADMIN_EMAILS` is what guards the panel; both hosts are checked alike, because the session check runs on the resolved path.
