@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useLayoutEffect, useRef } from "react"
 import { motion, useAnimationControls } from "framer-motion"
 import { AutoHeight } from "@/components/auto-height"
 
@@ -35,6 +35,26 @@ import { AutoHeight } from "@/components/auto-height"
  */
 const EASE: [number, number, number, number] = [0.4, 0, 0.2, 1]
 
+/**
+ * useLayoutEffect on the client, useEffect on the server.
+ *
+ * It has to be the layout one. useEffect runs after the browser has painted,
+ * so the frame order was: React commits the new board, the browser paints it
+ * at full opacity, and only then does the effect set opacity to 0 and start
+ * the fade. Measured, one frame at 268.7ms showed the new title fully visible
+ * and the next at 272.9ms showed it gone — the name changing a beat before
+ * its own animation.
+ *
+ * Tab clicks hid this. React flushes passive effects before paint when the
+ * update comes from a discrete event, so the hunt tabs looked fine; the
+ * leaderboard's swap is committed from a fetch callback, which gets no such
+ * treatment. useLayoutEffect runs after commit and before paint either way.
+ *
+ * React warns about useLayoutEffect during server rendering, where it cannot
+ * run at all, so on the server it falls back to the one that is also a no-op.
+ */
+const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect
+
 export function Swap({
   on,
   children,
@@ -59,7 +79,7 @@ export function Swap({
   const controls = useAnimationControls()
   const first = useRef(true)
 
-  useEffect(() => {
+  useIsoLayoutEffect(() => {
     // The first render is an arrival, not a switch. Animating it would fight
     // whatever brought the page in.
     if (first.current) {
