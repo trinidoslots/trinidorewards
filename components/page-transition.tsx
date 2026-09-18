@@ -1,34 +1,34 @@
 "use client"
 
 import { usePathname } from "next/navigation"
-import { AnimatePresence, motion } from "framer-motion"
+import { motion } from "framer-motion"
 
 /**
- * The handover between pages.
+ * The new page arrives. The old one does not linger.
  *
- * Keyed on the path, so the outgoing page fades up and out while the new one
- * arrives from below. Short on purpose — this sits between a click and the
- * thing you clicked for, and anything longer than about a quarter of a second
- * stops reading as polish and starts reading as lag.
+ * This animated the exit too, through AnimatePresence, and that was wrong for
+ * the same reason it looked right on paper: both pages are mounted while they
+ * cross. Measured, <main> held two children for about 250ms on every
+ * navigation — the old page and the new one, side by side. On pages that fetch
+ * on mount that also meant two rounds of requests, and it read exactly as what
+ * it was: the page loading twice.
  *
- * mode="wait" would double that by finishing the exit before the entry starts,
- * so the two overlap instead; "popLayout" keeps the outgoing page out of the
- * flow so they do not shove each other around while they cross.
+ * Keying a plain motion.div on the path instead means React unmounts the old
+ * subtree the moment the route changes and the new one plays its entry. One
+ * page at a time, and no waiting for an exit before the thing you clicked for
+ * appears.
  */
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
-      <motion.div
-        key={pathname}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -6 }}
-        transition={{ duration: 0.24, ease: [0.2, 0.7, 0.2, 1] }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <motion.div
+      key={pathname}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.26, ease: [0.2, 0.7, 0.2, 1] }}
+    >
+      {children}
+    </motion.div>
   )
 }

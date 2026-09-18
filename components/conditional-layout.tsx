@@ -6,7 +6,6 @@ import { useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { MainNav } from "@/components/main-nav"
 import { Footer } from "@/components/footer"
-import { RouteTransitionOverlay } from "@/components/route-transition-overlay"
 import { AmbientBackground } from "@/components/ambient-background"
 import { PageTransition } from "@/components/page-transition"
 import { Reveal } from "@/components/reveal"
@@ -37,13 +36,15 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen transition-[padding-left] duration-300 ease-in-out md:pl-[var(--main-nav-width,238px)]">
       <AmbientBackground />
       <MainNav />
-      <RouteTransitionOverlay>
-        <main className="min-h-screen">
-          <PageTransition>{children}</PageTransition>
-        </main>
-        <Reveal />
-        <Footer />
-      </RouteTransitionOverlay>
+      {/* The full-screen loading overlay used to live here, shown whenever a
+          navigation took longer than 150ms. The entry animation is that
+          feedback now, and having both meant a loading screen and then a
+          transition for the same click. */}
+      <main className="min-h-screen">
+        <PageTransition>{children}</PageTransition>
+      </main>
+      <Reveal />
+      <Footer />
     </div>
   )
 }
