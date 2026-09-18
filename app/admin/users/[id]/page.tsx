@@ -15,6 +15,9 @@ import {
   UserRound,
 } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
+import { PointsDialog } from "@/components/admin/points-dialog"
+import { nextBalance, type PointsAction } from "@/lib/points"
+import { createClient } from "@/lib/supabase/client"
 import { sourceMeta, winValue, type WinLog } from "@/lib/wins"
 import { CopyableId } from "@/components/ui/copyable-id"
 
@@ -87,6 +90,10 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>("overview")
+  const [adjusting, setAdjusting] = useState(false)
+  // Held locally so the balance updates the moment it is changed, rather than
+  // waiting on a refetch of everything else on the page.
+  const [balance, setBalance] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -95,6 +102,7 @@ export default function AdminUserDetailPage() {
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error ?? "Could not load that user")
       setData(payload as Payload)
+      setBalance(Number(payload?.user?.points_balance) || 0)
       setError(null)
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : "Could not load that user")
@@ -127,6 +135,22 @@ export default function AdminUserDetailPage() {
   }
 
   const { user, accounts, payments, redemptions, raffleEntries, wins, totals } = data
+  const currentBalance = balance ?? (Number(user.points_balance) || 0)
+
+  async function applyPoints(action: PointsAction, amount: number) {
+    const next = nextBalance(currentBalance, action, amount)
+    const { error: problem } = await createClient()
+      .from("users")
+      .update({ points_balance: next })
+      .eq("id", user.id)
+
+    if (problem) {
+      setError(problem.message || "Could not update that balance")
+      return
+    }
+    setBalance(next)
+    setAdjusting(false)
+  }
 
   return (
     <div className="space-y-4">
@@ -146,7 +170,14 @@ export default function AdminUserDetailPage() {
       </Panel>
 
       <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile label="Points balance" value={points(totals.points)} accent="green" />
+        <button type="button" onClick={() => setAdjusting(true)} className="text-left transition hover:opacity-80">
+          <StatTile
+            label="Points balance"
+            value={points(currentBalance)}
+            accent="green"
+            hint="Click to add or remove"
+          />
+        </button>
         <StatTile label="Spent in store" value={points(totals.spentOnStore)} accent="amber" hint={`${totals.redemptions} redemptions`} />
         <StatTile label="Spent on raffles" value={points(totals.spentOnRaffles)} accent="purple" hint={`${totals.tickets} tickets`} />
         <StatTile
@@ -184,6 +215,15 @@ export default function AdminUserDetailPage() {
           <AccountsPanel accounts={accounts} />
           <PaymentsPanel payments={payments} />
         </div>
+      )}
+
+      {adjusting && (
+        <PointsDialog
+          username={user.username}
+          balance={currentBalance}
+          onClose={() => setAdjusting(false)}
+          onApply={applyPoints}
+        />
       )}
 
       {tab === "wins" && <WinsPanel wins={wins} />}

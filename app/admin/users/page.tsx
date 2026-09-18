@@ -6,6 +6,8 @@ import { ChevronRight, Coins, RefreshCw, Search, UserRound, X } from "lucide-rea
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile } from "@/components/ui/panel"
 import { CopyableId } from "@/components/ui/copyable-id"
+import { PointsDialog } from "@/components/admin/points-dialog"
+import { nextBalance, type PointsAction } from "@/lib/points"
 
 /**
  * The user list.
@@ -91,13 +93,8 @@ export default function AdminUsersPage() {
     [users],
   )
 
-  async function applyPoints(user: User, action: "add" | "remove" | "set", amount: number) {
-    const next =
-      action === "add"
-        ? Number(user.points_balance) + amount
-        : action === "remove"
-          ? Math.max(0, Number(user.points_balance) - amount)
-          : amount
+  async function applyPoints(user: User, action: PointsAction, amount: number) {
+    const next = nextBalance(Number(user.points_balance), action, amount)
 
     const { error } = await supabaseRef.current.from("users").update({ points_balance: next }).eq("id", user.id)
     if (error) {
@@ -255,127 +252,15 @@ export default function AdminUsersPage() {
         )}
       </Panel>
 
-      {editing && <PointsDialog user={editing} onClose={() => setEditing(null)} onApply={applyPoints} />}
+      {editing && (
+        <PointsDialog
+          username={editing.username}
+          balance={Number(editing.points_balance) || 0}
+          onClose={() => setEditing(null)}
+          onApply={(action, amount) => applyPoints(editing, action, amount)}
+        />
+      )}
     </div>
   )
 }
 
-function PointsDialog({
-  user,
-  onClose,
-  onApply,
-}: {
-  user: User
-  onClose: () => void
-  onApply: (user: User, action: "add" | "remove" | "set", amount: number) => Promise<void>
-}) {
-  const [action, setAction] = useState<"add" | "remove" | "set">("add")
-  const [raw, setRaw] = useState("")
-  const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && onClose()
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
-  }, [onClose])
-
-  const amount = Number.parseInt(raw, 10)
-  // "set" to zero is a legitimate correction; adding or removing nothing is not.
-  const valid = Number.isFinite(amount) && (action === "set" ? amount >= 0 : amount > 0)
-  const preview = !valid
-    ? null
-    : action === "add"
-      ? Number(user.points_balance) + amount
-      : action === "remove"
-        ? Math.max(0, Number(user.points_balance) - amount)
-        : amount
-
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-label={`Adjust points for ${user.username}`}
-        onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-sm overflow-hidden rounded-lg border border-white/[0.10] bg-[#0E0E11]"
-      >
-        <header className="flex items-center gap-2 border-b border-white/[0.08] px-4 py-3">
-          <MonoLabel className="text-white/70">Points</MonoLabel>
-          <span className="truncate text-[13px] text-white/40">{user.username}</span>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="ml-auto rounded p-1.5 text-white/30 transition hover:bg-white/[0.06] hover:text-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </header>
-
-        <div className="space-y-3 p-4">
-          <div className="grid grid-cols-3 gap-2">
-            {(["add", "remove", "set"] as const).map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => setAction(option)}
-                className="rounded-md border py-2 font-mono text-[11px] uppercase tracking-[0.1em] transition"
-                style={
-                  action === option
-                    ? { borderColor: `${ACCENTS.blue}77`, backgroundColor: `${ACCENTS.blue}1f`, color: ACCENTS.blue }
-                    : { borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }
-                }
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-
-          <div>
-            <MonoLabel className="mb-1.5 block text-white/30">Amount</MonoLabel>
-            <input
-              type="number"
-              min="0"
-              autoFocus
-              value={raw}
-              onChange={(event) => setRaw(event.target.value)}
-              className="h-9 w-full rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] tabular-nums text-white outline-none transition focus:border-white/25"
-            />
-          </div>
-
-          <p className="text-[12px] text-white/35">
-            {points(user.points_balance)}
-            {preview !== null && (
-              <>
-                {" → "}
-                <span style={{ color: ACCENTS.green }}>{points(preview)}</span>
-              </>
-            )}
-          </p>
-        </div>
-
-        <footer className="flex justify-end gap-2 border-t border-white/[0.08] px-4 py-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-9 items-center rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={!valid || busy}
-            onClick={async () => {
-              setBusy(true)
-              await onApply(user, action, amount)
-              setBusy(false)
-            }}
-            className="inline-flex h-9 items-center rounded-md px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-black transition disabled:cursor-not-allowed disabled:opacity-30"
-            style={{ backgroundColor: ACCENTS.green }}
-          >
-            {busy ? "Saving…" : "Apply"}
-          </button>
-        </footer>
-      </div>
-    </div>
-  )
-}

@@ -24,6 +24,8 @@ export type RaffleDraft = {
   description: string
   prize_name: string
   prize_value: string
+  /** cash | points | item — decides what the draw does with prize_value. */
+  prize_type: string
   prize_image_url: string
   ticket_price: string
   entry_type: string
@@ -42,6 +44,7 @@ export const emptyDraft: RaffleDraft = {
   description: "",
   prize_name: "",
   prize_value: "",
+  prize_type: "cash",
   prize_image_url: "",
   ticket_price: "100",
   entry_type: "free",
@@ -67,6 +70,7 @@ export function draftFrom(row: Record<string, any>): RaffleDraft {
     description: row.description ?? "",
     prize_name: row.prize_name ?? "",
     prize_value: row.prize_value == null ? "" : String(row.prize_value),
+    prize_type: row.prize_type ?? "cash",
     prize_image_url: row.prize_image_url ?? "",
     ticket_price: String(row.ticket_price ?? 0),
     entry_type: row.entry_type === "points" || Number(row.ticket_price) > 0 ? "points" : "free",
@@ -129,6 +133,7 @@ export function RaffleForm({ raffleId, initial }: { raffleId?: string; initial?:
       description: draft.description.trim() || null,
       prize_name: draft.prize_name.trim(),
       prize_value: draft.prize_value ? Number.parseFloat(draft.prize_value) : null,
+      prize_type: draft.prize_type,
       prize_image_url: draft.prize_image_url.trim() || null,
       // A free raffle costs nothing whatever is left in the price box.
       ticket_price: isFree ? 0 : Number.parseInt(draft.ticket_price) || 0,
@@ -187,10 +192,46 @@ export function RaffleForm({ raffleId, initial }: { raffleId?: string; initial?:
               className={field}
             />
           </Field>
-          <Field label="Prize value" hint="Optional.">
+          <Field label="Prize is">
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { id: "cash", label: "Cash" },
+                { id: "points", label: "Points" },
+                { id: "item", label: "Item" },
+              ].map((option) => {
+                const active = draft.prize_type === option.id
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => set({ prize_type: option.id })}
+                    className="h-9 rounded-md border font-mono text-[11px] uppercase tracking-[0.08em] transition"
+                    style={
+                      active
+                        ? { borderColor: ACCENTS.blue + "77", backgroundColor: ACCENTS.blue + "1f", color: ACCENTS.blue }
+                        : { borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }
+                    }
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </Field>
+
+          <Field
+            label={draft.prize_type === "points" ? "Points awarded" : "Prize value"}
+            hint={
+              draft.prize_type === "points"
+                ? "Credited to the winner's balance the moment it is drawn."
+                : draft.prize_type === "cash"
+                  ? "Logged on the winner log as owed, for you to pay out."
+                  : "Optional — what the item is worth."
+            }
+          >
             <input
               type="number"
-              step="0.01"
+              step={draft.prize_type === "points" ? "1" : "0.01"}
               min="0"
               value={draft.prize_value}
               onChange={(e) => set({ prize_value: e.target.value })}

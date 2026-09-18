@@ -6,8 +6,67 @@ import { drawWinner } from "@/lib/raffle-utils"
 
 type Client = ReturnType<typeof serviceClient>
 
+/**
+ * Hands the prize over.
+ *
+ * Points go straight onto the winner's balance, because that is a number this
+ * site owns and there is nothing for a human to do. Cash and items go on the
+ * winner log as owed, because paying them out happens somewhere else.
+ *
+ * Every prize is logged either way — the points one marked paid, since it
+ * already has been. A win that only exists as a balance change leaves no record
+ * of what it was for.
+ *
+ * Nothing here can fail the draw: the winner is already decided and written,
+ * and refusing to record that because a side effect went wrong would be worse
+ * than a missing log line.
+ */
+async function awardPrize(
+  client: Client,
+  raffle: { id: string; title: string; prize_name: string; prize_value: number | null; prize_type: string | null },
+  username: string,
+) {
+  const prizeType = raffle.prize_type ?? "cash"
+  const value = Number(raffle.prize_value) || 0
+
+  // The account behind the name, if there is one. Giveaway-style winners from
+  // chat may have none, in which case the win is logged against the name alone.
+  const { data: user } = await client.from("users").select("id, points_balance").ilike("username", username).maybeSingle()
+
+  let credited = false
+  if (prizeType === "points" && value > 0 && user) {
+    const balance = Number(user.points_balance) || 0
+    const { error } = await client
+      .from("users")
+      .update({ points_balance: balance + value })
+      .eq("id", user.id)
+      // Guarded, as everywhere else points move: a concurrent change fails the
+      // update rather than being written over.
+      .eq("points_balance", balance)
+
+    if (error) console.error("[v0] Could not credit raffle points:", error)
+    else credited = true
+  }
+
+  const { error: logError } = await client.from("win_logs").insert({
+    user_id: user?.id ?? null,
+    username,
+    source: "raffle",
+    source_ref: raffle.title,
+    prize: raffle.prize_name || raffle.title,
+    amount: prizeType === "cash" && value > 0 ? value : null,
+    points: prizeType === "points" && value > 0 ? value : null,
+    // Points are settled the moment they are credited. Cash is owed.
+    status: credited ? "paid" : "pending",
+    note: prizeType === "points" && value > 0 && !user ? "No account matched — points not credited" : null,
+    paid_at: credited ? new Date().toISOString() : null,
+  })
+
+  if (logError) console.error("[v0] Could not log the raffle win:", logError)
+}
+
 /** Draws one raffle and writes the result. Shared by the button and the sweep. */
-async function drawOne(client: Client, raffleId: string) {
+async function drawOne(client: Client, raffleId: string, award = true) {
   const { data: entries, error } = await client
     .from("raffle_entries")
     .select("id, username, tickets_purchased")
@@ -65,6 +124,18 @@ async function drawOne(client: Client, raffleId: string) {
       }
     }
     return { error: "Could not record the winner" as const }
+  }
+
+  // Only after the guarded write succeeded, so exactly one caller hands the
+  // prize over however many of them raced for it.
+  if (award) {
+    const { data: raffle } = await client
+      .from("raffles")
+      .select("id, title, prize_name, prize_value, prize_type")
+      .eq("id", raffleId)
+      .maybeSingle()
+
+    if (raffle) await awardPrize(client, raffle, result.username)
   }
 
   return { result }
@@ -158,7 +229,9 @@ export async function POST(request: Request) {
     await client.from("raffles").update({ winner_username: null }).eq("id", raffleId)
   }
 
-  const outcome = await drawOne(client, raffleId)
+  // A redraw does not hand the prize over again: the first winner has already
+  // been credited or logged, and a correction is not a second prize.
+  const outcome = await drawOne(client, raffleId, !body?.redraw)
   if ("error" in outcome && outcome.error) {
     const status = outcome.error === "Nobody has entered this raffle" ? 400 : 500
     return NextResponse.json({ error: outcome.error }, { status })
