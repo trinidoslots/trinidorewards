@@ -1,8 +1,9 @@
 import Link from "next/link"
 import { ExternalLink, Gift } from "lucide-react"
-import { createServerClient } from "@/lib/supabase/server"
 import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
+import { createServerClient } from "@/lib/supabase/server"
 import { CopyableId } from "@/components/ui/copyable-id"
+import { PageBody, PageHero } from "@/components/page-hero"
 
 /**
  * Bonus offers change by the week, not the second.
@@ -44,11 +45,16 @@ export default async function BonusesPage() {
   const casinos = new Set(bonuses.map((bonus) => bonus.casino_name).filter(Boolean))
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 px-5 py-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">Bonuses</h1>
-        <p className="mt-1 text-[13px] text-white/40">Codes and offers worth using.</p>
-      </header>
+    <div>
+      <PageHero
+        accent="amber"
+        figure={bonuses.length || undefined}
+        figureLabel={bonuses.length ? "Live offers" : undefined}
+        title="Bonuses"
+        subtitle="Codes and offers worth using."
+        note={casinos.size ? `Across ${casinos.size} ${casinos.size === 1 ? "casino" : "casinos"}` : undefined}
+      />
+      <PageBody className="space-y-4">
 
       {error ? (
         <Panel accent="red" className="p-6 text-center">
@@ -77,6 +83,7 @@ export default async function BonusesPage() {
           )}
         </>
       )}
+      </PageBody>
     </div>
   )
 }

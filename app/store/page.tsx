@@ -1,10 +1,11 @@
 import Link from "next/link"
-import { cookies } from "next/headers"
 import { Coins, Package, ShoppingBag } from "lucide-react"
-import { createClient } from "@/lib/supabase/server"
 import { ACCENTS, MonoLabel, Panel, StatTile } from "@/components/ui/panel"
+import { cookies } from "next/headers"
+import { createClient } from "@/lib/supabase/server"
 import { StoreItemCard } from "@/components/store-item-card"
 import { inStock, isAvailable, type StoreItem } from "@/lib/store"
+import { PageBody, PageHero } from "@/components/page-hero"
 
 /**
  * The store.
@@ -34,12 +35,15 @@ export default async function StorePage() {
   if (error) {
     console.error("[v0] Error fetching store items:", error)
     return (
-      <div className="mx-auto max-w-6xl px-5 py-6">
-        <Panel accent="red" className="p-6 text-center">
-          <Package className="mx-auto h-8 w-8 text-white/15" />
-          <p className="mt-3 text-[14px] text-white">The store could not be loaded.</p>
-          <p className="mt-1 text-[12.5px] text-white/35">{error.message}</p>
-        </Panel>
+      <div>
+        <PageHero accent="pink" title="Stream Store" subtitle="Turn points into rewards." />
+        <PageBody>
+          <Panel accent="red" className="p-6 text-center">
+            <Package className="mx-auto h-8 w-8 text-white/15" />
+            <p className="mt-3 text-[14px] text-white">The store could not be loaded.</p>
+            <p className="mt-1 text-[12.5px] text-white/35">{error.message}</p>
+          </Panel>
+        </PageBody>
       </div>
     )
   }
@@ -49,25 +53,26 @@ export default async function StorePage() {
   const affordable = items.filter((item) => inStock(item) && userPoints >= (Number(item.cost) || 0)).length
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 px-5 py-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Stream Store</h1>
-          <p className="mt-1 text-[13px] text-white/40">Turn points into rewards.</p>
-        </div>
-        {isLoggedIn && (
-          <Link
-            href="/profile"
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-white/[0.10] px-3.5 transition hover:border-white/25"
-          >
-            <Coins className="h-3.5 w-3.5" style={{ color: ACCENTS.green }} />
-            <span className="text-[13px] font-semibold tabular-nums" style={{ color: ACCENTS.green }}>
-              {userPoints.toLocaleString()}
-            </span>
-            <MonoLabel className="text-white/30">points</MonoLabel>
-          </Link>
-        )}
-      </header>
+    <div>
+      <PageHero
+        accent="pink"
+        figure={isLoggedIn ? userPoints.toLocaleString("en-US") : undefined}
+        figureLabel={isLoggedIn ? "Your points" : undefined}
+        title="Stream Store"
+        subtitle="Turn points into rewards."
+        actions={
+          isLoggedIn ? (
+            <Link
+              href="/profile"
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-white/[0.10] px-3.5 transition hover:border-white/25"
+            >
+              <Coins className="h-3.5 w-3.5" style={{ color: ACCENTS.green }} />
+              <MonoLabel className="text-white/40">Your profile</MonoLabel>
+            </Link>
+          ) : undefined
+        }
+      />
+      <PageBody className="space-y-4">
 
       <div className="grid gap-2.5 sm:grid-cols-3">
         <StatTile label="Items listed" value={items.length.toLocaleString()} />
@@ -99,6 +104,7 @@ export default async function StorePage() {
           )
         })
       )}
+      </PageBody>
     </div>
   )
 }

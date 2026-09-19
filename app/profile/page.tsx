@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
-import { Coins, Package, UserRound } from "lucide-react"
+import { Package } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
+import { createClient } from "@/lib/supabase/client"
 import { CopyableId } from "@/components/ui/copyable-id"
 import { ConnectedAccountsPanel, MyWinsPanel, PaymentMethodsPanel } from "@/components/profile-panels"
+import { PageBody, PageHero } from "@/components/page-hero"
 
 /**
  * The player's own page: what they have, where they play, and where they want
@@ -80,8 +81,8 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-6xl px-5 py-16 text-center">
-        <MonoLabel className="text-white/25">Loading</MonoLabel>
+      <div>
+        <PageHero accent="blue" title="Profile" subtitle="Loading your account." />
       </div>
     )
   }
@@ -95,39 +96,31 @@ export default function ProfilePage() {
     .reduce((sum, entry) => sum + (Number(entry.cost) || 0), 0)
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 px-5 py-6">
-      <Panel accent="blue" className="flex flex-wrap items-center gap-4 p-4">
-        {user.avatar_url ? (
+    <div>
+      <PageHero
+        accent="blue"
+        figure={points(user.points_balance)}
+        figureLabel="Points"
+        title={user.username}
+        actions={
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.10] px-3 py-1.5">
+            <MonoLabel className="text-white/25">Your ID</MonoLabel>
+            <CopyableId value={user.id} chars={6} />
+          </span>
+        }
+      >
+        {user.avatar_url && (
           <img
             src={user.avatar_url}
             alt=""
-            className="h-16 w-16 shrink-0 rounded-lg border border-white/[0.08] object-cover"
+            className="mx-auto mt-6 h-16 w-16 rounded-full border-2 border-white/[0.10] object-cover"
             onError={(event) => {
               event.currentTarget.style.display = "none"
             }}
           />
-        ) : (
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03]">
-            <UserRound className="h-7 w-7 text-white/20" />
-          </div>
         )}
-
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold tracking-tight text-white">{user.username}</h1>
-          <div className="mt-1.5 flex items-center gap-1.5">
-            <Coins className="h-3.5 w-3.5" style={{ color: ACCENTS.green }} />
-            <span className="text-[14px] font-semibold tabular-nums" style={{ color: ACCENTS.green }}>
-              {points(user.points_balance)}
-            </span>
-            <span className="text-[13px] text-white/35">points</span>
-          </div>
-        </div>
-
-        <div className="ml-auto flex items-center gap-1.5">
-          <MonoLabel className="text-white/25">Your ID</MonoLabel>
-          <CopyableId value={user.id} chars={6} />
-        </div>
-      </Panel>
+      </PageHero>
+      <PageBody className="space-y-4">
 
       <div className="grid gap-2.5 sm:grid-cols-3">
         <StatTile label="Points balance" value={points(user.points_balance)} accent="green" />
@@ -178,6 +171,7 @@ export default function ProfilePage() {
         </Panel>
         </div>
       </div>
+      </PageBody>
     </div>
   )
 }

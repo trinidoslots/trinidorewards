@@ -1,18 +1,11 @@
-import { FileText } from "lucide-react"
-import { MonoLabel, Panel } from "@/components/ui/panel"
+import { PageBody, PageHero } from "@/components/page-hero"
+import { Panel } from "@/components/ui/panel"
 
 export default function Page() {
   return (
-    <div className="mx-auto max-w-4xl space-y-4 px-5 py-6">
-      <header className="flex items-center gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03]">
-          <FileText className="h-5 w-5 text-white/40" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Terms of Service</h1>
-          <MonoLabel className="text-white/30">The rules for using the site.</MonoLabel>
-        </div>
-      </header>
+    <div>
+      <PageHero accent="slate" title="Terms of Service" subtitle="The rules for using the site." />
+      <PageBody className="max-w-4xl space-y-4">
 
       <Panel className="p-6">
         <div className="max-w-none space-y-6">
@@ -295,6 +288,7 @@ export default function Page() {
             </section>
         </div>
       </Panel>
+      </PageBody>
     </div>
   )
 }

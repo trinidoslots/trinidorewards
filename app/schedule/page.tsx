@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import Link from "next/link"
 import { CalendarDays, Radio } from "lucide-react"
+import { MonoLabel, Panel } from "@/components/ui/panel"
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
-import { ACCENTS, MonoLabel, Panel } from "@/components/ui/panel"
 import { WeekGrid, WeekNav, groupWeek } from "@/components/schedule-week"
 import { addWeeks, countdownTo, startOfWeek } from "@/lib/schedule-week"
 import { stateOf, type ScheduleEntry } from "@/lib/schedule"
+import { PageBody, PageHero } from "@/components/page-hero"
 
 /**
  * When the stream is on.
@@ -82,66 +83,43 @@ export default function SchedulePage() {
   const countdown = countdownTo(next?.starts_at, now)
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 px-5 py-6">
-      <Panel accent={live ? "green" : "amber"} className="flex flex-wrap items-center gap-6 p-5">
-        <div className="min-w-0">
-          <MonoLabel style={{ color: live ? ACCENTS.green : ACCENTS.amber }}>
-            {live ? "On air now" : "Next stream"}
-          </MonoLabel>
-
-          <p className="mt-1.5 text-[24px] font-semibold leading-tight text-white">
-            {live
-              ? live.title
-              : next
-                ? new Date(next.starts_at).toLocaleDateString(undefined, {
-                    weekday: "long",
-                    month: "short",
-                    day: "numeric",
-                  })
-                : "Nothing announced"}
-          </p>
-
-          <p className="mt-0.5 text-[12.5px] text-white/40">
-            {live
-              ? "Live right now"
-              : next
-                ? new Date(next.starts_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
-                : "Check back soon"}
-          </p>
-
+    <div>
+      <PageHero
+        accent={live ? "green" : "amber"}
+        title={
+          live
+            ? live.title
+            : next
+              ? new Date(next.starts_at).toLocaleDateString(undefined, {
+                  weekday: "long",
+                  month: "short",
+                  day: "numeric",
+                })
+              : "Nothing announced"
+        }
+        subtitle={
+          live
+            ? "Live right now"
+            : next
+              ? new Date(next.starts_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+              : "Check back soon"
+        }
+        note={live ? "On air now" : "Next stream"}
+        countdown={!live && next && !countdown.over ? countdown : undefined}
+        countdownLabel="Starts in"
+        actions={
           <Link
             href={KICK_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-flex h-8 items-center gap-2 rounded-md border border-white/[0.12] px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white/60 transition hover:border-white/30 hover:text-white"
+            className="inline-flex h-8 items-center gap-2 rounded-md border border-white/[0.12] px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white/60 transition hover:border-white/30 hover:text-white"
           >
             <Radio className="h-3 w-3" />
             Open Kick
           </Link>
-        </div>
-
-        {!live && next && !countdown.over && (
-          <div className="ml-auto flex gap-2">
-            {[
-              { value: countdown.days, label: "Days" },
-              { value: countdown.hours, label: "Hrs" },
-              { value: countdown.minutes, label: "Min" },
-              { value: countdown.seconds, label: "Sec" },
-            ].map((part) => (
-              <div
-                key={part.label}
-                className="w-[58px] rounded-md border border-white/[0.08] bg-black/40 px-2 py-2.5 text-center"
-              >
-                <p className="text-[19px] font-bold leading-none tabular-nums text-white">
-                  {String(part.value).padStart(2, "0")}
-                </p>
-                <MonoLabel className="mt-1.5 block text-white/25">{part.label}</MonoLabel>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
-
+        }
+      />
+      <PageBody className="space-y-4">
       <Panel className="space-y-3 p-4">
         <WeekNav weekStart={weekStart} onShift={(weeks) => setWeekStart((current) => addWeeks(current, weeks))} />
 
@@ -158,6 +136,7 @@ export default function SchedulePage() {
           <WeekGrid days={days} />
         )}
       </Panel>
+      </PageBody>
     </div>
   )
 }

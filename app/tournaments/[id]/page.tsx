@@ -1,15 +1,16 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { ArrowLeft, Crown, Trophy } from "lucide-react"
+import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile } from "@/components/ui/panel"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Crown, Trophy } from "lucide-react"
 import { createBrowserClient } from "@/lib/supabase/client"
-import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
 import { TournamentBracketBoard } from "@/components/tournament-bracket-board"
 import { TournamentBracketView } from "@/components/tournament-bracket-view"
 import { useTournamentLive } from "@/hooks/use-tournament-live"
 import { money, standings, tournamentTotals } from "@/lib/tournament"
+import { PageBody, PageHero } from "@/components/page-hero"
 
 /**
  * One tournament, as the audience sees it.
@@ -100,22 +101,23 @@ export default function TournamentDetailPage() {
     tournament.bracket_status === "finished" ? "slate" : tournament.bracket_status === "running" ? "green" : "amber"
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 px-5 py-6">
-      <Link
-        href="/tournaments"
-        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white/30 transition hover:text-white"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        All tournaments
-      </Link>
-
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">{tournament.title}</h1>
-          {meta?.description && <p className="mt-1 max-w-2xl text-[13px] text-white/40">{meta.description}</p>}
-        </div>
-        <Tag accent={statusAccent}>{(tournament.bracket_status ?? "registration").replace("_", " ")}</Tag>
-      </header>
+    <div>
+      <PageHero
+        accent={statusAccent}
+        title={tournament.title}
+        subtitle={meta?.description}
+        note={(tournament.bracket_status ?? "registration").replace("_", " ")}
+        actions={
+          <Link
+            href="/tournaments"
+            className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white/40 transition hover:border-white/25 hover:text-white"
+          >
+            <ArrowLeft className="h-3 w-3" />
+            All tournaments
+          </Link>
+        }
+      />
+      <PageBody className="space-y-4">
 
       {champion && (
         <Panel accent="amber" className="flex items-center gap-3 px-4 py-3">
@@ -203,6 +205,7 @@ export default function TournamentDetailPage() {
           <p className="mt-3 text-[13px] text-white/30">The bracket has not been drawn yet.</p>
         </Panel>
       )}
+      </PageBody>
     </div>
   )
 }

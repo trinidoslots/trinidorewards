@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Search, Trophy } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
 import { MonoLabel } from "@/components/ui/panel"
+import { createClient } from "@/lib/supabase/client"
 import { rankEntries } from "@/lib/leaderboard-payouts"
 import { DEFAULT_TIMEZONE, formatInZone, leaderboardStatus } from "@/lib/leaderboard-time"
 import { moneyExact } from "@/lib/leaderboard-format"
 import { BoardHero, StandingsTable, type RankedEntry } from "@/components/leaderboard-board"
 import { Swap } from "@/components/swap"
 import { entryAmounts, metricLabel, readMetric } from "@/lib/leaderboard-metric"
+import { PageBody, PageHero } from "@/components/page-hero"
 
 /**
  * The public leaderboard.
@@ -186,31 +187,37 @@ export default function LeaderboardPage() {
 
   if (loading) {
     return (
-      <div className="px-5 py-16 text-center">
-        <MonoLabel className="text-white/25">Loading</MonoLabel>
+      <div>
+        <PageHero accent="amber" title="Leaderboard" subtitle="Loading the current board." />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="mx-auto max-w-3xl px-5 py-6">
-        <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-8 text-center">
-          <Trophy className="mx-auto h-8 w-8 text-white/15" />
-          <p className="mt-3 text-[14px] text-white">The leaderboard could not be loaded.</p>
-          <p className="mt-1 text-[12.5px] text-white/35">{error}</p>
-        </div>
+      <div>
+        <PageHero accent="amber" title="Leaderboard" />
+        <PageBody className="max-w-3xl">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-8 text-center">
+            <Trophy className="mx-auto h-8 w-8 text-white/15" />
+            <p className="mt-3 text-[14px] text-white">The leaderboard could not be loaded.</p>
+            <p className="mt-1 text-[12.5px] text-white/35">{error}</p>
+          </div>
+        </PageBody>
       </div>
     )
   }
 
   if (!board) {
     return (
-      <div className="mx-auto max-w-3xl px-5 py-16">
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] py-16">
-          <Trophy className="h-8 w-8 text-white/10" />
-          <p className="text-[13px] text-white/30">No leaderboard is running right now.</p>
-        </div>
+      <div>
+        <PageHero accent="amber" title="Leaderboard" subtitle="Nothing running at the moment." />
+        <PageBody className="max-w-3xl">
+          <div className="flex flex-col items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] py-16">
+            <Trophy className="h-8 w-8 text-white/10" />
+            <p className="text-[13px] text-white/30">Check back when the next board opens.</p>
+          </div>
+        </PageBody>
       </div>
     )
   }

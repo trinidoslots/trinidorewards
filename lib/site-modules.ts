@@ -60,7 +60,7 @@ export const MODULE_LINKS: Record<ModuleKey, { label: string; href: string }> = 
   leaderboard: { label: "Leaderboard", href: "/leaderboard" },
   claim_bonuses: { label: "Claim Bonuses", href: "/bonuses/claim" },
   active_bonuses: { label: "Active Bonuses", href: "/bonuses/active" },
-  advent_calendar: { label: "Advent Calendar", href: "/advent" },
+  advent_calendar: { label: "Advent Calendar", href: "/advent-calendar" },
 }
 
 export function readModules(rows: { module_name: string; is_enabled: boolean | null }[]): ModuleStatus {

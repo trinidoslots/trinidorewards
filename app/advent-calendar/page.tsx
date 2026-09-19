@@ -1,5 +1,6 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { AdventCalendarClient } from "@/components/advent-calendar-client"
+import { PageBody, PageHero } from "@/components/page-hero"
 
 interface AdventReward {
   id: string
@@ -78,19 +79,14 @@ export default async function AdventCalendarPage() {
   const { rewardsByDay, claims } = await getAdventData(user?.id || null)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      <div className="container mx-auto px-4 py-12">
-        <header className="text-center mb-16 space-y-4">
-          <div className="inline-block">
-            <h1 className="text-6xl md:text-7xl font-black mb-2 bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 bg-clip-text text-transparent animate-pulse">
-              Advent Calendar
-            </h1>
-            <div className="h-1 bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 rounded-full" />
-          </div>
-          <p className="text-xl text-slate-300 font-medium">Unwrap daily surprises throughout December</p>
-          <p className="text-sm text-slate-500">December 1st - 24th • New rewards unlock every day</p>
-        </header>
-
+    <div>
+      <PageHero
+        accent="red"
+        title="Advent Calendar"
+        subtitle="Unwrap daily surprises throughout December."
+        note="1st to 24th · a new door every day"
+      />
+      <PageBody>
         <AdventCalendarClient
           rewardsByDay={rewardsByDay}
           claims={claims}
@@ -98,11 +94,11 @@ export default async function AdventCalendarPage() {
           username={user?.username || null}
         />
 
-        <footer className="text-center mt-16 text-slate-500 text-sm space-y-2">
-          <p>TrinidoRewards Community</p>
-          <p className="text-xs">Terms may apply • Strictly 18+ only</p>
+        <footer className="mt-16 space-y-2 text-center text-white/25">
+          <p className="text-[13px]">TrinidoRewards Community</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.12em]">Terms may apply · Strictly 18+ only</p>
         </footer>
-      </div>
+      </PageBody>
     </div>
   )
 }

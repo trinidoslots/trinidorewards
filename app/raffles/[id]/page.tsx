@@ -1,13 +1,14 @@
 import Link from "next/link"
+import { ArrowLeft, Gift, Users } from "lucide-react"
+import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile } from "@/components/ui/panel"
 import { notFound } from "next/navigation"
 import { cookies } from "next/headers"
-import { ArrowLeft, Gift, Users } from "lucide-react"
 import { createServerClient } from "@/lib/supabase/server"
-import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
 import { RaffleCountdown } from "@/components/raffle-countdown"
 import { RaffleLiveDraw } from "@/components/raffle-live-draw"
 import RaffleEntryButton from "@/components/raffle-entry-button"
 import { calculateRaffleStatus, formatDrawDate } from "@/lib/raffle-utils"
+import { PageBody, PageHero } from "@/components/page-hero"
 
 /**
  * One raffle.
@@ -84,24 +85,23 @@ export default async function RaffleDetailPage({ params }: Params) {
     .slice(0, 12)
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 px-5 py-6">
-      <Link
-        href="/raffles"
-        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white/30 transition hover:text-white"
-      >
-        <ArrowLeft className="h-3 w-3" />
-        All raffles
-      </Link>
-
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">{raffle.title}</h1>
-          {raffle.description && <p className="mt-1 max-w-2xl text-[13px] text-white/40">{raffle.description}</p>}
-        </div>
-        <Tag accent={drawn ? "slate" : status === "active" ? "green" : status === "upcoming" ? "blue" : "amber"}>
-          {drawn ? "Drawn" : status}
-        </Tag>
-      </header>
+    <div>
+      <PageHero
+        accent={drawn ? "slate" : status === "active" ? "green" : status === "upcoming" ? "blue" : "amber"}
+        title={raffle.title}
+        subtitle={raffle.description}
+        note={drawn ? "Drawn" : status}
+        actions={
+          <Link
+            href="/raffles"
+            className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white/40 transition hover:border-white/25 hover:text-white"
+          >
+            <ArrowLeft className="h-3 w-3" />
+            All raffles
+          </Link>
+        }
+      />
+      <PageBody className="space-y-4">
 
       <RaffleLiveDraw
         raffleId={raffle.id}
@@ -245,6 +245,7 @@ export default async function RaffleDetailPage({ params }: Params) {
           </Panel>
         </div>
       </div>
+      </PageBody>
     </div>
   )
 }

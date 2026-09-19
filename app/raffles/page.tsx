@@ -1,10 +1,11 @@
 import Link from "next/link"
 import { Gift, Ticket, Trophy, Users } from "lucide-react"
-import { createServerClient } from "@/lib/supabase/server"
 import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
+import { createServerClient } from "@/lib/supabase/server"
 import { RaffleCountdown } from "@/components/raffle-countdown"
 import { RaffleSweeper } from "@/components/raffle-sweeper"
 import { calculateRaffleStatus, formatDrawDate, isEndingSoon } from "@/lib/raffle-utils"
+import { PageBody, PageHero } from "@/components/page-hero"
 
 /**
  * Every raffle, live ones first.
@@ -92,11 +93,13 @@ export default async function RafflesPage() {
   const totalEntrants = withStatus.reduce((sum, entry) => sum + entry.counts.entrants, 0)
 
   return (
-    <div className="mx-auto max-w-6xl space-y-4 px-5 py-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-white">Raffles</h1>
-        <p className="mt-1 text-[13px] text-white/40">Spend points on tickets. More tickets, better odds.</p>
-      </header>
+    <div>
+      <PageHero
+        accent="green"
+        title="Raffles"
+        subtitle="Spend points on tickets. More tickets, better odds."
+      />
+      <PageBody className="space-y-4">
 
       <div className="grid gap-2.5 sm:grid-cols-3">
         <StatTile label="Open now" value={live.length.toLocaleString()} accent="green" />
@@ -110,6 +113,7 @@ export default async function RafflesPage() {
       <Section title="Open now" entries={live} empty="No raffles are running right now." />
       <Section title="Coming up" entries={upcoming} empty={null} />
       <Section title="Finished" entries={past} empty={null} />
+      </PageBody>
     </div>
   )
 }
