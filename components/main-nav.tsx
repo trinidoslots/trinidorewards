@@ -21,37 +21,38 @@ import {
 import { LoginModal } from "./login-modal"
 import { createClient } from "@/lib/supabase/client"
 import { MonoLabel } from "@/components/ui/panel"
-import { ALL_OFF, readModules, type ModuleStatus } from "@/lib/site-modules"
+import {
+  ALL_OFF,
+  MODULE_LINKS,
+  navGroups,
+  readModules,
+  type ModuleKey,
+  type ModuleRow,
+  type ModuleStatus,
+} from "@/lib/site-modules"
 
-const groups = [
-  {
-    label: "Stream",
-    icon: Radio,
-    items: [
-      { label: "Stream Store", href: "/store", icon: Landmark, key: "stream_store" as const },
-      { label: "Schedule", href: "/schedule", icon: Radio, key: "schedule" as const },
-    ],
-  },
-  {
-    label: "Bonuses",
-    icon: Gift,
-    items: [
-      { label: "Active Bonuses", href: "/bonuses/active", icon: Gift, key: "active_bonuses" as const },
-      { label: "Claim Bonuses", href: "/bonuses/claim", icon: WalletCards, key: "claim_bonuses" as const },
-      { label: "Advent Calendar", href: "/advent", icon: Grid2X2, key: "advent_calendar" as const },
-    ],
-  },
-  {
-    label: "Community",
-    icon: Users,
-    items: [
-      { label: "Bonus Hunts", href: "/bonushunt", icon: Gift, key: "bonus_hunt" as const },
-      { label: "Leaderboard", href: "/leaderboard", icon: Trophy, key: "leaderboard" as const },
-      { label: "Raffles", href: "/raffles", icon: WalletCards, key: "raffles" as const },
-      { label: "Tournaments", href: "/tournaments", icon: Trophy, key: "tournaments" as const },
-    ],
-  },
-]
+/**
+ * How each module is drawn. Which group it lands in is not here any more —
+ * that comes from the module's own category, through navGroups, so the
+ * dropdown in the admin panel actually moves the link.
+ */
+const MODULE_ICONS: Record<ModuleKey, typeof Gift> = {
+  stream_store: Landmark,
+  schedule: Radio,
+  active_bonuses: Gift,
+  claim_bonuses: WalletCards,
+  advent_calendar: Grid2X2,
+  bonus_hunt: Gift,
+  leaderboard: Trophy,
+  raffles: WalletCards,
+  tournaments: Trophy,
+}
+
+const GROUP_ICONS: Record<string, typeof Gift> = {
+  stream: Radio,
+  bonuses: Gift,
+  community: Users,
+}
 
 const ACCENT = "#5B8DEF"
 
@@ -70,6 +71,7 @@ export function MainNav() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [points, setPoints] = useState(0)
   const [modules, setModules] = useState<ModuleStatus>(ALL_OFF)
+  const [moduleRows, setModuleRows] = useState<ModuleRow[]>([])
 
   useEffect(() => {
     document.documentElement.style.setProperty("--main-nav-width", collapsed ? "56px" : "224px")
@@ -90,9 +92,12 @@ export function MainNav() {
 
     supabase
       .from("modules")
-      .select("module_name, is_enabled")
+      // The row, not two columns: category is what decides the group now, and
+      // it arrived with a migration the deploy does not wait for.
+      .select("*")
       .then(({ data }) => {
         setModules(readModules(data ?? []))
+        setModuleRows((data ?? []) as ModuleRow[])
       }, () => {})
   }, [])
 
@@ -169,12 +174,9 @@ export function MainNav() {
             {!collapsed && <span className="truncate">Home</span>}
           </Link>
 
-          {groups.map((group) => {
-            const enabled = group.items.filter((item) => modules[item.key])
-            if (!enabled.length) return null
-
-            const open = openGroups[group.label]
-            const GroupIcon = group.icon
+          {navGroups(moduleRows).map((group) => {
+            const open = openGroups[group.label] ?? true
+            const GroupIcon = GROUP_ICONS[group.id] ?? Users
 
             return (
               <div key={group.label} className={collapsed ? "mt-3 border-t border-white/[0.08] pt-3" : "mt-3"}>
@@ -197,11 +199,13 @@ export function MainNav() {
                     collapsed || open ? "mt-0.5 max-h-[500px] opacity-100" : "max-h-0 opacity-0"
                   } space-y-0.5 overflow-hidden transition-[max-height,opacity,margin] duration-300 ease-in-out`}
                 >
-                  {enabled.map(({ label, href, icon: ItemIcon }) => {
+                  {group.keys.map((key: ModuleKey) => {
+                    const { label, href } = MODULE_LINKS[key]
+                    const ItemIcon = MODULE_ICONS[key]
                     const active = pathname === href
                     return (
                       <Link
-                        key={`${label}-${href}`}
+                        key={key}
                         href={href}
                         onClick={() => setMobileOpen(false)}
                         aria-label={label}

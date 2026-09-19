@@ -4,7 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AlertTriangle, Blocks, Plus, RefreshCw } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
-import { MODULE_CATEGORIES, MODULE_KEYS, MODULE_LINKS, moduleKey, type ModuleKey } from "@/lib/site-modules"
+import {
+  MODULE_KEYS,
+  MODULE_LINKS,
+  NAV_CATEGORIES,
+  moduleKey,
+  readCategory,
+  type ModuleKey,
+} from "@/lib/site-modules"
 
 /**
  * Which features the site shows.
@@ -54,21 +61,27 @@ export default function AdminModulesPage() {
     load()
   }, [load])
 
-  // Categories come from the data, not a hardcoded pair — anything filed under
-  // a third category used to be invisible on this page entirely.
-  const categories = useMemo(() => {
-    const seen = new Set<string>(MODULE_CATEGORIES)
-    for (const item of modules) if (item.category) seen.add(item.category)
-    return Array.from(seen)
-  }, [modules])
+  // The nav's own groups, and only those. The list here used to be its own
+  // invention — "main", "bonus_hunt", "seasonal" — none of which the nav had
+  // ever heard of, while the nav's "Stream" was not offered at all. Picking one
+  // wrote a value that nothing read.
+  const categories = NAV_CATEGORIES
 
+  // Grouped here exactly as the nav groups them, so this page is a preview of
+  // the nav rather than a second opinion about it. A legacy value shows under
+  // the default it actually resolves to.
   const grouped = useMemo(() => {
     const byCategory = new Map<string, Module[]>()
     for (const item of modules) {
-      const key = item.category || "uncategorised"
-      byCategory.set(key, [...(byCategory.get(key) ?? []), item])
+      const key = moduleKey(item.module_name)
+      const category = key ? readCategory(key, item.category) : "hidden"
+      const label = NAV_CATEGORIES.find((entry) => entry.id === category)?.label ?? "Hidden"
+      byCategory.set(label, [...(byCategory.get(label) ?? []), item])
     }
-    return Array.from(byCategory.entries()).sort(([a], [b]) => a.localeCompare(b))
+    const order: string[] = NAV_CATEGORIES.map((entry) => entry.label)
+    return Array.from(byCategory.entries()).sort(
+      ([a], [b]) => order.indexOf(a) - order.indexOf(b),
+    )
   }, [modules])
 
   // Nav entries with no row at all: switchable only once one exists.
@@ -197,7 +210,7 @@ export default function AdminModulesPage() {
         grouped.map(([category, items]) => (
           <Panel key={category} accent="blue">
             <PanelHeader
-              title={category.replace(/_/g, " ")}
+              title={category}
               right={<MonoLabel className="text-white/25">{items.length}</MonoLabel>}
             />
             <ul className="divide-y divide-white/[0.05]">
@@ -230,14 +243,18 @@ export default function AdminModulesPage() {
                     <label className="shrink-0">
                       <MonoLabel className="mb-1 block text-white/25">Category</MonoLabel>
                       <select
-                        value={item.category || ""}
+                        value={
+                          moduleKey(item.module_name)
+                            ? readCategory(moduleKey(item.module_name)!, item.category)
+                            : "hidden"
+                        }
                         onChange={(event) => patch(item, { category: event.target.value })}
                         disabled={busy === item.id}
                         className="h-8 rounded-md border border-white/[0.10] bg-black/40 px-2.5 text-[12.5px] text-white outline-none transition focus:border-white/25 disabled:opacity-40"
                       >
                         {categories.map((option) => (
-                          <option key={option} value={option} className="bg-[#121216]">
-                            {option.replace(/_/g, " ")}
+                          <option key={option.id} value={option.id} className="bg-[#121216]">
+                            {option.label}
                           </option>
                         ))}
                       </select>
