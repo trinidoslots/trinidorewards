@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/client"
 import { getActiveHunt } from "@/lib/active-hunt"
 import { Coins, ChevronRight, ChevronLeft, Crown } from "lucide-react"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useLayoutEffect, useState, useRef } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
 
@@ -31,6 +31,17 @@ export default function OBSWidget() {
   const supabase = createClient()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const collectingScrollRef = useRef<HTMLDivElement>(null)
+  /**
+   * Whether the slot list is taller than the space it has, and so needs the
+   * second copy that makes the scroll loop seamlessly.
+   *
+   * This was "more than 15 slots", which was a count that happened to be right
+   * for three tiles across. At two across the same 15 slots are eight rows
+   * instead of five, and slots nine onwards sat below the fold with no scroll
+   * to reach them. Measured instead, so it holds at any width, any tile size
+   * and any source height.
+   */
+  const [loopList, setLoopList] = useState(false)
   const lastScrolledBonusRef = useRef<string | null>(null)
 
   async function fetchBonusHunts() {
@@ -242,11 +253,22 @@ export default function OBSWidget() {
     }
   }, [obsViewMode, hunts.length])
 
+  useLayoutEffect(() => {
+    setLoopList(false)
+  }, [hunts.length, isOpening])
+
+  useLayoutEffect(() => {
+    if (loopList || isOpening) return
+    const container = collectingScrollRef.current
+    if (!container) return
+    // One copy is on screen at this point; if it already does not fit, the
+    // duplicate goes in and the scroll below takes over.
+    if (container.scrollHeight > container.clientHeight + 1) setLoopList(true)
+  }, [loopList, isOpening, hunts])
+
   useEffect(() => {
     if (isOpening) return
-
-    // Only auto-scroll once there are enough slots to overflow the widget (16+)
-    if (hunts.length <= 15) return
+    if (!loopList) return
 
     const container = collectingScrollRef.current
     if (!container) return
@@ -289,7 +311,8 @@ export default function OBSWidget() {
       clearTimeout(startTimeout)
       if (animationId) cancelAnimationFrame(animationId)
     }
-  }, [isOpening, hunts.length])
+    // loopList gates this, so the scroll has to restart when it flips.
+  }, [isOpening, hunts.length, loopList])
 
   useEffect(() => {
     if (obsViewMode !== "opening") return
@@ -436,7 +459,17 @@ export default function OBSWidget() {
               Slot List
             </div>
             <div ref={collectingScrollRef} className="px-2 pb-3 flex-1 min-h-0 overflow-y-auto hide-scrollbar">
-              <div className="grid grid-cols-3 gap-2">
+              {/*
+                  Two across.
+                  
+                  The column is sized to exactly this: 8px of shell padding and
+                  8px of list padding on each side, plus one 8px gap, leaves
+                  400 - 32 - 8 = 360 for the tiles — 180 each, which is the
+                  width the slot art is drawn at. Three across meant every
+                  thumbnail was rendered at 117 and the game was unreadable
+                  from across a room.
+              */}
+              <div className="grid grid-cols-2 gap-2">
                 {hunts.map((hunt, index) => (
                   <div
                     key={hunt.id}
@@ -461,9 +494,9 @@ export default function OBSWidget() {
                   </div>
                 ))}
                 {hunts.length === 0 && (
-                  <div className="col-span-3 text-center text-gray-400 text-sm py-6">No bonuses collected yet</div>
+                  <div className="col-span-2 text-center text-gray-400 text-sm py-6">No bonuses collected yet</div>
                 )}
-                {hunts.length > 15 &&
+                {loopList &&
                   hunts.map((hunt, index) => (
                     <div
                       key={`${hunt.id}-dup`}
