@@ -81,7 +81,7 @@ function formatAmount(amount: number) {
   const abs = Math.abs(amount)
   if (abs >= 1_000_000) return `$${(abs / 1_000_000).toFixed(abs >= 10_000_000 ? 0 : 1).replace(/\.0$/, "")}M`
   if (abs >= 10_000) return `$${(abs / 1_000).toFixed(abs >= 100_000 ? 0 : 1).replace(/\.0$/, "")}K`
-  return `$${abs.toLocaleString()}`
+  return `$${abs.toLocaleString("en-US")}`
 }
 
 // lucide-react 0.454 predates the banknote-arrow icons, so they are drawn here

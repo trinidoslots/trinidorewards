@@ -386,7 +386,7 @@ export default function ObsWidget() {
   }
 
   const formatCrypto = (price: number) => {
-    return `$${Math.round(price).toLocaleString()}`
+    return `$${Math.round(price).toLocaleString("en-US")}`
   }
 
   const diffColor = walletStats.difference >= 0 ? "text-green-400" : "text-red-400"

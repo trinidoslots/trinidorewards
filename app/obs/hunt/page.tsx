@@ -422,12 +422,12 @@ export default function OBSWidget() {
           )}
           <div className="flex justify-between">
             <span className="text-gray-400">Target</span>
-            <span className="text-white font-semibold">${startingBalance.toLocaleString()}</span>
+            <span className="text-white font-semibold">${startingBalance.toLocaleString("en-US")}</span>
           </div>
           {!isCollecting && (
             <div className="flex justify-between">
               <span className="text-gray-400">Total</span>
-              <span className="text-white font-semibold">${totalWinsSoFar.toLocaleString()}</span>
+              <span className="text-white font-semibold">${totalWinsSoFar.toLocaleString("en-US")}</span>
             </div>
           )}
           <div className="flex justify-between">
