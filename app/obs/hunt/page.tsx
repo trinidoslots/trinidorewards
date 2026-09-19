@@ -460,14 +460,15 @@ export default function OBSWidget() {
             </div>
             <div ref={collectingScrollRef} className="px-2 pb-3 flex-1 min-h-0 overflow-y-auto hide-scrollbar">
               {/*
-                  Two across.
+                  Two across, at the size the tiles have always been.
                   
-                  The column is sized to exactly this: 8px of shell padding and
-                  8px of list padding on each side, plus one 8px gap, leaves
-                  400 - 32 - 8 = 360 for the tiles — 180 each, which is the
-                  width the slot art is drawn at. Three across meant every
-                  thumbnail was rendered at 117 and the game was unreadable
-                  from across a room.
+                  Measured off the old layout: a 300px box, 12px of list
+                  padding each side and two 8px gaps put three tiles at
+                  86.66 wide. Keeping that size and going to two across is what
+                  sets the column width — 87 + 8 + 87, plus 8px of list padding
+                  and 8px of shell padding each side, is 214. Widening the
+                  tiles instead would have doubled them to 180, which is bigger
+                  than they have ever been.
               */}
               <div className="grid grid-cols-2 gap-2">
                 {hunts.map((hunt, index) => (

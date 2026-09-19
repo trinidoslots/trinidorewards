@@ -29,11 +29,12 @@ function Complete() {
   // Widths are the two columns' own sizes, overridable per scene: an overlay
   // gets nudged to fit whatever is behind it.
   //
-  // 400 is not a round number picked for looks: the hunt column lays its slots
-  // out two across at the 180px the art is drawn at, and 180 + 8 + 180 plus
-  // 16px of padding on each side is exactly 400. Narrower and the thumbnails
-  // shrink; wider and they sit in a gap.
-  const huntWidth = Number(params.get("hunt")) || 400
+  // 214 is not a round number picked for looks: the hunt column lays its slots
+  // out two across at 87px, the size they were when three fitted in the old
+  // 300px box, and 87 + 8 + 87 plus 8px of list padding and 8px of shell
+  // padding each side is exactly 214. Narrower and the thumbnails shrink;
+  // wider and they sit in a gap.
+  const huntWidth = Number(params.get("hunt")) || 214
   const streamWidth = Number(params.get("stream")) || 360
   const channel = params.get("channel")?.trim()
   const preview = params.get("preview") === "1"

@@ -15,7 +15,7 @@ const SHORTCUTS = [
 ]
 
 const OBS_SOURCES = [
-  { path: "/obs/hunt", label: "Bonus hunt", size: "400×800" },
+  { path: "/obs/hunt", label: "Bonus hunt", size: "214×800" },
   { path: "/obs/stream", label: "Stream column", size: "340×900" },
   { path: "/obs/giveaway", label: "Giveaway only", size: "300×120" },
   { path: "/deposits-withdrawals", label: "Transactions", size: "340×140" },
