@@ -661,7 +661,7 @@ export default function ObsWidgetSettings() {
         <div className="mt-8 p-4 bg-white/[0.06]/30 border border-white/[0.08] rounded-lg">
           <p className="text-sm text-white/40">
             <strong>Info:</strong> Timers added here will automatically appear on the OBS widget bar at{" "}
-            <code className="bg-[#101014] px-2 py-1 rounded text-[#5B8DEF]">/obs-widget</code>
+            <code className="bg-[#101014] px-2 py-1 rounded text-[#5B8DEF]">/obs/top-bar</code>
           </p>
         </div>
 
@@ -959,7 +959,7 @@ export default function ObsWidgetSettings() {
           <div className="mt-4 p-4 bg-white/[0.06]/30 border border-white/[0.08] rounded-lg">
             <p className="text-sm text-white/40">
               <strong>Info:</strong> Info items added here will automatically appear on the OBS widget bar at{" "}
-              <code className="bg-[#101014] px-2 py-1 rounded text-[#5B8DEF]">/obs-widget</code> in the right column next to the timers.
+              <code className="bg-[#101014] px-2 py-1 rounded text-[#5B8DEF]">/obs/top-bar</code> in the right column next to the timers.
             </p>
           </div>
         </div>

@@ -1,6 +1,6 @@
 // Palette and metrics for the /obs/stream column.
 //
-// Matches the bonus hunt widget (app/obs/bonushunt/page.tsx) so the two sources
+// Matches the bonus hunt widget (app/obs/hunt/page.tsx) so the two sources
 // look like one overlay when they sit on the same scene: #4D84FF on near-black,
 // with #7FB3FF for labels and #B18CFF for the giveaway's highlights.
 //

@@ -5,6 +5,7 @@ import { getActiveHunt } from "@/lib/active-hunt"
 import { Coins, ChevronRight, ChevronLeft, Crown } from "lucide-react"
 import { useEffect, useState, useRef } from "react"
 import { AnimatePresence, motion } from "framer-motion"
+import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
 
 type BonusHunt = {
   id: string
@@ -311,7 +312,18 @@ export default function OBSWidget() {
   }, [obsViewMode, hunts])
 
   if (loading) {
-    return <div className="min-h-screen bg-transparent flex items-center justify-center text-white">Loading...</div>
+    return (
+      <div className="h-screen w-full bg-transparent">
+        <div
+          className="flex h-full w-full items-center justify-center p-2 shadow-2xl"
+          style={{ backgroundColor: OBS.shell, borderRadius: OBS_RADIUS.shell }}
+        >
+          <span className="font-mono text-[11px] uppercase tracking-[0.12em]" style={{ color: OBS.muted }}>
+            Loading
+          </span>
+        </div>
+      </div>
+    )
   }
 
   const totalBonuses = hunts.length
@@ -362,18 +374,19 @@ export default function OBSWidget() {
   const isCollecting = !isOpening
 
   return (
-    <div className="min-h-screen bg-transparent p-4">
-      <div className="w-[300px] h-[800px] bg-gradient-to-b from-[#1A1F2B]/95 to-[#0B0E13]/95 rounded-xl shadow-2xl border border-[#4D84FF]/30 overflow-hidden flex flex-col">
+    <div className="h-screen w-full bg-transparent">
+      <div
+        className="flex h-full w-full flex-col overflow-hidden p-2 shadow-2xl"
+        style={{ backgroundColor: OBS.shell, borderRadius: OBS_RADIUS.shell }}
+      >
         {/* Header */}
-        <div className="px-4 pt-4 pb-2 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Coins className="w-5 h-5 text-[#7FB3FF]" />
-            <h1 className="text-white font-bold text-lg">Bonus Hunt</h1>
-          </div>
+        <div className="flex flex-shrink-0 items-center gap-2 px-2 pb-2 pt-1">
+          <Coins className="h-5 w-5" style={{ color: OBS.label }} />
+          <h1 className="text-[17px] font-bold text-white">Bonus Hunt</h1>
         </div>
 
         {/* Statistics */}
-        <div className="px-4 py-2 space-y-1.5 text-sm flex-shrink-0">
+        <div className="px-2 py-2 space-y-1.5 text-sm flex-shrink-0">
           <div className="flex justify-between">
             <span className="text-gray-400">B.E. X</span>
             <span className="text-white font-semibold">{breakEvenX.toFixed(1)}x</span>
@@ -419,10 +432,10 @@ export default function OBSWidget() {
         {isCollecting ? (
           // Collecting phase: grid of full, uncropped slot thumbnails
           <div className="flex-1 min-h-0 flex flex-col">
-            <div className="text-[#7FB3FF] text-xs font-semibold uppercase tracking-wide px-4 pt-2 mb-2 flex-shrink-0">
+            <div className="text-[#7FB3FF] text-xs font-semibold uppercase tracking-wide px-2 pt-2 mb-2 flex-shrink-0">
               Slot List
             </div>
-            <div ref={collectingScrollRef} className="px-3 pb-3 flex-1 min-h-0 overflow-y-auto hide-scrollbar">
+            <div ref={collectingScrollRef} className="px-2 pb-3 flex-1 min-h-0 overflow-y-auto hide-scrollbar">
               <div className="grid grid-cols-3 gap-2">
                 {hunts.map((hunt, index) => (
                   <div
@@ -482,7 +495,7 @@ export default function OBSWidget() {
           // Opening phase: best win, up next, and opened bonuses with full thumbnails
           <div className="flex-1 min-h-0 overflow-y-auto hide-scrollbar animate-in fade-in duration-500">
             {/* Best X Win */}
-            <div className="px-4 py-3 border-b border-[#4D84FF]/20">
+            <div className="px-2 py-3 border-b border-[#4D84FF]/20">
               <div className="text-[#7FB3FF] text-xs font-semibold uppercase tracking-wide mb-2">Best X Win</div>
               {highestWin.amount > 0 ? (
                 <div className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-[#4D84FF]/15 to-transparent border border-[#4D84FF]/30 p-2 animate-in fade-in slide-in-from-bottom-1 duration-500">
@@ -516,7 +529,7 @@ export default function OBSWidget() {
 
             {/* Up Next */}
             {(currentBonus || upNextBonuses.length > 0) && (
-              <div className="px-4 py-3 border-b border-[#4D84FF]/20 space-y-2">
+              <div className="px-2 py-3 border-b border-[#4D84FF]/20 space-y-2">
                 <div className="text-[#7FB3FF] text-xs font-semibold uppercase tracking-wide">Up Next</div>
                 <AnimatePresence mode="popLayout" initial={false}>
                   {currentBonus && (
@@ -597,7 +610,7 @@ export default function OBSWidget() {
 
             {/* Opened */}
             {openedBonuses.length > 0 && (
-              <div ref={scrollContainerRef} className="px-4 py-3 space-y-2">
+              <div ref={scrollContainerRef} className="px-2 py-3 space-y-2">
                 <div className="text-[#7FB3FF] text-xs font-semibold uppercase tracking-wide">Opened</div>
                 <AnimatePresence mode="popLayout" initial={false}>
                   {openedBonuses.map((hunt) => {

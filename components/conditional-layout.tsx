@@ -14,7 +14,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   const isOBSPage =
-    pathname === "/predictionobs" || pathname === "/obs-widget" || pathname.startsWith("/obs/")
+    pathname === "/predictionobs" || pathname.startsWith("/obs/")
 
   // The admin panel and the auth screens bring their own chrome. MainNav and
   // Footer already bow out of both by returning null, but the wrapper below

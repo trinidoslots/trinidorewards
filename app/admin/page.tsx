@@ -15,11 +15,12 @@ const SHORTCUTS = [
 ]
 
 const OBS_SOURCES = [
-  { path: "/obs/bonushunt", label: "Bonus hunt", size: "400×800" },
+  { path: "/obs/hunt", label: "Bonus hunt", size: "400×800" },
   { path: "/obs/stream", label: "Stream column", size: "340×900" },
   { path: "/obs/giveaway", label: "Giveaway only", size: "300×120" },
   { path: "/deposits-withdrawals", label: "Transactions", size: "340×140" },
-  { path: "/obs-widget", label: "Top ticker", size: "1920×50" },
+  { path: "/obs/top-bar", label: "Top ticker", size: "1920×50" },
+  { path: "/obs/complete", label: "Everything, one source", size: "1920×1080" },
 ]
 
 export default function AdminDashboard() {
