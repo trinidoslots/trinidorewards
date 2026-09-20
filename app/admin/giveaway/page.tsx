@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Crown, Trophy, Users, Play, Square, Shuffle, Tv, XCircle, X, ChevronDown, History, Pencil } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { createClient } from "@/lib/supabase/client"
+import { restoreRound } from "@/lib/giveaway-restore"
 import { RecordWinDialog, WinnerName } from "@/components/admin/record-win-dialog"
 
 const PUSHER_URL = "wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false"
@@ -133,6 +134,10 @@ export default function GiveawayAdminPage() {
   // Drives the "Giveaway active for MM:SS" indicator.
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  // False until the round has been read back from Supabase. Gates the
+  // auto-connect, which would otherwise announce a status derived from the
+  // empty state this page starts in. See the restore effect below.
+  const [hydrated, setHydrated] = useState(false)
 
   const socketRef = useRef<WebSocket | null>(null)
   const feedRef = useRef<HTMLDivElement | null>(null)
@@ -192,6 +197,72 @@ export default function GiveawayAdminPage() {
   useEffect(() => {
     entrantsRef.current = entrants
   }, [entrants])
+
+  /**
+   * Restores the round from Supabase on mount.
+   *
+   * Everything about a giveaway lived in React state, and syncWidgetState only
+   * ever pushed it outwards — nothing read it back. So leaving this page and
+   * returning started from nothing: no entrants, no winner, isOpen false.
+   *
+   * The empty entrant count was the visible half. The damaging half was that
+   * the auto-connect below then pushed `status: "closed"`, derived from that
+   * empty state, over a giveaway that was still running — ending it on the
+   * overlay because the admin had navigated away and back.
+   */
+  useEffect(() => {
+    let cancelled = false
+
+    const restore = async () => {
+      const { data, error } = await supabaseRef.current
+        .from("giveaway_state")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle()
+
+      if (cancelled) return
+
+      if (error) {
+        console.error("[v0] Could not restore the giveaway state:", error)
+        // Deliberately left un-hydrated, which keeps the auto-connect from
+        // running: pushing a status worked out from empty state is exactly
+        // what this effect exists to prevent. Connecting by hand still works,
+        // so this says why nothing happened rather than looking merely idle.
+        setStatusMessage("Could not read the current giveaway — not connecting automatically, so a running round is not ended by mistake.")
+        return
+      }
+
+      if (data) {
+        const round = restoreRound(data)
+        const restored = new Set(round.entrants)
+
+        if (round.keyword) setKeyword(round.keyword)
+        if (round.rollDuration) setRollDuration(round.rollDuration)
+
+        setEntrants(restored)
+        setAvatars(round.avatars)
+        setIsOpen(round.isOpen)
+        setStartedAt(round.startedAt)
+        setWinner(round.winner)
+        setRevealPhase(round.revealPhase)
+        setRoundWinners(new Set(round.roundWinners))
+
+        // Written straight through as well as via setState: connect() reads the
+        // refs, and the effects that keep them in step only run after the next
+        // render — which is after the auto-connect below would have fired.
+        entrantsRef.current = restored
+        isOpenRef.current = round.isOpen
+      }
+
+      setHydrated(true)
+    }
+
+    void restore()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight })
@@ -354,13 +425,15 @@ export default function GiveawayAdminPage() {
     [slugInput, appendMessage, handleChatEntry, syncWidgetState],
   )
 
-  // Auto-connect to the default Kick channel as soon as the page loads.
+  // Auto-connect to the default Kick channel once the round has been restored.
+  // Waiting on `hydrated` matters: connect() syncs the widget status from
+  // isOpenRef, so running it first would push "closed" over a live giveaway.
   useEffect(() => {
-    if (autoConnectedRef.current) return
+    if (!hydrated || autoConnectedRef.current) return
     autoConnectedRef.current = true
     connect(DEFAULT_SLUG)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, after hydration
+  }, [hydrated])
 
   const disconnect = useCallback(() => {
     socketRef.current?.close()
