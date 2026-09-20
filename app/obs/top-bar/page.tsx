@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Loader2, Wallet } from "lucide-react"
 import { AnimatedAmount } from "@/components/animated-amount"
 import { totalsFor } from "@/lib/transactions"
+import { COLUMN_EDGE, TOP_BAR_GRADIENT } from "@/lib/obs-theme"
 
 interface CryptoPrice {
   btc: number
@@ -392,7 +393,16 @@ export default function ObsWidget() {
   const diffColor = walletStats.difference >= 0 ? "text-green-400" : "text-red-400"
 
   return (
-    <div className="w-screen bg-gradient-to-r from-[#1A1F2B]/95 to-[#0B0E13]/95 border-b border-[#4D84FF]/30 px-4 py-2 overflow-hidden flex items-center justify-between" style={{ fontFamily: "Geist, sans-serif", width: "1920px", height: "50px" }}>
+    <div
+      className="w-screen border-b px-4 py-2 overflow-hidden flex items-center justify-between"
+      style={{
+        fontFamily: "Geist, sans-serif",
+        width: "1920px",
+        height: "50px",
+        backgroundImage: TOP_BAR_GRADIENT,
+        borderBottomColor: COLUMN_EDGE,
+      }}
+    >
       {/* Left Content - Gamble Aware, Timers, Track */}
       <div className="flex items-center gap-3 flex-1 h-full overflow-x-auto whitespace-nowrap text-base">
         {/* 18+ Gamble Aware */}

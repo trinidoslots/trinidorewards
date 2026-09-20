@@ -64,3 +64,45 @@ export const CHAT_FONT_PX = 18
  * with the body text so they keep the same proportion (was 26 at 15px).
  */
 export const CHAT_EMOTE_PX = 31
+
+/**
+ * One gradient down the whole 1080 of the combined scene, rendered in two
+ * pieces because the top bar and the columns are separate sources.
+ *
+ * Three separately-painted panels read as three widgets that happen to be
+ * adjacent. The bar paints the top 50px of the scene gradient and each column
+ * continues from exactly where it left off, so there is no seam to see.
+ *
+ * SEAM is not a colour anybody picked: it is the gradient sampled at
+ * 50/1080 = 4.63% of the way down, which is where the bar ends. Eyeballing it
+ * is how the two halves drift apart the next time one of them is touched.
+ *
+ * The bar's gradient used to run left-to-right, #1A1F2B to #0B0E13, which is
+ * why this needed doing at all: a column could meet it at the left edge or the
+ * right, never both.
+ *
+ * Alpha stays near the 0.92 the flat shell used. An overlay that is completely
+ * opaque cuts a hole in the capture behind it.
+ */
+export const SCENE_TOP = "rgba(26, 31, 43, 0.95)"
+export const SCENE_SEAM = "rgba(25, 30, 42, 0.949)"
+export const SCENE_BASE = "rgba(11, 11, 13, 0.92)"
+
+/** The top bar: the first 50px of the scene gradient. */
+export const TOP_BAR_GRADIENT = `linear-gradient(to bottom, ${SCENE_TOP}, ${SCENE_SEAM})`
+
+/** Each column: the remaining 1030. */
+export const COLUMN_GRADIENT = `linear-gradient(to bottom, ${SCENE_SEAM} 0%, ${SCENE_BASE} 100%)`
+
+/** The hairline down the inner edge of each column, as on the site. */
+export const COLUMN_EDGE = "rgba(255, 255, 255, 0.08)"
+
+/**
+ * A widget paints its own background unless it is told not to.
+ *
+ * /obs/complete passes ?transparent=1 so the gradient it draws behind the
+ * column is not hidden under the widget's own 92%-opaque shell.
+ */
+export function shellBackground(transparent: boolean): string {
+  return transparent ? "transparent" : OBS.shell
+}

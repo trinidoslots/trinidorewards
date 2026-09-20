@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
+import { COLUMN_EDGE, COLUMN_GRADIENT } from "@/lib/obs-theme"
 
 /**
  * Every overlay in one browser source, 1920×1080.
@@ -49,6 +50,12 @@ function Complete() {
     return parts.length ? `?${parts.join("&")}` : ""
   }
 
+  // The columns run transparent so the gradient painted behind them is not
+  // hidden under each widget's own 92%-opaque shell. Three flat panels read as
+  // three widgets that happen to be adjacent; one gradient per column, starting
+  // where the top bar leaves off, reads as one overlay.
+  const columnQuery = query("transparent=1")
+
   const columnHeight = SCENE.height - TOP_BAR_HEIGHT
 
   return (
@@ -62,17 +69,45 @@ function Complete() {
         style={{ top: 0, left: 0, width: SCENE.width, height: TOP_BAR_HEIGHT }}
       />
 
-      <Frame
-        title="Bonus hunt"
-        src={`/obs/hunt${query()}`}
-        style={{ top: TOP_BAR_HEIGHT, left: 0, width: huntWidth, height: columnHeight }}
-      />
+      <Column style={{ top: TOP_BAR_HEIGHT, left: 0, width: huntWidth, height: columnHeight }} edge="right">
+        <Frame title="Bonus hunt" src={`/obs/hunt${columnQuery}`} style={{ inset: 0, width: "100%", height: "100%" }} />
+      </Column>
 
-      <Frame
-        title="Stream column"
-        src={`/obs/stream${query()}`}
-        style={{ top: TOP_BAR_HEIGHT, right: 0, width: streamWidth, height: columnHeight }}
-      />
+      <Column style={{ top: TOP_BAR_HEIGHT, right: 0, width: streamWidth, height: columnHeight }} edge="left">
+        <Frame title="Stream column" src={`/obs/stream${columnQuery}`} style={{ inset: 0, width: "100%", height: "100%" }} />
+      </Column>
+    </div>
+  )
+}
+
+/**
+ * The painted column a widget sits in.
+ *
+ * The gradient lives out here rather than inside each widget because it has to
+ * start from the same tone on both sides and at the same y — three widgets each
+ * drawing their own would drift the moment one of them changed. `edge` is the
+ * side facing the gameplay, which gets the site's hairline; the outer side is
+ * the edge of the screen and needs nothing.
+ */
+function Column({
+  style,
+  edge,
+  children,
+}: {
+  style: React.CSSProperties
+  edge: "left" | "right"
+  children: React.ReactNode
+}) {
+  return (
+    <div
+      className="absolute overflow-hidden"
+      style={{
+        ...style,
+        backgroundImage: COLUMN_GRADIENT,
+        [edge === "right" ? "borderRight" : "borderLeft"]: `1px solid ${COLUMN_EDGE}`,
+      }}
+    >
+      {children}
     </div>
   )
 }

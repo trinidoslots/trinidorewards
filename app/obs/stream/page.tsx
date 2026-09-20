@@ -17,7 +17,7 @@ import { TournamentEventCard, useTournamentEvent } from "@/components/obs/tourna
 import { KickChatFeed } from "@/components/kick-chat-feed"
 import { useKickChat } from "@/hooks/use-kick-chat"
 import type { KickMessage } from "@/lib/kick-chat"
-import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
+import { OBS_RADIUS, shellBackground } from "@/lib/obs-theme"
 import { PREVIEW_TOURNAMENT } from "@/lib/tournament-preview"
 
 const DEFAULT_SLUG = "trinidoslots"
@@ -74,6 +74,8 @@ function StreamWidget() {
   const slug = searchParams.get("channel")?.trim() || DEFAULT_SLUG
 
   const isPreview = searchParams.get("preview") === "1"
+  // Set by /obs/complete, which paints the column's gradient itself.
+  const isTransparent = searchParams.get("transparent") === "1"
 
   const prediction = usePredictionWindow()
   const giveaway = useGiveawayState()
@@ -147,7 +149,7 @@ function StreamWidget() {
     <div className="h-screen w-full bg-transparent">
       <div
         className="flex h-full w-full flex-col overflow-hidden p-2 shadow-2xl"
-        style={{ backgroundColor: OBS.shell, borderRadius: OBS_RADIUS.shell }}
+        style={{ backgroundColor: shellBackground(isTransparent), borderRadius: OBS_RADIUS.shell }}
       >
         {/* Events, newest first. They were stacked by type before — giveaway,
             then prediction, then transactions — so a deposit that had just

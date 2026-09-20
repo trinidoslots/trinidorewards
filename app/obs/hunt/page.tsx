@@ -3,9 +3,10 @@
 import { createClient } from "@/lib/supabase/client"
 import { getActiveHunt } from "@/lib/active-hunt"
 import { Coins, ChevronRight, ChevronLeft, Crown } from "lucide-react"
-import { useEffect, useLayoutEffect, useState, useRef } from "react"
+import { Suspense, useEffect, useLayoutEffect, useState, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
-import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
+import { OBS, OBS_RADIUS, shellBackground } from "@/lib/obs-theme"
 
 type BonusHunt = {
   id: string
@@ -20,7 +21,9 @@ type BonusHunt = {
   image_url?: string | null
 }
 
-export default function OBSWidget() {
+function HuntWidget() {
+  // Set by /obs/complete, which paints the column's gradient itself.
+  const isTransparent = useSearchParams().get("transparent") === "1"
   const [hunts, setHunts] = useState<BonusHunt[]>([])
   const [loading, setLoading] = useState(true)
   const [isOpening, setIsOpening] = useState(false)
@@ -339,7 +342,7 @@ export default function OBSWidget() {
       <div className="h-screen w-full bg-transparent">
         <div
           className="flex h-full w-full items-center justify-center p-2 shadow-2xl"
-          style={{ backgroundColor: OBS.shell, borderRadius: OBS_RADIUS.shell }}
+          style={{ backgroundColor: shellBackground(isTransparent), borderRadius: OBS_RADIUS.shell }}
         >
           <span className="font-mono text-[11px] uppercase tracking-[0.12em]" style={{ color: OBS.muted }}>
             Loading
@@ -400,7 +403,7 @@ export default function OBSWidget() {
     <div className="h-screen w-full bg-transparent">
       <div
         className="flex h-full w-full flex-col overflow-hidden p-2 shadow-2xl"
-        style={{ backgroundColor: OBS.shell, borderRadius: OBS_RADIUS.shell }}
+        style={{ backgroundColor: shellBackground(isTransparent), borderRadius: OBS_RADIUS.shell }}
       >
         {/* Header */}
         <div className="flex flex-shrink-0 items-center gap-2 px-2 pb-2 pt-1">
@@ -707,5 +710,14 @@ export default function OBSWidget() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function HuntObsWidgetPage() {
+  // useSearchParams needs a Suspense boundary during prerender.
+  return (
+    <Suspense fallback={<div className="h-screen w-full bg-transparent" />}>
+      <HuntWidget />
+    </Suspense>
   )
 }
