@@ -7,15 +7,19 @@ import { GiveawayCard, isGiveawayActive, useGiveawayState } from "@/components/o
 import {
   BannerRotator,
   EventDivider,
+  PointsEventCard,
   PredictionEventCard,
   TransactionEventCard,
+  usePointsEvents,
   usePredictionWindow,
   useTransactionEvents,
+  type PointsEvent,
   type TransactionEvent,
 } from "@/components/obs/stream-event-feed"
 import { TournamentEventCard, useTournamentEvent } from "@/components/obs/tournament-event-card"
 import { KickChatFeed } from "@/components/kick-chat-feed"
 import { useKickChat } from "@/hooks/use-kick-chat"
+import { useChatRecorder } from "@/hooks/use-chat-recorder"
 import type { KickMessage } from "@/lib/kick-chat"
 import { OBS_RADIUS, shellBackground } from "@/lib/obs-theme"
 import { PREVIEW_TOURNAMENT } from "@/lib/tournament-preview"
@@ -27,6 +31,10 @@ const DEFAULT_SLUG = "trinidoslots"
 const PREVIEW_EVENTS: TransactionEvent[] = [
   { id: "preview-cashout", kind: "cashout", amount: 1_700_000, created_at: new Date().toISOString() },
   { id: "preview-deposit", kind: "deposit", amount: 25_000, created_at: new Date().toISOString() },
+]
+
+const PREVIEW_POINTS: PointsEvent[] = [
+  { id: "preview-points", points_each: 500, user_count: 47, total_points: 23_500, created_at: new Date().toISOString() },
 ]
 
 const PREVIEW_MESSAGES: KickMessage[] = [
@@ -56,6 +64,8 @@ const PREVIEW_MESSAGES: KickMessage[] = [
 ].map((message, index) => ({
   ...message,
   id: `preview-${index}`,
+  // Preview rows are never recorded, so they carry no Kick id.
+  kickId: "",
   isMod: message.badges.some((badge) => badge.type === "moderator"),
   receivedAt: Date.now(),
 }))
@@ -80,10 +90,19 @@ function StreamWidget() {
   const prediction = usePredictionWindow()
   const giveaway = useGiveawayState()
   const liveTransactions = useTransactionEvents()
+  const livePointsEvents = usePointsEvents()
   const liveTournament = useTournamentEvent({ enabled: !isPreview })
-  const { messages } = useKickChat({ slug })
+
+  // Add ?recorder=<RECORDER_TOKEN> to this source's URL in OBS and it also
+  // records who is in chat, which is what /admin/points grants against. Without
+  // the token the widget behaves exactly as before and records nothing — the
+  // token is checked on the server, so it never has to ship in the bundle.
+  const recorderToken = isPreview ? null : searchParams.get("recorder")?.trim() || null
+  const recorder = useChatRecorder({ token: recorderToken })
+  const { messages } = useKickChat({ slug, onMessage: recorder.observe })
 
   const transactions = isPreview ? PREVIEW_EVENTS : liveTransactions
+  const pointsEvents = isPreview ? PREVIEW_POINTS : livePointsEvents
   // In preview the countdown is faked so the card can be positioned off-stream.
   const predictionSeconds = prediction?.secondsLeft ?? (isPreview ? 287 : 0)
   const chatMessages = isPreview && messages.length === 0 ? PREVIEW_MESSAGES : messages
@@ -140,6 +159,14 @@ function StreamWidget() {
       key: transaction.id,
       startedAt: startedAtOr(transaction.created_at, Date.now()),
       node: <TransactionEventCard event={transaction} />,
+    })
+  }
+
+  for (const payout of pointsEvents) {
+    events.push({
+      key: payout.id,
+      startedAt: startedAtOr(payout.created_at, Date.now()),
+      node: <PointsEventCard event={payout} />,
     })
   }
 

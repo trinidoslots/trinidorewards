@@ -53,9 +53,10 @@ const NAV: Item[] = [
     id: "users",
     label: "Users",
     icon: Users,
-    match: "/admin/users|/admin/wins",
+    match: "/admin/users|/admin/wins|/admin/points",
     children: [
       { href: "/admin/users", label: "Users" },
+      { href: "/admin/points", label: "Points" },
       { href: "/admin/wins", label: "Winner Logs" },
     ],
   },

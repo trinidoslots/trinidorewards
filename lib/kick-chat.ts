@@ -52,6 +52,12 @@ export type KickChatPayload = {
 
 export type KickMessage = {
   id: string
+  /**
+   * Kick's own numeric user id, as a string — stable across renames, which the
+   * username is not. This is what points and accounts are matched on; see
+   * lib/points-activity. Empty when Kick sent a payload without a sender id.
+   */
+  kickId: string
   username: string
   content: string
   color: string

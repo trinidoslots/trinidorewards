@@ -41,6 +41,9 @@ export const OBS = {
   prediction: ACCENTS.amber,
   tournament: ACCENTS.blue,
   giveaway: ACCENTS.purple,
+  // The one ACCENT not already spoken for by another event card, so a points
+  // payout is never mistaken at a glance for a giveaway or a cashout.
+  points: ACCENTS.pink,
 } as const
 
 /**

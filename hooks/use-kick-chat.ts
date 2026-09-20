@@ -108,6 +108,7 @@ export function useKickChat({ slug, limit = 100, onMessage }: Options) {
         idCounterRef.current += 1
         const message: KickMessage = {
           id: payload.id ?? `local-${idCounterRef.current}`,
+          kickId: payload.sender?.id != null ? String(payload.sender.id) : "",
           username: payload.sender?.username ?? "unknown",
           content: payload.content ?? "",
           color: payload.sender?.identity?.color || KICK_DEFAULT_USER_COLOR,

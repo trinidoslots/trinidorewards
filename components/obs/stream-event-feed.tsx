@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { Target } from "lucide-react"
+import { Coins, Target } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { BANNER_ASPECT_RATIO, BANNER_ROTATION_MS, OBS_BANNERS } from "@/lib/obs-banners"
 import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
@@ -338,6 +338,94 @@ export function PredictionEventCard({ secondsLeft }: { secondsLeft: number }) {
       </div>
       <div className="text-[11px] leading-snug" style={{ color: OBS.muted }}>
         Predict the final balance on the site
+      </div>
+    </EventCard>
+  )
+}
+
+// --- points -----------------------------------------------------------------
+
+export type PointsEvent = {
+  id: string
+  points_each: number
+  user_count: number
+  total_points: number
+  created_at: string
+}
+
+/**
+ * Streams in points payouts, the same way useTransactionEvents does for
+ * deposits.
+ *
+ * Kept as its own hook rather than folding both into a generic one: the deposit
+ * announcements run live on stream, and a shared abstraction would have put
+ * them at risk for the sake of thirty lines.
+ */
+export function usePointsEvents() {
+  const [events, setEvents] = useState<PointsEvent[]>([])
+  const supabaseRef = useRef(createClient())
+
+  useEffect(() => {
+    const supabase = supabaseRef.current
+    const isFresh = (event: PointsEvent) =>
+      Date.now() - new Date(event.created_at).getTime() < TRANSACTION_EVENT_TTL_MS
+
+    // An OBS source that reloads mid-announcement should still show the tail.
+    const backfill = async () => {
+      const since = new Date(Date.now() - TRANSACTION_EVENT_TTL_MS).toISOString()
+      const { data, error } = await supabase
+        .from("points_events")
+        .select("*")
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+      if (error) {
+        console.error("[points] Error fetching points events:", error)
+        return
+      }
+      setEvents(((data ?? []) as PointsEvent[]).filter(isFresh))
+    }
+
+    backfill()
+
+    const channel = supabase
+      .channel("points_events_realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "points_events" }, (payload) => {
+        setEvents((current) => [payload.new as PointsEvent, ...current])
+      })
+      .subscribe()
+
+    const sweep = setInterval(() => {
+      setEvents((current) => {
+        const next = current.filter(isFresh)
+        return next.length === current.length ? current : next
+      })
+    }, 1_000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(sweep)
+    }
+  }, [])
+
+  return events
+}
+
+export function PointsEventCard({ event }: { event: PointsEvent }) {
+  const users = Number(event.user_count) || 0
+  const each = Number(event.points_each) || 0
+
+  return (
+    <EventCard
+      icon={<Coins className="h-5 w-5" style={{ color: OBS.points }} />}
+      label="POINTS"
+      labelColor={OBS.points}
+      timestamp="now"
+    >
+      <div className="text-[20px] font-extrabold leading-tight" style={{ color: OBS.value }}>
+        {each.toLocaleString("en-US")}
+      </div>
+      <div className="text-[11px] leading-snug" style={{ color: OBS.muted }}>
+        {`to ${users.toLocaleString("en-US")} active ${users === 1 ? "chatter" : "chatters"}`}
       </div>
     </EventCard>
   )

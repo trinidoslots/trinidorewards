@@ -56,6 +56,14 @@ function Complete() {
   // where the top bar leaves off, reads as one overlay.
   const columnQuery = query("transparent=1")
 
+  // The stream column is the one that reads chat, so a ?recorder=<token> on the
+  // combined scene has to reach it — otherwise running /obs/complete instead of
+  // /obs/stream would silently stop recording chat activity.
+  const recorder = params.get("recorder")?.trim()
+  const streamQuery = recorder
+    ? `${columnQuery}&recorder=${encodeURIComponent(recorder)}`
+    : columnQuery
+
   const columnHeight = SCENE.height - TOP_BAR_HEIGHT
 
   return (
@@ -74,7 +82,7 @@ function Complete() {
       </Column>
 
       <Column style={{ top: TOP_BAR_HEIGHT, right: 0, width: streamWidth, height: columnHeight }} edge="left">
-        <Frame title="Stream column" src={`/obs/stream${columnQuery}`} style={{ inset: 0, width: "100%", height: "100%" }} />
+        <Frame title="Stream column" src={`/obs/stream${streamQuery}`} style={{ inset: 0, width: "100%", height: "100%" }} />
       </Column>
     </div>
   )
