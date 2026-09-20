@@ -21,6 +21,19 @@ type BonusHunt = {
   image_url?: string | null
 }
 
+/**
+ * The widget's accents, read by every descendant through var().
+ *
+ * Declared in one place and spread into both shells rather than typed in at
+ * the thirty-odd spots that want them, which is how this widget stayed on the
+ * old blue while the rest of the overlay moved.
+ */
+const ACCENT_VARS = {
+  ["--obs-accent" as string]: OBS.label,
+  ["--obs-super" as string]: OBS.giveaway,
+  ["--obs-gold" as string]: OBS.prediction,
+} as React.CSSProperties
+
 function HuntWidget() {
   // Set by /obs/complete, which paints the column's gradient itself.
   const isTransparent = useSearchParams().get("transparent") === "1"
@@ -342,7 +355,11 @@ function HuntWidget() {
       <div className="h-screen w-full bg-transparent">
         <div
           className="flex h-full w-full items-center justify-center p-2 shadow-2xl"
-          style={{ backgroundColor: shellBackground(isTransparent), borderRadius: OBS_RADIUS.shell }}
+          style={{
+          backgroundColor: shellBackground(isTransparent),
+          borderRadius: OBS_RADIUS.shell,
+          ...ACCENT_VARS,
+        }}
         >
           <span className="font-mono text-[11px] uppercase tracking-[0.12em]" style={{ color: OBS.muted }}>
             Loading
@@ -403,7 +420,11 @@ function HuntWidget() {
     <div className="h-screen w-full bg-transparent">
       <div
         className="flex h-full w-full flex-col overflow-hidden p-2 shadow-2xl"
-        style={{ backgroundColor: shellBackground(isTransparent), borderRadius: OBS_RADIUS.shell }}
+        style={{
+          backgroundColor: shellBackground(isTransparent),
+          borderRadius: OBS_RADIUS.shell,
+          ...ACCENT_VARS,
+        }}
       >
         {/* Header */}
         <div className="flex flex-shrink-0 items-center gap-2 px-2 pb-2 pt-1">
@@ -414,41 +435,41 @@ function HuntWidget() {
         {/* Statistics */}
         <div className="px-2 py-2 space-y-1.5 text-sm flex-shrink-0">
           <div className="flex justify-between">
-            <span className="text-gray-400">B.E. X</span>
+            <span className="text-white/35">B.E. X</span>
             <span className="text-white font-semibold">{breakEvenX.toFixed(1)}x</span>
           </div>
           {!isCollecting && (
             <div className="flex justify-between">
-              <span className="text-gray-400">Avg X</span>
+              <span className="text-white/35">Avg X</span>
               <span className="text-white font-semibold">{averageMultiplier.toFixed(0)}x</span>
             </div>
           )}
           <div className="flex justify-between">
-            <span className="text-gray-400">Target</span>
+            <span className="text-white/35">Target</span>
             <span className="text-white font-semibold">${startingBalance.toLocaleString("en-US")}</span>
           </div>
           {!isCollecting && (
             <div className="flex justify-between">
-              <span className="text-gray-400">Total</span>
+              <span className="text-white/35">Total</span>
               <span className="text-white font-semibold">${totalWinsSoFar.toLocaleString("en-US")}</span>
             </div>
           )}
           <div className="flex justify-between">
-            <span className="text-gray-400">{isCollecting ? "Bonuses" : "Bonus"}</span>
+            <span className="text-white/35">{isCollecting ? "Bonuses" : "Bonus"}</span>
             <span className="text-white font-semibold flex items-center gap-1.5">
               {completedHunts.length} / {totalBonuses}
               {superBonuses.length > 0 && (
                 <span className="flex items-center gap-0.5">
-                  <Crown className="w-3.5 h-3.5 text-amber-400" />
+                  <Crown className="w-3.5 h-3.5 text-[color:var(--obs-gold)]" />
                   {superBonuses.length}
                 </span>
               )}
             </span>
           </div>
           {!isCollecting && (
-            <div className="relative h-1.5 bg-[#0B0E13] rounded-full overflow-hidden mt-1">
+            <div className="relative h-1.5 bg-white/[0.022] rounded-full overflow-hidden mt-1">
               <div
-                className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#7C5CFF] to-[#4D84FF] transition-all duration-1000 ease-out"
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-[color:var(--obs-super)] to-[color:var(--obs-accent)] transition-all duration-1000 ease-out"
                 style={{ width: `${totalBonuses > 0 ? (completedHunts.length / totalBonuses) * 100 : 0}%` }}
               />
             </div>
@@ -458,7 +479,7 @@ function HuntWidget() {
         {isCollecting ? (
           // Collecting phase: grid of full, uncropped slot thumbnails
           <div className="flex-1 min-h-0 flex flex-col">
-            <div className="text-[#7FB3FF] text-xs font-semibold uppercase tracking-wide px-2 pt-2 mb-2 flex-shrink-0">
+            <div className="text-[color:var(--obs-accent)] text-xs font-semibold uppercase tracking-wide px-2 pt-2 mb-2 flex-shrink-0">
               Slot List
             </div>
             <div ref={collectingScrollRef} className="px-2 pb-3 flex-1 min-h-0 overflow-y-auto hide-scrollbar">
@@ -477,7 +498,7 @@ function HuntWidget() {
                 {hunts.map((hunt, index) => (
                   <div
                     key={hunt.id}
-                    className="relative aspect-[180/236] rounded-lg bg-[#0B0E13] border border-[#4D84FF]/20 overflow-hidden flex items-center justify-center"
+                    className="relative aspect-[180/236] rounded-lg bg-white/[0.022] border border-white/[0.08] overflow-hidden flex items-center justify-center"
                   >
                     {hunt.image_url ? (
                       <img
@@ -487,25 +508,25 @@ function HuntWidget() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <Coins className="w-6 h-6 text-[#4D84FF]/40" />
+                      <Coins className="w-6 h-6 text-white/20" />
                     )}
-                    <span className="absolute top-1 left-1 flex items-center justify-center w-5 h-5 rounded-full bg-[#4D84FF] text-white text-[11px] font-bold shadow">
+                    <span className="absolute top-1 left-1 flex items-center justify-center w-5 h-5 rounded-full bg-[color:var(--obs-accent)] text-white text-[11px] font-bold shadow">
                       {index + 1}
                     </span>
                     {hunt.is_super && (
-                      <Crown className="absolute top-1 right-1 w-4 h-4 text-amber-400 drop-shadow" />
+                      <Crown className="absolute top-1 right-1 w-4 h-4 text-[color:var(--obs-gold)] drop-shadow" />
                     )}
                   </div>
                 ))}
                 {hunts.length === 0 && (
-                  <div className="col-span-2 text-center text-gray-400 text-sm py-6">No bonuses collected yet</div>
+                  <div className="col-span-2 text-center text-white/35 text-sm py-6">No bonuses collected yet</div>
                 )}
                 {loopList &&
                   hunts.map((hunt, index) => (
                     <div
                       key={`${hunt.id}-dup`}
                       aria-hidden="true"
-                      className="relative aspect-[180/236] rounded-lg bg-[#0B0E13] border border-[#4D84FF]/20 overflow-hidden flex items-center justify-center"
+                      className="relative aspect-[180/236] rounded-lg bg-white/[0.022] border border-white/[0.08] overflow-hidden flex items-center justify-center"
                     >
                       {hunt.image_url ? (
                         <img
@@ -515,13 +536,13 @@ function HuntWidget() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <Coins className="w-6 h-6 text-[#4D84FF]/40" />
+                        <Coins className="w-6 h-6 text-white/20" />
                       )}
-                      <span className="absolute top-1 left-1 flex items-center justify-center w-5 h-5 rounded-full bg-[#4D84FF] text-white text-[11px] font-bold shadow">
+                      <span className="absolute top-1 left-1 flex items-center justify-center w-5 h-5 rounded-full bg-[color:var(--obs-accent)] text-white text-[11px] font-bold shadow">
                         {index + 1}
                       </span>
                       {hunt.is_super && (
-                        <Crown className="absolute top-1 right-1 w-4 h-4 text-amber-400 drop-shadow" />
+                        <Crown className="absolute top-1 right-1 w-4 h-4 text-[color:var(--obs-gold)] drop-shadow" />
                       )}
                     </div>
                   ))}
@@ -532,11 +553,11 @@ function HuntWidget() {
           // Opening phase: best win, up next, and opened bonuses with full thumbnails
           <div className="flex-1 min-h-0 overflow-y-auto hide-scrollbar animate-in fade-in duration-500">
             {/* Best X Win */}
-            <div className="px-2 py-3 border-b border-[#4D84FF]/20">
-              <div className="text-[#7FB3FF] text-xs font-semibold uppercase tracking-wide mb-2">Best X Win</div>
+            <div className="px-2 py-3 border-b border-white/[0.08]">
+              <div className="text-[color:var(--obs-accent)] text-xs font-semibold uppercase tracking-wide mb-2">Best X Win</div>
               {highestWin.amount > 0 ? (
-                <div className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-[#4D84FF]/15 to-transparent border border-[#4D84FF]/30 p-2 animate-in fade-in slide-in-from-bottom-1 duration-500">
-                  <div className="h-14 aspect-[180/236] flex-shrink-0 rounded-md bg-[#0B0E13] border border-[#4D84FF]/20 overflow-hidden flex items-center justify-center">
+                <div className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-[color:var(--obs-accent)]/15 to-transparent border border-white/[0.08] p-2 animate-in fade-in slide-in-from-bottom-1 duration-500">
+                  <div className="h-14 aspect-[180/236] flex-shrink-0 rounded-md bg-white/[0.022] border border-white/[0.08] overflow-hidden flex items-center justify-center">
                     {hunts.find((h) => h.game_name === highestWin.game)?.image_url ? (
                       <img
                         src={hunts.find((h) => h.game_name === highestWin.game)?.image_url || "/placeholder.svg"}
@@ -545,29 +566,29 @@ function HuntWidget() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <Coins className="w-5 h-5 text-[#4D84FF]/40" />
+                      <Coins className="w-5 h-5 text-white/20" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-white font-semibold text-sm truncate">{highestWin.game}</div>
-                    <div className="text-gray-400 text-xs">${highestWin.betSize.toFixed(2)} bet</div>
+                    <div className="text-white/35 text-xs">${highestWin.betSize.toFixed(2)} bet</div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="text-[#B18CFF] font-bold text-base">{highestWinMultiplier.toFixed(0)}x</div>
+                    <div className="text-[color:var(--obs-super)] font-bold text-base">{highestWinMultiplier.toFixed(0)}x</div>
                     <div className="text-white text-xs font-medium">${highestWin.amount.toFixed(2)}</div>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-center rounded-lg border border-dashed border-[#4D84FF]/20 py-3">
-                  <span className="text-gray-500 text-xs font-medium">Awaiting Opening</span>
+                <div className="flex items-center justify-center rounded-lg border border-dashed border-white/[0.08] py-3">
+                  <span className="text-white/25 text-xs font-medium">Awaiting Opening</span>
                 </div>
               )}
             </div>
 
             {/* Up Next */}
             {(currentBonus || upNextBonuses.length > 0) && (
-              <div className="px-2 py-3 border-b border-[#4D84FF]/20 space-y-2">
-                <div className="text-[#7FB3FF] text-xs font-semibold uppercase tracking-wide">Up Next</div>
+              <div className="px-2 py-3 border-b border-white/[0.08] space-y-2">
+                <div className="text-[color:var(--obs-accent)] text-xs font-semibold uppercase tracking-wide">Up Next</div>
                 <AnimatePresence mode="popLayout" initial={false}>
                   {currentBonus && (
                     <motion.div
@@ -578,9 +599,9 @@ function HuntWidget() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -12 }}
                       transition={{ duration: 0.45, ease: "easeOut" }}
-                      className="flex items-center gap-3 rounded-lg bg-[#4D84FF]/20 border border-[#4D84FF]/50 p-2"
+                      className="flex items-center gap-3 rounded-lg bg-[color:var(--obs-accent)]/20 border border-[color:var(--obs-accent)]/50 p-2"
                     >
-                      <div className="relative h-12 aspect-[180/236] flex-shrink-0 rounded-md bg-[#0B0E13] border border-[#4D84FF]/20 overflow-hidden flex items-center justify-center">
+                      <div className="relative h-12 aspect-[180/236] flex-shrink-0 rounded-md bg-white/[0.022] border border-white/[0.08] overflow-hidden flex items-center justify-center">
                         {currentBonus.image_url ? (
                           <img
                             src={currentBonus.image_url || "/placeholder.svg"}
@@ -589,20 +610,20 @@ function HuntWidget() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <Coins className="w-4 h-4 text-[#4D84FF]/40" />
+                          <Coins className="w-4 h-4 text-white/20" />
                         )}
-                        <span className="absolute top-0.5 left-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-[#8B5CF6] text-white text-[9px] font-bold shadow">
+                        <span className="absolute top-0.5 left-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-[color:var(--obs-super)] text-white text-[9px] font-bold shadow">
                           {bonusNumbers.get(currentBonus.id)}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1">
-                          {currentBonus.is_super && <Crown className="w-3 h-3 text-amber-400 flex-shrink-0" />}
+                          {currentBonus.is_super && <Crown className="w-3 h-3 text-[color:var(--obs-gold)] flex-shrink-0" />}
                           <span className="text-white font-medium text-sm truncate">{currentBonus.game_name}</span>
                         </div>
-                        <div className="text-gray-400 text-xs">${currentBonus.bet_size.toFixed(2)}</div>
+                        <div className="text-white/35 text-xs">${currentBonus.bet_size.toFixed(2)}</div>
                       </div>
-                      <span className="flex-shrink-0 text-[10px] font-bold uppercase tracking-wide text-white bg-[#8B5CF6] rounded px-1.5 py-0.5 animate-pulse">
+                      <span className="flex-shrink-0 text-[10px] font-bold uppercase tracking-wide text-white bg-[color:var(--obs-super)] rounded px-1.5 py-0.5 animate-pulse">
                         Opening
                       </span>
                     </motion.div>
@@ -617,7 +638,7 @@ function HuntWidget() {
                       transition={{ duration: 0.4, ease: "easeOut" }}
                       className="flex items-center gap-3 rounded-lg px-2 py-1"
                     >
-                      <div className="relative h-11 aspect-[180/236] flex-shrink-0 rounded-md bg-[#0B0E13] border border-[#4D84FF]/20 overflow-hidden flex items-center justify-center">
+                      <div className="relative h-11 aspect-[180/236] flex-shrink-0 rounded-md bg-white/[0.022] border border-white/[0.08] overflow-hidden flex items-center justify-center">
                         {hunt.image_url ? (
                           <img
                             src={hunt.image_url || "/placeholder.svg"}
@@ -626,18 +647,18 @@ function HuntWidget() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <Coins className="w-3.5 h-3.5 text-[#4D84FF]/40" />
+                          <Coins className="w-3.5 h-3.5 text-white/20" />
                         )}
-                        <span className="absolute top-0.5 left-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-[#3F3355] text-gray-300 text-[9px] font-bold shadow">
+                        <span className="absolute top-0.5 left-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-[color:var(--obs-super)]/25 text-white/60 text-[9px] font-bold shadow">
                           {bonusNumbers.get(hunt.id)}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1">
-                          {hunt.is_super && <Crown className="w-3 h-3 text-amber-400 flex-shrink-0" />}
-                          <span className="text-gray-300 text-sm truncate">{hunt.game_name}</span>
+                          {hunt.is_super && <Crown className="w-3 h-3 text-[color:var(--obs-gold)] flex-shrink-0" />}
+                          <span className="text-white/60 text-sm truncate">{hunt.game_name}</span>
                         </div>
-                        <div className="text-gray-500 text-xs">${hunt.bet_size.toFixed(2)}</div>
+                        <div className="text-white/25 text-xs">${hunt.bet_size.toFixed(2)}</div>
                       </div>
                     </motion.div>
                   ))}
@@ -648,7 +669,7 @@ function HuntWidget() {
             {/* Opened */}
             {openedBonuses.length > 0 && (
               <div ref={scrollContainerRef} className="px-2 py-3 space-y-2">
-                <div className="text-[#7FB3FF] text-xs font-semibold uppercase tracking-wide">Opened</div>
+                <div className="text-[color:var(--obs-accent)] text-xs font-semibold uppercase tracking-wide">Opened</div>
                 <AnimatePresence mode="popLayout" initial={false}>
                   {openedBonuses.map((hunt) => {
                     const multiplier = hunt.result && hunt.bet_size ? Number(hunt.result) / Number(hunt.bet_size) : 0
@@ -664,7 +685,7 @@ function HuntWidget() {
                         transition={{ duration: 0.45, ease: "easeOut" }}
                         className="flex items-center gap-3 rounded-lg px-2 py-1"
                       >
-                        <div className="relative h-11 aspect-[180/236] flex-shrink-0 rounded-md bg-[#0B0E13] border border-[#4D84FF]/20 overflow-hidden flex items-center justify-center">
+                        <div className="relative h-11 aspect-[180/236] flex-shrink-0 rounded-md bg-white/[0.022] border border-white/[0.08] overflow-hidden flex items-center justify-center">
                           {hunt.image_url ? (
                             <img
                               src={hunt.image_url || "/placeholder.svg"}
@@ -673,22 +694,22 @@ function HuntWidget() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <Coins className="w-3.5 h-3.5 text-[#4D84FF]/40" />
+                            <Coins className="w-3.5 h-3.5 text-white/20" />
                           )}
-                          <span className="absolute top-0.5 left-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-[#3F3355] text-gray-300 text-[9px] font-bold shadow">
+                          <span className="absolute top-0.5 left-0.5 flex items-center justify-center w-4 h-4 rounded-full bg-[color:var(--obs-super)]/25 text-white/60 text-[9px] font-bold shadow">
                             {bonusNumbers.get(hunt.id)}
                           </span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1">
-                            {hunt.is_super && <Crown className="w-3 h-3 text-amber-400 flex-shrink-0" />}
+                            {hunt.is_super && <Crown className="w-3 h-3 text-[color:var(--obs-gold)] flex-shrink-0" />}
                             <span className="text-white text-sm truncate">{hunt.game_name}</span>
                           </div>
-                          <div className="text-gray-500 text-xs">${Number(hunt.bet_size).toFixed(2)}</div>
+                          <div className="text-white/25 text-xs">${Number(hunt.bet_size).toFixed(2)}</div>
                         </div>
                         <div className="text-right flex-shrink-0">
                           <div
-                            className={`text-xs font-semibold ${isBestWin ? "text-emerald-400" : "text-gray-300"}`}
+                            className={`text-xs font-semibold ${isBestWin ? "text-emerald-400" : "text-white/60"}`}
                           >
                             {multiplier.toFixed(1)}x
                           </div>
@@ -704,7 +725,7 @@ function HuntWidget() {
             )}
 
             {totalBonuses === 0 && (
-              <div className="text-center text-gray-400 text-sm py-6">No bonuses in this hunt yet</div>
+              <div className="text-center text-white/35 text-sm py-6">No bonuses in this hunt yet</div>
             )}
           </div>
         )}

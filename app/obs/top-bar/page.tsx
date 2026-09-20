@@ -9,6 +9,8 @@ import { Loader2, Wallet } from "lucide-react"
 import { AnimatedAmount } from "@/components/animated-amount"
 import { totalsFor } from "@/lib/transactions"
 import { COLUMN_EDGE, TOP_BAR_GRADIENT } from "@/lib/obs-theme"
+import { useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 
 interface CryptoPrice {
   btc: number
@@ -49,7 +51,9 @@ interface Info {
   data_url?: string
 }
 
-export default function ObsWidget() {
+function TopBarWidget() {
+  // Set by /obs/complete: a column continues directly below this strip.
+  const embedded = useSearchParams().get("embedded") === "1"
   const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice>({
     btc: 0,
     eth: 0,
@@ -400,7 +404,9 @@ export default function ObsWidget() {
         width: "1920px",
         height: "50px",
         backgroundImage: TOP_BAR_GRADIENT,
-        borderBottomColor: COLUMN_EDGE,
+        // No edge when a column continues below: the seam is meant to be
+        // invisible, and a hairline across it is the one thing that cannot be.
+        borderBottomColor: embedded ? "transparent" : COLUMN_EDGE,
       }}
     >
       {/* Left Content - Gamble Aware, Timers, Track */}
@@ -520,5 +526,14 @@ export default function ObsWidget() {
         <span className="text-white">{currentTime}</span>
       </div>
     </div>
+  )
+}
+
+export default function TopBarObsWidgetPage() {
+  // useSearchParams needs a Suspense boundary during prerender.
+  return (
+    <Suspense fallback={<div style={{ width: 1920, height: 50 }} />}>
+      <TopBarWidget />
+    </Suspense>
   )
 }

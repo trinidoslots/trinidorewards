@@ -65,7 +65,7 @@ function Complete() {
     >
       <Frame
         title="Top bar"
-        src={`/obs/top-bar${query()}`}
+        src={`/obs/top-bar${query("embedded=1")}`}
         style={{ top: 0, left: 0, width: SCENE.width, height: TOP_BAR_HEIGHT }}
       />
 
