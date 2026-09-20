@@ -16,6 +16,11 @@ export type StoreItem = {
   category: string | null
   quantity: number
   is_available: string | boolean | null
+  /**
+   * What has to be asked for before this can be bought: "onsite_tip",
+   * "crypto", or null for nothing. See lib/payout.
+   */
+  payout_method?: string | null
   created_at?: string
 }
 

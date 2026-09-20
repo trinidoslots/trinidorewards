@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { PayoutMethodField, StoreImageField } from "@/components/admin/store-item-fields"
 
 type StoreItem = {
   id: string
@@ -22,6 +23,7 @@ type StoreItem = {
   type: string | null
   quantity: number
   is_available: string
+  payout_method: string | null
   one_purchase_per_user: boolean
 }
 
@@ -35,6 +37,10 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
     quantity: "",
     type: "Digital",
     is_available: "true",
+    // Neither of these was editable before — an item's artwork could only ever
+    // be set at creation, and there was nowhere to change it afterwards.
+    icon: "",
+    payout_method: "",
   })
   const { toast } = useToast()
   const supabase = createClient()
@@ -63,6 +69,8 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
         quantity: data.quantity.toString(),
         type: data.type || "Digital",
         is_available: data.is_available,
+        icon: data.icon || "",
+        payout_method: data.payout_method || "",
       })
     }
     setLoading(false)
@@ -80,6 +88,9 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
         quantity: Number.parseInt(formData.quantity),
         type: formData.type,
         is_available: formData.is_available,
+        icon: formData.icon || null,
+        // NULL, not "", so the column's CHECK accepts it.
+        payout_method: formData.payout_method || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", params.id)
@@ -208,6 +219,16 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
                 <option value="false">Disabled</option>
               </select>
             </div>
+
+            <PayoutMethodField
+              value={formData.payout_method}
+              onChange={(value) => setFormData({ ...formData, payout_method: value })}
+            />
+
+            <StoreImageField
+              value={formData.icon}
+              onChange={(value) => setFormData({ ...formData, icon: value })}
+            />
 
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={submitting} className="bg-[#5B8DEF] hover:bg-[#5B8DEF] flex-1">

@@ -6,6 +6,7 @@ import { Check, Clock, Package, RefreshCw, Search, Undo2, X } from "lucide-react
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
 import { CopyableId } from "@/components/ui/copyable-id"
+import { describePayout, type PayoutDetails } from "@/lib/payout"
 
 /**
  * What people have bought, and whether it has been handed over.
@@ -48,6 +49,7 @@ export default function StoreRedemptionsPage() {
 
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
   const [users, setUsers] = useState<Map<string, string>>(new Map())
+  const [payouts, setPayouts] = useState<Record<string, PayoutDetails>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
@@ -78,6 +80,18 @@ export default function StoreRedemptionsPage() {
       const { data: people } = await supabase.from("users").select("id, username").in("id", ids)
       setUsers(new Map(((people ?? []) as UserRow[]).map((person) => [person.id, person.username])))
     }
+
+    // Through the API rather than the browser client: redemption_payouts has
+    // RLS on and no policy precisely so a wallet address is not readable with
+    // the anon key. A failure here must not take the list down with it.
+    try {
+      const response = await fetch("/api/admin/redemptions/payouts", { cache: "no-store" })
+      const payload = await response.json()
+      if (response.ok) setPayouts(payload.payouts ?? {})
+    } catch (problem) {
+      console.error("[v0] Could not load payout details:", problem)
+    }
+
     setLoading(false)
   }, [])
 
@@ -219,6 +233,20 @@ export default function StoreRedemptionsPage() {
                         <CopyableId value={row.user_id} chars={4} />
                       )}
                     </div>
+
+                    {/* What actually has to be done to fulfil it. The address is
+                        shown in full rather than truncated — an admin about to
+                        send money needs to see the whole thing. */}
+                    {payouts[row.id] && (
+                      <p className="mt-0.5 break-all text-[11px] text-white/45">
+                        <span style={{ color: ACCENTS.purple }}>{describePayout(payouts[row.id])}</span>
+                        {payouts[row.id].method === "crypto" && (
+                          <span className="ml-1.5 font-mono text-[10px] text-white/35">
+                            {(payouts[row.id] as { address: string }).address}
+                          </span>
+                        )}
+                      </p>
+                    )}
                   </div>
 
                   <Tag accent={meta.accent}>{meta.label}</Tag>

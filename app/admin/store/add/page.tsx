@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { PayoutMethodField, StoreImageField } from "@/components/admin/store-item-fields"
 
 export default function AddStoreItemPage() {
   const [formData, setFormData] = useState({
@@ -22,6 +23,7 @@ export default function AddStoreItemPage() {
     cost: "",
     quantity: "",
     type: "Digital",
+    payout_method: "onsite_tip",
     one_purchase_per_user: false,
   })
   const [submitting, setSubmitting] = useState(false)
@@ -42,6 +44,9 @@ export default function AddStoreItemPage() {
       type: formData.type,
       quantity: Number.parseInt(formData.quantity),
       is_available: "true",
+      // NULL rather than "" so the column's CHECK accepts it and the buy
+      // dialog reads it as "nothing to ask for".
+      payout_method: formData.payout_method || null,
       one_purchase_per_user: formData.one_purchase_per_user,
     }
 
@@ -133,15 +138,16 @@ export default function AddStoreItemPage() {
               </div>
 
               <div className="mt-4">
-                <Label htmlFor="icon" className="text-white/60">
-                  Image
-                </Label>
-                <Input
-                  id="icon"
+                <PayoutMethodField
+                  value={formData.payout_method}
+                  onChange={(value) => setFormData({ ...formData, payout_method: value })}
+                />
+              </div>
+
+              <div className="mt-4">
+                <StoreImageField
                   value={formData.icon}
-                  onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                  className="bg-white/[0.06] border-white/[0.10] text-white"
-                  placeholder="Icon URL"
+                  onChange={(value) => setFormData({ ...formData, icon: value })}
                 />
               </div>
 

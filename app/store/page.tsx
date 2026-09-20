@@ -75,11 +75,11 @@ export default async function StorePage() {
       <PageBody className="space-y-4">
 
       <div className="grid gap-2.5 sm:grid-cols-3">
-        <StatTile label="Items listed" value={items.length.toLocaleString()} />
-        <StatTile label="Categories" value={categories.length.toLocaleString()} accent="blue" />
+        <StatTile label="Items listed" value={items.length.toLocaleString("en-US")} />
+        <StatTile label="Categories" value={categories.length.toLocaleString("en-US")} accent="blue" />
         <StatTile
           label={isLoggedIn ? "You can afford" : "Sign in to buy"}
-          value={isLoggedIn ? affordable.toLocaleString() : "—"}
+          value={isLoggedIn ? affordable.toLocaleString("en-US") : "—"}
           accent="green"
         />
       </div>

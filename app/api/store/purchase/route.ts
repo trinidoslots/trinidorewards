@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { serviceClient } from "@/lib/supabase/service"
 import { inStock, isAvailable, isUnlimited } from "@/lib/store"
+import { readPayoutDetails, readPayoutMethod } from "@/lib/payout"
 
 /**
  * Buying an item with points.
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
     const kickUserId = cookieStore.get("kick_user_id")?.value
     if (!userId && !kickUserId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
 
-    const { itemId } = await request.json().catch(() => ({ itemId: null }))
+    const { itemId, payout } = await request.json().catch(() => ({ itemId: null, payout: null }))
     if (!itemId) return NextResponse.json({ error: "Item ID required" }, { status: 400 })
 
     const client = serviceClient()
@@ -41,6 +42,14 @@ export async function POST(request: Request) {
 
     if (!isAvailable(item)) return NextResponse.json({ error: "That item is not available" }, { status: 400 })
     if (!inStock(item)) return NextResponse.json({ error: "That item is out of stock" }, { status: 400 })
+
+    // Checked before any points move. The dialog asks for these, but the dialog
+    // is client-side and this route is reachable without it — a redemption with
+    // no payout details is one nobody can action, and the buyer would have paid
+    // for it.
+    const method = readPayoutMethod(item.payout_method)
+    const parsed = readPayoutDetails(method, payout)
+    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 })
 
     const cost = Number(item.cost) || 0
     const balance = Number(user.points_balance) || 0
@@ -73,18 +82,45 @@ export async function POST(request: Request) {
     // The record of the purchase matters more than the stock count, so it is
     // written first: a failure here has to undo the charge, and losing the
     // redemption while keeping the points would be the worst outcome.
-    const { error: redemptionError } = await client.from("redemptions").insert({
-      user_id: user.id,
-      item_id: itemId,
-      item_name: item.name,
-      cost,
-      status: "pending",
-    })
+    const { data: redemption, error: redemptionError } = await client
+      .from("redemptions")
+      .insert({
+        user_id: user.id,
+        item_id: itemId,
+        item_name: item.name,
+        cost,
+        status: "pending",
+      })
+      .select("id")
+      .single()
 
-    if (redemptionError) {
+    if (redemptionError || !redemption) {
       console.error("[v0] Could not create redemption:", redemptionError)
       await refund()
       return NextResponse.json({ error: "Could not complete that purchase" }, { status: 500 })
+    }
+
+    // Where it gets sent, in its own table — see scripts/057 for why it is not
+    // a column on redemptions.
+    if (parsed.details) {
+      const { error: payoutError } = await client.from("redemption_payouts").insert({
+        redemption_id: redemption.id,
+        method: parsed.details.method,
+        username: parsed.details.method === "onsite_tip" ? parsed.details.username : null,
+        crypto: parsed.details.method === "crypto" ? parsed.details.crypto : null,
+        chain: parsed.details.method === "crypto" ? parsed.details.chain : null,
+        address: parsed.details.method === "crypto" ? parsed.details.address : null,
+      })
+
+      if (payoutError) {
+        // Unlike the stock count below, this one is fatal. A paid-for
+        // redemption with no address is one the admin cannot pay out, so the
+        // purchase is undone rather than left for someone to puzzle over.
+        console.error("[v0] Could not store payout details:", payoutError)
+        await client.from("redemptions").delete().eq("id", redemption.id)
+        await refund()
+        return NextResponse.json({ error: "Could not save your payout details — nothing was charged" }, { status: 500 })
+      }
     }
 
     if (!isUnlimited(item.quantity)) {
