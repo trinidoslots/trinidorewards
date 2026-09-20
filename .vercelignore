@@ -2,4 +2,14 @@
 node_modules
 scripts
 ec2
-extension
+
+# NOTE: do not add "extension" here.
+#
+# These patterns follow .gitignore rules, so a name without a slash matches a
+# directory of that name at ANY depth. A bare "extension" line silently took
+# app/admin/extension, app/api/admin/extension and app/api/extension out of the
+# deployment along with the extension source — the page and both endpoints
+# answered 404 in production while existing in the repo.
+#
+# The source folder has to ship anyway: /api/admin/extension/download reads it
+# at runtime (see outputFileTracingIncludes in next.config.mjs).
