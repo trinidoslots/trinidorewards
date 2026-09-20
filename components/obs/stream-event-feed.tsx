@@ -147,11 +147,22 @@ export function EventCard({
   return (
     <div
       className="flex items-start gap-3 border px-3 py-2.5 shadow-lg"
-      style={{ backgroundColor: OBS.card, borderColor: OBS.cardBorder, borderRadius: OBS_RADIUS.card }}
+      style={{
+        backgroundColor: OBS.card,
+        borderColor: OBS.cardBorder,
+        borderRadius: OBS_RADIUS.card,
+        // The site's signature: one coloured edge per card rather than a
+        // coloured border all the way round.
+        borderLeft: `2px solid ${labelColor ?? OBS.label}`,
+      }}
     >
       <div
-        className="mt-[2px] flex h-9 w-9 shrink-0 items-center justify-center"
-        style={{ backgroundColor: OBS.iconTile, borderRadius: OBS_RADIUS.iconTile }}
+        className="mt-[2px] flex h-9 w-9 shrink-0 items-center justify-center border"
+        style={{
+          backgroundColor: OBS.iconTile,
+          borderColor: OBS.cardBorder,
+          borderRadius: OBS_RADIUS.iconTile,
+        }}
       >
         {icon}
       </div>
@@ -317,9 +328,9 @@ export function PredictionEventCard({ secondsLeft }: { secondsLeft: number }) {
 
   return (
     <EventCard
-      icon={<Target className="h-5 w-5" style={{ color: OBS.label }} />}
+      icon={<Target className="h-5 w-5" style={{ color: OBS.prediction }} />}
       label="PREDICTIONS OPEN"
-      labelColor={OBS.label}
+      labelColor={OBS.prediction}
       timestamp={`${minutes}:${String(seconds).padStart(2, "0")} left`}
     >
       <div className="text-[20px] font-extrabold leading-tight" style={{ color: OBS.value }}>

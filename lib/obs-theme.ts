@@ -1,36 +1,46 @@
-// Palette and metrics for the /obs/stream column.
+// Palette and metrics for the OBS sources.
 //
-// Matches the bonus hunt widget (app/obs/hunt/page.tsx) so the two sources
-// look like one overlay when they sit on the same scene: #4D84FF on near-black,
-// with #7FB3FF for labels and #B18CFF for the giveaway's highlights.
+// The overlay used to have a palette of its own — a blue wash over everything,
+// #4D84FF borders, #7FB3FF labels, #B18CFF highlights, cards on #1A1F2B. It
+// looked like a different product from the site it belongs to.
 //
-// Kept here rather than inline so the event cards, the giveaway card and the
-// chat feed cannot drift apart.
+// It is the site's surface language now: near-black ground, white hairlines
+// rather than coloured ones, and one accent per card carried on a left edge
+// instead of tinting the whole card. ACCENTS is imported rather than restated
+// so the overlay cannot drift off the palette the site uses.
+
+import { ACCENTS } from "@/components/ui/panel"
 
 export const OBS = {
   /** The column itself. Translucent so the stream shows through a little. */
-  shell: "rgba(11, 14, 19, 0.92)",
+  shell: "rgba(11, 11, 13, 0.92)",
 
-  /** Event cards lifted off the column. */
-  card: "rgba(26, 31, 43, 0.88)",
-  cardBorder: "rgba(77, 132, 255, 0.26)",
+  /** Event cards lifted off the column — the site's Panel surface. */
+  card: "rgba(255, 255, 255, 0.022)",
+  cardBorder: "rgba(255, 255, 255, 0.08)",
 
-  /** The rounded tile the icon sits in, on the left of every card. */
-  iconTile: "rgba(77, 132, 255, 0.14)",
+  /** The tile the icon sits in. A hairline box, not a coloured block. */
+  iconTile: "rgba(255, 255, 255, 0.04)",
 
-  /** Small uppercase label above the value. */
-  label: "#7FB3FF",
-  /** The value itself. */
-  value: "#FFFFFF",
+  /** Fallback for a card that names no accent of its own. */
+  label: ACCENTS.blue,
+  /** The value itself — the site's own text colour, not pure white. */
+  value: "#E7E7EA",
   /** Supporting line under the value, and timestamps. */
-  muted: "#8296B5",
+  muted: "rgba(255, 255, 255, 0.35)",
   /** Chat body text. */
-  chatText: "#D7E2F2",
+  chatText: "rgba(255, 255, 255, 0.75)",
   /** Links, e.g. a code-drop URL. */
-  link: "#7FB3FF",
+  link: ACCENTS.blue,
 
-  deposit: "#FB7185",
-  cashout: "#34D399",
+  /** Money out and money in, in the site's red and green. */
+  deposit: ACCENTS.red,
+  cashout: ACCENTS.green,
+
+  /** One accent per kind of event, as the site gives one per card. */
+  prediction: ACCENTS.amber,
+  tournament: ACCENTS.blue,
+  giveaway: ACCENTS.purple,
 } as const
 
 /**

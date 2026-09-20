@@ -200,13 +200,19 @@ export function GiveawayCard({
         backgroundColor: OBS.card,
         borderColor: OBS.cardBorder,
         borderRadius: OBS_RADIUS.card,
+        // The site's coloured left edge, and the accent every descendant reads
+        // through var(--obs-giveaway). Declared once here rather than
+        // hardcoded at each of the thirteen places that wanted it, which is how
+        // this card stayed blue while the rest of the overlay moved.
+        borderLeft: `2px solid ${OBS.giveaway}`,
+        ["--obs-giveaway" as string]: OBS.giveaway,
       }}
       className={`flex flex-col overflow-hidden border shadow-lg ${className ?? ""}`}
     >
       {/* Header — fixed, never grows or shrinks */}
       <div className="flex flex-shrink-0 items-center justify-between px-2.5 pt-2 pb-1">
         <div className="flex items-center gap-1.5">
-          <Gift className="h-3.5 w-3.5 text-[#7FB3FF]" />
+          <Gift className="h-3.5 w-3.5 text-[color:var(--obs-giveaway)]" />
           <h1 className="text-sm font-bold text-white">Giveaway</h1>
           {showElapsed && state?.started_at && status !== "idle" && (
             <span className="flex items-center gap-0.5 rounded-full bg-white/5 px-1.5 py-0.5 text-[8px] font-semibold tabular-nums text-gray-400">
@@ -219,8 +225,8 @@ export function GiveawayCard({
             entries stopped) so the crowned winner stays visible until the
             giveaway is actually ended/cleared, not just when entrants change. */}
         {(status === "open" || status === "closed") && state?.winner && (
-          <div className="flex max-w-[140px] items-center gap-1 rounded-full border border-[#B18CFF]/30 bg-[#B18CFF]/10 py-0.5 pl-1.5 pr-1.5">
-            <span className="shrink-0 text-[7px] font-semibold uppercase tracking-wide text-[#B18CFF]">
+          <div className="flex max-w-[140px] items-center gap-1 rounded-full border border-[color:var(--obs-giveaway)]/30 bg-[color:var(--obs-giveaway)]/10 py-0.5 pl-1.5 pr-1.5">
+            <span className="shrink-0 text-[7px] font-semibold uppercase tracking-wide text-[color:var(--obs-giveaway)]">
               Last winner:
             </span>
             <AvatarImage username={state.winner} avatar={avatars[state.winner] ?? null} size={14} />
@@ -260,7 +266,7 @@ export function GiveawayCard({
               className="flex flex-1 flex-col justify-between"
             >
               <div className="flex flex-col gap-1">
-                <span className="text-[9px] font-semibold uppercase tracking-wide text-[#7FB3FF]">
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-[color:var(--obs-giveaway)]">
                   Active Keyword
                 </span>
                 <div className="flex items-center justify-center rounded-[9px] border border-white/10 bg-white/[0.06] px-2.5 py-1.5">
@@ -275,7 +281,7 @@ export function GiveawayCard({
               </div>
               <div className="flex items-center justify-between text-[10px]">
                 <span className="flex items-center gap-1 text-gray-400">
-                  <Users className="h-2.5 w-2.5 text-[#7FB3FF]" /> Entries
+                  <Users className="h-2.5 w-2.5 text-[color:var(--obs-giveaway)]" /> Entries
                 </span>
                 <span className="font-semibold text-white">{state?.entrants.length ?? 0}</span>
               </div>
@@ -292,7 +298,7 @@ export function GiveawayCard({
               className="flex flex-1 flex-col justify-between"
             >
               <div className="flex flex-col gap-1">
-                <span className="text-[9px] font-semibold uppercase tracking-wide text-[#7FB3FF]">
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-[color:var(--obs-giveaway)]">
                   Active Keyword
                 </span>
                 <div className="flex flex-col items-center justify-center gap-0 rounded-[9px] border border-white/10 bg-white/[0.06] px-2.5 py-1.5 text-center">
@@ -304,7 +310,7 @@ export function GiveawayCard({
               </div>
               <div className="flex items-center justify-between text-[10px]">
                 <span className="flex items-center gap-1 text-gray-400">
-                  <Users className="h-2.5 w-2.5 text-[#7FB3FF]" /> Entries
+                  <Users className="h-2.5 w-2.5 text-[color:var(--obs-giveaway)]" /> Entries
                 </span>
                 <span className="font-semibold text-white">{state?.entrants.length ?? 0}</span>
               </div>
@@ -320,11 +326,11 @@ export function GiveawayCard({
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="flex w-full flex-col gap-1"
             >
-              <div className="text-center text-[9px] font-semibold uppercase tracking-wide text-[#7FB3FF]">
+              <div className="text-center text-[9px] font-semibold uppercase tracking-wide text-[color:var(--obs-giveaway)]">
                 {rollComplete ? "We have a winner!" : "Rolling"}
               </div>
               <div className="relative mx-auto h-10 w-full overflow-hidden rounded-[9px] border border-white/10 bg-black/30">
-                <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-[2px] -translate-x-1/2 bg-[#4D84FF] shadow-[0_0_8px_2px_rgba(77,132,255,0.6)]" />
+                <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-[2px] -translate-x-1/2 bg-[color:var(--obs-giveaway)] shadow-[0_0_8px_2px_color-mix(in_srgb,var(--obs-giveaway)_60%,transparent)]" />
                 <motion.div
                   className="absolute inset-y-0 left-1/2 flex items-center gap-1 py-1"
                   animate={{ x: translateX }}
@@ -352,8 +358,8 @@ export function GiveawayCard({
               transition={{ duration: 0.3, ease: "easeOut" }}
               className="flex w-full flex-col items-center gap-1"
             >
-              <div className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-[#7FB3FF]">
-                <Trophy className="h-3 w-3 text-[#B18CFF]" /> Winner
+              <div className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-[color:var(--obs-giveaway)]">
+                <Trophy className="h-3 w-3 text-[color:var(--obs-giveaway)]" /> Winner
               </div>
               <div className="flex items-center gap-2 rounded-[9px] border border-white/10 bg-white/[0.06] px-2.5 py-1.5">
                 <AvatarImage username={state.winner} avatar={avatars[state.winner] ?? null} size={22} />
@@ -379,7 +385,7 @@ function AvatarChip({
   return (
     <div
       className={`flex shrink-0 flex-col items-center gap-0 rounded-lg px-0.5 py-0.5 transition-colors ${
-        highlight ? "bg-[#4D84FF]/20 ring-2 ring-[#4D84FF]" : ""
+        highlight ? "bg-[color:var(--obs-giveaway)]/20 ring-2 ring-[color:var(--obs-giveaway)]" : ""
       }`}
       style={{ width: CELL_WIDTH - 4 }}
     >
@@ -404,7 +410,7 @@ function AvatarImage({ username, avatar, size }: { username: string; avatar: str
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
-        <User className="absolute inset-0 m-auto h-1/2 w-1/2 text-[#B18CFF]/50" />
+        <User className="absolute inset-0 m-auto h-1/2 w-1/2 text-[color:var(--obs-giveaway)] opacity-50" />
       )}
     </span>
   )
