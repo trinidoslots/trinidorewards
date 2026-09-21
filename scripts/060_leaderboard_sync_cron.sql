@@ -122,7 +122,12 @@ SELECT jobid, jobname, schedule, active FROM cron.job WHERE jobname = 'leaderboa
 -- A 200 with {"synced":1,"failed":0,...} is the job working.
 -- A 401 means the Vault secret and Vercel's CRON_SECRET do not match.
 
+-- secret_length reads vault.decrypted_secrets, not vault.secrets: the latter is
+-- not necessarily readable and counting it reports a missing secret that is
+-- actually there. The length is printed rather than the value — 43 for a
+-- 32-byte base64url token.
 SELECT
-  (SELECT count(*) FROM cron.job WHERE jobname = 'leaderboard-sync')          AS job_scheduled,
-  (SELECT count(*) FROM vault.secrets WHERE name = 'leaderboard_cron_secret') AS secret_stored,
-  (SELECT count(*) FROM leaderboards WHERE source = 'api')                    AS api_boards;
+  (SELECT count(*) FROM cron.job WHERE jobname = 'leaderboard-sync')    AS job_scheduled,
+  (SELECT length(decrypted_secret) FROM vault.decrypted_secrets
+    WHERE name = 'leaderboard_cron_secret')                             AS secret_length,
+  (SELECT count(*) FROM leaderboards WHERE source = 'api')              AS api_boards;
