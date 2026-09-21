@@ -234,16 +234,15 @@ export function BannerRotator() {
   const banner = OBS_BANNERS[index % OBS_BANNERS.length]
 
   return (
-    <div
-      style={{
-        aspectRatio: BANNER_ASPECT_RATIO,
-        backgroundColor: OBS.card,
-        borderColor: OBS.cardBorder,
-        borderRadius: OBS_RADIUS.banner,
-      }}
-      className="relative w-full overflow-hidden border shadow-lg"
-    >
-      <AnimatePresence mode="wait">
+    // No card around it, unlike the event cards above: the artwork draws its own
+    // rounded corners, its own background and its own accent rail, so a shell
+    // behind it put a second border a few pixels outside the first one.
+    //
+    // Without that background the slot is genuinely empty between banners, so
+    // the two images overlap during the crossfade (no `mode="wait"`) — one
+    // fading out on its own would show the gameplay through for half a second.
+    <div style={{ aspectRatio: BANNER_ASPECT_RATIO }} className="relative w-full">
+      <AnimatePresence>
         <motion.img
           key={banner.src}
           src={banner.src}

@@ -59,7 +59,8 @@ export const OBS_RADIUS = {
    */
   shell: 0,
   card: 12,
-  banner: 12,
+  // No `banner`: the banner artwork carries its own corners and its own
+  // background, so the rotator draws no shell at all.
   iconTile: 9,
   /** Inner panels: the keyword box, the roll strip. */
   panel: 9,
