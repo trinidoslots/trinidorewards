@@ -11,6 +11,7 @@ import {
   checkAddress,
   checkUsername,
   defaultChainFor,
+  findChain,
   findCrypto,
   needsChain,
   payoutMethodLabel,
@@ -37,7 +38,13 @@ const money = (value: number) => value.toLocaleString("en-US")
 /** Marks "none of the saved ones" in the saved-details dropdowns. */
 const FRESH = "__new__"
 
-type SavedWallet = { id: string; label: string | null; value: string }
+type SavedWallet = {
+  id: string
+  label: string | null
+  crypto: string | null
+  chain: string | null
+  value: string
+}
 type SavedAccount = { id: string; site_name: string; username: string }
 
 const shortened = (value: string) =>
@@ -102,9 +109,24 @@ export function StoreBuyDialog({
         const payload = await response.json()
 
         if (method === "crypto") {
-          const saved = ((payload.methods ?? []) as { id: string; method: string; label: string | null; value: string }[])
+          const saved = (
+            (payload.methods ?? []) as {
+              id: string
+              method: string
+              label: string | null
+              crypto?: string | null
+              chain?: string | null
+              value: string
+            }[]
+          )
             .filter((entry) => entry.method === "crypto")
-            .map((entry) => ({ id: entry.id, label: entry.label, value: entry.value }))
+            .map((entry) => ({
+              id: entry.id,
+              label: entry.label,
+              crypto: entry.crypto ?? null,
+              chain: entry.chain ?? null,
+              value: entry.value,
+            }))
           setWallets(saved)
           if (saved.length > 0) applyWallet(saved[0])
         } else {
@@ -131,10 +153,20 @@ export function StoreBuyDialog({
   function applyWallet(wallet: SavedWallet) {
     setPickedSaved(wallet.id)
     setAddress(wallet.value)
-    // The label is free text on the profile ("BTC", "Bitcoin", "ETH main"), so
-    // it is only used when it clearly names one of the coins on offer.
-    const named = CRYPTOS.find((entry) => (wallet.label ?? "").trim().toUpperCase() === entry.code)
-    if (named) setCrypto(named.code)
+
+    // The coin and chain columns arrived with scripts/064. Before them the coin
+    // was free text in `label` — "BTC", "Bitcoin", "ETH main" — which is only
+    // usable when it plainly names one of the coins on offer, and said nothing
+    // at all about the network.
+    const named = findCrypto(wallet.crypto) ?? findCrypto(wallet.label)
+    if (!named) return
+    setCrypto(named.code)
+
+    // Carrying the network across matters most where there is a choice: a saved
+    // USDT address left the network on whatever the dialog happened to show,
+    // and sending USDT to the wrong chain loses it.
+    const chain = findChain(named.code, wallet.chain) ?? defaultChainFor(named.code)
+    setChain(chain?.id ?? "")
   }
 
   const cost = Number(item.cost) || 0

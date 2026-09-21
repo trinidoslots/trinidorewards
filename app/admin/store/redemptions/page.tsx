@@ -51,6 +51,8 @@ export default function StoreRedemptionsPage() {
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
   const [users, setUsers] = useState<Map<string, string>>(new Map())
   const [payouts, setPayouts] = useState<Record<string, PayoutDetails>>({})
+  /** Wallets each buyer has saved, keyed by user id. See the API route. */
+  const [wallets, setWallets] = useState<Record<string, { crypto: string | null; chain: string | null; address: string }[]>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
@@ -88,7 +90,10 @@ export default function StoreRedemptionsPage() {
     try {
       const response = await fetch("/api/admin/redemptions/payouts", { cache: "no-store" })
       const payload = await response.json()
-      if (response.ok) setPayouts(payload.payouts ?? {})
+      if (response.ok) {
+        setPayouts(payload.payouts ?? {})
+        setWallets(payload.wallets ?? {})
+      }
     } catch (problem) {
       console.error("[v0] Could not load payout details:", problem)
     }
@@ -263,6 +268,48 @@ export default function StoreRedemptionsPage() {
                           />
                         )}
                       </p>
+                    )}
+
+                    {/*
+                      What this buyer has on their profile.
+
+                      Paying someone out used to mean opening their profile in
+                      another tab to see whether the address typed at checkout
+                      was one they had held for a while or one that appeared at
+                      the moment of purchase. The match is marked, so the
+                      difference is visible without comparing two strings of
+                      forty characters by eye.
+                    */}
+                    {(wallets[row.user_id]?.length ?? 0) > 0 && (
+                      <div className="mt-1 space-y-0.5">
+                        <MonoLabel className="text-white/20">On file</MonoLabel>
+                        {wallets[row.user_id].map((wallet) => {
+                          const used =
+                            payouts[row.id]?.method === "crypto" &&
+                            (payouts[row.id] as { address: string }).address.trim().toLowerCase() ===
+                              wallet.address.trim().toLowerCase()
+                          return (
+                            <p
+                              key={`${wallet.crypto}-${wallet.chain}-${wallet.address}`}
+                              className="flex items-start gap-1 text-[11px]"
+                            >
+                              <MonoLabel style={{ color: used ? ACCENTS.green : "rgba(255,255,255,0.25)" }}>
+                                {wallet.crypto ?? "?"}
+                                {wallet.chain ? ` · ${wallet.chain}` : ""}
+                              </MonoLabel>
+                              <span className="break-all font-mono text-[10px] text-white/30">
+                                {wallet.address}
+                              </span>
+                              <CopyButton value={wallet.address} label="saved wallet address" />
+                              {used && (
+                                <span className="shrink-0 font-mono text-[10px]" style={{ color: ACCENTS.green }}>
+                                  used
+                                </span>
+                              )}
+                            </p>
+                          )
+                        })}
+                      </div>
                     )}
                   </div>
 

@@ -5,6 +5,7 @@ import { CreditCard, Link2, Plus, Trash2, Trophy } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, Tag } from "@/components/ui/panel"
 import { sourceMeta, winValue } from "@/lib/wins"
 import { SelectMenu } from "@/components/ui/select-menu"
+import { CRYPTOS, chainsFor, checkAddress, defaultChainFor, findChain, findCrypto, needsChain } from "@/lib/payout"
 
 /**
  * The two "things you tell us" panels on the profile.
@@ -15,13 +16,17 @@ import { SelectMenu } from "@/components/ui/select-menu"
  * a Kick cookie — so in both cases the route is what establishes who is asking.
  */
 
-const PAYMENT_OPTIONS = [
-  { id: "paypal", name: "PayPal", placeholder: "you@example.com", hint: "" },
-  { id: "crypto", name: "Crypto", placeholder: "Wallet address", hint: "Network" },
-  { id: "bank", name: "Bank", placeholder: "IBAN or account number", hint: "Bank name" },
-  { id: "skrill", name: "Skrill", placeholder: "you@example.com", hint: "" },
-  { id: "other", name: "Other", placeholder: "Account", hint: "What it is" },
-]
+/**
+ * Payout details are crypto and nothing else.
+ *
+ * PayPal, bank, Skrill and "other" were offered and none of them are ever paid
+ * out, so they were four ways to save a detail nobody acts on — and an email
+ * address or an IBAN sitting in a table for no reason is a liability, not a
+ * feature. Rows already saved under them stay; they simply cannot be added.
+ *
+ * The coin and network lists are the store's, from lib/payout.ts, so a wallet
+ * saved here is one the checkout can offer back.
+ */
 
 const fieldClass =
   "h-9 w-full rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
@@ -173,17 +178,45 @@ export function ConnectedAccountsPanel() {
   )
 }
 
-type Payment = { id: string; method: string; label: string | null; value: string; is_primary: boolean }
+type Payment = {
+  id: string
+  method: string
+  label: string | null
+  crypto?: string | null
+  chain?: string | null
+  value: string
+  is_primary: boolean
+}
+
+/**
+ * How one saved wallet reads.
+ *
+ * Prefers the columns over the old free-text label: rows saved before
+ * scripts/064 have only the label, and one that says "ETH main" cannot be
+ * turned into a network without guessing — which is the mistake the chain
+ * column exists to prevent. Those say so instead.
+ */
+function describeWallet(entry: Payment): { coin: string; network: string | null } {
+  const coin = findCrypto(entry.crypto) ?? findCrypto(entry.label)
+  if (!coin) return { coin: entry.label?.trim() || entry.method, network: null }
+  const chain = findChain(coin.code, entry.chain)
+  return { coin: coin.code, network: chain?.label ?? null }
+}
 
 export function PaymentMethodsPanel() {
   const [methods, setMethods] = useState<Payment[]>([])
-  const [method, setMethod] = useState("paypal")
+  const [crypto, setCrypto] = useState(CRYPTOS[0].code)
+  const [chain, setChain] = useState(CRYPTOS[0].chains[0].id)
   const [value, setValue] = useState("")
-  const [label, setLabel] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const chosen = PAYMENT_OPTIONS.find((option) => option.id === method) ?? PAYMENT_OPTIONS[0]
+  const chains = chainsFor(crypto)
+  const chainNeeded = needsChain(crypto)
+  // A mismatched address is a warning, never a refusal: these formats change,
+  // and refusing a valid address because this list is out of date is worse than
+  // letting someone past a caution they can read.
+  const addressCheck = value.trim() ? checkAddress(crypto, chain, value.trim()) : null
 
   const load = useCallback(async () => {
     const response = await fetch("/api/profile/payment-methods", { cache: "no-store" })
@@ -204,16 +237,16 @@ export function PaymentMethodsPanel() {
     const response = await fetch("/api/profile/payment-methods", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method, value, label }),
+      body: JSON.stringify({ crypto, chain, value }),
     })
     const payload = await response.json().catch(() => null)
     setBusy(false)
     if (!response.ok) {
-      setError(payload?.error ?? "Could not save that payment method")
+      setError(payload?.error ?? "Could not save that address")
       return
     }
     setValue("")
-    setLabel("")
+    setError(payload?.warning ?? null)
     await load()
   }
 
@@ -229,69 +262,103 @@ export function PaymentMethodsPanel() {
   return (
     <Panel accent="green">
       <PanelHeader
-        title="Payout details"
+        title="Crypto wallets"
         accent="green"
         right={<MonoLabel className="text-white/25">{methods.length}</MonoLabel>}
       />
       <form onSubmit={add} className="space-y-3 border-b border-white/[0.05] p-3.5">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Method" htmlFor="pm-method">
+          <Field label="Coin" htmlFor="pm-crypto">
             <SelectMenu
-              id="pm-method"
-              aria-label="Payment method"
-              value={method}
-              onChange={(value) => {
-                setMethod(value)
-                setLabel("")
+              id="pm-crypto"
+              aria-label="Coin"
+              value={crypto}
+              onChange={(next) => {
+                setCrypto(next)
+                // The old chain almost certainly does not exist on the new coin.
+                // defaultChainFor returns null for a multi-network coin rather
+                // than picking one, so the network has to be chosen.
+                setChain(defaultChainFor(next)?.id ?? "")
               }}
-              options={PAYMENT_OPTIONS.map((option) => ({ value: option.id, label: option.name }))}
+              options={CRYPTOS.map((entry) => ({ value: entry.code, label: `${entry.code} — ${entry.name}` }))}
             />
           </Field>
-          {chosen.hint ? (
-            <Field label={chosen.hint} htmlFor="pm-label">
-              <input
-                id="pm-label"
-                value={label}
-                onChange={(event) => setLabel(event.target.value)}
-                placeholder={chosen.hint === "Network" ? "BTC, LTC…" : ""}
-                className={fieldClass}
+
+          {/* Only where there is a choice. BTC on "Bitcoin" is not a question. */}
+          {chainNeeded ? (
+            <Field label="Network" htmlFor="pm-chain">
+              <SelectMenu
+                id="pm-chain"
+                aria-label="Network"
+                value={chain}
+                onChange={setChain}
+                options={[
+                  { value: "", label: "Pick a network", disabled: true },
+                  ...chains.map((entry) => ({ value: entry.id, label: entry.label })),
+                ]}
               />
             </Field>
           ) : (
-            <div className="hidden sm:block" />
+            <Field label="Network" htmlFor="pm-chain-fixed">
+              <div
+                id="pm-chain-fixed"
+                className={`${fieldClass} flex items-center text-white/40`}
+                aria-readonly
+              >
+                {chains[0]?.label ?? "—"}
+              </div>
+            </Field>
           )}
         </div>
 
-        <Field label="Details" htmlFor="pm-value">
+        <Field label="Wallet address" htmlFor="pm-value">
           <input
             id="pm-value"
             value={value}
             onChange={(event) => setValue(event.target.value)}
-            placeholder={chosen.placeholder}
-            className={fieldClass}
+            placeholder="Wallet address"
+            spellCheck={false}
+            autoComplete="off"
+            className={`${fieldClass} font-mono`}
           />
         </Field>
 
+        {addressCheck?.warning && (
+          <p className="text-[12px]" style={{ color: ACCENTS.amber }}>
+            {addressCheck.warning}
+          </p>
+        )}
         {error && (
           <p className="text-[12px]" style={{ color: ACCENTS.red }}>
             {error}
           </p>
         )}
-        <AddButton busy={busy} accent={ACCENTS.green}>
-          Add payout method
+        <AddButton busy={busy || !chain} accent={ACCENTS.green}>
+          Add wallet
         </AddButton>
       </form>
 
       {methods.length === 0 ? (
-        <Empty icon={<CreditCard className="h-6 w-6 text-white/10" />} text="No payout details saved." />
+        <Empty icon={<CreditCard className="h-6 w-6 text-white/10" />} text="No wallet saved." />
       ) : (
         <ul className="divide-y divide-white/[0.05]">
-          {methods.map((entry) => (
+          {methods.map((entry) => {
+            const described = describeWallet(entry)
+            return (
             <li key={entry.id} className="flex items-center gap-3 px-3.5 py-2.5">
               <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-1.5">
-                  <MonoLabel style={{ color: ACCENTS.green }}>{entry.method}</MonoLabel>
-                  {entry.label && <span className="text-[11px] text-white/30">{entry.label}</span>}
+                <div className="flex flex-wrap items-baseline gap-1.5">
+                  <MonoLabel style={{ color: ACCENTS.green }}>{described.coin}</MonoLabel>
+                  {described.network ? (
+                    <span className="text-[11px] text-white/30">{described.network}</span>
+                  ) : (
+                    // Saved before the network was recorded. Paying it out means
+                    // guessing which chain, so it says so rather than looking
+                    // complete.
+                    <span className="text-[11px]" style={{ color: ACCENTS.amber }}>
+                      network missing — re-add it
+                    </span>
+                  )}
                   {entry.is_primary && <Tag accent="blue">Primary</Tag>}
                 </div>
                 <p className="mt-0.5 truncate font-mono text-[12px] text-white/60">{entry.value}</p>
@@ -299,13 +366,14 @@ export function PaymentMethodsPanel() {
               <button
                 type="button"
                 onClick={() => remove(entry.id)}
-                aria-label={`Remove ${entry.method}`}
+                aria-label={`Remove ${described.coin} wallet`}
                 className="shrink-0 rounded p-1.5 text-white/20 transition hover:bg-white/[0.06] hover:text-[#E5484D]"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </li>
-          ))}
+            )
+          })}
         </ul>
       )}
       <p className="border-t border-white/[0.05] px-3.5 py-2 text-[11px] text-white/25">
