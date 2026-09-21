@@ -14,9 +14,13 @@
 -- where they are testable and deploy with the rest of the app.
 --
 -- ============================================================================
--- BEFORE RUNNING: set the two placeholders at the bottom — the site URL and
--- CRON_SECRET, which must be the same value as the Vercel environment variable
--- of that name.
+-- BEFORE RUNNING: two placeholders need real values — CRON_SECRET in step 3
+-- and the site URL in step 4.
+--
+-- FILL THEM IN IN THE SUPABASE SQL EDITOR, NOT IN THIS FILE. This repository
+-- is public. A secret typed in here and committed is a secret on GitHub, and
+-- rotating it afterwards means changing it in Vercel, in Vault and in the
+-- scheduled job. Paste the script into the editor, edit it there, run it.
 -- ============================================================================
 
 -- --- 1. extensions ----------------------------------------------------------
@@ -51,7 +55,8 @@ DECLARE
   v_secret TEXT := 'PUT-YOUR-CRON-SECRET-HERE';
 BEGIN
   IF v_secret = 'PUT-YOUR-CRON-SECRET-HERE' THEN
-    RAISE EXCEPTION 'Set the CRON_SECRET placeholder in step 3 before running this script.';
+    RAISE EXCEPTION
+      'Replace PUT-YOUR-CRON-SECRET-HERE on the line above with the same value as Vercel''s CRON_SECRET. Edit it here in the SQL editor, not in the repository file — the repo is public.';
   END IF;
 
   -- Re-runnable: replace the stored value rather than adding a second one.
