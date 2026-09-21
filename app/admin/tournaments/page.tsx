@@ -22,6 +22,7 @@ import {
   type Match,
   type Participant,
 } from "@/lib/tournament"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 /**
  * The tournament console.
@@ -600,18 +601,13 @@ export default function AdminTournamentsPage() {
                       </Field>
 
                       <Field label="Casino" htmlFor="casino">
-                        <select
+                        <SelectMenu
                           id="casino"
+                          aria-label="Casino"
                           value={form.casino}
-                          onChange={(event) => setForm({ ...form, casino: event.target.value })}
-                          className="h-9 w-full rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none transition focus:border-white/25"
-                        >
-                          {casinoOptions.map((casino) => (
-                            <option key={casino} value={casino} className="bg-[#121216]">
-                              {casino}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(value) => setForm({ ...form, casino: value })}
+                          options={casinoOptions.map((casino) => ({ value: casino, label: casino }))}
+                        />
                       </Field>
 
                       <Field label="Game / slot" htmlFor="game_name">

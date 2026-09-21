@@ -7,6 +7,7 @@ import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/compone
 import { CopyableId } from "@/components/ui/copyable-id"
 import { RecordWinDialog } from "@/components/admin/record-win-dialog"
 import { WIN_SOURCES, sourceMeta, winValue, type WinLog } from "@/lib/wins"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 /**
  * Every win, from everywhere.
@@ -156,27 +157,26 @@ export default function AdminWinsPage() {
               className="h-9 w-full rounded-md border border-white/10 bg-black/40 pl-9 pr-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
             />
           </div>
-          <select
-            value={source}
-            onChange={(event) => setSource(event.target.value)}
-            className="h-9 rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none focus:border-white/25"
-          >
-            <option value="all" className="bg-[#121216]">All sources</option>
-            {WIN_SOURCES.map((entry) => (
-              <option key={entry.id} value={entry.id} className="bg-[#121216]">
-                {entry.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            className="h-9 rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none focus:border-white/25"
-          >
-            <option value="all" className="bg-[#121216]">Any status</option>
-            <option value="pending" className="bg-[#121216]">Not paid</option>
-            <option value="paid" className="bg-[#121216]">Paid</option>
-          </select>
+          <div className="w-40">
+            <SelectMenu
+              aria-label="Filter by source"
+              value={source}
+              onChange={setSource}
+              options={[{ value: "all", label: "All sources" }, ...WIN_SOURCES.map((e) => ({ value: e.id, label: e.label }))]}
+            />
+          </div>
+          <div className="w-36">
+            <SelectMenu
+              aria-label="Filter by status"
+              value={status}
+              onChange={setStatus}
+              options={[
+                { value: "all", label: "Any status" },
+                { value: "pending", label: "Not paid" },
+                { value: "paid", label: "Paid" },
+              ]}
+            />
+          </div>
           <MonoLabel className="text-white/25">
             {rows.length} {rows.length === 1 ? "win" : "wins"}
           </MonoLabel>

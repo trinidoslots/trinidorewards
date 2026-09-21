@@ -10,6 +10,7 @@ import { CopyableId } from "@/components/ui/copyable-id"
 import { LeaderboardEntriesDialog } from "@/components/admin/leaderboard-entries-dialog"
 import { DEFAULT_TIMEZONE, formatInZone, leaderboardStatus } from "@/lib/leaderboard-time"
 import { paidPlaces } from "@/lib/leaderboard-payouts"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 type Board = {
   id: string
@@ -529,18 +530,17 @@ function Select({
   return (
     <label className="block">
       <MonoLabel className="block text-white/30">{label}</MonoLabel>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-1 h-9 w-full rounded-md border border-white/10 bg-black/40 px-2.5 text-[13px] text-white outline-none transition focus:border-white/25"
-      >
-        <option value={ALL}>{allLabel}</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {optionLabels?.[option] ?? option}
-          </option>
-        ))}
-      </select>
+      <div className="mt-1">
+        <SelectMenu
+          aria-label={allLabel}
+          value={value}
+          onChange={onChange}
+          options={[
+            { value: ALL, label: allLabel },
+            ...options.map((option) => ({ value: option, label: optionLabels?.[option] ?? option })),
+          ]}
+        />
+      </div>
     </label>
   )
 }

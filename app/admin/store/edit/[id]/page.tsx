@@ -6,12 +6,13 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useEffect, useState } from "react"
+import { use, useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { PayoutMethodField, StoreImageField } from "@/components/admin/store-item-fields"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 type StoreItem = {
   id: string
@@ -27,7 +28,17 @@ type StoreItem = {
   one_purchase_per_user: boolean
 }
 
-export default function EditStoreItemPage({ params }: { params: { id: string } }) {
+/**
+ * Editing one store item.
+ *
+ * `params` is a Promise in Next 16, so reading params.id straight off it gave
+ * undefined: the lookup matched nothing, `.single()` errored, and the page
+ * bounced straight back to the list. Editing an item had simply stopped
+ * working. use() unwraps it.
+ */
+export default function EditStoreItemPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: itemId } = use(params)
+
   const [item, setItem] = useState<StoreItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -51,7 +62,7 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
   }, [])
 
   async function fetchItem() {
-    const { data, error } = await supabase.from("store_items").select("*").eq("id", params.id).single()
+    const { data, error } = await supabase.from("store_items").select("*").eq("id", itemId).single()
 
     if (error) {
       console.error("[v0] Error fetching item:", error)
@@ -92,13 +103,13 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
       updated_at: new Date().toISOString(),
     }
 
-    let { error } = await supabase.from("store_items").update(patch).eq("id", params.id)
+    let { error } = await supabase.from("store_items").update(patch).eq("id", itemId)
 
     // payout_method arrives with scripts/057. Before that the column is absent
     // and PostgREST rejects the whole update, so saving anything at all failed.
     if (error?.code === "PGRST204" || error?.code === "42703") {
       const { payout_method: _dropped, ...withoutPayout } = patch
-      ;({ error } = await supabase.from("store_items").update(withoutPayout).eq("id", params.id))
+      ;({ error } = await supabase.from("store_items").update(withoutPayout).eq("id", itemId))
 
       if (!error) {
         toast({
@@ -170,7 +181,7 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
-                className="bg-white/[0.06] border-white/[0.10] text-white"
+                className="bg-black/40 border-white/[0.10] text-white"
               />
             </div>
 
@@ -184,7 +195,7 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
                 value={formData.cost}
                 onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
                 required
-                className="bg-white/[0.06] border-white/[0.10] text-white"
+                className="bg-black/40 border-white/[0.10] text-white"
               />
             </div>
 
@@ -192,19 +203,19 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
               <Label htmlFor="type" className="text-white/60">
                 Type
               </Label>
-              <select
+              <SelectMenu
                 id="type"
+                aria-label="Type"
                 value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                required
-                className="w-full h-10 bg-white/[0.06] border border-white/[0.10] text-white rounded-md px-3"
-              >
-                <option value="Digital">Digital</option>
-                <option value="Physical">Physical</option>
-                <option value="Service">Service</option>
-                <option value="Bonus">Bonus</option>
-                <option value="Other">Other</option>
-              </select>
+                onChange={(value) => setFormData({ ...formData, type: value })}
+                options={[
+                    { value: "Digital", label: "Digital" },
+                    { value: "Physical", label: "Physical" },
+                    { value: "Service", label: "Service" },
+                    { value: "Bonus", label: "Bonus" },
+                    { value: "Other", label: "Other" },
+                  ]}
+              />
             </div>
 
             <div>
@@ -217,7 +228,7 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
                 value={formData.quantity}
                 onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                 required
-                className="bg-white/[0.06] border-white/[0.10] text-white"
+                className="bg-black/40 border-white/[0.10] text-white"
               />
               <p className="text-xs text-white/40 mt-1">Set to -1 for infinite quantity</p>
             </div>
@@ -226,15 +237,16 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
               <Label htmlFor="is_available" className="text-white/60">
                 Status
               </Label>
-              <select
+              <SelectMenu
                 id="is_available"
+                aria-label="Status"
                 value={formData.is_available}
-                onChange={(e) => setFormData({ ...formData, is_available: e.target.value })}
-                className="w-full h-10 bg-white/[0.06] border border-white/[0.10] text-white rounded-md px-3"
-              >
-                <option value="true">Enabled</option>
-                <option value="false">Disabled</option>
-              </select>
+                onChange={(value) => setFormData({ ...formData, is_available: value })}
+                options={[
+                  { value: "true", label: "Enabled" },
+                  { value: "false", label: "Disabled" },
+                ]}
+              />
             </div>
 
             <PayoutMethodField

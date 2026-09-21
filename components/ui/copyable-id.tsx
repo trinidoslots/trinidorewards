@@ -4,6 +4,53 @@ import { useState } from "react"
 import { Check, Copy } from "lucide-react"
 
 /**
+ * A copy button for a value that is already shown in full.
+ *
+ * CopyableId below truncates and is the whole control; this one sits beside
+ * text you can already read — a username, a wallet address — for the times you
+ * need the exact string rather than to look at it. Selecting a name out of a
+ * dense table row by hand is fiddly and easy to get wrong by a character.
+ */
+export function CopyButton({
+  value,
+  label,
+  className,
+}: {
+  value: string | null | undefined
+  /** What is being copied, for the tooltip and for screen readers. */
+  label: string
+  className?: string
+}) {
+  const [copied, setCopied] = useState(false)
+
+  if (!value) return null
+
+  const copy = async (event: React.MouseEvent) => {
+    event.stopPropagation()
+    event.preventDefault()
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1200)
+    } catch {
+      // Clipboard access can be refused; the value is on screen either way.
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title={copied ? "Copied" : `Copy ${label}`}
+      aria-label={`Copy ${label}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded p-1 text-white/25 transition hover:bg-white/[0.08] hover:text-white ${className ?? ""}`}
+    >
+      {copied ? <Check className="h-3 w-3" style={{ color: "#46C48A" }} /> : <Copy className="h-3 w-3" />}
+    </button>
+  )
+}
+
+/**
  * A UUID shown short but copyable in full.
  *
  * Truncated ids were unusable before: you could read "7e19…200a" but not get

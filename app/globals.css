@@ -137,6 +137,28 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /*
+   * Tailwind v4's preflight sets buttons to `cursor: default`, unlike v3 which
+   * left the browser's pointer in place. Nothing in the app asked for that, so
+   * every button on the site had an arrow instead of a hand.
+   *
+   * Restored for the things that are actually clickable, and only while they
+   * are: a disabled control keeps `not-allowed`, which several buttons already
+   * set for themselves.
+   */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  label[for],
+  summary,
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+  }
 }
 
 .hide-scrollbar {

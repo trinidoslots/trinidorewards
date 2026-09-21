@@ -8,6 +8,7 @@ import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile } from "@/components/u
 import { CopyableId } from "@/components/ui/copyable-id"
 import { PointsDialog } from "@/components/admin/points-dialog"
 import { nextBalance, type PointsAction } from "@/lib/points"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 /**
  * The user list.
@@ -161,15 +162,18 @@ export default function AdminUsersPage() {
               className="h-9 w-full rounded-md border border-white/10 bg-black/40 pl-9 pr-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
             />
           </div>
-          <select
-            value={sort}
-            onChange={(event) => setSort(event.target.value as SortKey)}
-            className="h-9 rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none transition focus:border-white/25"
-          >
-            <option value="registered" className="bg-[#121216]">Newest first</option>
-            <option value="points" className="bg-[#121216]">Most points</option>
-            <option value="username" className="bg-[#121216]">Username A–Z</option>
-          </select>
+          <div className="w-44">
+            <SelectMenu
+              aria-label="Sort users"
+              value={sort}
+              onChange={(value) => setSort(value as SortKey)}
+              options={[
+                { value: "registered", label: "Newest first" },
+                { value: "points", label: "Most points" },
+                { value: "username", label: "Username A–Z" },
+              ]}
+            />
+          </div>
           <MonoLabel className="text-white/25">
             {rows.length} {rows.length === 1 ? "user" : "users"}
           </MonoLabel>

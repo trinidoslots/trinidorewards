@@ -6,6 +6,7 @@ import { Save } from "lucide-react"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, PanelHeader } from "@/components/ui/panel"
 import { DURATION_UNITS, durationToMs, msToDuration, type DurationUnit } from "@/lib/raffle-utils"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 /**
  * Create and edit share one form, so the two cannot drift apart on which
@@ -281,17 +282,12 @@ export function RaffleForm({ raffleId, initial }: { raffleId?: string; initial?:
             />
           </div>
           <div className="w-36">
-            <select
+            <SelectMenu
+              aria-label="Duration unit"
               value={draft.durationUnit}
-              onChange={(e) => set({ durationUnit: e.target.value as DurationUnit })}
-              className={field}
-            >
-              {DURATION_UNITS.map((unit) => (
-                <option key={unit.id} value={unit.id} className="bg-[#121216]">
-                  {unit.label}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => set({ durationUnit: value as DurationUnit })}
+              options={DURATION_UNITS.map((unit) => ({ value: unit.id, label: unit.label }))}
+            />
           </div>
           <p className="text-[12px] text-white/35">
             {raffleId

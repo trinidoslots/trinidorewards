@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { ArrowRight, ChevronLeft, ChevronRight, ImageIcon, Lock, Sparkles, Trophy } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 interface Props { huntId: string; isLoggedIn: boolean; currentUsername?: string; predictionsEnabled: boolean; hunts?: any[]; startingBalance?: number }
 type Category = "ending_balance" | "highest_multi" | "highest_win"
@@ -126,10 +127,14 @@ export function PredictionsLeaderboard({ huntId, isLoggedIn, currentUsername, pr
             <input disabled={!canSubmit} aria-label="Highest multiplier" type="number" step="0.01" placeholder="Peak multi" value={form.highest_multi} onChange={(e) => setForm({ ...form, highest_multi: e.target.value })} className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-[12.5px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25" />
             <input disabled={!canSubmit} aria-label="Final balance" type="number" step="0.01" placeholder="Final balance" value={form.final_balance} onChange={(e) => setForm({ ...form, final_balance: e.target.value })} className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-[12.5px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25" />
           </div>
-          <select disabled={!canSubmit} aria-label="Best game" value={form.best_game} onChange={(e) => setForm({ ...form, best_game: e.target.value })} className="w-full rounded-md border border-white/10 bg-black/40 px-3 py-2.5 text-[12.5px] text-white/80 outline-none transition focus:border-white/25">
-            <option value="">Select best game</option>
-            {slots.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
-          </select>
+          <SelectMenu
+            disabled={!canSubmit}
+            aria-label="Best game"
+            placeholder="Select best game"
+            value={form.best_game}
+            onChange={(value) => setForm({ ...form, best_game: value })}
+            options={slots.map((slot) => ({ value: slot, label: slot }))}
+          />
           <button type="submit" disabled={submitting || !canSubmit} className="flex w-full items-center justify-center gap-2 rounded-md border border-white/12 bg-white/[0.06] px-3 py-2.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12] disabled:opacity-50">{submitting ? "Saving..." : mine ? "Update prediction" : "Lock in prediction"}<ArrowRight className="h-3.5 w-3.5" /></button>
           {message && <p className="text-center text-[11px] text-white/40">{message}</p>}
         </form> : <div className="animate-in fade-in flex flex-col items-center justify-center px-4 py-8 text-center duration-300">

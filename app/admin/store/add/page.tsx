@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { PayoutMethodField, StoreImageField } from "@/components/admin/store-item-fields"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 export default function AddStoreItemPage() {
   const [formData, setFormData] = useState({
@@ -120,23 +121,24 @@ export default function AddStoreItemPage() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
-                    className="bg-white/[0.06] border-white/[0.10] text-white"
+                    className="bg-black/40 border-white/[0.10] text-white"
                   />
                 </div>
                 <div>
                   <Label htmlFor="category" className="text-white/60">
                     Category
                   </Label>
-                  <select
+                  <SelectMenu
                     id="category"
+                    aria-label="Category"
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full h-10 bg-white/[0.06] border border-white/[0.10] text-white rounded-md px-3"
-                  >
-                    <option value="Regular">Regular</option>
-                    <option value="Premium">Premium</option>
-                    <option value="Limited">Limited</option>
-                  </select>
+                    onChange={(value) => setFormData({ ...formData, category: value })}
+                    options={[
+                      { value: "Regular", label: "Regular" },
+                      { value: "Premium", label: "Premium" },
+                      { value: "Limited", label: "Limited" },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -144,19 +146,19 @@ export default function AddStoreItemPage() {
                 <Label htmlFor="type" className="text-white/60">
                   Type
                 </Label>
-                <select
+                <SelectMenu
                   id="type"
+                  aria-label="Type"
                   value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  required
-                  className="w-full h-10 bg-white/[0.06] border border-white/[0.10] text-white rounded-md px-3"
-                >
-                  <option value="Digital">Digital</option>
-                  <option value="Physical">Physical</option>
-                  <option value="Service">Service</option>
-                  <option value="Bonus">Bonus</option>
-                  <option value="Other">Other</option>
-                </select>
+                  onChange={(value) => setFormData({ ...formData, type: value })}
+                  options={[
+                    { value: "Digital", label: "Digital" },
+                    { value: "Physical", label: "Physical" },
+                    { value: "Service", label: "Service" },
+                    { value: "Bonus", label: "Bonus" },
+                    { value: "Other", label: "Other" },
+                  ]}
+                />
               </div>
 
               <div className="mt-4">
@@ -181,7 +183,7 @@ export default function AddStoreItemPage() {
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="bg-white/[0.06] border-white/[0.10] text-white min-h-[100px]"
+                  className="bg-black/40 border-white/[0.10] text-white min-h-[100px]"
                 />
               </div>
             </div>
@@ -200,7 +202,7 @@ export default function AddStoreItemPage() {
                     value={formData.cost}
                     onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
                     required
-                    className="bg-white/[0.06] border-white/[0.10] text-white"
+                    className="bg-black/40 border-white/[0.10] text-white"
                   />
                 </div>
                 <div>
@@ -213,7 +215,7 @@ export default function AddStoreItemPage() {
                     value={formData.quantity}
                     onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                     required
-                    className="bg-white/[0.06] border-white/[0.10] text-white"
+                    className="bg-black/40 border-white/[0.10] text-white"
                     placeholder="-1 for infinite"
                   />
                   <p className="text-xs text-white/40 mt-1">Set to -1 for infinite quantity</p>

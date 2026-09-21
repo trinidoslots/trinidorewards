@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { PAYOUT_METHODS } from "@/lib/payout"
 import { STORE_IMAGE_GROUPS, isBundledImage } from "@/lib/store-images"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 /**
  * The two store-item fields that the add and edit forms share.
@@ -12,8 +13,6 @@ import { STORE_IMAGE_GROUPS, isBundledImage } from "@/lib/store-images"
  * item created with a payout method and then edited on a form that does not
  * know about the field would silently lose it.
  */
-
-const SELECT = "w-full h-10 bg-white/[0.06] border border-white/[0.10] text-white rounded-md px-3"
 
 /** What the buyer is asked for before the purchase goes through. */
 export function PayoutMethodField({
@@ -30,14 +29,16 @@ export function PayoutMethodField({
       <Label htmlFor="payout_method" className="text-white/60">
         Payout method
       </Label>
-      <select id="payout_method" value={value} onChange={(event) => onChange(event.target.value)} className={SELECT}>
-        <option value="">No details needed</option>
-        {PAYOUT_METHODS.map((entry) => (
-          <option key={entry.id} value={entry.id}>
-            {entry.label}
-          </option>
-        ))}
-      </select>
+      <SelectMenu
+        id="payout_method"
+        aria-label="Payout method"
+        value={value}
+        onChange={onChange}
+        options={[
+          { value: "", label: "No details needed", hint: "Buying is a single click" },
+          ...PAYOUT_METHODS.map((entry) => ({ value: entry.id, label: entry.label, hint: entry.hint })),
+        ]}
+      />
       <p className="mt-1 text-xs text-white/40">
         {hint ?? "Buying is a single click — nothing is asked for."}
       </p>

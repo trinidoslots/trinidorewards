@@ -11,6 +11,7 @@ import { DEFAULT_PRESET_ID, PAYOUT_PRESETS, payoutSummary, rankEntries } from "@
 import { COMMON_TIMEZONES, DEFAULT_TIMEZONE, leaderboardStatus, utcToZonedInput, zonedInputToUtc } from "@/lib/leaderboard-time"
 import { parseLeaderboardCsv, type CsvResult } from "@/lib/leaderboard-csv"
 import { METRICS, metricLabel, readMetric, type Metric } from "@/lib/leaderboard-metric"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 /**
  * Creating and filling leaderboards.
@@ -456,17 +457,12 @@ export default function LeaderboardsManagePage() {
                         : undefined
                     }
                   >
-                    <select
+                    <SelectMenu
+                      aria-label="Payout preset"
                       value={draft.payout_preset}
-                      onChange={(e) => set({ payout_preset: e.target.value })}
-                      className={field}
-                    >
-                      {PAYOUT_PRESETS.map((preset) => (
-                        <option key={preset.id} value={preset.id} className="bg-[#121216]">
-                          {preset.label}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => set({ payout_preset: value })}
+                      options={PAYOUT_PRESETS.map((preset) => ({ value: preset.id, label: preset.label }))}
+                    />
                   </Field>
                   <Field label="Ranked by" hint={METRICS.find((m) => m.id === draft.ranking_metric)?.hint}>
                     <div className="grid grid-cols-2 gap-2">
@@ -492,13 +488,12 @@ export default function LeaderboardsManagePage() {
                     </div>
                   </Field>
                   <Field label="Timezone" hint="The dates below are read in this zone.">
-                    <select value={draft.timezone} onChange={(e) => set({ timezone: e.target.value })} className={field}>
-                      {COMMON_TIMEZONES.map((zone) => (
-                        <option key={zone} value={zone} className="bg-[#121216]">
-                          {zone}
-                        </option>
-                      ))}
-                    </select>
+                    <SelectMenu
+                      aria-label="Timezone"
+                      value={draft.timezone}
+                      onChange={(value) => set({ timezone: value })}
+                      options={COMMON_TIMEZONES.map((zone) => ({ value: zone, label: zone }))}
+                    />
                   </Field>
                   <Field label="Image URL" hint="Optional.">
                     <input value={draft.image_url} onChange={(e) => set({ image_url: e.target.value })} className={field} />

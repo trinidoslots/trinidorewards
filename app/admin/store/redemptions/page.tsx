@@ -5,8 +5,9 @@ import Link from "next/link"
 import { Check, Clock, Package, RefreshCw, Search, Undo2, X } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
-import { CopyableId } from "@/components/ui/copyable-id"
+import { CopyableId, CopyButton } from "@/components/ui/copyable-id"
 import { describePayout, type PayoutDetails } from "@/lib/payout"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 /**
  * What people have bought, and whether it has been handed over.
@@ -177,18 +178,14 @@ export default function StoreRedemptionsPage() {
               className="h-9 w-full rounded-md border border-white/10 bg-black/40 pl-9 pr-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
             />
           </div>
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            className="h-9 rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none focus:border-white/25"
-          >
-            <option value="all" className="bg-[#121216]">Any status</option>
-            {STATUSES.map((entry) => (
-              <option key={entry.id} value={entry.id} className="bg-[#121216]">
-                {entry.label}
-              </option>
-            ))}
-          </select>
+          <div className="w-44">
+            <SelectMenu
+              aria-label="Filter by status"
+              value={status}
+              onChange={setStatus}
+              options={[{ value: "all", label: "Any status" }, ...STATUSES.map((e) => ({ value: e.id, label: e.label }))]}
+            />
+          </div>
           <MonoLabel className="text-white/25">{rows.length}</MonoLabel>
         </div>
 
@@ -223,12 +220,19 @@ export default function StoreRedemptionsPage() {
                     <p className="truncate text-[13px] text-white">{row.item_name}</p>
                     <div className="flex items-center gap-2">
                       {username ? (
-                        <Link
-                          href={`/admin/users/${row.user_id}`}
-                          className="truncate text-[11px] text-white/40 underline-offset-4 hover:text-white hover:underline"
-                        >
-                          {username}
-                        </Link>
+                        <>
+                          <Link
+                            href={`/admin/users/${row.user_id}`}
+                            className="truncate text-[11px] text-white/40 underline-offset-4 hover:text-white hover:underline"
+                          >
+                            {username}
+                          </Link>
+                          {/* Paying someone out means pasting their exact name
+                              somewhere else; picking it out of the row by hand
+                              is one mistyped character away from the wrong
+                              person. */}
+                          <CopyButton value={username} label="username" />
+                        </>
                       ) : (
                         <CopyableId value={row.user_id} chars={4} />
                       )}
@@ -238,12 +242,25 @@ export default function StoreRedemptionsPage() {
                         shown in full rather than truncated — an admin about to
                         send money needs to see the whole thing. */}
                     {payouts[row.id] && (
-                      <p className="mt-0.5 break-all text-[11px] text-white/45">
-                        <span style={{ color: ACCENTS.purple }}>{describePayout(payouts[row.id])}</span>
-                        {payouts[row.id].method === "crypto" && (
-                          <span className="ml-1.5 font-mono text-[10px] text-white/35">
-                            {(payouts[row.id] as { address: string }).address}
-                          </span>
+                      <p className="mt-0.5 flex items-start gap-1 text-[11px] text-white/45">
+                        <span className="break-all" style={{ color: ACCENTS.purple }}>
+                          {describePayout(payouts[row.id])}
+                        </span>
+                        {payouts[row.id].method === "crypto" ? (
+                          <>
+                            <span className="break-all font-mono text-[10px] text-white/35">
+                              {(payouts[row.id] as { address: string }).address}
+                            </span>
+                            <CopyButton
+                              value={(payouts[row.id] as { address: string }).address}
+                              label="wallet address"
+                            />
+                          </>
+                        ) : (
+                          <CopyButton
+                            value={(payouts[row.id] as { username: string }).username}
+                            label="payout username"
+                          />
                         )}
                       </p>
                     )}

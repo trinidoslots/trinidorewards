@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { CreditCard, Link2, Plus, Trash2, Trophy } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, Tag } from "@/components/ui/panel"
 import { sourceMeta, winValue } from "@/lib/wins"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 /**
  * The two "things you tell us" panels on the profile.
@@ -235,21 +236,16 @@ export function PaymentMethodsPanel() {
       <form onSubmit={add} className="space-y-3 border-b border-white/[0.05] p-3.5">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Method" htmlFor="pm-method">
-            <select
+            <SelectMenu
               id="pm-method"
+              aria-label="Payment method"
               value={method}
-              onChange={(event) => {
-                setMethod(event.target.value)
+              onChange={(value) => {
+                setMethod(value)
                 setLabel("")
               }}
-              className={fieldClass}
-            >
-              {PAYMENT_OPTIONS.map((option) => (
-                <option key={option.id} value={option.id} className="bg-[#121216]">
-                  {option.name}
-                </option>
-              ))}
-            </select>
+              options={PAYMENT_OPTIONS.map((option) => ({ value: option.id, label: option.name }))}
+            />
           </Field>
           {chosen.hint ? (
             <Field label={chosen.hint} htmlFor="pm-label">

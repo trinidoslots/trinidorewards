@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import { AlertTriangle, Package, ShoppingCart, X } from "lucide-react"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
+import { FIELD_CLASS, SelectMenu, type SelectOption } from "@/components/ui/select-menu"
 import {
   CRYPTOS,
   chainsFor,
   checkAddress,
   checkUsername,
   defaultChainFor,
+  findCrypto,
   needsChain,
   payoutMethodLabel,
   type PayoutDetails,
@@ -24,9 +26,22 @@ import type { StoreItem } from "@/lib/store"
  * it should be sent; the second is a plain "is this right" with the details
  * repeated back, because the thing being confirmed is a wallet address — the
  * one field where a typo cannot be undone afterwards.
+ *
+ * Whatever the buyer already saved on their profile is offered first. Asking
+ * someone to retype a wallet they had deliberately stored is what made the
+ * profile's payment methods pointless.
  */
 
 const money = (value: number) => value.toLocaleString("en-US")
+
+/** Marks "none of the saved ones" in the saved-details dropdowns. */
+const FRESH = "__new__"
+
+type SavedWallet = { id: string; label: string | null; value: string }
+type SavedAccount = { id: string; site_name: string; username: string }
+
+const shortened = (value: string) =>
+  value.length > 18 ? `${value.slice(0, 8)}…${value.slice(-6)}` : value
 
 export function StoreBuyDialog({
   item,
@@ -54,6 +69,10 @@ export function StoreBuyDialog({
   const [chain, setChain] = useState<string>(defaultChainFor(CRYPTOS[0].code)?.id ?? "")
   const [address, setAddress] = useState("")
 
+  const [wallets, setWallets] = useState<SavedWallet[]>([])
+  const [accounts, setAccounts] = useState<SavedAccount[]>([])
+  const [pickedSaved, setPickedSaved] = useState(FRESH)
+
   const chains = chainsFor(crypto)
   const chainNeeded = needsChain(crypto)
 
@@ -68,6 +87,55 @@ export function StoreBuyDialog({
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose, busy])
+
+  // What the buyer already told us, on their profile.
+  useEffect(() => {
+    if (method === null) return
+    let cancelled = false
+
+    const load = async () => {
+      const endpoint =
+        method === "crypto" ? "/api/profile/payment-methods" : "/api/profile/site-usernames"
+      try {
+        const response = await fetch(endpoint, { cache: "no-store" })
+        if (!response.ok || cancelled) return
+        const payload = await response.json()
+
+        if (method === "crypto") {
+          const saved = ((payload.methods ?? []) as { id: string; method: string; label: string | null; value: string }[])
+            .filter((entry) => entry.method === "crypto")
+            .map((entry) => ({ id: entry.id, label: entry.label, value: entry.value }))
+          setWallets(saved)
+          if (saved.length > 0) applyWallet(saved[0])
+        } else {
+          const saved = (payload.accounts ?? []) as SavedAccount[]
+          setAccounts(saved)
+          if (saved.length > 0) {
+            setPickedSaved(saved[0].id)
+            setUsername(saved[0].username)
+          }
+        }
+      } catch {
+        // Not being able to offer saved details is not a reason to block a
+        // purchase — the fields still work by hand.
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per dialog
+  }, [method])
+
+  function applyWallet(wallet: SavedWallet) {
+    setPickedSaved(wallet.id)
+    setAddress(wallet.value)
+    // The label is free text on the profile ("BTC", "Bitcoin", "ETH main"), so
+    // it is only used when it clearly names one of the coins on offer.
+    const named = CRYPTOS.find((entry) => (wallet.label ?? "").trim().toUpperCase() === entry.code)
+    if (named) setCrypto(named.code)
+  }
 
   const cost = Number(item.cost) || 0
 
@@ -174,6 +242,27 @@ export function StoreBuyDialog({
               chainNeeded={chainNeeded}
               address={address}
               setAddress={setAddress}
+              wallets={wallets}
+              accounts={accounts}
+              pickedSaved={pickedSaved}
+              onPickWallet={(id) => {
+                if (id === FRESH) {
+                  setPickedSaved(FRESH)
+                  setAddress("")
+                  return
+                }
+                const wallet = wallets.find((entry) => entry.id === id)
+                if (wallet) applyWallet(wallet)
+              }}
+              onPickAccount={(id) => {
+                setPickedSaved(id)
+                if (id === FRESH) {
+                  setUsername("")
+                  return
+                }
+                const account = accounts.find((entry) => entry.id === id)
+                if (account) setUsername(account.username)
+              }}
             />
           ) : (
             <Summary details={details} />
@@ -234,9 +323,6 @@ function Note({ tone, children }: { tone: "warn" | "muted" | "error"; children: 
   )
 }
 
-const FIELD =
-  "h-9 w-full rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none transition focus:border-white/25"
-
 function Fields({
   method,
   username,
@@ -249,6 +335,11 @@ function Fields({
   chainNeeded,
   address,
   setAddress,
+  wallets,
+  accounts,
+  pickedSaved,
+  onPickWallet,
+  onPickAccount,
 }: {
   method: PayoutMethod | null
   username: string
@@ -261,52 +352,96 @@ function Fields({
   chainNeeded: boolean
   address: string
   setAddress: (value: string) => void
+  wallets: SavedWallet[]
+  accounts: SavedAccount[]
+  pickedSaved: string
+  onPickWallet: (id: string) => void
+  onPickAccount: (id: string) => void
 }) {
   if (method === null) {
     return <Note tone="muted">Nothing else is needed — the details are arranged with you afterwards.</Note>
   }
+
+  const coinOptions: SelectOption[] = CRYPTOS.map((entry) => ({
+    value: entry.code,
+    label: `${entry.code} — ${entry.name}`,
+  }))
+
+  const chainOptions: SelectOption[] = chains.map((entry) => ({ value: entry.id, label: entry.label }))
 
   return (
     <div className="space-y-3 border-t border-white/[0.06] pt-3">
       <MonoLabel className="block text-white/30">{payoutMethodLabel(method)}</MonoLabel>
 
       {method === "onsite_tip" ? (
-        <div>
-          <MonoLabel className="mb-1.5 block text-white/30">Username</MonoLabel>
-          <input
-            autoFocus
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            placeholder="Your casino username"
-            className={FIELD}
-          />
-        </div>
+        <>
+          {accounts.length > 0 && (
+            <div>
+              <MonoLabel className="mb-1.5 block text-white/30">Saved account</MonoLabel>
+              <SelectMenu
+                aria-label="Saved account"
+                value={pickedSaved}
+                onChange={onPickAccount}
+                options={[
+                  ...accounts.map((entry) => ({
+                    value: entry.id,
+                    label: entry.username,
+                    hint: entry.site_name,
+                  })),
+                  { value: FRESH, label: "Use a different name" },
+                ]}
+              />
+            </div>
+          )}
+
+          <div>
+            <MonoLabel className="mb-1.5 block text-white/30">Username</MonoLabel>
+            <input
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="Your casino username"
+              className={FIELD_CLASS}
+            />
+          </div>
+        </>
       ) : (
         <>
+          {wallets.length > 0 && (
+            <div>
+              <MonoLabel className="mb-1.5 block text-white/30">Saved wallet</MonoLabel>
+              <SelectMenu
+                aria-label="Saved wallet"
+                value={pickedSaved}
+                onChange={onPickWallet}
+                options={[
+                  ...wallets.map((entry) => ({
+                    value: entry.id,
+                    label: entry.label?.trim() || "Wallet",
+                    hint: shortened(entry.value),
+                  })),
+                  { value: FRESH, label: "Use a different address" },
+                ]}
+              />
+            </div>
+          )}
+
           <div className={chainNeeded ? "grid grid-cols-2 gap-3" : undefined}>
             <div>
               <MonoLabel className="mb-1.5 block text-white/30">Coin</MonoLabel>
-              <select value={crypto} onChange={(event) => setCrypto(event.target.value)} className={FIELD}>
-                {CRYPTOS.map((entry) => (
-                  <option key={entry.code} value={entry.code}>
-                    {entry.code} — {entry.name}
-                  </option>
-                ))}
-              </select>
+              <SelectMenu aria-label="Coin" value={crypto} onChange={setCrypto} options={coinOptions} />
             </div>
 
             {/* Only for coins that actually live on more than one network. */}
             {chainNeeded && (
               <div>
                 <MonoLabel className="mb-1.5 block text-white/30">Network</MonoLabel>
-                <select value={chain} onChange={(event) => setChain(event.target.value)} className={FIELD}>
-                  <option value="">Choose…</option>
-                  {chains.map((entry) => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.label}
-                    </option>
-                  ))}
-                </select>
+                <SelectMenu
+                  aria-label="Network"
+                  value={chain}
+                  onChange={setChain}
+                  options={chainOptions}
+                  placeholder="Choose…"
+                />
               </div>
             )}
           </div>
@@ -319,7 +454,7 @@ function Fields({
               spellCheck={false}
               autoComplete="off"
               placeholder={`Your ${crypto} address`}
-              className={`${FIELD} font-mono text-[12px]`}
+              className={`${FIELD_CLASS} font-mono text-[12px]`}
             />
           </div>
         </>
@@ -336,8 +471,12 @@ function Summary({ details }: { details: PayoutDetails | null }) {
     details.method === "onsite_tip"
       ? [{ label: "Tip to", value: details.username, mono: false }]
       : [
-          { label: "Coin", value: details.crypto, mono: false },
-          { label: "Network", value: chainsFor(details.crypto).find((c) => c.id === details.chain)?.label ?? details.chain, mono: false },
+          { label: "Coin", value: findCrypto(details.crypto)?.name ?? details.crypto, mono: false },
+          {
+            label: "Network",
+            value: chainsFor(details.crypto).find((c) => c.id === details.chain)?.label ?? details.chain,
+            mono: false,
+          },
           { label: "Wallet", value: details.address, mono: true },
         ]
 
@@ -346,9 +485,7 @@ function Summary({ details }: { details: PayoutDetails | null }) {
       {rows.map((row) => (
         <div key={row.label}>
           <MonoLabel className="mb-1 block text-white/30">{row.label}</MonoLabel>
-          <p
-            className={`break-all text-[13px] text-white/80 ${row.mono ? "font-mono text-[12px]" : ""}`}
-          >
+          <p className={`break-all text-[13px] text-white/80 ${row.mono ? "font-mono text-[12px]" : ""}`}>
             {row.value}
           </p>
         </div>

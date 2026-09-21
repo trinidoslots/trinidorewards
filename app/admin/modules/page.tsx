@@ -12,6 +12,7 @@ import {
   readCategory,
   type ModuleKey,
 } from "@/lib/site-modules"
+import { SelectMenu } from "@/components/ui/select-menu"
 
 /**
  * Which features the site shows.
@@ -240,25 +241,20 @@ export default function AdminModulesPage() {
                       </div>
                     </div>
 
-                    <label className="shrink-0">
+                    <div className="w-40 shrink-0">
                       <MonoLabel className="mb-1 block text-white/25">Category</MonoLabel>
-                      <select
+                      <SelectMenu
+                        aria-label={`Category for ${item.display_name ?? item.module_name}`}
                         value={
                           moduleKey(item.module_name)
                             ? readCategory(moduleKey(item.module_name)!, item.category)
                             : "hidden"
                         }
-                        onChange={(event) => patch(item, { category: event.target.value })}
+                        onChange={(value) => patch(item, { category: value })}
                         disabled={busy === item.id}
-                        className="h-8 rounded-md border border-white/[0.10] bg-black/40 px-2.5 text-[12.5px] text-white outline-none transition focus:border-white/25 disabled:opacity-40"
-                      >
-                        {categories.map((option) => (
-                          <option key={option.id} value={option.id} className="bg-[#121216]">
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                        options={categories.map((option) => ({ value: option.id, label: option.label }))}
+                      />
+                    </div>
 
                     <button
                       type="button"
