@@ -50,7 +50,29 @@ export default function AddStoreItemPage() {
       one_purchase_per_user: formData.one_purchase_per_user,
     }
 
-    const { error } = await supabase.from("store_items").insert([itemData])
+    let { error } = await supabase.from("store_items").insert([itemData])
+
+    // payout_method arrives with scripts/057. Until that has been run the column
+    // does not exist, and PostgREST rejects the whole insert rather than the one
+    // unknown field — which made creating any item at all fail. Same fallback
+    // the Kick callback uses for users.avatar_url.
+    const columnMissing = error?.code === "PGRST204" || error?.code === "42703"
+
+    if (columnMissing) {
+      const { payout_method: _dropped, ...withoutPayout } = itemData
+      ;({ error } = await supabase.from("store_items").insert([withoutPayout]))
+
+      if (!error) {
+        toast({
+          title: "Created, but without the payout method",
+          description: "Run scripts/057_store_payout_details.sql in Supabase, then set it on the item.",
+          className: "bg-amber-600 text-white",
+        })
+        router.push("/admin/store")
+        setSubmitting(false)
+        return
+      }
+    }
 
     if (error) {
       console.error("[v0] Error creating item:", error)

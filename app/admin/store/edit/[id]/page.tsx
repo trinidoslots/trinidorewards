@@ -80,20 +80,37 @@ export default function EditStoreItemPage({ params }: { params: { id: string } }
     e.preventDefault()
     setSubmitting(true)
 
-    const { error } = await supabase
-      .from("store_items")
-      .update({
-        name: formData.name,
-        cost: Number.parseInt(formData.cost),
-        quantity: Number.parseInt(formData.quantity),
-        type: formData.type,
-        is_available: formData.is_available,
-        icon: formData.icon || null,
-        // NULL, not "", so the column's CHECK accepts it.
-        payout_method: formData.payout_method || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", params.id)
+    const patch = {
+      name: formData.name,
+      cost: Number.parseInt(formData.cost),
+      quantity: Number.parseInt(formData.quantity),
+      type: formData.type,
+      is_available: formData.is_available,
+      icon: formData.icon || null,
+      // NULL, not "", so the column's CHECK accepts it.
+      payout_method: formData.payout_method || null,
+      updated_at: new Date().toISOString(),
+    }
+
+    let { error } = await supabase.from("store_items").update(patch).eq("id", params.id)
+
+    // payout_method arrives with scripts/057. Before that the column is absent
+    // and PostgREST rejects the whole update, so saving anything at all failed.
+    if (error?.code === "PGRST204" || error?.code === "42703") {
+      const { payout_method: _dropped, ...withoutPayout } = patch
+      ;({ error } = await supabase.from("store_items").update(withoutPayout).eq("id", params.id))
+
+      if (!error) {
+        toast({
+          title: "Saved, but without the payout method",
+          description: "Run scripts/057_store_payout_details.sql in Supabase, then set it again.",
+          className: "bg-amber-600 text-white",
+        })
+        router.push("/admin/store")
+        setSubmitting(false)
+        return
+      }
+    }
 
     if (error) {
       console.error("[v0] Error updating item:", error)

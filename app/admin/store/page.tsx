@@ -83,7 +83,16 @@ export default function AdminStorePage() {
     if (!confirm(`Delete "${item.name}" from the store?`)) return
     const { error: problem } = await supabaseRef.current.from("store_items").delete().eq("id", item.id)
     if (problem) {
-      setError(problem.message || "Could not delete that item")
+      // 23503 is a foreign key violation: somebody has bought this, and
+      // redemptions still points at it. scripts/058 changes that reference to
+      // ON DELETE SET NULL — the purchase keeps its own copy of the name and
+      // price, so nothing is lost. Until it has been run, say what to do
+      // instead of showing the raw constraint name.
+      setError(
+        problem.code === "23503"
+          ? `"${item.name}" has already been bought, so it cannot be deleted until scripts/058_store_items_deletable.sql has been run in Supabase. Disabling it hides it from the store in the meantime.`
+          : problem.message || "Could not delete that item",
+      )
       return
     }
     setItems((current) => current.filter((entry) => entry.id !== item.id))
