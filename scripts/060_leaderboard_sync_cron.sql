@@ -33,11 +33,16 @@ CREATE EXTENSION IF NOT EXISTS pg_net;
 -- every run would insert fifty fresh rows instead of updating the ones there,
 -- and ON CONFLICT would error rather than silently doing the wrong thing.
 --
--- Partial, because imported CSV rows have no user_ref and several NULLs in one
--- board must stay allowed.
+-- NOT partial. This was written "WHERE user_ref IS NOT NULL" to let imported CSV
+-- rows, which have no user_ref, sit in one board many times over — and every
+-- sync then failed with "there is no unique or exclusion constraint matching the
+-- ON CONFLICT specification", because Postgres only uses a partial index when
+-- the statement repeats its predicate and the Supabase client cannot send one.
+--
+-- The clause was never needed: a unique index already treats NULLs as distinct
+-- from each other, so those CSV rows do not collide without it.
 CREATE UNIQUE INDEX IF NOT EXISTS leaderboard_entries_board_user_ref_key
-  ON leaderboard_entries (leaderboard_id, user_ref)
-  WHERE user_ref IS NOT NULL;
+  ON leaderboard_entries (leaderboard_id, user_ref);
 
 -- The job writes updated_at on every row.
 ALTER TABLE leaderboard_entries
