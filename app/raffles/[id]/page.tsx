@@ -175,14 +175,15 @@ export default async function RaffleDetailPage({ params }: Params) {
 
         <div className="space-y-3">
           <Panel accent={status === "active" && !drawn ? "green" : "slate"} className="p-4">
+            {/* Whole card, not a cropped band — see app/raffles/page.tsx. */}
             {raffle.prize_image_url ? (
               <img
                 src={raffle.prize_image_url}
                 alt=""
-                className="mb-3 h-36 w-full rounded-md border border-white/[0.08] object-cover"
+                className="mb-3 aspect-[8/5] w-full rounded-md border border-white/[0.08] object-contain"
               />
             ) : (
-              <div className="mb-3 flex h-36 w-full items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.02]">
+              <div className="mb-3 flex aspect-[8/5] w-full items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.02]">
                 <Gift className="h-10 w-10 text-white/10" />
               </div>
             )}

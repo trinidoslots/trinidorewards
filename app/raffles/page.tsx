@@ -159,10 +159,17 @@ function RaffleCard({ raffle, counts, status }: { raffle: Raffle; counts: Counts
     <Link href={"/raffles/" + raffle.id} className="block">
       <Panel accent={accent} className="lift h-full overflow-hidden hover:border-white/20">
         <div className="relative">
+          {/*
+            object-contain in the card's own 8:5 frame, not a cropped h-32
+            band. The bundled artwork is a designed card with the prize and the
+            wording laid out inside it, and cropping to a fixed height cut the
+            sides off whatever it was trying to say. The placeholder keeps the
+            same frame so a card without a picture is the same size.
+          */}
           {raffle.prize_image_url ? (
-            <img src={raffle.prize_image_url} alt="" className="h-32 w-full object-cover" />
+            <img src={raffle.prize_image_url} alt="" className="aspect-[8/5] w-full object-contain" />
           ) : (
-            <div className="flex h-32 w-full items-center justify-center bg-white/[0.02]">
+            <div className="flex aspect-[8/5] w-full items-center justify-center bg-white/[0.02]">
               <Gift className="h-9 w-9 text-white/10" />
             </div>
           )}

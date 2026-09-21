@@ -23,6 +23,7 @@ import {
   type Participant,
 } from "@/lib/tournament"
 import { SelectMenu } from "@/components/ui/select-menu"
+import { DEFAULT_BATTLE_IMAGE } from "@/lib/card-images"
 
 /**
  * The tournament console.
@@ -159,6 +160,10 @@ export default function AdminTournamentsPage() {
       .insert({
         title: "Bonus Battle — " + stamp,
         tournament_type: BATTLE,
+        // The tournaments page renders image_url and nothing ever set it, so
+        // every battle showed as a card with a blank top. This is the only path
+        // that creates a tournament, so it is the only place to set it.
+        image_url: DEFAULT_BATTLE_IMAGE,
         status: "active",
         bracket_size: size,
         bracket_status: "registration",

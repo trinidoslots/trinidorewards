@@ -150,10 +150,11 @@ function TournamentCard({
     <Link href={"/tournaments/" + tournament.id} className="block">
       <Panel accent={accent} className="lift h-full overflow-hidden hover:border-white/20">
         <div className="relative">
+          {/* Same frame as the store and raffle cards — see app/raffles/page.tsx. */}
           {tournament.image_url ? (
-            <img src={tournament.image_url} alt="" className="h-32 w-full object-cover" />
+            <img src={tournament.image_url} alt="" className="aspect-[8/5] w-full object-contain" />
           ) : (
-            <div className="flex h-32 w-full items-center justify-center bg-white/[0.02]">
+            <div className="flex aspect-[8/5] w-full items-center justify-center bg-white/[0.02]">
               <Swords className="h-9 w-9 text-white/10" />
             </div>
           )}

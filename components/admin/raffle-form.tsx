@@ -7,6 +7,8 @@ import { createBrowserClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, PanelHeader } from "@/components/ui/panel"
 import { DURATION_UNITS, durationToMs, msToDuration, type DurationUnit } from "@/lib/raffle-utils"
 import { SelectMenu } from "@/components/ui/select-menu"
+import { CardImageField } from "@/components/admin/card-image-field"
+import { RAFFLE_IMAGE_GROUPS } from "@/lib/card-images"
 
 /**
  * Create and edit share one form, so the two cannot drift apart on which
@@ -239,14 +241,15 @@ export function RaffleForm({ raffleId, initial }: { raffleId?: string; initial?:
               className={`${field} tabular-nums`}
             />
           </Field>
-          <Field label="Prize image URL" hint="Optional.">
-            <input
+          <div className="sm:col-span-2">
+            <CardImageField
+              label="Card"
+              hint="Shown on the raffles page and on the raffle's own page. Optional."
+              groups={RAFFLE_IMAGE_GROUPS}
               value={draft.prize_image_url}
-              onChange={(e) => set({ prize_image_url: e.target.value })}
-              placeholder="https://…"
-              className={field}
+              onChange={(value) => set({ prize_image_url: value })}
             />
-          </Field>
+          </div>
           <div className="sm:col-span-2">
             <Field label="Description" hint="Optional.">
               <input
