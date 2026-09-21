@@ -106,10 +106,14 @@ SELECT jobid, jobname, schedule, active FROM cron.job WHERE jobname = 'leaderboa
 -- went. pg_net is asynchronous: cron.job_run_details says the call was made,
 -- net._http_response holds what came back.
 --
---   SELECT status, return_message, start_time
---     FROM cron.job_run_details
---    WHERE jobname = 'leaderboard-sync'
---    ORDER BY start_time DESC LIMIT 5;
+-- cron.job_run_details records the job by id, not by name — there is no
+-- jobname column on it — so this joins back to cron.job to read one job's runs.
+--
+--   SELECT d.status, d.return_message, d.start_time
+--     FROM cron.job_run_details d
+--     JOIN cron.job j ON j.jobid = d.jobid
+--    WHERE j.jobname = 'leaderboard-sync'
+--    ORDER BY d.start_time DESC LIMIT 5;
 --
 --   SELECT status_code, content::text, created
 --     FROM net._http_response
