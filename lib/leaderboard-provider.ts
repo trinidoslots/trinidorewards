@@ -66,6 +66,15 @@ export type ProviderConfig = {
   /** Dot path within one row. "user.username", or just "username". */
   usernamePath: string
   scorePath: string
+  /**
+   * What to divide the feed's number by to get currency.
+   *
+   * These feeds do not all count in dollars. EarnLab reports coins at a
+   * thousand to the dollar, so its 160524 is $160.52 — printed raw it read as
+   * $160,524.00 and made every board look a thousand times richer than it is.
+   * 1 means the feed already reports currency.
+   */
+  scoreDivisor: number
   avatarPath: string | null
   /** The provider's own account id, kept for payouts. */
   refPath: string | null
@@ -92,9 +101,27 @@ export const DEFAULT_CONFIG: Omit<ProviderConfig, "id" | "name" | "baseUrl" | "a
   rowsPath: "data",
   usernamePath: "user.username",
   scorePath: "totalWagered",
+  // EarnLab counts in coins, a thousand to the dollar. This is also the form's
+  // starting value, so a feed that reports plain currency must be set to 1 —
+  // the panel's test button shows the converted figure, which is where that
+  // gets noticed.
+  scoreDivisor: 1000,
   avatarPath: "user.avatar",
   refPath: "user.id",
   successPath: "success",
+}
+
+/**
+ * The feed's number as currency.
+ *
+ * Rounded to the cent because leaderboard_entries.total_wagered is
+ * DECIMAL(10,2): without it the live fetch would show three decimals and the
+ * stored row two, and the same board would disagree with itself depending on
+ * which path it was read through.
+ */
+export function convertScore(raw: number, divisor: number): number {
+  const by = Number.isFinite(divisor) && divisor > 0 ? divisor : 1
+  return Math.round((raw / by) * 100) / 100
 }
 
 /**
@@ -263,6 +290,7 @@ export type ProviderRow = {
   rows_path: string | null
   username_path: string | null
   score_path: string | null
+  score_divisor: number | string | null
   avatar_path: string | null
   ref_path: string | null
   success_path: string | null
@@ -310,6 +338,14 @@ export function configFromRow(row: ProviderRow): ProviderConfig {
     rowsPath: row.rows_path === null || row.rows_path === undefined ? DEFAULT_CONFIG.rowsPath : row.rows_path.trim(),
     usernamePath: text(row.username_path, DEFAULT_CONFIG.usernamePath),
     scorePath: text(row.score_path, DEFAULT_CONFIG.scorePath),
+    // Postgres hands NUMERIC back as a string. Falls back to 1 rather than to
+    // the default of 1000: a provider whose divisor did not survive the round
+    // trip should read a thousand times too high, which is obvious, rather than
+    // a thousand times too low, which looks like a quiet week.
+    scoreDivisor: (() => {
+      const parsed = Number(row.score_divisor)
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+    })(),
     avatarPath: optional(row.avatar_path),
     refPath: optional(row.ref_path),
     successPath: optional(row.success_path),

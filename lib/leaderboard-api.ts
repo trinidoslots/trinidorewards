@@ -20,6 +20,7 @@ import { maskUsername } from "@/lib/leaderboard-mask"
 import {
   authHeaders,
   buildUrl,
+  convertScore,
   formatDate,
   readRows,
   type ProviderConfig,
@@ -116,20 +117,27 @@ export function mapStandingsWithRef(
     throw new LeaderboardApiError("The standings could not be read.", 502)
   }
 
-  return result.rows
-    .map((row) => ({
-      // Masked here, at the boundary. Doing it in the component would mean the
-      // full name still travelled to the browser in the JSON, which is the one
-      // thing masking is for. The real name is kept nowhere: `ref` is what
-      // identifies the player from here on.
-      username: maskUsername(row.username),
-      avatar: readAvatar(row.avatar),
-      score: row.score,
-      ref: row.ref,
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, Math.max(0, limit))
-    .map((row, index) => ({ ...row, rank: index + 1 }))
+  return (
+    result.rows
+      .slice()
+      // Sorted on the feed's own number, before the divisor and the rounding to
+      // cents. Two players a few coins apart round to the same cent, and
+      // ordering on the rounded figure would put them in whichever order the
+      // sort happened to leave them.
+      .sort((a, b) => b.score - a.score)
+      .slice(0, Math.max(0, limit))
+      .map((row, index) => ({
+        rank: index + 1,
+        // Masked here, at the boundary. Doing it in the component would mean
+        // the full name still travelled to the browser in the JSON, which is
+        // the one thing masking is for. The real name is kept nowhere: `ref` is
+        // what identifies the player from here on.
+        username: maskUsername(row.username),
+        avatar: readAvatar(row.avatar),
+        score: convertScore(row.score, config.scoreDivisor),
+        ref: row.ref,
+      }))
+  )
 }
 
 /** The same, without the provider's account id. Everything public uses this. */

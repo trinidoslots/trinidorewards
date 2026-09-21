@@ -38,6 +38,7 @@ type Provider = {
   rows_path: string | null
   username_path: string | null
   score_path: string | null
+  score_divisor: number | string | null
   avatar_path: string | null
   ref_path: string | null
   success_path: string | null
@@ -60,6 +61,7 @@ type Draft = {
   rows_path: string
   username_path: string
   score_path: string
+  score_divisor: string
   avatar_path: string
   ref_path: string
   success_path: string
@@ -82,6 +84,7 @@ const emptyDraft = (): Draft => ({
   rows_path: DEFAULT_CONFIG.rowsPath,
   username_path: DEFAULT_CONFIG.usernamePath,
   score_path: DEFAULT_CONFIG.scorePath,
+  score_divisor: String(DEFAULT_CONFIG.scoreDivisor),
   avatar_path: DEFAULT_CONFIG.avatarPath ?? "",
   ref_path: DEFAULT_CONFIG.refPath ?? "",
   success_path: DEFAULT_CONFIG.successPath ?? "",
@@ -109,6 +112,7 @@ function draftFrom(provider: Provider): Draft {
     rows_path: text(provider.rows_path, base.rows_path),
     username_path: text(provider.username_path, base.username_path),
     score_path: text(provider.score_path, base.score_path),
+    score_divisor: String(provider.score_divisor ?? base.score_divisor),
     avatar_path: provider.avatar_path ?? "",
     ref_path: provider.ref_path ?? "",
     success_path: provider.success_path ?? "",
@@ -119,6 +123,25 @@ function draftFrom(provider: Provider): Draft {
 type TestResult =
   | { ok: true; found: number; sample: { rank: number; username: string; score: number; hasAvatar: boolean; hasRef: boolean }[] }
   | { ok: false; error: string }
+
+/**
+ * "160,524 → $160.52", worked out from whatever is in the field.
+ *
+ * The conversion is the one setting here that is wrong silently: a board with
+ * the divisor left at 1000 for a feed that reports dollars looks like a very
+ * quiet week, and one left at 1 for a feed that counts coins looks like a
+ * record month. A number next to the field is cheaper than finding out later.
+ */
+function divisorExample(raw: string): string {
+  const divisor = Number(raw)
+  if (!Number.isFinite(divisor) || divisor <= 0) return "Must be greater than zero."
+  const sample = 160524
+  const converted = Math.round((sample / divisor) * 100) / 100
+  return `${sample.toLocaleString("en-US")} → $${converted.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
+}
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -183,6 +206,7 @@ export default function LeaderboardProvidersPage() {
       max_limit: Number(draft.max_limit),
       max_range_days: Number(draft.max_range_days),
       cache_minutes: Number(draft.cache_minutes),
+      score_divisor: Number(draft.score_divisor),
     }
   }
 
@@ -487,6 +511,22 @@ export default function LeaderboardProvidersPage() {
                   <input
                     value={draft.score_path}
                     onChange={(e) => set({ score_path: e.target.value })}
+                    className={FIELD_CLASS}
+                  />
+                </Field>
+                <Field
+                  label="Divide score by"
+                  /* Worked out as you type. These feeds do not all count in
+                     dollars and the difference is silent otherwise: EarnLab's
+                     160524 is $160.52, not $160,524.00. */
+                  hint={`1 if the feed already reports currency. ${divisorExample(draft.score_divisor)}`}
+                >
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    value={draft.score_divisor}
+                    onChange={(e) => set({ score_divisor: e.target.value })}
                     className={FIELD_CLASS}
                   />
                 </Field>

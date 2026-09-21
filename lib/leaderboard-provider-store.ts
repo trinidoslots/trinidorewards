@@ -16,7 +16,7 @@ type SupabaseLike = { from: (table: string) => any }
 export const PROVIDER_COLUMNS =
   "id, name, base_url, api_key, auth_header, auth_scheme, start_param, end_param, limit_param, " +
   "date_format, max_limit, max_range_days, cache_minutes, rows_path, username_path, score_path, " +
-  "avatar_path, ref_path, success_path"
+  "score_divisor, avatar_path, ref_path, success_path"
 
 /**
  * The provider a board should be fetched with.

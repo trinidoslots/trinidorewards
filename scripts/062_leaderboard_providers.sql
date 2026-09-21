@@ -48,6 +48,11 @@ CREATE TABLE IF NOT EXISTS leaderboard_providers (
   rows_path TEXT NOT NULL DEFAULT 'data',
   username_path TEXT NOT NULL DEFAULT 'user.username',
   score_path TEXT NOT NULL DEFAULT 'totalWagered',
+  -- What to divide the feed's number by to get currency. These feeds do not all
+  -- count in dollars: EarnLab reports coins at a thousand to the dollar, so its
+  -- 160524 is $160.52. Printed raw it read as $160,524.00 and made every board
+  -- look a thousand times richer than it is. 1 means the feed reports currency.
+  score_divisor NUMERIC NOT NULL DEFAULT 1000,
   avatar_path TEXT DEFAULT 'user.avatar',
   -- The provider's account id. Kept in leaderboard_entries.user_ref, because a
   -- masked name is not something you can pay.
@@ -60,8 +65,18 @@ CREATE TABLE IF NOT EXISTS leaderboard_providers (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- For a database that ran an earlier copy of this file, before score_divisor
+-- existed. A fresh run has it already and this does nothing.
+ALTER TABLE leaderboard_providers
+  ADD COLUMN IF NOT EXISTS score_divisor NUMERIC NOT NULL DEFAULT 1000;
+
 DO $$
 BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'leaderboard_providers_score_divisor_check') THEN
+    ALTER TABLE leaderboard_providers
+      ADD CONSTRAINT leaderboard_providers_score_divisor_check CHECK (score_divisor > 0);
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'leaderboard_providers_date_format_check') THEN
     ALTER TABLE leaderboard_providers
       ADD CONSTRAINT leaderboard_providers_date_format_check

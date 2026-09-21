@@ -42,13 +42,17 @@ const WRITABLE = [
   "rows_path",
   "username_path",
   "score_path",
+  "score_divisor",
   "avatar_path",
   "ref_path",
   "success_path",
   "is_active",
 ] as const
 
+/** Whole numbers. */
 const NUMERIC = new Set(["max_limit", "max_range_days", "cache_minutes"])
+/** Not truncated: a divisor could legitimately be 1.5 or 0.01. */
+const DECIMAL = new Set(["score_divisor"])
 const BOOLEAN = new Set(["is_active"])
 /** Legitimately empty: "" on rows_path describes a bare-array response. */
 const MAY_BE_EMPTY = new Set(["rows_path"])
@@ -66,6 +70,11 @@ function readPatch(body: Record<string, unknown>): Record<string, unknown> {
     }
     if (NUMERIC.has(field)) {
       const parsed = Math.trunc(Number(value))
+      if (Number.isFinite(parsed) && parsed > 0) patch[field] = parsed
+      continue
+    }
+    if (DECIMAL.has(field)) {
+      const parsed = Number(value)
       if (Number.isFinite(parsed) && parsed > 0) patch[field] = parsed
       continue
     }
@@ -238,6 +247,7 @@ async function test(body: Record<string, unknown>) {
     rows_path: patch.rows_path === undefined ? null : (patch.rows_path as string),
     username_path: (patch.username_path as string) ?? null,
     score_path: (patch.score_path as string) ?? null,
+    score_divisor: (patch.score_divisor as number) ?? null,
     avatar_path: (patch.avatar_path as string) ?? null,
     ref_path: (patch.ref_path as string) ?? null,
     success_path: (patch.success_path as string) ?? null,
