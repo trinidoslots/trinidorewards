@@ -100,6 +100,7 @@ const NAV: Item[] = [
     children: [
       { href: "/admin/leaderboards/overview", label: "Overview" },
       { href: "/admin/leaderboards/manage", label: "Manage" },
+      { href: "/admin/leaderboards/providers", label: "Feeds" },
     ],
   },
   {

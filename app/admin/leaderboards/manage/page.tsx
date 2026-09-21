@@ -31,6 +31,7 @@ type Leaderboard = {
   ranking_metric: string | null
   timezone: string | null
   source: string | null
+  provider_id: string | null
   image_url: string | null
   start_date: string
   end_date: string
@@ -47,6 +48,7 @@ type Draft = {
   image_url: string
   /** 'csv' — rows imported below. 'api' — standings fetched from the feed. */
   source: string
+  provider_id: string
   start_date: string
   end_date: string
 }
@@ -60,6 +62,7 @@ const emptyDraft = (): Draft => ({
   timezone: DEFAULT_TIMEZONE,
   image_url: "",
   source: "csv",
+  provider_id: "",
   start_date: "",
   end_date: "",
 })
@@ -96,6 +99,31 @@ export default function LeaderboardsManagePage() {
   const [entryName, setEntryName] = useState("")
   const [entryAmount, setEntryAmount] = useState("")
   const [csv, setCsv] = useState<CsvResult | null>(null)
+
+  /**
+   * The configured feeds, for the picker below.
+   *
+   * Fetched from the admin route rather than with the browser's Supabase
+   * client: leaderboard_providers has RLS on and no policy, so the anon key
+   * gets an empty list rather than an error, which would look like nothing had
+   * been configured.
+   */
+  const [providers, setProviders] = useState<{ id: string; name: string; is_active: boolean }[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const response = await fetch("/api/admin/leaderboard-providers")
+      if (!response.ok || cancelled) return
+      const payload = (await response.json().catch(() => null)) as
+        | { providers?: { id: string; name: string; is_active: boolean }[] }
+        | null
+      if (!cancelled) setProviders(payload?.providers ?? [])
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const board = boards.find((entry) => entry.id === selected) ?? null
 
@@ -135,6 +163,7 @@ export default function LeaderboardsManagePage() {
       timezone: board.timezone ?? DEFAULT_TIMEZONE,
       image_url: board.image_url ?? "",
       source: board.source === "api" ? "api" : "csv",
+      provider_id: board.provider_id ?? "",
       start_date: utcToZonedInput(board.start_date, board.timezone ?? DEFAULT_TIMEZONE),
       end_date: utcToZonedInput(board.end_date, board.timezone ?? DEFAULT_TIMEZONE),
     })
@@ -192,6 +221,9 @@ export default function LeaderboardsManagePage() {
       timezone: zone,
       image_url: draft.image_url.trim() || null,
       source: draft.source,
+      // Empty means "use the environment variables", which is what every board
+      // did before there was a providers table.
+      provider_id: draft.source === "api" && draft.provider_id ? draft.provider_id : null,
       // Entered in the board's own timezone and stored as an instant, so a
       // board that runs "1st to 30th, Berlin time" means that everywhere.
       start_date: zonedInputToUtc(draft.start_date, zone),
@@ -514,15 +546,14 @@ export default function LeaderboardsManagePage() {
                     This used to be a URL and a key typed in per board. Nothing
                     ever read them — the hint said so — and the key travelled to
                     every visitor's browser, because the public page asked for
-                    the whole row. The address and the key now live in
-                    LEADERBOARD_API_URL and LEADERBOARD_API_KEY, and a board only
-                    says where its standings come from.
+                    the whole row. A board now names a feed configured under
+                    Feeds, whose key lives in a table the anon key cannot see.
                   */}
                   <Field
                     label="Standings from"
                     hint={
                       draft.source === "api"
-                        ? "Fetched live. The window below is what gets requested; top 50 at most."
+                        ? "Fetched for this board's window, every half hour."
                         : "Imported from the CSV below."
                     }
                   >
@@ -536,6 +567,36 @@ export default function LeaderboardsManagePage() {
                       ]}
                     />
                   </Field>
+
+                  {draft.source === "api" && (
+                    <Field
+                      label="Feed"
+                      hint={
+                        providers.length === 0
+                          ? "None configured — this board uses the LEADERBOARD_API_* environment variables."
+                          : "Configured under Leaderboards → Feeds."
+                      }
+                    >
+                      <SelectMenu
+                        aria-label="Feed"
+                        value={draft.provider_id}
+                        onChange={(value) => set({ provider_id: value })}
+                        options={[
+                          {
+                            value: "",
+                            label: "Environment variables",
+                            hint: "LEADERBOARD_API_URL and _KEY",
+                          },
+                          ...providers.map((entry) => ({
+                            value: entry.id,
+                            label: entry.name,
+                            hint: entry.is_active ? undefined : "switched off",
+                            disabled: !entry.is_active,
+                          })),
+                        ]}
+                      />
+                    </Field>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-2 border-t border-white/[0.08] p-3">

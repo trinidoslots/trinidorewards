@@ -1,18 +1,29 @@
 /**
- * The external wager feed, behind a neutral model.
+ * Talking to a wager feed, whichever one it is.
  *
- * Nothing outside this file knows the provider's field names, its host or its
- * error vocabulary. Callers get `LeaderboardStanding[]` and, when something goes
- * wrong, a `LeaderboardApiError` carrying a message that is safe to show.
+ * This file knows how to make an HTTP request and how to turn a list of players
+ * into standings. What it does not know is any provider's field names, host,
+ * header or limits — those arrive as a ProviderConfig from
+ * lib/leaderboard-provider, which comes from a row in leaderboard_providers or,
+ * for a board with none assigned, from the environment.
+ *
+ * Nothing outside this file sees the provider's vocabulary. Callers get
+ * `LeaderboardStanding[]` and, on a failure, a `LeaderboardApiError` carrying a
+ * message that is safe to put in front of a visitor.
  *
  * Follows lib/bonushunt-api.ts, which is how this codebase already talks to an
  * external API: TTL cache in module memory, one retry on 429 honouring
- * retry-after, a typed error with a status, and the key read from the
- * environment at call time rather than at import — a module-scope read makes the
- * whole route fail to build when the variable is absent.
+ * retry-after, and a typed error with a status.
  */
 
 import { maskUsername } from "@/lib/leaderboard-mask"
+import {
+  authHeaders,
+  buildUrl,
+  formatDate,
+  readRows,
+  type ProviderConfig,
+} from "@/lib/leaderboard-provider"
 
 /** What the rest of the app sees. No provider field names, no external ids. */
 export type LeaderboardStanding = {
@@ -40,27 +51,16 @@ export class LeaderboardApiError extends Error {
   }
 }
 
-/**
- * The provider caches a result for 30 minutes against the exact
- * startDate-endDate-limit it was asked for. Polling faster returns the same
- * bytes, so this cache matches that window: past it the upstream is worth
- * asking again, inside it there is nothing new to get.
- */
-export const CACHE_TTL_MS = 30 * 60_000
-
-/** The provider refuses anything larger. */
-export const MAX_LIMIT = 50
-
-/** The provider refuses a window wider than this. */
-export const MAX_RANGE_DAYS = 31
-
 const REQUEST_TIMEOUT_MS = 10_000
 
-// Holds the rows with their ids; the public view strips them on the way out, so
-// one fetch serves both callers.
+/** leaderboard_entries.avatar_url is VARCHAR(500). */
+const MAX_AVATAR_LENGTH = 500
+
+// Keyed by provider as well as window: two providers asked for the same dates
+// are two different answers.
 const cache = new Map<string, { expires: number; standings: StandingWithRef[] }>()
 
-/** Visible for tests, and for the admin's "refresh now". */
+/** Visible for tests, and for an admin's "refresh now". */
 export function clearStandingsCache(): void {
   cache.clear()
 }
@@ -72,60 +72,6 @@ export type StandingsQuery = {
   endDate: string
   limit?: number
 }
-
-/**
- * The score sits beside `user` under the provider's own name. On the feed we
- * have that is `totalWagered` — camelCase, because it comes from the API and
- * not from our own column, which is total_wagered.
- *
- * The other spellings are there so a rename upstream does not produce a board
- * of zeroes that looks like a quiet week.
- */
-const SCORE_KEYS = ["totalWagered", "total_wagered", "wagered", "wagerAmount", "amount", "score", "points"]
-
-/**
- * Fields that are numbers but are not the score.
- *
- * The fallback below takes "the numeric field that is not `user`", and that is
- * only safe while nothing else numeric rides along. A feed that starts sending
- * its own `rank` or `position` per row would otherwise rank every player by
- * their place — which sorts into a plausible-looking and completely wrong board.
- */
-const NON_SCORE_KEYS = new Set([
-  "rank",
-  "position",
-  "place",
-  "index",
-  "id",
-  "userId",
-  "user_id",
-  "count",
-  "timestamp",
-  "updatedAt",
-  "createdAt",
-])
-
-export function readScore(entry: Record<string, unknown>): number | null {
-  for (const key of SCORE_KEYS) {
-    const value = entry[key]
-    if (typeof value === "number" && Number.isFinite(value)) return value
-    // Some feeds send amounts as strings.
-    if (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))) return Number(value)
-  }
-
-  for (const [key, value] of Object.entries(entry)) {
-    if (key === "user" || NON_SCORE_KEYS.has(key)) continue
-    if (typeof value === "number" && Number.isFinite(value)) {
-      // Worth knowing about: the feed has been renamed and this is a guess.
-      console.warn(`[leaderboard] no known score field; falling back to "${key}"`)
-      return value
-    }
-  }
-  return null
-}
-
-/** leaderboard_entries.avatar_url is VARCHAR(500). */
-const MAX_AVATAR_LENGTH = 500
 
 /**
  * Only http(s) URLs are rendered; anything else becomes the initial fallback.
@@ -143,122 +89,105 @@ export function readAvatar(value: unknown): string | null {
   return trimmed
 }
 
-/**
- * The payload as standings.
- *
- * Exported separately from the fetch so the mapping can be tested without a
- * network, and so a malformed row is dropped rather than rendering as a blank
- * row with a zero. The feed states its rows arrive sorted; they are sorted again
- * here anyway, because rank is derived from position and trusting someone else's
- * ordering for that is a silent wrong answer if it ever stops holding.
- */
-export function mapStandingsWithRef(payload: unknown, limit = MAX_LIMIT): StandingWithRef[] {
-  if (!payload || typeof payload !== "object") {
-    throw new LeaderboardApiError("The standings could not be read.", 502)
-  }
-
-  const body = payload as { success?: unknown; data?: unknown }
-
-  // An explicit failure flag is an error even when the transport said 200.
-  if (body.success === false) {
-    throw new LeaderboardApiError("The standings are not available right now.", 502)
-  }
-
-  if (!Array.isArray(body.data)) {
-    throw new LeaderboardApiError("The standings could not be read.", 502)
-  }
-
-  const rows: Omit<StandingWithRef, "rank">[] = []
-
-  for (const raw of body.data) {
-    if (!raw || typeof raw !== "object") continue
-    const entry = raw as Record<string, unknown>
-    const user = (entry.user ?? {}) as Record<string, unknown>
-
-    const username = typeof user.username === "string" ? user.username.trim() : ""
-    if (!username) continue
-
-    const score = readScore(entry)
-    if (score === null) continue
-
-    rows.push({
-      // Masked here, at the boundary. Doing it in the component would mean the
-      // full name still travelled to the browser in the JSON, which is the one
-      // thing masking is for. The real name is not kept anywhere: `ref` is what
-      // identifies the player from here on.
-      username: maskUsername(username),
-      avatar: readAvatar(user.avatar),
-      score,
-      ref: typeof user.id === "string" && user.id.trim() ? user.id.trim() : null,
-    })
-  }
-
-  return rows
-    .sort((a, b) => b.score - a.score)
-    .slice(0, Math.max(0, Math.min(limit, MAX_LIMIT)))
-    .map((row, index) => ({ ...row, rank: index + 1 }))
-}
-
-/** The same, without the provider's account id. Everything public uses this. */
-export function mapStandings(payload: unknown, limit = MAX_LIMIT): LeaderboardStanding[] {
-  return mapStandingsWithRef(payload, limit).map(({ ref: _ref, ...row }) => row)
-}
-
-/** Both ends as the provider wants them: ISO 8601, UTC, whole seconds. */
-export function toApiDate(value: string | Date): string {
-  const date = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    throw new LeaderboardApiError("That board has no usable date range.", 400)
-  }
-  // Milliseconds are dropped so two calls for the same window produce the same
-  // string, and therefore the same cache key here and upstream.
-  return date.toISOString().replace(/\.\d{3}Z$/, "Z")
-}
-
 export function rangeDays(startDate: string, endDate: string): number {
   return (new Date(endDate).getTime() - new Date(startDate).getTime()) / 86_400_000
 }
 
 /**
- * Standings for one window.
+ * The payload as standings, through one provider's paths.
+ *
+ * Exported separately from the fetch so the mapping can be tested without a
+ * network. The feeds state their rows arrive sorted; they are sorted again here
+ * anyway, because rank is derived from position and trusting someone else's
+ * ordering for that is a wrong answer that looks right.
+ */
+export function mapStandingsWithRef(
+  payload: unknown,
+  config: ProviderConfig,
+  limit: number,
+): StandingWithRef[] {
+  const result = readRows(payload, config)
+
+  if (!result.ok) {
+    // The reason is for the log; the visitor gets the same sentence either way.
+    if (result.reason === "declared-failure") {
+      throw new LeaderboardApiError("The standings are not available right now.", 502)
+    }
+    throw new LeaderboardApiError("The standings could not be read.", 502)
+  }
+
+  return result.rows
+    .map((row) => ({
+      // Masked here, at the boundary. Doing it in the component would mean the
+      // full name still travelled to the browser in the JSON, which is the one
+      // thing masking is for. The real name is kept nowhere: `ref` is what
+      // identifies the player from here on.
+      username: maskUsername(row.username),
+      avatar: readAvatar(row.avatar),
+      score: row.score,
+      ref: row.ref,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.max(0, limit))
+    .map((row, index) => ({ ...row, rank: index + 1 }))
+}
+
+/** The same, without the provider's account id. Everything public uses this. */
+export function mapStandings(
+  payload: unknown,
+  config: ProviderConfig,
+  limit: number,
+): LeaderboardStanding[] {
+  return mapStandingsWithRef(payload, config, limit).map(({ ref: _ref, ...row }) => row)
+}
+
+/**
+ * Standings for one window from one provider.
  *
  * Throws LeaderboardApiError with a message meant for the page. The upstream
  * status and body are logged, never returned: they name the provider and
  * sometimes echo the key.
  */
-export async function fetchStandingsWithRef(query: StandingsQuery): Promise<StandingWithRef[]> {
-  const baseUrl = process.env.LEADERBOARD_API_URL
-  const apiKey = process.env.LEADERBOARD_API_KEY
+export async function fetchStandingsWithRef(
+  config: ProviderConfig,
+  query: StandingsQuery,
+): Promise<StandingWithRef[]> {
+  const limit = Math.max(
+    1,
+    Math.min(Math.trunc(query.limit ?? config.maxLimit) || config.maxLimit, config.maxLimit),
+  )
 
-  if (!baseUrl || !apiKey) {
-    // Fails closed: without a key this would otherwise call an unauthenticated
-    // endpoint and render whatever came back.
-    throw new LeaderboardApiError("Live standings are not configured.", 503)
+  let startDate: string
+  let endDate: string
+  try {
+    startDate = formatDate(query.startDate, config.dateFormat)
+    endDate = formatDate(query.endDate, config.dateFormat)
+  } catch {
+    throw new LeaderboardApiError("That board has no usable date range.", 400)
   }
 
-  const startDate = toApiDate(query.startDate)
-  const endDate = toApiDate(query.endDate)
-  const limit = Math.max(1, Math.min(Math.trunc(query.limit ?? MAX_LIMIT) || MAX_LIMIT, MAX_LIMIT))
-
-  if (new Date(endDate).getTime() < new Date(startDate).getTime()) {
+  if (new Date(query.endDate).getTime() < new Date(query.startDate).getTime()) {
     throw new LeaderboardApiError("That board ends before it starts.", 400)
   }
-  if (rangeDays(startDate, endDate) > MAX_RANGE_DAYS) {
+  if (rangeDays(query.startDate, query.endDate) > config.maxRangeDays) {
     throw new LeaderboardApiError(
-      `Live standings cover at most ${MAX_RANGE_DAYS} days; this board runs longer.`,
+      `Live standings cover at most ${config.maxRangeDays} days; this board runs longer.`,
       400,
     )
   }
 
-  // The same three values the upstream keys its own cache on.
-  const cacheKey = `${startDate}|${endDate}|${limit}`
+  // The same values the upstream keys its own cache on, plus which upstream.
+  const cacheKey = `${config.id ?? "env"}|${startDate}|${endDate}|${limit}`
   const cached = cache.get(cacheKey)
   if (cached && cached.expires > Date.now()) return cached.standings
 
-  const url = new URL(baseUrl)
-  url.searchParams.set("startDate", startDate)
-  url.searchParams.set("endDate", endDate)
-  url.searchParams.set("limit", String(limit))
+  let url: URL
+  try {
+    url = buildUrl(config, query.startDate, query.endDate, limit)
+  } catch {
+    // An unparseable base URL is a typo in the admin panel, not an outage.
+    throw new LeaderboardApiError("That provider's address is not a valid URL.", 500)
+  }
 
   let response: Response | undefined
 
@@ -266,20 +195,20 @@ export async function fetchStandingsWithRef(query: StandingsQuery): Promise<Stan
     try {
       response = await fetch(url, {
         method: "GET",
-        headers: { "x-api-key": apiKey, accept: "application/json" },
+        headers: authHeaders(config),
         cache: "no-store",
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
     } catch (problem) {
       // A timeout and a DNS failure both land here.
-      console.error("[leaderboard] upstream request failed:", problem)
+      console.error(`[leaderboard] ${config.name}: request failed:`, problem)
       throw new LeaderboardApiError("The standings could not be reached.", 504)
     }
 
     if (response.status !== 429 || attempt === 1) break
 
-    // 2 requests per minute upstream, so a retry has to wait out the window
-    // rather than fire straight back.
+    // These feeds allow very few requests a minute, so a retry has to wait out
+    // the window rather than fire straight back.
     const retryAfter = Number(response.headers.get("retry-after"))
     const waitMs = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 30_000) : 5_000
     await new Promise((resolve) => setTimeout(resolve, waitMs))
@@ -292,8 +221,14 @@ export async function fetchStandingsWithRef(query: StandingsQuery): Promise<Stan
     } catch {
       // The body is a nicety for the log; losing it changes nothing.
     }
-    console.error(`[leaderboard] upstream responded ${response?.status ?? "none"}:`, detail.slice(0, 500))
+    console.error(
+      `[leaderboard] ${config.name}: upstream responded ${response?.status ?? "none"}:`,
+      detail.slice(0, 500),
+    )
 
+    if (response?.status === 401 || response?.status === 403) {
+      throw new LeaderboardApiError("That provider rejected the API key.", 502)
+    }
     if (response?.status === 429) {
       throw new LeaderboardApiError("The standings are being refreshed. Try again shortly.", 429)
     }
@@ -307,8 +242,8 @@ export async function fetchStandingsWithRef(query: StandingsQuery): Promise<Stan
     throw new LeaderboardApiError("The standings could not be read.", 502)
   }
 
-  const standings = mapStandingsWithRef(payload, limit)
-  cache.set(cacheKey, { expires: Date.now() + CACHE_TTL_MS, standings })
+  const standings = mapStandingsWithRef(payload, config, limit)
+  cache.set(cacheKey, { expires: Date.now() + config.cacheMinutes * 60_000, standings })
   return standings
 }
 
@@ -318,7 +253,10 @@ export async function fetchStandingsWithRef(query: StandingsQuery): Promise<Stan
  * Everything that answers a browser calls this one; only the sync job, which
  * has to write user_ref, calls the variant above.
  */
-export async function fetchStandings(query: StandingsQuery): Promise<LeaderboardStanding[]> {
-  const standings = await fetchStandingsWithRef(query)
+export async function fetchStandings(
+  config: ProviderConfig,
+  query: StandingsQuery,
+): Promise<LeaderboardStanding[]> {
+  const standings = await fetchStandingsWithRef(config, query)
   return standings.map(({ ref: _ref, ...row }) => row)
 }

@@ -1,5 +1,6 @@
 import { serviceClient } from "@/lib/supabase/service"
-import { fetchStandingsWithRef, LeaderboardApiError, MAX_LIMIT } from "@/lib/leaderboard-api"
+import { fetchStandingsWithRef, LeaderboardApiError } from "@/lib/leaderboard-api"
+import { resolveProvider } from "@/lib/leaderboard-provider-store"
 import { prizeFor } from "@/lib/leaderboard-payouts"
 
 /**
@@ -31,6 +32,8 @@ type BoardRow = {
   prize_pool: number | string | null
   payout_preset: string | null
   prize_distribution_type: string | null
+  /** Null means the board still uses the environment variables. */
+  provider_id: string | null
 }
 
 /**
@@ -58,12 +61,21 @@ async function syncBoard(
   supabase: ReturnType<typeof serviceClient>,
   board: BoardRow,
 ): Promise<BoardOutcome> {
+  const provider = await resolveProvider(supabase, board.provider_id)
+  if (!provider) {
+    return {
+      leaderboardId: board.id,
+      title: board.title,
+      error: "No feed is configured for this board.",
+    }
+  }
+
   let standings
   try {
-    standings = await fetchStandingsWithRef({
+    standings = await fetchStandingsWithRef(provider, {
       startDate: board.start_date,
       endDate: board.end_date,
-      limit: MAX_LIMIT,
+      limit: provider.maxLimit,
     })
   } catch (problem) {
     const message = problem instanceof LeaderboardApiError ? problem.message : "Could not reach the feed."
@@ -172,7 +184,9 @@ async function run(request: Request) {
 
   const { data, error } = await supabase
     .from("leaderboards")
-    .select("id, title, start_date, end_date, prize_pool, payout_preset, prize_distribution_type")
+    .select(
+      "id, title, start_date, end_date, prize_pool, payout_preset, prize_distribution_type, provider_id",
+    )
     .eq("source", "api")
     // Only boards that are actually running. A closed board's numbers are
     // history, and a board that has not opened has nothing to fetch.
