@@ -6,6 +6,7 @@ import { Coins, Target } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { BANNER_ASPECT_RATIO, BANNER_ROTATION_MS, OBS_BANNERS } from "@/lib/obs-banners"
 import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
+import { playPing } from "@/lib/obs-ping"
 
 export type TransactionKind = "deposit" | "cashout"
 
@@ -26,9 +27,14 @@ export const TRANSACTION_EVENT_TTL_MS = 30_000
  * Streams in deposit/cashout events and drops each one once it ages out, so the
  * caller only ever sees what should currently be on screen.
  */
-export function useTransactionEvents() {
+export function useTransactionEvents(pingVolume = 0) {
   const [events, setEvents] = useState<TransactionEvent[]>([])
   const supabaseRef = useRef(createClient())
+
+  // Read through a ref because the subscription is set up once. Without it the
+  // handler would keep whatever volume the first render happened to have.
+  const volumeRef = useRef(pingVolume)
+  volumeRef.current = pingVolume
 
   useEffect(() => {
     const supabase = supabaseRef.current
@@ -57,6 +63,11 @@ export function useTransactionEvents() {
       .channel("transaction_events_realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "transaction_events" }, (payload) => {
         setEvents((current) => [payload.new as TransactionEvent, ...current])
+        // Here and not in backfill(): a source that reloads mid-announcement
+        // picks up everything from the last thirty seconds, and pinging for
+        // each of those would turn every OBS restart into a burst of beeps for
+        // things that already happened.
+        playPing(volumeRef.current)
       })
       .subscribe()
 
@@ -361,9 +372,12 @@ export type PointsEvent = {
  * announcements run live on stream, and a shared abstraction would have put
  * them at risk for the sake of thirty lines.
  */
-export function usePointsEvents() {
+export function usePointsEvents(pingVolume = 0) {
   const [events, setEvents] = useState<PointsEvent[]>([])
   const supabaseRef = useRef(createClient())
+
+  const volumeRef = useRef(pingVolume)
+  volumeRef.current = pingVolume
 
   useEffect(() => {
     const supabase = supabaseRef.current
@@ -391,6 +405,8 @@ export function usePointsEvents() {
       .channel("points_events_realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "points_events" }, (payload) => {
         setEvents((current) => [payload.new as PointsEvent, ...current])
+        // Live payouts only, not the backfill — see useTransactionEvents.
+        playPing(volumeRef.current)
       })
       .subscribe()
 

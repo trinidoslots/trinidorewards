@@ -1,7 +1,7 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
-import { Suspense } from "react"
+import { Suspense, useEffect } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { GiveawayCard, isGiveawayActive, useGiveawayState } from "@/components/obs/giveaway-card"
 import {
@@ -19,6 +19,7 @@ import {
 import { TournamentEventCard, useTournamentEvent } from "@/components/obs/tournament-event-card"
 import { KickChatFeed } from "@/components/kick-chat-feed"
 import { useKickChat } from "@/hooks/use-kick-chat"
+import { pingEnabled, readVolume, unlockOnInteraction } from "@/lib/obs-ping"
 import { useChatRecorder } from "@/hooks/use-chat-recorder"
 import type { KickMessage } from "@/lib/kick-chat"
 import { OBS_RADIUS, shellBackground } from "@/lib/obs-theme"
@@ -87,10 +88,26 @@ function StreamWidget() {
   // Set by /obs/complete, which paints the column's gradient itself.
   const isTransparent = searchParams.get("transparent") === "1"
 
+  /**
+   * Add ?ping=1 to this source's URL for a short sound on each announcement,
+   * and ?volume=0.3 to set how loud (0–1, or 0–100). Off unless asked for: an
+   * overlay already on stream should not start making noise because it was
+   * redeployed.
+   *
+   * The preview does not ping. It replays canned events on a loop and would
+   * beep at the admin indefinitely.
+   */
+  const pingVolume =
+    !isPreview && pingEnabled(searchParams.get("ping")) ? readVolume(searchParams.get("volume")) : 0
+
+  // Only needed outside OBS, whose browser source allows autoplay: a normal
+  // browser keeps the audio context suspended until the page has been clicked.
+  useEffect(() => unlockOnInteraction(), [])
+
   const prediction = usePredictionWindow()
   const giveaway = useGiveawayState()
-  const liveTransactions = useTransactionEvents()
-  const livePointsEvents = usePointsEvents()
+  const liveTransactions = useTransactionEvents(pingVolume)
+  const livePointsEvents = usePointsEvents(pingVolume)
   const liveTournament = useTournamentEvent({ enabled: !isPreview })
 
   // Add ?recorder=<RECORDER_TOKEN> to this source's URL in OBS and it also

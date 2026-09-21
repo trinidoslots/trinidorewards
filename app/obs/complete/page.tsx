@@ -56,13 +56,25 @@ function Complete() {
   // where the top bar leaves off, reads as one overlay.
   const columnQuery = query("transparent=1")
 
-  // The stream column is the one that reads chat, so a ?recorder=<token> on the
-  // combined scene has to reach it — otherwise running /obs/complete instead of
-  // /obs/stream would silently stop recording chat activity.
+  // Everything the stream column alone understands has to be forwarded to it,
+  // or running /obs/complete instead of /obs/stream quietly drops the feature
+  // with nothing to say it did.
+  //
+  //   recorder — the column is the one that reads chat, and without the token
+  //              it stops recording chat activity.
+  //   ping / volume — the announcements live in this column, so this is the
+  //              only frame that can make the sound.
+  const streamExtras: string[] = []
   const recorder = params.get("recorder")?.trim()
-  const streamQuery = recorder
-    ? `${columnQuery}&recorder=${encodeURIComponent(recorder)}`
-    : columnQuery
+  if (recorder) streamExtras.push(`recorder=${encodeURIComponent(recorder)}`)
+
+  const ping = params.get("ping")?.trim()
+  if (ping) streamExtras.push(`ping=${encodeURIComponent(ping)}`)
+
+  const volume = params.get("volume")?.trim()
+  if (volume) streamExtras.push(`volume=${encodeURIComponent(volume)}`)
+
+  const streamQuery = streamExtras.length ? `${columnQuery}&${streamExtras.join("&")}` : columnQuery
 
   const columnHeight = SCENE.height - TOP_BAR_HEIGHT
 
