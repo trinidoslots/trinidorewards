@@ -179,45 +179,9 @@ export default function LeaderboardPage() {
     }
 
     ;(async () => {
-      if (selectedSource === "api") {
-        try {
-          const response = await fetch(`/api/leaderboards/standings?boardId=${encodeURIComponent(selected)}`, {
-            signal: AbortSignal.timeout(15_000),
-          })
-          const payload = (await response.json().catch(() => null)) as
-            | { standings?: Standing[]; error?: string }
-            | null
-
-          if (!response.ok) {
-            settle([], payload?.error || "The standings are not available right now.")
-            return
-          }
-
-          settle(
-            (payload?.standings ?? []).map((row) => ({
-              // No database row behind these, so the key is the board and the
-              // place — stable for as long as the row holds that place.
-              id: `${selected}:${row.rank}`,
-              // Already masked server-side; masking here too would only mask a
-              // mask.
-              username: row.username,
-              avatar_url: row.avatar,
-              // rankEntries works the prize out from the pool and the preset,
-              // the same way it does for an imported board.
-              prize_amount: 0,
-              total_wagered: row.score,
-              total_earned: 0,
-            })),
-            null,
-          )
-        } catch (problem) {
-          if (cancelled) return
-          console.error("[leaderboard] standings request failed:", problem)
-          settle([], "The standings could not be reached.")
-        }
-        return
-      }
-
+      // Both kinds of board read the same table. An API board's rows are put
+      // there by the sync job every half hour, so the page never waits on the
+      // external feed and keeps working while it is down.
       const { data, error: problem } = await supabaseRef.current
         .from("leaderboard_entries")
         .select(ENTRY_COLUMNS)
@@ -229,16 +193,57 @@ export default function LeaderboardPage() {
         return
       }
 
-      settle(
-        (data ?? []).map((row: Record<string, unknown>) => ({
-          id: String(row.id),
-          username: maskUsername(String(row.username ?? "")),
-          avatar_url: (row.avatar_url as string | null) ?? null,
-          prize_amount: Number(row.prize_amount) || 0,
-          ...entryAmounts(row),
-        })),
-        null,
-      )
+      const stored = (data ?? []).map((row: Record<string, unknown>) => ({
+        id: String(row.id),
+        // Already masked for an API board; masking a mask returns the same
+        // string, and it is what masks an imported board's names.
+        username: maskUsername(String(row.username ?? "")),
+        avatar_url: (row.avatar_url as string | null) ?? null,
+        prize_amount: Number(row.prize_amount) || 0,
+        ...entryAmounts(row),
+      }))
+
+      if (stored.length > 0 || selectedSource !== "api") {
+        settle(stored, null)
+        return
+      }
+
+      // An API board the sync job has not reached yet — created just now, or
+      // between two ticks. Without this it would read as "nobody is playing"
+      // for up to half an hour, which looks like the board is broken.
+      try {
+        const response = await fetch(`/api/leaderboards/standings?boardId=${encodeURIComponent(selected)}`, {
+          signal: AbortSignal.timeout(15_000),
+        })
+        const payload = (await response.json().catch(() => null)) as
+          | { standings?: Standing[]; error?: string }
+          | null
+
+        if (!response.ok) {
+          settle([], payload?.error || "The standings are not available right now.")
+          return
+        }
+
+        settle(
+          (payload?.standings ?? []).map((row) => ({
+            // Nothing stored behind these yet, so the key is the board and the
+            // place — stable for as long as the row holds that place.
+            id: `${selected}:${row.rank}`,
+            username: row.username,
+            avatar_url: row.avatar,
+            // rankEntries works the prize out from the pool and the preset,
+            // the same way it does for an imported board.
+            prize_amount: 0,
+            total_wagered: row.score,
+            total_earned: 0,
+          })),
+          null,
+        )
+      } catch (failure) {
+        if (cancelled) return
+        console.error("[leaderboard] standings request failed:", failure)
+        settle([], "The standings could not be reached.")
+      }
     })()
 
     return () => {

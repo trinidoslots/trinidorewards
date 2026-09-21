@@ -158,28 +158,28 @@ export default function LandingPage() {
           // An API board is ranked on wagers whatever is stored: the feed
           // reports one number and it is not earnings.
           const metric = readMetric(live.source === "api" ? "wagered" : live.ranking_metric)
-          let top: string[] = []
+          const column = metric === "earned" ? "total_earned" : "total_wagered"
+          // Ordering in the database rather than reading the whole field to
+          // show three names. If the column is not there yet — 054 unrun — the
+          // card still has its pool and simply has no podium. An API board's
+          // rows are put here by the sync job, so both kinds read the same way.
+          const { data: rows } = await supabase
+            .from("leaderboard_entries")
+            .select("username")
+            .eq("leaderboard_id", live.id)
+            .order(column, { ascending: false })
+            .limit(3)
 
-          if (live.source === "api") {
-            // An API board has no rows in leaderboard_entries, so the card
-            // would have shown a pool with nobody under it.
+          let top = (rows ?? []).map((row: any) => maskUsername(String(row.username)))
+
+          // A board the sync job has not reached yet would show a pool with
+          // nobody under it.
+          if (top.length === 0 && live.source === "api") {
             const response = await fetch(`/api/leaderboards/standings?boardId=${encodeURIComponent(live.id)}`)
             if (response.ok) {
               const payload = (await response.json()) as { standings?: { username: string }[] }
               top = (payload.standings ?? []).slice(0, 3).map((row) => row.username)
             }
-          } else {
-            const column = metric === "earned" ? "total_earned" : "total_wagered"
-            // Ordering in the database rather than reading the whole field to
-            // show three names. If the column is not there yet — 054 unrun — the
-            // card still has its pool and simply has no podium.
-            const { data: rows } = await supabase
-              .from("leaderboard_entries")
-              .select("username")
-              .eq("leaderboard_id", live.id)
-              .order(column, { ascending: false })
-              .limit(3)
-            top = (rows ?? []).map((row: any) => maskUsername(String(row.username)))
           }
 
           setBoard({

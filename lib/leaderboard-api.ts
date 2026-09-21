@@ -22,6 +22,15 @@ export type LeaderboardStanding = {
   score: number
 }
 
+/**
+ * The same row with the provider's account id still attached.
+ *
+ * Only the sync job wants this. A masked name is not something you can pay, so
+ * the stored row keeps the opaque id in leaderboard_entries.user_ref — which is
+ * what migration 042 added that column for. It never goes to a browser.
+ */
+export type StandingWithRef = LeaderboardStanding & { ref: string | null }
+
 export class LeaderboardApiError extends Error {
   status: number
   constructor(message: string, status: number) {
@@ -47,7 +56,9 @@ export const MAX_RANGE_DAYS = 31
 
 const REQUEST_TIMEOUT_MS = 10_000
 
-const cache = new Map<string, { expires: number; standings: LeaderboardStanding[] }>()
+// Holds the rows with their ids; the public view strips them on the way out, so
+// one fetch serves both callers.
+const cache = new Map<string, { expires: number; standings: StandingWithRef[] }>()
 
 /** Visible for tests, and for the admin's "refresh now". */
 export function clearStandingsCache(): void {
@@ -63,13 +74,36 @@ export type StandingsQuery = {
 }
 
 /**
- * The score lives under a provider-specific key next to `user` — "totalWagered"
- * on the feed we have. Naming it in one place would mean a silent board of
- * zeroes the day it is renamed, so the known spellings are tried first and
- * anything else falls back to the one numeric field that is not the user
- * object. A row with no numeric field at all is a parse failure, not a zero.
+ * The score sits beside `user` under the provider's own name. On the feed we
+ * have that is `totalWagered` — camelCase, because it comes from the API and
+ * not from our own column, which is total_wagered.
+ *
+ * The other spellings are there so a rename upstream does not produce a board
+ * of zeroes that looks like a quiet week.
  */
 const SCORE_KEYS = ["totalWagered", "total_wagered", "wagered", "wagerAmount", "amount", "score", "points"]
+
+/**
+ * Fields that are numbers but are not the score.
+ *
+ * The fallback below takes "the numeric field that is not `user`", and that is
+ * only safe while nothing else numeric rides along. A feed that starts sending
+ * its own `rank` or `position` per row would otherwise rank every player by
+ * their place — which sorts into a plausible-looking and completely wrong board.
+ */
+const NON_SCORE_KEYS = new Set([
+  "rank",
+  "position",
+  "place",
+  "index",
+  "id",
+  "userId",
+  "user_id",
+  "count",
+  "timestamp",
+  "updatedAt",
+  "createdAt",
+])
 
 export function readScore(entry: Record<string, unknown>): number | null {
   for (const key of SCORE_KEYS) {
@@ -80,8 +114,12 @@ export function readScore(entry: Record<string, unknown>): number | null {
   }
 
   for (const [key, value] of Object.entries(entry)) {
-    if (key === "user") continue
-    if (typeof value === "number" && Number.isFinite(value)) return value
+    if (key === "user" || NON_SCORE_KEYS.has(key)) continue
+    if (typeof value === "number" && Number.isFinite(value)) {
+      // Worth knowing about: the feed has been renamed and this is a guess.
+      console.warn(`[leaderboard] no known score field; falling back to "${key}"`)
+      return value
+    }
   }
   return null
 }
@@ -103,7 +141,7 @@ export function readAvatar(value: unknown): string | null {
  * here anyway, because rank is derived from position and trusting someone else's
  * ordering for that is a silent wrong answer if it ever stops holding.
  */
-export function mapStandings(payload: unknown, limit = MAX_LIMIT): LeaderboardStanding[] {
+export function mapStandingsWithRef(payload: unknown, limit = MAX_LIMIT): StandingWithRef[] {
   if (!payload || typeof payload !== "object") {
     throw new LeaderboardApiError("The standings could not be read.", 502)
   }
@@ -119,7 +157,7 @@ export function mapStandings(payload: unknown, limit = MAX_LIMIT): LeaderboardSt
     throw new LeaderboardApiError("The standings could not be read.", 502)
   }
 
-  const rows: { username: string; avatar: string | null; score: number }[] = []
+  const rows: Omit<StandingWithRef, "rank">[] = []
 
   for (const raw of body.data) {
     if (!raw || typeof raw !== "object") continue
@@ -135,10 +173,12 @@ export function mapStandings(payload: unknown, limit = MAX_LIMIT): LeaderboardSt
     rows.push({
       // Masked here, at the boundary. Doing it in the component would mean the
       // full name still travelled to the browser in the JSON, which is the one
-      // thing masking is for. `user.id` is dropped for the same reason.
+      // thing masking is for. The real name is not kept anywhere: `ref` is what
+      // identifies the player from here on.
       username: maskUsername(username),
       avatar: readAvatar(user.avatar),
       score,
+      ref: typeof user.id === "string" && user.id.trim() ? user.id.trim() : null,
     })
   }
 
@@ -146,6 +186,11 @@ export function mapStandings(payload: unknown, limit = MAX_LIMIT): LeaderboardSt
     .sort((a, b) => b.score - a.score)
     .slice(0, Math.max(0, Math.min(limit, MAX_LIMIT)))
     .map((row, index) => ({ ...row, rank: index + 1 }))
+}
+
+/** The same, without the provider's account id. Everything public uses this. */
+export function mapStandings(payload: unknown, limit = MAX_LIMIT): LeaderboardStanding[] {
+  return mapStandingsWithRef(payload, limit).map(({ ref: _ref, ...row }) => row)
 }
 
 /** Both ends as the provider wants them: ISO 8601, UTC, whole seconds. */
@@ -170,7 +215,7 @@ export function rangeDays(startDate: string, endDate: string): number {
  * status and body are logged, never returned: they name the provider and
  * sometimes echo the key.
  */
-export async function fetchStandings(query: StandingsQuery): Promise<LeaderboardStanding[]> {
+export async function fetchStandingsWithRef(query: StandingsQuery): Promise<StandingWithRef[]> {
   const baseUrl = process.env.LEADERBOARD_API_URL
   const apiKey = process.env.LEADERBOARD_API_KEY
 
@@ -251,7 +296,18 @@ export async function fetchStandings(query: StandingsQuery): Promise<Leaderboard
     throw new LeaderboardApiError("The standings could not be read.", 502)
   }
 
-  const standings = mapStandings(payload, limit)
+  const standings = mapStandingsWithRef(payload, limit)
   cache.set(cacheKey, { expires: Date.now() + CACHE_TTL_MS, standings })
   return standings
+}
+
+/**
+ * Standings without the provider's account ids.
+ *
+ * Everything that answers a browser calls this one; only the sync job, which
+ * has to write user_ref, calls the variant above.
+ */
+export async function fetchStandings(query: StandingsQuery): Promise<LeaderboardStanding[]> {
+  const standings = await fetchStandingsWithRef(query)
+  return standings.map(({ ref: _ref, ...row }) => row)
 }
