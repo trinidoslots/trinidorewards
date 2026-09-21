@@ -1,5 +1,6 @@
 import { serviceClient } from "@/lib/supabase/service"
 import { fetchStandingsWithRef, LeaderboardApiError, MAX_LIMIT } from "@/lib/leaderboard-api"
+import { prizeFor } from "@/lib/leaderboard-payouts"
 
 /**
  * Pulls every running API board's standings into leaderboard_entries.
@@ -27,6 +28,9 @@ type BoardRow = {
   title: string
   start_date: string
   end_date: string
+  prize_pool: number | string | null
+  payout_preset: string | null
+  prize_distribution_type: string | null
 }
 
 /**
@@ -67,6 +71,9 @@ async function syncBoard(
     return { leaderboardId: board.id, title: board.title, error: message }
   }
 
+  const prizePool = Number(board.prize_pool) || 0
+  const preset = board.payout_preset ?? board.prize_distribution_type
+
   // A row the feed cannot identify cannot be matched to an existing one, so it
   // would be inserted again on every run. Better to skip it than to grow the
   // table by fifty rows every half hour.
@@ -79,10 +86,13 @@ async function syncBoard(
       avatar_url: row.avatar,
       total_wagered: row.score,
       total_earned: 0,
-      // rank and prize_amount stay untouched: the page works them out live from
-      // the pool and the preset, and finalizeLeaderboard writes them once when
-      // the board closes. Writing a rank here would fight that.
       rank: row.rank,
+      // prize_amount is NOT NULL with no default, so leaving it out fails the
+      // insert outright — which it did. Worked out here rather than written as
+      // zero so the stored row means the same thing it does for an imported
+      // board, which stores the computed prize too. The page still recomputes
+      // it live, and finalizeLeaderboard freezes it when the board closes.
+      prize_amount: prizeFor(row.rank, prizePool, preset),
       updated_at: new Date().toISOString(),
     }))
 
@@ -162,7 +172,7 @@ async function run(request: Request) {
 
   const { data, error } = await supabase
     .from("leaderboards")
-    .select("id, title, start_date, end_date")
+    .select("id, title, start_date, end_date, prize_pool, payout_preset, prize_distribution_type")
     .eq("source", "api")
     // Only boards that are actually running. A closed board's numbers are
     // history, and a board that has not opened has nothing to fetch.

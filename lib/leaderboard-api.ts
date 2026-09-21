@@ -124,11 +124,22 @@ export function readScore(entry: Record<string, unknown>): number | null {
   return null
 }
 
-/** Only http(s) URLs are rendered; anything else becomes the initial fallback. */
+/** leaderboard_entries.avatar_url is VARCHAR(500). */
+const MAX_AVATAR_LENGTH = 500
+
+/**
+ * Only http(s) URLs are rendered; anything else becomes the initial fallback.
+ *
+ * Anything over the column's width is dropped rather than truncated: a cut-off
+ * URL is a URL that 404s, and storing one would fail the whole board's write
+ * over a single player's picture. Dicebear generates these with the avatar's
+ * entire configuration in the query string, so they do get long.
+ */
 export function readAvatar(value: unknown): string | null {
   if (typeof value !== "string") return null
   const trimmed = value.trim()
   if (!/^https?:\/\//i.test(trimmed)) return null
+  if (trimmed.length > MAX_AVATAR_LENGTH) return null
   return trimmed
 }
 
