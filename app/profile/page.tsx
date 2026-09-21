@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client"
 import { CopyableId } from "@/components/ui/copyable-id"
 import { ConnectedAccountsPanel, MyWinsPanel, PaymentMethodsPanel } from "@/components/profile-panels"
 import { PageBody, PageHero } from "@/components/page-hero"
+import { Swap } from "@/components/swap"
 
 /**
  * The player's own page: what they have, where they play, and where they want
@@ -31,7 +32,7 @@ type SessionUser = {
   points_balance: number
 }
 
-const points = (value: number) => Math.round(Number(value) || 0).toLocaleString()
+const points = (value: number) => Math.round(Number(value) || 0).toLocaleString("en-US")
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric" })
@@ -79,24 +80,23 @@ export default function ProfilePage() {
     }
   }, [])
 
-  if (loading) {
-    return (
-      <div>
-        <PageHero accent="blue" title="Profile" subtitle="Loading your account." />
-      </div>
-    )
-  }
-
-  if (!user) return null
-
   // Rejected redemptions were refunded, so counting them would tell the user
   // they spent points they still have.
   const spent = redemptions
     .filter((entry) => entry.status !== "rejected" && entry.status !== "cancelled")
     .reduce((sum, entry) => sum + (Number(entry.cost) || 0), 0)
 
+  // Cross-faded rather than swapped outright. The loader used to be an early
+  // return, so the handover was a disappearance and an arrival in the same
+  // frame — nothing faded either way. Swap holds the loading state on screen,
+  // fades it out, and only then lets the profile rise in. Same component the
+  // leaderboard and the hunt tabs use.
   return (
-    <div>
+    <Swap on={loading ? "loading" : "profile"}>
+      {loading || !user ? (
+        <ProfileLoading />
+      ) : (
+        <div>
       <PageHero
         accent="blue"
         figure={points(user.points_balance)}
@@ -125,7 +125,7 @@ export default function ProfilePage() {
       <div className="grid gap-2.5 sm:grid-cols-3">
         <StatTile label="Points balance" value={points(user.points_balance)} accent="green" />
         <StatTile label="Points spent" value={points(spent)} accent="amber" />
-        <StatTile label="Redemptions" value={redemptions.length.toLocaleString()} accent="blue" />
+        <StatTile label="Redemptions" value={redemptions.length.toLocaleString("en-US")} accent="blue" />
       </div>
 
       <div className="grid items-start gap-3 lg:grid-cols-2">
@@ -172,6 +172,52 @@ export default function ProfilePage() {
         </div>
       </div>
       </PageBody>
+        </div>
+      )}
+    </Swap>
+  )
+}
+
+/**
+ * The waiting state, shaped like the page it becomes.
+ *
+ * Deliberately not a bare "Loading…" line: the loader and the profile are
+ * cross-faded, and fading a two-line hero into a full page means the height
+ * has to travel the whole distance while nothing is visible. Standing in for
+ * the real layout keeps that movement small, so the change reads as the
+ * content resolving rather than one page replacing another.
+ */
+function ProfileLoading() {
+  return (
+    <div>
+      <PageHero accent="blue" figure="—" figureLabel="Points" title="Profile" subtitle="Loading your account." />
+      <PageBody className="space-y-4">
+        <div className="grid gap-2.5 sm:grid-cols-3">
+          {[0, 1, 2].map((index) => (
+            <Ghost key={index} className="h-[86px]" />
+          ))}
+        </div>
+        <div className="grid items-start gap-3 lg:grid-cols-2">
+          <div className="space-y-3">
+            <Ghost className="h-[180px]" />
+            <Ghost className="h-[180px]" />
+          </div>
+          <div className="space-y-3">
+            <Ghost className="h-[180px]" />
+            <Ghost className="h-[180px]" />
+          </div>
+        </div>
+      </PageBody>
     </div>
+  )
+}
+
+/** A panel-shaped placeholder. Pulses, so it reads as pending rather than empty. */
+function Ghost({ className }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded-lg border border-white/[0.06] bg-white/[0.015] ${className ?? ""}`}
+      aria-hidden="true"
+    />
   )
 }
