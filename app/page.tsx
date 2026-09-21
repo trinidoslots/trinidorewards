@@ -12,6 +12,7 @@ import { huntProgress, visibleSections, type Section } from "@/lib/landing"
 import { countdownTo } from "@/lib/schedule-week"
 import { money, moneyExact } from "@/lib/leaderboard-format"
 import { readMetric } from "@/lib/leaderboard-metric"
+import { maskUsername } from "@/lib/leaderboard-mask"
 import {
   BentoTile,
   LiveCard,
@@ -142,7 +143,9 @@ export default function LandingPage() {
       try {
         const { data: boards } = await supabase
           .from("leaderboards")
-          .select("*")
+          // Named columns, not "*": the row also carried the board's stored
+          // provider credentials, and this runs in the browser.
+          .select("id, title, prize_pool, start_date, end_date, ranking_metric, source")
           .order("created_at", { ascending: false })
           .limit(6)
 
@@ -152,17 +155,32 @@ export default function LandingPage() {
         )
 
         if (live && !cancelled) {
-          const metric = readMetric(live.ranking_metric)
-          const column = metric === "earned" ? "total_earned" : "total_wagered"
-          // Ordering in the database rather than reading the whole field to
-          // show three names. If the column is not there yet — 054 unrun — the
-          // card still has its pool and simply has no podium.
-          const { data: top } = await supabase
-            .from("leaderboard_entries")
-            .select("username")
-            .eq("leaderboard_id", live.id)
-            .order(column, { ascending: false })
-            .limit(3)
+          // An API board is ranked on wagers whatever is stored: the feed
+          // reports one number and it is not earnings.
+          const metric = readMetric(live.source === "api" ? "wagered" : live.ranking_metric)
+          let top: string[] = []
+
+          if (live.source === "api") {
+            // An API board has no rows in leaderboard_entries, so the card
+            // would have shown a pool with nobody under it.
+            const response = await fetch(`/api/leaderboards/standings?boardId=${encodeURIComponent(live.id)}`)
+            if (response.ok) {
+              const payload = (await response.json()) as { standings?: { username: string }[] }
+              top = (payload.standings ?? []).slice(0, 3).map((row) => row.username)
+            }
+          } else {
+            const column = metric === "earned" ? "total_earned" : "total_wagered"
+            // Ordering in the database rather than reading the whole field to
+            // show three names. If the column is not there yet — 054 unrun — the
+            // card still has its pool and simply has no podium.
+            const { data: rows } = await supabase
+              .from("leaderboard_entries")
+              .select("username")
+              .eq("leaderboard_id", live.id)
+              .order(column, { ascending: false })
+              .limit(3)
+            top = (rows ?? []).map((row: any) => maskUsername(String(row.username)))
+          }
 
           setBoard({
             id: live.id,
@@ -170,7 +188,7 @@ export default function LandingPage() {
             pool: Number(live.prize_pool) || 0,
             endsAt: live.end_date,
             metric,
-            top: (top ?? []).map((row: any) => String(row.username)),
+            top,
           })
         }
       } catch (error) {

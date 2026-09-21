@@ -10,6 +10,7 @@ import { moneyExact } from "@/lib/leaderboard-format"
 import { BoardHero, StandingsTable, type RankedEntry } from "@/components/leaderboard-board"
 import { Swap } from "@/components/swap"
 import { entryAmounts, metricLabel, readMetric } from "@/lib/leaderboard-metric"
+import { maskUsername } from "@/lib/leaderboard-mask"
 import { PageBody, PageHero } from "@/components/page-hero"
 
 /**
@@ -19,6 +20,12 @@ import { PageBody, PageHero } from "@/components/page-hero"
  * rank column: rank is only written when a board is finalised, so a live board
  * has it null on every row and the list came out in whatever order the database
  * felt like.
+ *
+ * Two kinds of board feed this page. A 'csv' board's rows were imported by the
+ * admin and live in leaderboard_entries. An 'api' board has no rows of its own:
+ * its standings come from /api/leaderboards/standings, which calls the external
+ * feed server-side. Both arrive in the same shape, so everything below the
+ * fetch is unaware of the difference.
  */
 
 type Entry = {
@@ -41,7 +48,24 @@ type Leaderboard = {
   prize_distribution_type?: string | null
   timezone?: string | null
   ranking_metric?: string | null
+  source?: string | null
 }
+
+/** One row of /api/leaderboards/standings. */
+type Standing = { rank: number; username: string; avatar: string | null; score: number }
+
+/**
+ * Exactly the columns this page renders.
+ *
+ * It used to ask for "*", which also fetched the board's stored provider
+ * credentials into every visitor's browser. Naming the columns is what keeps
+ * them out; the fields themselves are dropped in scripts/059.
+ */
+const BOARD_COLUMNS =
+  "id, title, subtitle, prize_pool, start_date, end_date, payout_preset, prize_distribution_type, timezone, ranking_metric, source"
+
+/** Same again for the rows: user_ref is an external account id and stays server-side. */
+const ENTRY_COLUMNS = "id, username, avatar_url, prize_amount, total_wagered, total_earned"
 
 function useCountdown(endDate: string | undefined) {
   const [left, setLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, over: true })
@@ -89,10 +113,23 @@ export default function LeaderboardPage() {
    */
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /**
+   * Why the standings are missing, when they are.
+   *
+   * An empty table used to say "No entries yet" whether the board was genuinely
+   * empty or the feed had just refused the request — the one case where the
+   * visitor should be told to come back rather than assume nobody has played.
+   */
+  const [entriesError, setEntriesError] = useState<string | null>(null)
 
   // What is on screen, which lags the click by exactly one fetch.
   const shownId = loadedFor ?? selected
   const board = boards.find((entry) => entry.id === shownId) ?? null
+
+  // Where the selected board's standings come from. Read as a plain string
+  // rather than depending on `boards`, so the fetch effect below re-runs when
+  // the choice changes and not every time the board list is replaced.
+  const selectedSource = boards.find((entry) => entry.id === selected)?.source ?? null
   const countdown = useCountdown(board?.end_date)
   const zone = board?.timezone || DEFAULT_TIMEZONE
 
@@ -100,12 +137,14 @@ export default function LeaderboardPage() {
     setLoading(true)
     const { data, error: problem } = await supabaseRef.current
       .from("leaderboards")
-      .select("*")
+      .select(BOARD_COLUMNS)
       .order("created_at", { ascending: false })
 
     if (problem) {
       console.error("[v0] Error fetching leaderboards:", problem)
-      setError(problem.message || "Could not load the leaderboards")
+      // The Postgres message names columns and policies. The page says what
+      // happened; the detail stays in the console.
+      setError("The leaderboards could not be loaded.")
       setLoading(false)
       return
     }
@@ -126,40 +165,91 @@ export default function LeaderboardPage() {
   useEffect(() => {
     if (!selected) return
     let cancelled = false
-    ;(async () => {
-      const { data, error: problem } = await supabaseRef.current
-        .from("leaderboard_entries")
-        .select("*")
-        .eq("leaderboard_id", selected)
 
+    // The request belonging to a board that is no longer selected must not be
+    // allowed to write its rows: clicking twice quickly used to leave whichever
+    // response happened to land second on screen.
+    const settle = (rows: Entry[], problem: string | null) => {
       if (cancelled) return
-      if (problem) {
-        console.error("[v0] Error fetching entries:", problem)
-        setEntries([])
-        setLoadedFor(selected)
+      setEntries(rows)
+      setEntriesError(problem)
+      // Rows and identity land in the same commit, so the swap animates once,
+      // against content that is already final.
+      setLoadedFor(selected)
+    }
+
+    ;(async () => {
+      if (selectedSource === "api") {
+        try {
+          const response = await fetch(`/api/leaderboards/standings?boardId=${encodeURIComponent(selected)}`, {
+            signal: AbortSignal.timeout(15_000),
+          })
+          const payload = (await response.json().catch(() => null)) as
+            | { standings?: Standing[]; error?: string }
+            | null
+
+          if (!response.ok) {
+            settle([], payload?.error || "The standings are not available right now.")
+            return
+          }
+
+          settle(
+            (payload?.standings ?? []).map((row) => ({
+              // No database row behind these, so the key is the board and the
+              // place — stable for as long as the row holds that place.
+              id: `${selected}:${row.rank}`,
+              // Already masked server-side; masking here too would only mask a
+              // mask.
+              username: row.username,
+              avatar_url: row.avatar,
+              // rankEntries works the prize out from the pool and the preset,
+              // the same way it does for an imported board.
+              prize_amount: 0,
+              total_wagered: row.score,
+              total_earned: 0,
+            })),
+            null,
+          )
+        } catch (problem) {
+          if (cancelled) return
+          console.error("[leaderboard] standings request failed:", problem)
+          settle([], "The standings could not be reached.")
+        }
         return
       }
-      // entryAmounts reads total_wagered, or wager_amount while the
-      // migration has not run yet, so neither deploy order breaks the page.
-      setEntries(
+
+      const { data, error: problem } = await supabaseRef.current
+        .from("leaderboard_entries")
+        .select(ENTRY_COLUMNS)
+        .eq("leaderboard_id", selected)
+
+      if (problem) {
+        console.error("[v0] Error fetching entries:", problem)
+        settle([], "The standings could not be loaded.")
+        return
+      }
+
+      settle(
         (data ?? []).map((row: Record<string, unknown>) => ({
           id: String(row.id),
-          username: String(row.username ?? ""),
+          username: maskUsername(String(row.username ?? "")),
           avatar_url: (row.avatar_url as string | null) ?? null,
           prize_amount: Number(row.prize_amount) || 0,
           ...entryAmounts(row),
         })),
+        null,
       )
-      // Entries and identity land in the same commit, so the swap animates
-      // once, against content that is already final.
-      setLoadedFor(selected)
     })()
+
     return () => {
       cancelled = true
     }
-  }, [selected])
+  }, [selected, selectedSource])
 
-  const metric = readMetric(board?.ranking_metric)
+  // The external feed is a wager leaderboard and reports one number, so an
+  // API board is ranked on wagers whatever the admin picked. Honouring 'earned'
+  // here would rank every player on a column nothing fills, i.e. on zero.
+  const metric = readMetric(board?.source === "api" ? "wagered" : board?.ranking_metric)
 
   const ranked = useMemo<RankedEntry[]>(() => {
     if (!board) return []
@@ -200,8 +290,8 @@ export default function LeaderboardPage() {
         <PageBody className="max-w-3xl">
           <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-8 text-center">
             <Trophy className="mx-auto h-8 w-8 text-white/15" />
-            <p className="mt-3 text-[14px] text-white">The leaderboard could not be loaded.</p>
-            <p className="mt-1 text-[12.5px] text-white/35">{error}</p>
+            <p className="mt-3 text-[14px] text-white">{error}</p>
+            <p className="mt-1 text-[12.5px] text-white/35">Try again in a moment.</p>
           </div>
         </PageBody>
       </div>
@@ -294,11 +384,16 @@ export default function LeaderboardPage() {
             rows={filtered}
             metric={metric}
             emptyNote={
-              ranked.length === 0
-                ? "No entries yet."
-                : query.trim()
-                  ? "Nobody by that name."
-                  : "Only the podium so far."
+              // A feed that refused says so. Reporting that as "no entries yet"
+              // tells the visitor nobody is playing, which is a different and
+              // wrong thing.
+              entriesError
+                ? entriesError
+                : ranked.length === 0
+                  ? "No entries yet."
+                  : query.trim()
+                    ? "Nobody by that name."
+                    : "Only the podium so far."
             }
           />
         </Swap>

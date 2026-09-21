@@ -30,8 +30,7 @@ type Leaderboard = {
   payout_preset: string | null
   ranking_metric: string | null
   timezone: string | null
-  api_url: string | null
-  api_key: string | null
+  source: string | null
   image_url: string | null
   start_date: string
   end_date: string
@@ -46,8 +45,8 @@ type Draft = {
   ranking_metric: Metric
   timezone: string
   image_url: string
-  api_url: string
-  api_key: string
+  /** 'csv' — rows imported below. 'api' — standings fetched from the feed. */
+  source: string
   start_date: string
   end_date: string
 }
@@ -60,8 +59,7 @@ const emptyDraft = (): Draft => ({
   ranking_metric: "wagered",
   timezone: DEFAULT_TIMEZONE,
   image_url: "",
-  api_url: "",
-  api_key: "",
+  source: "csv",
   start_date: "",
   end_date: "",
 })
@@ -136,8 +134,7 @@ export default function LeaderboardsManagePage() {
       ranking_metric: readMetric(board.ranking_metric),
       timezone: board.timezone ?? DEFAULT_TIMEZONE,
       image_url: board.image_url ?? "",
-      api_url: board.api_url ?? "",
-      api_key: board.api_key ?? "",
+      source: board.source === "api" ? "api" : "csv",
       start_date: utcToZonedInput(board.start_date, board.timezone ?? DEFAULT_TIMEZONE),
       end_date: utcToZonedInput(board.end_date, board.timezone ?? DEFAULT_TIMEZONE),
     })
@@ -194,8 +191,7 @@ export default function LeaderboardsManagePage() {
       ranking_metric: draft.ranking_metric,
       timezone: zone,
       image_url: draft.image_url.trim() || null,
-      api_url: draft.api_url.trim() || null,
-      api_key: draft.api_key.trim() || null,
+      source: draft.source,
       // Entered in the board's own timezone and stored as an instant, so a
       // board that runs "1st to 30th, Berlin time" means that everywhere.
       start_date: zonedInputToUtc(draft.start_date, zone),
@@ -514,15 +510,30 @@ export default function LeaderboardsManagePage() {
                       className={field}
                     />
                   </Field>
-                  <Field label="API URL" hint="Stored for a future import. Not called yet.">
-                    <input value={draft.api_url} onChange={(e) => set({ api_url: e.target.value })} className={field} />
-                  </Field>
-                  <Field label="API key" hint="Stored for a future import. Not called yet.">
-                    <input
-                      type="password"
-                      value={draft.api_key}
-                      onChange={(e) => set({ api_key: e.target.value })}
-                      className={field}
+                  {/*
+                    This used to be a URL and a key typed in per board. Nothing
+                    ever read them — the hint said so — and the key travelled to
+                    every visitor's browser, because the public page asked for
+                    the whole row. The address and the key now live in
+                    LEADERBOARD_API_URL and LEADERBOARD_API_KEY, and a board only
+                    says where its standings come from.
+                  */}
+                  <Field
+                    label="Standings from"
+                    hint={
+                      draft.source === "api"
+                        ? "Fetched live. The window below is what gets requested; top 50 at most."
+                        : "Imported from the CSV below."
+                    }
+                  >
+                    <SelectMenu
+                      aria-label="Standings source"
+                      value={draft.source}
+                      onChange={(value) => set({ source: value })}
+                      options={[
+                        { value: "csv", label: "CSV import", hint: "Rows you upload here" },
+                        { value: "api", label: "Live feed", hint: "Fetched for this board's window" },
+                      ]}
                     />
                   </Field>
                 </div>

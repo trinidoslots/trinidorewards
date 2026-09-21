@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { money, moneyExact, moneyParts, ordinal } from "@/lib/leaderboard-format"
 import { amountFor, metricLabel, type Metric } from "@/lib/leaderboard-metric"
@@ -37,6 +38,13 @@ export function placeColor(rank: number): string | null {
  *
  * A grid of identical blank discs tells you nothing about who is who; a letter
  * at least distinguishes them.
+ *
+ * The external feed hands back avatars hosted by Facebook, Google or Dicebear,
+ * and the first two expire. A dead URL is not the same as no URL: the browser
+ * draws its own broken-image glyph, which looks like the page is broken rather
+ * than like a player without a picture. So a failed load falls back to the same
+ * initial, and `referrerPolicy` is set because those hosts return 403 for a
+ * request that names where it came from.
  */
 export function Avatar({
   src,
@@ -50,12 +58,21 @@ export function Avatar({
   ring?: string
 }) {
   const border = ring ?? "rgba(255,255,255,0.10)"
+  const [broken, setBroken] = useState(false)
 
-  if (src) {
+  // Rows keep their place while the board refreshes, so the same component can
+  // be handed a different picture. Without this reset it would stay on the
+  // initial for the rest of the session.
+  useEffect(() => setBroken(false), [src])
+
+  if (src && !broken) {
     return (
       <img
         src={src}
         alt=""
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setBroken(true)}
         className="shrink-0 rounded-full border-2 object-cover"
         style={{ width: size, height: size, borderColor: border }}
       />
