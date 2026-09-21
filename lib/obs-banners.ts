@@ -36,11 +36,21 @@ export const OBS_BANNERS: ObsBanner[] = [
 export const BANNER_ROTATION_MS = 10_000
 
 /**
- * Native proportions of the artwork (1600x1000). The slot is sized to this, so
+ * Native proportions of the artwork (1600x760). The slot is sized to this, so
  * correctly-cut artwork fills it exactly and anything else is letterboxed
  * rather than cropped through the middle of a wordmark.
  *
  * Changing this changes how much of the column the banner takes: in a 360px
- * column, 8:5 is a 225px-tall slot.
+ * column this is a 171px-tall slot.
  */
-export const BANNER_ASPECT_RATIO = "1600 / 1000"
+export const BANNER_ASPECT_RATIO = "1600 / 760"
+
+/**
+ * How long one banner takes to fade over the one before it.
+ *
+ * The outgoing banner is not faded out — it stays at full opacity underneath
+ * while the incoming one fades in over it, so the two alphas always sum to 1.
+ * Cross-fading both at once dips to 75% brightness at the midpoint, which reads
+ * as the overlay flickering rather than as a transition.
+ */
+export const BANNER_FADE_MS = 700

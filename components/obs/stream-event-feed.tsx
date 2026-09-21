@@ -1,10 +1,15 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { AnimatePresence, motion } from "framer-motion"
 import { Coins, Target } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { BANNER_ASPECT_RATIO, BANNER_ROTATION_MS, OBS_BANNERS } from "@/lib/obs-banners"
+import {
+  BANNER_ASPECT_RATIO,
+  BANNER_FADE_MS,
+  BANNER_ROTATION_MS,
+  OBS_BANNERS,
+  type ObsBanner,
+} from "@/lib/obs-banners"
 import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
 import { playPing } from "@/lib/obs-ping"
 
@@ -220,42 +225,122 @@ export function TransactionEventCard({ event }: { event: TransactionEvent }) {
   )
 }
 
-/** Cycles the locally-configured banners; renders nothing if none are configured. */
+/**
+ * Fetches and decodes a banner, resolving only once it is ready to paint.
+ *
+ * A banner that will not load resolves too rather than rejecting: a 404 on one
+ * image must not stop the rotation on the other eleven.
+ */
+function preloadBanner(src: string): Promise<void> {
+  return new Promise((resolve) => {
+    const image = new Image()
+    // decode() settles when the bytes have arrived *and* been turned into a
+    // bitmap, which is the thing that has to be true before the fade starts.
+    // Old engines without it fall back to load, which is only the first half.
+    if (typeof image.decode === "function") {
+      image.src = src
+      image.decode().then(() => resolve(), () => resolve())
+      return
+    }
+    image.onload = () => resolve()
+    image.onerror = () => resolve()
+    image.src = src
+  })
+}
+
+/**
+ * Cycles the locally-configured banners; renders nothing if none are configured.
+ *
+ * Two <img> layers that never unmount, rather than one element keyed on the src.
+ * Keying on the src meant a fresh element every 10s, mounted with an empty cache
+ * and told to fade in immediately — measured on the running widget, the incoming
+ * banner was undecoded at mount every single time, so it snapped into view
+ * partway through its own fade. The frame timing was never the problem (median
+ * 4.2ms, nothing above 33ms); the picture simply was not there yet.
+ *
+ * So: the next banner is fetched and decoded during the ten seconds the current
+ * one is up, and the swap only happens once it can actually be painted.
+ */
 export function BannerRotator() {
-  const [index, setIndex] = useState(0)
+  // Both layers start on the same banner so the first swap has something to
+  // fade over. Slot 1 is always the later element, so z-index decides which
+  // one is on top, not DOM order.
+  const [layers, setLayers] = useState<[ObsBanner | null, ObsBanner | null]>(() => [
+    OBS_BANNERS[0] ?? null,
+    OBS_BANNERS[0] ?? null,
+  ])
+  const [front, setFront] = useState<0 | 1>(0)
+  const frontRef = useRef<0 | 1>(0)
 
   useEffect(() => {
     if (OBS_BANNERS.length < 2) return
-    const interval = setInterval(() => setIndex((current) => (current + 1) % OBS_BANNERS.length), BANNER_ROTATION_MS)
-    return () => clearInterval(interval)
+
+    let cancelled = false
+    let index = 0
+    let timer: ReturnType<typeof setTimeout>
+
+    const cycle = () => {
+      const next = OBS_BANNERS[(index + 1) % OBS_BANNERS.length]
+      // Kick the fetch off now, not in ten seconds' time: by the time the timer
+      // fires the bitmap is ready and the swap costs nothing.
+      const ready = preloadBanner(next.src)
+
+      timer = setTimeout(() => {
+        void ready.then(() => {
+          if (cancelled) return
+          index = (index + 1) % OBS_BANNERS.length
+
+          const back = frontRef.current === 0 ? 1 : 0
+          frontRef.current = back
+          setLayers((current) => (back === 0 ? [next, current[1]] : [current[0], next]))
+          setFront(back)
+
+          cycle()
+        })
+      }, BANNER_ROTATION_MS)
+    }
+
+    cycle()
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
   }, [])
 
   if (OBS_BANNERS.length === 0) return null
-  const banner = OBS_BANNERS[index % OBS_BANNERS.length]
 
   return (
     // No card around it, unlike the event cards above: the artwork draws its own
     // rounded corners, its own background and its own accent rail, so a shell
     // behind it put a second border a few pixels outside the first one.
-    //
-    // Without that background the slot is genuinely empty between banners, so
-    // the two images overlap during the crossfade (no `mode="wait"`) — one
-    // fading out on its own would show the gameplay through for half a second.
     <div style={{ aspectRatio: BANNER_ASPECT_RATIO }} className="relative w-full">
-      <AnimatePresence>
-        <motion.img
-          key={banner.src}
-          src={banner.src}
-          alt={banner.alt}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.45 }}
-          // Contain, not cover: a banner is artwork with text in it, and cropping
-          // an odd aspect ratio would cut the wordmark off.
-          className="absolute inset-0 h-full w-full object-contain"
-        />
-      </AnimatePresence>
+      {layers.map((banner, slot) =>
+        banner ? (
+          <img
+            // Keyed on the slot, never on the src. These two elements are meant
+            // to outlive every banner that passes through them.
+            key={slot}
+            src={banner.src}
+            alt={slot === front ? banner.alt : ""}
+            aria-hidden={slot !== front}
+            // Contain, not cover: a banner is artwork with text in it, and
+            // cropping an odd aspect ratio would cut the wordmark off.
+            className="obs-banner-layer absolute inset-0 h-full w-full object-contain"
+            style={{
+              // The one underneath stays fully opaque for the whole fade. It is
+              // covered by the end anyway, and holding it at 1 is what keeps the
+              // two alphas summing to 1 instead of dipping in the middle.
+              opacity: 1,
+              zIndex: slot === front ? 1 : 0,
+              // An animation rather than a transition, because the name flipping
+              // between the layers is what restarts it. A transition would need
+              // the opacity set back to 0 and a frame to pass first.
+              animation: slot === front ? `obs-banner-fade ${BANNER_FADE_MS}ms linear both` : "none",
+              willChange: slot === front ? "opacity" : "auto",
+            }}
+          />
+        ) : null,
+      )}
     </div>
   )
 }

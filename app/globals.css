@@ -355,6 +355,28 @@
   background-size: 56px 56px;
 }
 
+/*
+ * The OBS banner rotator's fade.
+ *
+ * Only the incoming banner animates; the one it replaces sits underneath at
+ * full opacity until it is covered. Fading both at once dips the pair to 75%
+ * brightness halfway through, which on stream reads as a flicker.
+ */
+@keyframes obs-banner-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obs-banner-layer {
+    animation: none !important;
+  }
+}
+
 /* A word painted with a gradient rather than a flat colour. */
 .text-gradient {
   background-clip: text;
