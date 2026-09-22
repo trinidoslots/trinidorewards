@@ -25,6 +25,21 @@ import { COLUMN_GRADIENT, SCENE_GRADIENT, SCENE_ORBS } from "@/lib/obs-theme"
 const SCENE = { width: 1920, height: 1080 }
 const TOP_BAR_HEIGHT = 50
 
+/**
+ * A column's width from the query string.
+ *
+ * `Number(x) || fallback` would have done until 0 became meaningful: 0 is falsy,
+ * so ?hunt=0 would have silently given back the full 214 and the column would
+ * still have been there. Missing and unreadable both fall back; a real number
+ * is taken as given, clamped at 0.
+ */
+function columnWidth(raw: string | null, fallback: number): number {
+  if (raw === null || raw.trim() === "") return fallback
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.max(0, parsed)
+}
+
 function Complete() {
   const params = useSearchParams()
 
@@ -36,8 +51,14 @@ function Complete() {
   // 300px box, and 87 + 8 + 87 plus 8px of list padding and 8px of shell
   // padding each side is exactly 214. Narrower and the thumbnails shrink;
   // wider and they sit in a gap.
-  const huntWidth = Number(params.get("hunt")) || 214
-  const streamWidth = Number(params.get("stream")) || 360
+  //
+  // Width 0 leaves that column out altogether, which is how you get a scene
+  // with only one of them: /obs/complete?hunt=0 is the top bar and the stream
+  // column, ?stream=0 is the top bar and the bonus hunt. The frame is not
+  // rendered at all rather than sized to nothing, so the source it would have
+  // loaded never opens its Supabase subscriptions or its Kick socket.
+  const huntWidth = columnWidth(params.get("hunt"), 214)
+  const streamWidth = columnWidth(params.get("stream"), 360)
   const channel = params.get("channel")?.trim()
   const preview = params.get("preview") === "1"
 
@@ -104,13 +125,17 @@ function Complete() {
         style={{ top: 0, left: 0, width: SCENE.width, height: TOP_BAR_HEIGHT }}
       />
 
-      <Column style={{ top: TOP_BAR_HEIGHT, left: 0, width: huntWidth, height: columnHeight }}>
-        <Frame title="Bonus hunt" src={`/obs/hunt${columnQuery}`} style={{ inset: 0, width: "100%", height: "100%" }} />
-      </Column>
+      {huntWidth > 0 && (
+        <Column style={{ top: TOP_BAR_HEIGHT, left: 0, width: huntWidth, height: columnHeight }}>
+          <Frame title="Bonus hunt" src={`/obs/hunt${columnQuery}`} style={{ inset: 0, width: "100%", height: "100%" }} />
+        </Column>
+      )}
 
-      <Column style={{ top: TOP_BAR_HEIGHT, right: 0, width: streamWidth, height: columnHeight }}>
-        <Frame title="Stream column" src={`/obs/stream${streamQuery}`} style={{ inset: 0, width: "100%", height: "100%" }} />
-      </Column>
+      {streamWidth > 0 && (
+        <Column style={{ top: TOP_BAR_HEIGHT, right: 0, width: streamWidth, height: columnHeight }}>
+          <Frame title="Stream column" src={`/obs/stream${streamQuery}`} style={{ inset: 0, width: "100%", height: "100%" }} />
+        </Column>
+      )}
     </div>
   )
 }
