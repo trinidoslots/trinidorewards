@@ -49,10 +49,9 @@ const DEFAULTS = {
   /**
    * The hairline around the outside. ?outline=0 turns it off.
    *
-   * Drawn as a border on the frame, so it sits outside both strips and both
-   * rails and closes the shape. box-sizing is border-box, so it comes out of
-   * the frame's own pixels rather than adding to them — the source stays
-   * exactly ?w by ?h.
+   * A ring laid over everything else, not a border on the frame. box-sizing
+   * is border-box, so it takes its width from the frame's own pixels rather
+   * than adding to them — the source stays exactly ?w by ?h.
    */
   outline: 1,
 } as const
@@ -86,13 +85,20 @@ function CasinoFrame() {
         // for position: fixed, so the frame was measured from there instead of
         // the viewport. That wrapper no longer covers the OBS routes, but fixed
         // is still the right answer — nothing before it in the DOM can move it.
+        // No radius and no border on this box — it is a plain rectangle that
+        // only clips. Both used to be here, and the corners paid for it: a
+        // rounded `overflow: hidden` clips the strips along a curve, and a
+        // browser antialiases a clip edge differently from an edge it draws,
+        // so the drawn border and the clipped fill disagreed by a fraction of
+        // a pixel all the way round each arc. Over a capture that reads as
+        // grubby corners.
+        //
+        // The corners are shapes now instead of cuts: each strip rounds its
+        // own two outer corners, and the outline is a ring laid over them at
+        // the same radius. Same rasteriser, same path, nothing to disagree
+        // with. The clip stays, but as a rectangle it never reaches a corner.
         className="fixed left-0 top-0 overflow-hidden"
-        style={{
-          width,
-          height,
-          borderRadius: radius,
-          border: outline ? `${outline}px solid ${STRIP.outline}` : undefined,
-        }}
+        style={{ width, height }}
       >
         {/*
           The rails run between the two strips, not down the whole frame, and
@@ -124,13 +130,30 @@ function CasinoFrame() {
             fraction of that number, so the two keep their shape at any
             height. ?top and ?bottom change them independently. */}
         <div style={{ ["--h" as string]: `${top}px` }}>
-          <CasinoTopStrip style={{ top: 0, left: 0, right: 0 }} />
+          <CasinoTopStrip
+            style={{ top: 0, left: 0, right: 0, borderRadius: `${radius}px ${radius}px 0 0` }}
+          />
         </div>
 
         {isPlaying(row) && (
           <div style={{ ["--h" as string]: `${bottom}px` }}>
-            <NowPlayingStrip row={row} showArt={showArt} style={{ bottom: 0, left: 0, right: 0 }} />
+            <NowPlayingStrip
+              row={row}
+              showArt={showArt}
+              style={{ bottom: 0, left: 0, right: 0, borderRadius: `0 0 ${radius}px ${radius}px` }}
+            />
           </div>
+        )}
+
+        {/* Last, so it is drawn over the strips' own antialiased corners
+            rather than beside them. Same radius, so the two arcs are the same
+            arc and the ring simply sits on top of it. */}
+        {outline > 0 && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{ border: `${outline}px solid ${STRIP.outline}`, borderRadius: radius }}
+          />
         )}
       </div>
     </div>
