@@ -388,27 +388,30 @@
   }
 }
 
-/* The now-playing bar arriving, and changing game. */
-@keyframes obs-slide-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
+/*
+ * The now-playing bar arriving, and changing game: a fade, nothing else.
+ *
+ * A transition rather than a keyframe animation, because the component drives
+ * it — out on the old game, in on the new — and a keyframe can only play on
+ * mount. Its duration is OBS_FADE_MS in components/obs/casino-strips.tsx;
+ * the two have to agree or the swap happens while the bar is still visible.
+ *
+ * No transform is involved, which also retires a trap: the old animation
+ * ended on `transform: none`, and that beat the inline translateY(-50%) that
+ * centres the bar when it is placed with ?align=middle.
+ */
 .obs-now-playing {
-  animation: obs-slide-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  transition: opacity 220ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .obs-banner-layer,
-  .obs-scene-orb,
-  .obs-now-playing {
+  .obs-scene-orb {
     animation: none !important;
+  }
+
+  .obs-now-playing {
+    transition: none;
   }
 }
 

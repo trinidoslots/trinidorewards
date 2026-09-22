@@ -48,6 +48,9 @@ const DEFAULTS = {
   radius: 12,
 } as const
 
+/** Top strip's tone at the top of the rail, bottom strip's at the bottom. */
+const RAIL_FADE = `linear-gradient(to bottom, ${STRIP.topBackground}, ${STRIP.background})`
+
 function CasinoFrame() {
   const params = useSearchParams()
   const isPreview = params.get("preview") === "1"
@@ -73,17 +76,34 @@ function CasinoFrame() {
         // the document past the viewport and grew a scrollbar, which narrowed
         // it again. Nothing before it in the DOM can move it now.
         className="fixed left-0 top-0 overflow-hidden"
-        style={{
-          width,
-          height,
-          borderRadius: radius,
-          // Rails only. No top or bottom border — the strips are the top and
-          // bottom, and a border there would sit outside them and read as a
-          // second, thinner bar.
-          borderLeft: `${rail}px solid ${STRIP.background}`,
-          borderRight: `${rail}px solid ${STRIP.background}`,
-        }}
+        style={{ width, height, borderRadius: radius }}
       >
+        {/*
+          The rails run between the two strips, not down the whole frame, and
+          they are elements rather than a border on the frame.
+
+          As a border they sat outside the strips, so the top strip — which is
+          a shade darker than the rest — would have had a lighter 4px stub down
+          each side and the frame's top corners would have been drawn in the
+          lighter tone. Two strips spanning the full width, with the rails only
+          alongside the capture, has no such seam.
+
+          Each rail then fades from the top strip's tone to the bottom strip's
+          over its own length. Held at one colour it met the darker strip in a
+          hard step at the top; now both ends match what they touch and the
+          change happens across 760px, where no edge can show.
+        */}
+        <div
+          aria-hidden
+          className="absolute left-0"
+          style={{ top, bottom, width: rail, backgroundImage: RAIL_FADE }}
+        />
+        <div
+          aria-hidden
+          className="absolute right-0"
+          style={{ top, bottom, width: rail, backgroundImage: RAIL_FADE }}
+        />
+
         {/* Each strip carries its own --h, and every size inside it is a
             fraction of that number, so the two keep their shape at any
             height. ?top and ?bottom change them independently. */}

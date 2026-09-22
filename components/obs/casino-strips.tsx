@@ -24,8 +24,9 @@ import { BADGE_GRADIENT, BADGE_TEXT, formatMoney, type NowPlayingRow } from "@/l
  *               title/provider pair and the Potential pair — landing on 0.405
  *               and 0.398 independently. The title is NOT bigger than the
  *               provider, only bolder.
- *   badge       0.50h tall, text 0.26h. The text filling roughly half the chip
- *               is what makes it read as compact.
+ *   badge       0.50h tall, text 0.30h. The reference has 0.26h; the text was
+ *               raised on request. The chip's height is what keeps it compact,
+ *               so that stayed where it was measured.
  *   badge gap   0.41h to the title.
  *   divider     1px, 0.69h tall, between the title group and the figures.
  *
@@ -44,22 +45,14 @@ export const STRIP = {
    */
   muted: "#94ACB8",
   divider: "#28404C",
-} as const
-
-/**
- * The wallet group in the middle of the top strip.
- *
- * Sampled off the reference crop rather than picked: the panel behind the
- * group is #101E28 — a darker inset, not the strip's own #203744 — the button
- * #1475E1, the coin disc #0F97F8, and all three labels are white. "(In Play)"
- * looks grey in the capture but its glyph cores are #FFFFFF; it only reads
- * dimmer because it is a stop smaller and lighter than the rest.
- */
-export const WALLET = {
-  panel: "#101E28",
-  button: "#1475E1",
-  coin: "#0F97F8",
-  text: "#FFFFFF",
+  /**
+   * The top strip is a shade darker than the bottom one.
+   *
+   * Sampled off the reference crop of the casino's own header — the tone the
+   * wallet button sits on. Only the colour was taken from it; the header's
+   * contents are not reproduced.
+   */
+  topBackground: "#101E28",
 } as const
 
 export const FONT_STACK = "var(--font-inter), Inter, sans-serif"
@@ -107,122 +100,28 @@ function Icon({ name, path }: { name: string; path: string }) {
   )
 }
 
-/**
- * The wallet group that sits in the middle of the strip.
- *
- * Proportioned off the reference crop, where the inset panel measures 49px
- * tall. Everything inside it is that panel's height times a constant, so the
- * group keeps its shape at any strip height:
- *
- *   panel      0.80h — 40px in a 50px strip, leaving 5px above and below
- *   radius     0.16 of the panel
- *   labels     0.29h. Cap height measured 10.5px against a 49px panel.
- *   (In Play)  0.27h, a stop smaller than the other two
- *   coin       0.36h, a disc with a $ nearly filling it
- *   button     flush to the panel's right edge, its own left edge square.
- *              Measured: the blue starts at the same x on every row, so it is
- *              not a rounded button floating inside a container — the panel's
- *              right corners ARE the button's. The panel clips them.
- */
-function WalletGroup() {
-  return (
-    <span
-      className="flex shrink-0 items-center overflow-hidden whitespace-nowrap"
-      style={{
-        height: u(0.8),
-        backgroundColor: WALLET.panel,
-        borderRadius: u(0.13),
-        paddingLeft: u(0.33),
-        fontFamily: FONT_STACK,
-        color: WALLET.text,
-      }}
-    >
-      <span style={{ fontSize: u(0.27), fontWeight: 500 }}>(In Play)</span>
-
-      {/* The USDC disc. A round span rather than an SVG: the casino's own mark
-          is a vector I do not have, and a hand-traced one next to the real
-          icons would read as the wrong logo. A $ in a blue circle does not. */}
-      <span
-        aria-hidden
-        className="flex items-center justify-center font-bold"
-        style={{
-          width: u(0.36),
-          height: u(0.36),
-          marginLeft: u(0.14),
-          borderRadius: "50%",
-          backgroundColor: WALLET.coin,
-          fontSize: u(0.32),
-          lineHeight: 1,
-        }}
-      >
-        $
-      </span>
-
-      <span style={{ fontSize: u(0.29), fontWeight: 600, marginLeft: u(0.13) }}>USDC</span>
-
-      <svg
-        viewBox="0 0 12 7"
-        fill="none"
-        aria-hidden
-        style={{ width: u(0.24), marginLeft: u(0.22), display: "block", flexShrink: 0 }}
-      >
-        <path
-          d="M1 1.5 6 5.5l5-4"
-          stroke={WALLET.text}
-          strokeWidth={1.8}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-
-      <span
-        className="flex h-full items-center font-bold"
-        style={{
-          marginLeft: u(0.41),
-          padding: `0 ${u(0.33)}`,
-          backgroundColor: WALLET.button,
-          fontSize: u(0.29),
-        }}
-      >
-        Wallet
-      </span>
-    </span>
-  )
-}
-
-/** Logo left, wallet group centred, icons right. No data — it is framing. */
+/** Logo left, icons right. No data, no subscriptions — it is framing. */
 export function CasinoTopStrip({ style }: { style?: CSSProperties }) {
   return (
     <div
       className="absolute flex items-center overflow-hidden"
       style={{
         height: "var(--h)",
-        backgroundColor: STRIP.background,
+        backgroundColor: STRIP.topBackground,
         padding: `0 ${u(0.34)}`,
         ...style,
       }}
     >
-      {/* Equal flex on both flanks, so the middle is centred on the strip
-          rather than on whatever is left over between a logo and four icons.
-          flex-1 is flex: 1 1 0 — the two sides get the same width whatever
-          they contain, which no amount of justify-between would give. */}
-      <span className="flex min-w-0 flex-1 items-center">
-        {/* A 2:1 white-on-transparent PNG, so it needs a height and nothing
-            else; object-contain keeps it honest if that stops being 2:1. */}
-        <img
-          src="/stake-logo-white.png"
-          alt="Stake"
-          className="shrink-0 object-contain"
-          style={{ height: u(0.4) }}
-        />
-      </span>
+      {/* A 2:1 white-on-transparent PNG, so it needs a height and nothing
+          else; object-contain keeps it honest if that stops being 2:1. */}
+      <img
+        src="/stake-logo-white.png"
+        alt="Stake"
+        className="shrink-0 object-contain"
+        style={{ height: u(0.4) }}
+      />
 
-      <WalletGroup />
-
-      <span
-        className="flex min-w-0 flex-1 items-center justify-end"
-        style={{ gap: u(0.46) }}
-      >
+      <span className="ml-auto flex shrink-0 items-center" style={{ gap: u(0.46) }}>
         {ICONS.map((icon) => (
           <Icon key={icon.name} {...icon} />
         ))}
@@ -265,6 +164,38 @@ function Divider() {
   )
 }
 
+/**
+ * How long the bar takes to fade, each way.
+ *
+ * Must match the transition on .obs-now-playing in globals.css. If the CSS is
+ * slower than this, the text is swapped while the old game is still readable.
+ */
+const OBS_FADE_MS = 220
+
+/** The game on screen, and whether it is currently faded in. */
+function useFadedRow(row: NowPlayingRow) {
+  const key = `${row.slot_name}|${row.updated_at}`
+  const [shown, setShown] = useState<NowPlayingRow | null>(null)
+  const shownKey = shown && `${shown.slot_name}|${shown.updated_at}`
+
+  useEffect(() => {
+    if (shownKey === key) return
+
+    // First game: adopt it now. It still fades in, because the first paint
+    // happened with nothing shown and therefore at opacity 0.
+    if (shown === null) {
+      setShown(row)
+      return
+    }
+
+    // A different game: let the old one fade out before its text is replaced.
+    const swap = setTimeout(() => setShown(row), OBS_FADE_MS)
+    return () => clearTimeout(swap)
+  }, [key, row, shown, shownKey])
+
+  return { shown: shown ?? row, visible: shownKey === key }
+}
+
 export function NowPlayingStrip({
   row,
   showArt,
@@ -274,20 +205,27 @@ export function NowPlayingStrip({
   showArt?: boolean
   style?: CSSProperties
 }) {
-  const bestWin = formatMoney(row.best_win)
-  const art = showArt && row.image_url
+  // Out on the old game, in on the new. Not a crossfade: one bar, faded to
+  // nothing and back, so there is never a moment with two sets of text over
+  // each other or a half-transparent bar showing the capture through it.
+  //
+  // This is also why the element is no longer keyed on the game. A key made
+  // React throw the old bar away the instant the game changed, which is a cut,
+  // not a fade — only the arrival was ever animated.
+  const { shown, visible } = useFadedRow(row)
+
+  const bestWin = formatMoney(shown.best_win)
+  const art = showArt && shown.image_url
 
   return (
     <div
-      // Keyed on the game so the strip plays its entrance again on a change
-      // rather than swapping text inside a bar that never moves.
-      key={`${row.slot_name}|${row.updated_at}`}
       className="obs-now-playing absolute flex items-center overflow-hidden"
       style={{
         height: "var(--h)",
         backgroundColor: STRIP.background,
         fontFamily: FONT_STACK,
         padding: `0 ${u(0.34)}`,
+        opacity: visible ? 1 : 0,
         // No shared gap. Every space in the reference is a different width, so
         // each one is set on the element it belongs to.
         gap: 0,
@@ -296,14 +234,14 @@ export function NowPlayingStrip({
     >
       {art && (
         <img
-          src={row.image_url as string}
+          src={shown.image_url as string}
           alt=""
           className="shrink-0 object-cover"
           style={{ height: u(0.66), aspectRatio: "1 / 1", borderRadius: u(0.11) }}
         />
       )}
 
-      {row.badge && (
+      {shown.badge && (
         <span
           className="flex shrink-0 items-center whitespace-nowrap font-bold"
           style={{
@@ -312,11 +250,14 @@ export function NowPlayingStrip({
             height: u(0.5),
             padding: `0 ${u(0.25)}`,
             borderRadius: u(0.15),
-            fontSize: u(0.26),
+            // The chip keeps its 0.5h height — it was too tall once already.
+            // Only the text grew, from 0.26h to 0.30h, so it fills a little
+            // more of the chip rather than making the chip bigger.
+            fontSize: u(0.3),
             marginRight: u(0.41),
           }}
         >
-          {row.badge}
+          {shown.badge}
         </span>
       )}
 
@@ -327,22 +268,22 @@ export function NowPlayingStrip({
         className="min-w-0 flex-shrink overflow-hidden text-ellipsis whitespace-nowrap font-bold"
         style={{ color: STRIP.name, fontSize: u(0.4), letterSpacing: "-0.005em" }}
       >
-        {row.slot_name}
+        {shown.slot_name}
       </span>
 
-      {row.provider && (
+      {shown.provider && (
         <span
           className="shrink-0 whitespace-nowrap"
           style={{ color: STRIP.muted, fontSize: u(0.4), marginLeft: u(0.18) }}
         >
-          {row.provider}
+          {shown.provider}
         </span>
       )}
 
-      {(row.max_win || bestWin) && <Divider />}
+      {(shown.max_win || bestWin) && <Divider />}
 
-      {row.max_win && <Stat label="Potential" value={row.max_win} />}
-      {bestWin && <Stat label="Best Win" value={bestWin} gap={row.max_win ? 0.44 : 0} />}
+      {shown.max_win && <Stat label="Potential" value={shown.max_win} />}
+      {bestWin && <Stat label="Best Win" value={bestWin} gap={shown.max_win ? 0.44 : 0} />}
     </div>
   )
 }
