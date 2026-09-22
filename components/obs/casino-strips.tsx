@@ -94,9 +94,11 @@ function Icon({ name, path }: { name: string; path: string }) {
       fill="none"
       role="img"
       aria-label={name}
-      style={{ width: u(0.42), height: u(0.42), display: "block", flexShrink: 0 }}
+      style={{ width: u(0.36), height: u(0.36), display: "block", flexShrink: 0 }}
     >
-      <path fill={STRIP.muted} d={path} />
+      {/* White, not the bar's muted blue-grey. These are the only icons in
+          the frame, so nothing is being de-emphasised against anything. */}
+      <path fill={STRIP.name} d={path} />
     </svg>
   )
 }
@@ -119,7 +121,7 @@ export function CasinoTopStrip({ style }: { style?: CSSProperties }) {
         src="/stake-logo-white.png"
         alt="Stake"
         className="shrink-0 object-contain"
-        style={{ height: u(0.4) }}
+        style={{ height: u(0.48) }}
       />
 
       <span className="ml-auto flex shrink-0 items-center" style={{ gap: u(0.46) }}>
