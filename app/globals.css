@@ -371,8 +371,26 @@
   }
 }
 
+/*
+ * The drift of the colour fields on the 1920x1080 scene background.
+ *
+ * Translate and nothing else. Scaling or fading a 60px-blurred layer forces it
+ * to be re-rasterised every frame; translating one is a compositor transform
+ * the GPU already has the texture for, which is what makes a permanently
+ * running animation affordable on a machine that is also encoding.
+ */
+@keyframes obs-scene-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(74px, 52px, 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .obs-banner-layer {
+  .obs-banner-layer,
+  .obs-scene-orb {
     animation: none !important;
   }
 }

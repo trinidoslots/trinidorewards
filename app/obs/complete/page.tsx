@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
-import { COLUMN_EDGE, COLUMN_GRADIENT } from "@/lib/obs-theme"
+import { COLUMN_EDGE, COLUMN_GRADIENT, SCENE_GRADIENT, SCENE_ORBS } from "@/lib/obs-theme"
 
 /**
  * Every overlay in one browser source, 1920×1080.
@@ -39,6 +39,18 @@ function Complete() {
   const streamWidth = Number(params.get("stream")) || 360
   const channel = params.get("channel")?.trim()
   const preview = params.get("preview") === "1"
+
+  /**
+   * ?gap=1 leaves the middle of the scene unpainted.
+   *
+   * The scene background fills all 1920x1080, so on its own this source now
+   * covers whatever is behind it. That is right when it is the bottom layer in
+   * OBS and the slot capture sits on top of it, and wrong when it is the top
+   * layer over a full-screen capture — in that case the middle has to stay
+   * empty, which is what this switches back to. The columns and the bar are
+   * unaffected either way.
+   */
+  const gap = params.get("gap") === "1"
 
   // Passed through so one ?preview=1 on this page previews all three, rather
   // than each having to be opened on its own to be positioned.
@@ -83,6 +95,8 @@ function Complete() {
       className="relative overflow-hidden bg-transparent"
       style={{ width: SCENE.width, height: SCENE.height }}
     >
+      {!gap && <SceneBackground />}
+
       <Frame
         title="Top bar"
         src={`/obs/top-bar${query("embedded=1")}`}
@@ -96,6 +110,47 @@ function Complete() {
       <Column style={{ top: TOP_BAR_HEIGHT, right: 0, width: streamWidth, height: columnHeight }} edge="left">
         <Frame title="Stream column" src={`/obs/stream${streamQuery}`} style={{ inset: 0, width: "100%", height: "100%" }} />
       </Column>
+    </div>
+  )
+}
+
+/**
+ * The scene's ground: a diagonal gradient with three slow colour fields on it.
+ *
+ * Painted here rather than inside any of the three sources, because it is one
+ * surface spanning the whole 1920x1080 and each source only knows about its own
+ * box. It is also the reason the columns are no longer trying to continue the
+ * bar's gradient — there is something behind them now for them to sit on.
+ *
+ * Rendered first, so the bar and the columns paint over it on DOM order alone.
+ */
+function SceneBackground() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+      style={{ backgroundImage: SCENE_GRADIENT, zIndex: 0 }}
+    >
+      {SCENE_ORBS.map((orb) => (
+        <div
+          key={orb.color}
+          className="obs-scene-orb absolute rounded-full"
+          style={{
+            width: orb.size,
+            height: orb.size,
+            left: orb.left,
+            top: orb.top,
+            background: `radial-gradient(circle, ${orb.color} 0%, transparent 70%)`,
+            opacity: orb.opacity,
+            filter: "blur(60px)",
+            // alternate, so it eases back rather than snapping to the start —
+            // a jump every 37 seconds is exactly the kind of thing that is
+            // invisible in a preview and obvious on a stream.
+            animation: `obs-scene-drift ${orb.duration} ease-in-out infinite alternate`,
+            willChange: "transform",
+          }}
+        />
+      ))}
     </div>
   )
 }

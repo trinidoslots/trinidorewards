@@ -11,9 +11,23 @@
 
 import { ACCENTS } from "@/components/ui/panel"
 
+/**
+ * The side columns' surface.
+ *
+ * Darker than the top bar on purpose, so the two columns read as panels sitting
+ * on the scene rather than as more of the bar. It is also the exact colour the
+ * scene background starts from in its top-left corner, which is what makes the
+ * hunt column disappear into the background up there instead of ending in a
+ * visible rectangle.
+ *
+ * Alpha stays below 1: an overlay that is completely opaque cuts a hole in the
+ * capture behind it.
+ */
+const COLUMN_SURFACE = "rgba(15, 18, 26, 0.95)"
+
 export const OBS = {
   /** The column itself. Translucent so the stream shows through a little. */
-  shell: "rgba(11, 11, 13, 0.92)",
+  shell: COLUMN_SURFACE,
 
   /** Event cards lifted off the column — the site's Panel surface. */
   card: "rgba(255, 255, 255, 0.022)",
@@ -100,13 +114,56 @@ export const CHAT_EMOTE_PX = 31
  */
 export const SCENE_TOP = "rgba(26, 31, 43, 0.95)"
 export const SCENE_SEAM = "rgba(25, 30, 42, 0.949)"
-export const SCENE_BASE = "rgba(11, 11, 13, 0.92)"
 
-/** The top bar: the first 50px of the scene gradient. */
+/** The top bar: unchanged, and the one surface in the scene that is. */
 export const TOP_BAR_GRADIENT = `linear-gradient(to bottom, ${SCENE_TOP}, ${SCENE_SEAM})`
 
-/** Each column: the remaining 1030. */
-export const COLUMN_GRADIENT = `linear-gradient(to bottom, ${SCENE_SEAM} 0%, ${SCENE_BASE} 100%)`
+/**
+ * Each column.
+ *
+ * No longer continues the bar's gradient — the columns are deliberately darker
+ * than the bar now, so there is a step at the seam where there used to be none.
+ * That step is the point: it is what separates the bar from the panels under it.
+ * The hairline the bar draws along its own bottom edge is still suppressed when
+ * embedded, so the step is a change in tone and not a line.
+ *
+ * Barely a gradient at all — six values of lift from top to bottom, just enough
+ * that 1030px of flat colour does not read as a dead rectangle.
+ */
+const COLUMN_BASE = "rgba(9, 11, 17, 0.95)"
+export const COLUMN_GRADIENT = `linear-gradient(to bottom, ${COLUMN_SURFACE} 0%, ${COLUMN_BASE} 100%)`
+
+/**
+ * The scene behind everything, on the diagonal.
+ *
+ * Starts at exactly COLUMN_SURFACE in the top-left corner, so the hunt column
+ * has no edge against it up there, and lifts towards the bottom-right. The
+ * first stop is held to 18% rather than starting to lift immediately, which
+ * keeps the whole top-left quadrant — the part the hunt column sits in — at the
+ * column's own tone instead of drifting off it within the first few hundred
+ * pixels.
+ */
+const SCENE_FAR = "rgba(33, 40, 56, 0.95)"
+export const SCENE_GRADIENT =
+  `linear-gradient(to bottom right, ${COLUMN_SURFACE} 0%, ${COLUMN_SURFACE} 18%, ${SCENE_FAR} 100%)`
+
+/**
+ * The moving part: three big, heavily blurred colour fields drifting over the
+ * gradient, in the site's own accents.
+ *
+ * Translate only — no scale, no opacity keyframes, nothing that touches a
+ * colour. A translated layer is handed to the compositor once and moved; add a
+ * scale and the 60px blur has to be re-rasterised every frame, on the machine
+ * that is also encoding the stream.
+ *
+ * All three sit right-of-centre and low, because the top-left corner is meant
+ * to stay the flat column tone.
+ */
+export const SCENE_ORBS = [
+  { color: ACCENTS.blue, size: 760, left: 1180, top: 560, opacity: 0.1, duration: "37s" },
+  { color: ACCENTS.purple, size: 640, left: 1480, top: 40, opacity: 0.07, duration: "29s" },
+  { color: ACCENTS.green, size: 600, left: 620, top: 720, opacity: 0.05, duration: "43s" },
+] as const
 
 /** The hairline down the inner edge of each column, as on the site. */
 export const COLUMN_EDGE = "rgba(255, 255, 255, 0.08)"
