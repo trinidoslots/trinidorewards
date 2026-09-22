@@ -2,14 +2,15 @@
 
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
-import { COLUMN_EDGE, COLUMN_GRADIENT, SCENE_GRADIENT, SCENE_ORBS } from "@/lib/obs-theme"
+import { COLUMN_GRADIENT, SCENE_GRADIENT, SCENE_ORBS } from "@/lib/obs-theme"
 
 /**
  * Every overlay in one browser source, 1920×1080.
  *
  * The top bar across the top, the bonus hunt down the left, the stream column
- * down the right, and nothing in the middle — that gap is the point, it is
- * where the slot shows through.
+ * down the right, and a painted scene behind all three. The middle used to be
+ * left empty for the slot to show through; it is filled now, and ?gap=1 puts
+ * that back — see the note on `gap` below.
  *
  * The three are embedded as frames rather than imported as components. Each one
  * is a page in its own right: it reads its own query string, opens its own
@@ -62,10 +63,10 @@ function Complete() {
     return parts.length ? `?${parts.join("&")}` : ""
   }
 
-  // The columns run transparent so the gradient painted behind them is not
-  // hidden under each widget's own 92%-opaque shell. Three flat panels read as
-  // three widgets that happen to be adjacent; one gradient per column, starting
-  // where the top bar leaves off, reads as one overlay.
+  // The columns run transparent so what is painted behind them is not hidden
+  // under each widget's own opaque shell. Three flat panels read as three
+  // widgets that happen to be adjacent; one scene with two panels on it reads
+  // as one overlay.
   const columnQuery = query("transparent=1")
 
   // Everything the stream column alone understands has to be forwarded to it,
@@ -103,11 +104,11 @@ function Complete() {
         style={{ top: 0, left: 0, width: SCENE.width, height: TOP_BAR_HEIGHT }}
       />
 
-      <Column style={{ top: TOP_BAR_HEIGHT, left: 0, width: huntWidth, height: columnHeight }} edge="right">
+      <Column style={{ top: TOP_BAR_HEIGHT, left: 0, width: huntWidth, height: columnHeight }}>
         <Frame title="Bonus hunt" src={`/obs/hunt${columnQuery}`} style={{ inset: 0, width: "100%", height: "100%" }} />
       </Column>
 
-      <Column style={{ top: TOP_BAR_HEIGHT, right: 0, width: streamWidth, height: columnHeight }} edge="left">
+      <Column style={{ top: TOP_BAR_HEIGHT, right: 0, width: streamWidth, height: columnHeight }}>
         <Frame title="Stream column" src={`/obs/stream${streamQuery}`} style={{ inset: 0, width: "100%", height: "100%" }} />
       </Column>
     </div>
@@ -160,28 +161,21 @@ function SceneBackground() {
  *
  * The gradient lives out here rather than inside each widget because it has to
  * start from the same tone on both sides and at the same y — three widgets each
- * drawing their own would drift the moment one of them changed. `edge` is the
- * side facing the gameplay, which gets the site's hairline; the outer side is
- * the edge of the screen and needs nothing.
+ * drawing their own would drift the moment one of them changed.
+ *
+ * No hairline down the inner edge any more. A 1px white line at 8% is plainly
+ * visible on a surface this dark, and on a scene that paints its own ground it
+ * was outlining a panel that does not need an outline.
  */
 function Column({
   style,
-  edge,
   children,
 }: {
   style: React.CSSProperties
-  edge: "left" | "right"
   children: React.ReactNode
 }) {
   return (
-    <div
-      className="absolute overflow-hidden"
-      style={{
-        ...style,
-        backgroundImage: COLUMN_GRADIENT,
-        [edge === "right" ? "borderRight" : "borderLeft"]: `1px solid ${COLUMN_EDGE}`,
-      }}
-    >
+    <div className="absolute overflow-hidden" style={{ ...style, backgroundImage: COLUMN_GRADIENT }}>
       {children}
     </div>
   )
