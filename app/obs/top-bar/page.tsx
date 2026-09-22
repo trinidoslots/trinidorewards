@@ -62,6 +62,18 @@ interface Info {
  */
 const ICON_CLASS = "w-4 h-4 shrink-0 text-white"
 
+/** The channel the follower count is for. */
+const KICK_SLUG = "trinidoslots"
+
+/** Kick's mark, which lucide does not carry. Drawn to lucide's 24px box. */
+function KickIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
+      <path d="M3 3h5v6l4.5-6H19l-6 8 6 8h-6.5L8 15v6H3z" />
+    </svg>
+  )
+}
+
 /** Ethereum, which lucide does not carry. Drawn to lucide's 24px box. */
 function EthIcon({ className }: { className?: string }) {
   return (
@@ -87,6 +99,8 @@ function TopBarWidget() {
   })
   const [currentTime, setCurrentTime] = useState("")
   const [currentTrack, setCurrentTrack] = useState("")
+  // null until the first successful read — see the render for why it matters.
+  const [kickFollowers, setKickFollowers] = useState<number | null>(null)
   const [timers, setTimers] = useState<Timer[]>([])
   const [infos, setInfos] = useState<Info[]>([])
   const [loading, setLoading] = useState(true)
@@ -110,6 +124,35 @@ function TopBarWidget() {
     updateTime()
     const interval = setInterval(updateTime, 1000)
     return () => clearInterval(interval)
+  }, [])
+
+  /**
+   * The follower count, every minute.
+   *
+   * On failure the previous number is kept rather than cleared: a follower
+   * count that blinks out whenever Kick is slow is worse than one that is a
+   * minute stale, and this runs unattended for a whole stream.
+   */
+  useEffect(() => {
+    let cancelled = false
+
+    const readFollowers = async () => {
+      try {
+        const response = await fetch(`/api/kick/followers?slug=${KICK_SLUG}`, { cache: "no-store" })
+        if (!response.ok) return
+        const payload = await response.json()
+        if (!cancelled && typeof payload?.followers === "number") setKickFollowers(payload.followers)
+      } catch {
+        // Keep whatever was last known.
+      }
+    }
+
+    readFollowers()
+    const interval = setInterval(readFollowers, 60_000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [])
 
   // Calculate remaining seconds until end_time
@@ -518,6 +561,18 @@ function TopBarWidget() {
       <div className="flex items-center gap-3 text-white ml-4 flex-shrink-0 text-base">
         {/* Separator */}
         <span className="text-[#4D84FF]/50">|</span>
+
+        {/* Kick followers. Hidden until the number is known, so a failed fetch
+            leaves a gap rather than a confident 0 next to the wallet. */}
+        {kickFollowers !== null && (
+          <>
+            <div className="flex items-center gap-1 text-white">
+              <KickIcon className={ICON_CLASS} />
+              <span className="font-bold">{kickFollowers.toLocaleString("en-US")}</span>
+            </div>
+            <span className="text-[#4D84FF]/50">|</span>
+          </>
+        )}
 
         {/* Wallet Difference */}
         <div className="flex items-center gap-1 text-white">
