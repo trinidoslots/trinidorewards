@@ -1,6 +1,6 @@
 "use client"
 
-import type { CSSProperties } from "react"
+import type { CSSProperties, TransitionEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { BADGE_GRADIENT, BADGE_TEXT, formatMoney, type NowPlayingRow } from "@/lib/now-playing"
@@ -166,18 +166,31 @@ function Divider() {
 }
 
 /**
- * How long the bar takes to fade, each way.
+ * Backstop for the fade-out, in ms.
  *
- * Must match the transition on .obs-now-playing in globals.css. If the CSS is
- * slower than this, the text is swapped while the old game is still readable.
+ * The swap is normally driven by the transition actually ending, so there is
+ * no waiting around after the text has gone. This only covers the cases where
+ * no transitionend ever arrives: reduced motion turns the transition off, and
+ * a hidden document stops it running at all. A little longer than the CSS
+ * duration so it does not beat a transition that is merely late.
  */
-const OBS_FADE_MS = 220
+const OBS_FADE_BACKSTOP_MS = 320
 
-/** The game on screen, and whether it is currently faded in. */
+/**
+ * The game on screen, whether its text is faded in, and the handler that
+ * swaps it once the old text has gone.
+ */
 function useFadedRow(row: NowPlayingRow) {
   const key = `${row.slot_name}|${row.updated_at}`
   const [shown, setShown] = useState<NowPlayingRow | null>(null)
   const shownKey = shown && `${shown.slot_name}|${shown.updated_at}`
+
+  // Read inside the swap rather than captured, so a game that changes twice
+  // during one fade lands on the newest one and not the one in the middle.
+  const latest = useRef(row)
+  latest.current = row
+
+  const commit = () => setShown(latest.current)
 
   useEffect(() => {
     if (shownKey === key) return
@@ -185,16 +198,24 @@ function useFadedRow(row: NowPlayingRow) {
     // First game: adopt it now. It still fades in, because the first paint
     // happened with nothing shown and therefore at opacity 0.
     if (shown === null) {
-      setShown(row)
+      commit()
       return
     }
 
-    // A different game: let the old one fade out before its text is replaced.
-    const swap = setTimeout(() => setShown(row), OBS_FADE_MS)
-    return () => clearTimeout(swap)
-  }, [key, row, shown, shownKey])
+    const backstop = setTimeout(commit, OBS_FADE_BACKSTOP_MS)
+    return () => clearTimeout(backstop)
+  }, [key, shown, shownKey])
 
-  return { shown: shown ?? row, visible: shownKey === key }
+  return {
+    shown: shown ?? row,
+    visible: shownKey === key,
+    // Swap on the frame the fade-out finishes, so the fade-in starts straight
+    // away. A fixed timer instead left the bar sitting empty for the gap
+    // between "no longer visible" and "timer due".
+    onFadedOut: (event: TransitionEvent) => {
+      if (event.propertyName === "opacity" && shownKey !== key) commit()
+    },
+  }
 }
 
 export function NowPlayingStrip({
@@ -206,14 +227,19 @@ export function NowPlayingStrip({
   showArt?: boolean
   style?: CSSProperties
 }) {
-  // Out on the old game, in on the new. Not a crossfade: one bar, faded to
-  // nothing and back, so there is never a moment with two sets of text over
-  // each other or a half-transparent bar showing the capture through it.
+  // Out on the old game, in on the new. Not a crossfade: one set of text,
+  // faded to nothing and back, so there is never a moment with two games
+  // written over each other.
+  //
+  // The bar itself does not fade. Only its contents do — badge, name,
+  // provider, Potential, Best Win. Fading the whole element took the
+  // background with it, and a bar that vanishes and returns around a change of
+  // text reads as the overlay dropping out, not as the game changing.
   //
   // This is also why the element is no longer keyed on the game. A key made
   // React throw the old bar away the instant the game changed, which is a cut,
   // not a fade — only the arrival was ever animated.
-  const { shown, visible } = useFadedRow(row)
+  const { shown, visible, onFadedOut } = useFadedRow(row)
 
   const bestWin = formatMoney(shown.best_win)
   const art = showArt && shown.image_url
@@ -226,65 +252,70 @@ export function NowPlayingStrip({
         backgroundColor: STRIP.background,
         fontFamily: FONT_STACK,
         padding: `0 ${u(0.34)}`,
-        opacity: visible ? 1 : 0,
         // No shared gap. Every space in the reference is a different width, so
         // each one is set on the element it belongs to.
         gap: 0,
         ...style,
       }}
     >
-      {art && (
-        <img
-          src={shown.image_url as string}
-          alt=""
-          className="shrink-0 object-cover"
-          style={{ height: u(0.66), aspectRatio: "1 / 1", borderRadius: u(0.11) }}
-        />
-      )}
-
-      {shown.badge && (
-        <span
-          className="flex shrink-0 items-center whitespace-nowrap font-bold"
-          style={{
-            backgroundImage: BADGE_GRADIENT,
-            color: BADGE_TEXT,
-            height: u(0.5),
-            padding: `0 ${u(0.25)}`,
-            borderRadius: u(0.15),
-            // The chip keeps its 0.5h height — it was too tall once already.
-            // Only the text grew, from 0.26h to 0.30h, so it fills a little
-            // more of the chip rather than making the chip bigger.
-            fontSize: u(0.3),
-            marginRight: u(0.41),
-          }}
-        >
-          {shown.badge}
-        </span>
-      )}
-
-      {/* The one thing allowed to shrink. Everything else is a fixed chip; if
-          the source is narrower than the strip wants, a clipped title reads as
-          a long name and a clipped figure reads as a wrong number. */}
-      <span
-        className="min-w-0 flex-shrink overflow-hidden text-ellipsis whitespace-nowrap font-bold"
-        style={{ color: STRIP.name, fontSize: u(0.4), letterSpacing: "-0.005em" }}
+      <div
+        className="obs-now-playing-content flex min-w-0 flex-1 items-center"
+        style={{ opacity: visible ? 1 : 0 }}
+        onTransitionEnd={onFadedOut}
       >
-        {shown.slot_name}
-      </span>
+        {art && (
+          <img
+            src={shown.image_url as string}
+            alt=""
+            className="shrink-0 object-cover"
+            style={{ height: u(0.66), aspectRatio: "1 / 1", borderRadius: u(0.11) }}
+          />
+        )}
 
-      {shown.provider && (
+        {shown.badge && (
+          <span
+            className="flex shrink-0 items-center whitespace-nowrap font-bold"
+            style={{
+              backgroundImage: BADGE_GRADIENT,
+              color: BADGE_TEXT,
+              height: u(0.5),
+              padding: `0 ${u(0.25)}`,
+              borderRadius: u(0.15),
+              // The chip keeps its 0.5h height — it was too tall once already.
+              // Only the text grew, from 0.26h to 0.30h, so it fills a little
+              // more of the chip rather than making the chip bigger.
+              fontSize: u(0.3),
+              marginRight: u(0.41),
+            }}
+          >
+            {shown.badge}
+          </span>
+        )}
+
+        {/* The one thing allowed to shrink. Everything else is a fixed chip; if
+            the source is narrower than the strip wants, a clipped title reads as
+            a long name and a clipped figure reads as a wrong number. */}
         <span
-          className="shrink-0 whitespace-nowrap"
-          style={{ color: STRIP.muted, fontSize: u(0.4), marginLeft: u(0.18) }}
+          className="min-w-0 flex-shrink overflow-hidden text-ellipsis whitespace-nowrap font-bold"
+          style={{ color: STRIP.name, fontSize: u(0.4), letterSpacing: "-0.005em" }}
         >
-          {shown.provider}
+          {shown.slot_name}
         </span>
-      )}
 
-      {(shown.max_win || bestWin) && <Divider />}
+        {shown.provider && (
+          <span
+            className="shrink-0 whitespace-nowrap"
+            style={{ color: STRIP.muted, fontSize: u(0.4), marginLeft: u(0.18) }}
+          >
+            {shown.provider}
+          </span>
+        )}
 
-      {shown.max_win && <Stat label="Potential" value={shown.max_win} />}
-      {bestWin && <Stat label="Best Win" value={bestWin} gap={shown.max_win ? 0.44 : 0} />}
+        {(shown.max_win || bestWin) && <Divider />}
+
+        {shown.max_win && <Stat label="Potential" value={shown.max_win} />}
+        {bestWin && <Stat label="Best Win" value={bestWin} gap={shown.max_win ? 0.44 : 0} />}
+      </div>
     </div>
   )
 }

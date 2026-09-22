@@ -389,19 +389,26 @@
 }
 
 /*
- * The now-playing bar arriving, and changing game: a fade, nothing else.
+ * The now-playing bar changing game: its contents fade, the bar does not.
+ *
+ * The transition is on the contents, not on .obs-now-playing itself, so the
+ * background stays put throughout. Fading the bar took the background with it,
+ * and a bar that disappears and comes back around a change of text reads as
+ * the overlay dropping out rather than as the game changing.
+ *
+ * Linear, not eased. With a curve the opacity is visually at zero well before
+ * the transition formally ends, and the swap — which waits for the end — then
+ * left the bar empty for the remainder. Linear puts "invisible" and "finished"
+ * at the same instant, so the new text starts arriving as the old one lands.
  *
  * A transition rather than a keyframe animation, because the component drives
- * it — out on the old game, in on the new — and a keyframe can only play on
- * mount. Its duration is OBS_FADE_MS in components/obs/casino-strips.tsx;
- * the two have to agree or the swap happens while the bar is still visible.
- *
- * No transform is involved, which also retires a trap: the old animation
- * ended on `transform: none`, and that beat the inline translateY(-50%) that
- * centres the bar when it is placed with ?align=middle.
+ * it in both directions and a keyframe can only play on mount. No transform is
+ * involved either, which retires a trap: the old animation ended on
+ * `transform: none`, and that beat the inline translateY(-50%) that centres
+ * the bar when it is placed with ?align=middle.
  */
-.obs-now-playing {
-  transition: opacity 220ms ease;
+.obs-now-playing-content {
+  transition: opacity 200ms linear;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -410,7 +417,9 @@
     animation: none !important;
   }
 
-  .obs-now-playing {
+  /* No transitionend fires without a transition, so the component's backstop
+     timer is what swaps the text here. */
+  .obs-now-playing-content {
     transition: none;
   }
 }
