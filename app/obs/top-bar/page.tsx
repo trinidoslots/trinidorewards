@@ -5,7 +5,7 @@ import { createBrowserClient } from "@/lib/supabase/client"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2, Wallet } from "lucide-react"
+import { Bitcoin, Loader2, Music, Timer as TimerIcon, Wallet } from "lucide-react"
 import { AnimatedAmount } from "@/components/animated-amount"
 import { totalsFor } from "@/lib/transactions"
 import { COLUMN_EDGE, TOP_BAR_GRADIENT } from "@/lib/obs-theme"
@@ -49,6 +49,26 @@ interface Info {
   active: boolean
   word_styles?: WordStyle[]
   data_url?: string
+}
+
+/**
+ * Every icon in the strip, at one size and one colour.
+ *
+ * They used to be a mix: two lucide glyphs, and ♫ ⏱ ₿ Ξ typed as text. Text
+ * glyphs are the font's drawing, not the set's — different weights, different
+ * optical sizes, and ⏱ renders as a colour emoji on some builds — so the row
+ * read as four icons from four places. These are all lucide at 16px, stroke
+ * 2, white, which is also what the user-uploaded icons are forced to.
+ */
+const ICON_CLASS = "w-4 h-4 shrink-0 text-white"
+
+/** Ethereum, which lucide does not carry. Drawn to lucide's 24px box. */
+function EthIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
+      <path d="M12 2 5.5 12.3 12 16.1l6.5-3.8zM5.5 13.6 12 22l6.5-8.4L12 17.4z" />
+    </svg>
+  )
 }
 
 function TopBarWidget() {
@@ -394,8 +414,6 @@ function TopBarWidget() {
     return `$${Math.round(price).toLocaleString("en-US")}`
   }
 
-  const diffColor = walletStats.difference >= 0 ? "text-green-400" : "text-red-400"
-
   return (
     <div
       className="w-screen border-b px-4 py-2 overflow-hidden flex items-center justify-between"
@@ -424,7 +442,7 @@ function TopBarWidget() {
         {currentTrack && (
           <>
             <div className="flex items-center gap-1 text-[#7FB3FF]">
-              <span>♫</span>
+              <Music className={ICON_CLASS} />
               <span>{currentTrack}</span>
             </div>
             <span className="text-[#4D84FF]/50">|</span>
@@ -442,7 +460,7 @@ function TopBarWidget() {
                     {timer.data_url ? (
                       <img src={timer.data_url} alt="timer icon" className="w-5 h-5" style={{ filter: "brightness(0) saturate(100%) invert(1)" }} />
                     ) : (
-                      <span className={timer.boldIcon ? "font-bold" : ""}>⏱</span>
+                      <TimerIcon className={ICON_CLASS} />
                     )}
                     <span className={timer.boldMessage ? "font-bold" : ""}>{timer.message}</span>
                     <span className={timer.boldTime ? "font-bold" : ""}>
@@ -503,19 +521,19 @@ function TopBarWidget() {
 
         {/* Wallet Difference */}
         <div className="flex items-center gap-1 text-white">
-          <Wallet className="w-4 h-4 text-[#7FB3FF]" />
-          <AnimatedAmount value={walletStats.difference} className="font-bold" toneClassName={diffColor} />
+          <Wallet className={ICON_CLASS} />
+          <AnimatedAmount value={walletStats.difference} className="font-bold" toneClassName="text-white" />
         </div>
 
         {/* BTC Price */}
         <div className="flex items-center gap-1 text-white">
-          <span className="text-[#7FB3FF] font-bold">₿</span>
+          <Bitcoin className={ICON_CLASS} />
           <span className="font-bold">{formatCrypto(cryptoPrices.btc)}</span>
         </div>
 
         {/* ETH Price */}
         <div className="flex items-center gap-1 text-white">
-          <span className="text-[#7FB3FF] font-bold">Ξ</span>
+          <EthIcon className={ICON_CLASS} />
           <span className="font-bold">{formatCrypto(cryptoPrices.eth)}</span>
         </div>
 
