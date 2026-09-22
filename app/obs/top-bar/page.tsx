@@ -5,7 +5,7 @@ import { createBrowserClient } from "@/lib/supabase/client"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Bitcoin, Loader2, Music, Timer as TimerIcon, Wallet } from "lucide-react"
+import { Loader2, Music, Timer as TimerIcon } from "lucide-react"
 import { AnimatedAmount } from "@/components/animated-amount"
 import { totalsFor } from "@/lib/transactions"
 import { COLUMN_EDGE, TOP_BAR_GRADIENT } from "@/lib/obs-theme"
@@ -54,11 +54,19 @@ interface Info {
 /**
  * Every icon in the strip, at one size and one colour.
  *
- * They used to be a mix: two lucide glyphs, and ♫ ⏱ ₿ Ξ typed as text. Text
- * glyphs are the font's drawing, not the set's — different weights, different
- * optical sizes, and ⏱ renders as a colour emoji on some builds — so the row
- * read as four icons from four places. These are all lucide at 16px, stroke
- * 2, white, which is also what the user-uploaded icons are forced to.
+ * They used to be a mix: two lucide glyphs, and ♫ ⏱ ₿ Ξ typed as text. A text
+ * character is the font's drawing rather than an icon set's — its own weight,
+ * its own optical size, and on some builds the timer one renders as a colour
+ * emoji — so the row read as four icons from four places.
+ *
+ * Now they are drawn: Kick's own mark, and the Bitcoin, Ethereum and wallet
+ * set supplied below. Music and the timer are still lucide, because no
+ * replacement was supplied for them, and both only appear when there is a
+ * track or a running timer.
+ *
+ * 16px square and white, which is also what user-uploaded custom icons are
+ * forced to. The Kick mark is the one exception on width: it is taller than
+ * it is wide and sets its own.
  */
 const ICON_CLASS = "w-4 h-4 shrink-0 text-white"
 
@@ -92,11 +100,74 @@ function KickIcon({ className }: { className?: string }) {
   )
 }
 
-/** Ethereum, which lucide does not carry. Drawn to lucide's 24px box. */
-function EthIcon({ className }: { className?: string }) {
+/*
+ * Bitcoin, Ethereum and the wallet, from the set supplied in Downloads/icons
+ * neu — path for path, at their own 24x24 box.
+ *
+ * The files paint #C8C8D0. That is replaced by currentColor throughout, so the
+ * icons take the strip's white like everything else and a single class changes
+ * all three. To go back to the supplied grey, set that colour on the wrapper
+ * rather than on the paths.
+ *
+ * Their C2PA metadata is dropped: a few kilobytes of signed provenance per
+ * icon, inlined into every page load, describing where the file came from
+ * rather than what it draws.
+ */
+
+/** A stroked ₿, the letterform rather than a roundel. */
+function BitcoinIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
-      <path d="M12 2 5.5 12.3 12 16.1l6.5-3.8zM5.5 13.6 12 22l6.5-8.4L12 17.4z" />
+    <svg viewBox="0 0 24 24" aria-hidden className={className}>
+      <g
+        transform="translate(-0.6,0)"
+        fill="none"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        strokeWidth="2.2"
+      >
+        <path d="M6.5 6 H13.5 A3 3 0 0 1 13.5 12 H8.2" />
+        <path d="M8.2 12 H14.3 A3.5 3.5 0 0 1 14.3 19 H6.5" />
+        <path d="M8.2 6 V19" />
+        <path d="M10.4 3.4 V6 M13.4 3.4 V6 M10.4 19 V21.6 M13.4 19 V21.6" strokeWidth="1.9" />
+      </g>
+    </svg>
+  )
+}
+
+/** The Ethereum diamond, upper and lower halves. */
+function EthereumIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className}>
+      <g fill="currentColor" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round">
+        <path d="M12 2.5 L18 12 L12 15.4 L6 12 Z" />
+        <path d="M6 14 L12 17.5 L18 14 L12 21.5 Z" />
+      </g>
+    </svg>
+  )
+}
+
+/**
+ * The wallet, cut out of a filled square by a mask.
+ *
+ * The mask's id is namespaced. In the file it is "w", and an id that short in
+ * a page that also renders a hunt board and a scene column is asking for a
+ * collision — mask references resolve document-wide, and the loser silently
+ * renders as a solid block.
+ */
+function WalletIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className}>
+      <defs>
+        <mask id="obs-top-bar-wallet">
+          <rect width="24" height="24" fill="#000" />
+          <rect x="2.5" y="5.5" width="17" height="13" rx="3.5" fill="#fff" />
+          <rect x="13" y="8.6" width="9.5" height="6.8" rx="3.4" fill="#000" />
+          <rect x="14" y="9.5" width="7.5" height="5" rx="2.5" fill="#fff" />
+          <circle cx="16.6" cy="12" r="1.05" fill="#000" />
+        </mask>
+      </defs>
+      <rect width="24" height="24" fill="currentColor" mask="url(#obs-top-bar-wallet)" />
     </svg>
   )
 }
@@ -593,19 +664,19 @@ function TopBarWidget() {
 
         {/* Wallet Difference */}
         <div className="flex items-center gap-1 text-white">
-          <Wallet className={ICON_CLASS} />
+          <WalletIcon className={ICON_CLASS} />
           <AnimatedAmount value={walletStats.difference} className="font-bold" toneClassName="text-white" />
         </div>
 
         {/* BTC Price */}
         <div className="flex items-center gap-1 text-white">
-          <Bitcoin className={ICON_CLASS} />
+          <BitcoinIcon className={ICON_CLASS} />
           <span className="font-bold">{formatCrypto(cryptoPrices.btc)}</span>
         </div>
 
         {/* ETH Price */}
         <div className="flex items-center gap-1 text-white">
-          <EthIcon className={ICON_CLASS} />
+          <EthereumIcon className={ICON_CLASS} />
           <span className="font-bold">{formatCrypto(cryptoPrices.eth)}</span>
         </div>
 
