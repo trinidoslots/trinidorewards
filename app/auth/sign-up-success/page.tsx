@@ -1,5 +1,10 @@
 import Link from "next/link"
 import { AuthShell } from "@/components/auth-shell"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Check your email",
+}
 
 export default function SignUpSuccessPage() {
   return (

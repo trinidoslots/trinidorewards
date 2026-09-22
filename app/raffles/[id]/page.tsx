@@ -10,6 +10,9 @@ import RaffleEntryButton from "@/components/raffle-entry-button"
 import { calculateRaffleStatus, formatDrawDate } from "@/lib/raffle-utils"
 import { PageBody, PageHero } from "@/components/page-hero"
 
+// No static `metadata` here: generateMetadata below names the page after the
+// raffle itself, and a route may declare one or the other, never both.
+
 /**
  * One raffle.
  *
@@ -43,7 +46,9 @@ export async function generateMetadata({ params }: Params) {
   if (!raffle) return { title: "Raffle not found" }
 
   return {
-    title: `${raffle.title} | Raffles`,
+    // Just the raffle's name — the root layout's template appends the brand,
+    // so "X | Raffles" here would come out as "X | Raffles · TrinidoRewards".
+    title: raffle.title,
     description: raffle.description || "Enter this raffle to win.",
     openGraph: {
       title: raffle.title,

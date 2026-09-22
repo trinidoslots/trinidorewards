@@ -6,6 +6,11 @@ import { RaffleCountdown } from "@/components/raffle-countdown"
 import { RaffleSweeper } from "@/components/raffle-sweeper"
 import { calculateRaffleStatus, formatDrawDate, isEndingSoon } from "@/lib/raffle-utils"
 import { PageBody, PageHero } from "@/components/page-hero"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Raffles",
+}
 
 /**
  * Every raffle, live ones first.

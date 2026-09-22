@@ -1,5 +1,10 @@
 import { PageBody, PageHero } from "@/components/page-hero"
 import { Panel } from "@/components/ui/panel"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Terms",
+}
 
 export default function Page() {
   return (

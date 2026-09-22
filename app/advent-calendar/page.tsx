@@ -1,6 +1,11 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { AdventCalendarClient } from "@/components/advent-calendar-client"
 import { PageBody, PageHero } from "@/components/page-hero"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Advent calendar",
+}
 
 interface AdventReward {
   id: string

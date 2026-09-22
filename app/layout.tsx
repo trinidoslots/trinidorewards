@@ -21,10 +21,23 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] })
  */
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" })
 
+/**
+ * The site's name and the shape every page title takes.
+ *
+ * `template` is what each page fills in, so a page declares only its own name
+ * and the brand is appended once, here. `default` covers anything that does
+ * not declare one.
+ *
+ * The icon is app/icon.svg, which Next links by file convention; it is the
+ * mark from the design canvas, the same four shapes the navigation draws.
+ */
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.app",
+  title: {
+    default: "TrinidoRewards",
+    template: "%s · TrinidoRewards",
+  },
+  description: "Rewards, leaderboards and bonus hunts for the TrinidoSlots community.",
+  applicationName: "TrinidoRewards",
 }
 
 export default function RootLayout({

@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react"
 import { LoginModal } from "./login-modal"
+import { BrandMark } from "@/components/brand-mark"
 import { createClient } from "@/lib/supabase/client"
 import { MonoLabel } from "@/components/ui/panel"
 import {
@@ -130,16 +131,12 @@ export function MainNav() {
           }`}
         >
           {!collapsed && (
-            <Link href="/" className="flex min-w-0 items-center" aria-label="TrinidoSlots home">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/[0.10] bg-white/[0.04]">
-                {/* eslint-disable-next-line @next/next/no-img-element -- external blob host */}
-                <img
-                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-Photoroom-KROuRFGCCVXHUzWnmDtLWy44vNgUV8.png"
-                  alt="TrinidoSlots mascot"
-                  className="h-full w-full object-cover object-top"
-                />
-              </span>
-              <span className="ml-2 truncate text-[13px] font-semibold tracking-tight text-white">TrinidoSlots</span>
+            <Link href="/" className="flex min-w-0 items-center" aria-label="TrinidoRewards home">
+              {/* No wrapper: the mark draws its own tile and hairline, and the
+                  mascot's frame around it doubled the border. 28px and 8px to
+                  the name, as the canvas's navigation artboard has it. */}
+              <BrandMark className="h-7 w-7 shrink-0" />
+              <span className="ml-2 truncate text-[13px] font-bold tracking-tight text-white">TrinidoRewards</span>
             </Link>
           )}
           <button

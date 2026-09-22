@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { MonoLabel } from "@/components/ui/panel"
+import { BrandMark } from "@/components/brand-mark"
 
 const NAV = [
   {
@@ -56,11 +57,10 @@ export function Footer() {
           {/* Brand */}
           <div className="min-w-48">
             <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-md border border-white/[0.10]">
-                {/* eslint-disable-next-line @next/next/no-img-element -- static asset */}
-                <img src="/favicon.png" alt="" className="h-full w-full object-cover" />
-              </span>
-              <span className="text-[13px] font-semibold text-white">TrinidoRewards</span>
+              {/* The mark draws its own tile, so no framing span — the same
+                  change the navigation needed. */}
+              <BrandMark className="h-7 w-7 shrink-0" />
+              <span className="text-[13px] font-bold tracking-tight text-white">TrinidoRewards</span>
             </div>
             <MonoLabel className="mt-3 block text-white/25">© 2026 trinidorewards.com</MonoLabel>
           </div>

@@ -7,6 +7,11 @@ import { cookies } from "next/headers"
 import { PreviousHuntsPanel } from "@/components/previous-hunts-panel"
 import { BonusHuntTabs } from "@/components/bonus-hunt-tabs"
 import { PageBody, PageHero } from "@/components/page-hero"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Bonus hunt",
+}
 
 type PageProps = {
   searchParams: Promise<{ tab?: string }>

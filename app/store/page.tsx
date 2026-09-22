@@ -6,6 +6,11 @@ import { createClient } from "@/lib/supabase/server"
 import { StoreItemCard } from "@/components/store-item-card"
 import { inStock, isAvailable, type StoreItem } from "@/lib/store"
 import { PageBody, PageHero } from "@/components/page-hero"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Store",
+}
 
 /**
  * The store.

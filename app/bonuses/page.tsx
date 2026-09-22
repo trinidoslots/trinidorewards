@@ -4,6 +4,11 @@ import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
 import { createServerClient } from "@/lib/supabase/server"
 import { CopyableId } from "@/components/ui/copyable-id"
 import { PageBody, PageHero } from "@/components/page-hero"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Bonuses",
+}
 
 /**
  * Bonus offers change by the week, not the second.

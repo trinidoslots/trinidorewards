@@ -5,8 +5,9 @@ import { createBrowserClient } from "@/lib/supabase/client"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2, Music, Timer as TimerIcon } from "lucide-react"
+import { Loader2, Music } from "lucide-react"
 import { AnimatedAmount } from "@/components/animated-amount"
+import { BrandMark } from "@/components/brand-mark"
 import { totalsFor } from "@/lib/transactions"
 import { COLUMN_EDGE, TOP_BAR_GRADIENT } from "@/lib/obs-theme"
 import { useSearchParams } from "next/navigation"
@@ -59,10 +60,14 @@ interface Info {
  * its own optical size, and on some builds the timer one renders as a colour
  * emoji — so the row read as four icons from four places.
  *
- * Now they are drawn: Kick's own mark, and the Bitcoin, Ethereum and wallet
- * set supplied below. Music and the timer are still lucide, because no
- * replacement was supplied for them, and both only appear when there is a
- * track or a running timer.
+ * Now they are drawn: Kick's own mark, the Bitcoin, Ethereum and wallet set
+ * supplied below, and two supplied PNGs — a stopwatch for a timer and a
+ * trophy for a win line, each the default when no custom icon was uploaded
+ * against that row. Those two are 256px white-on-transparent, so they carry
+ * sixteen times the detail they are drawn at and need no recolouring.
+ *
+ * Music is still lucide: nothing was supplied for it, and it only appears
+ * while a track is playing.
  *
  * 16px square and white, which is also what user-uploaded custom icons are
  * forced to. The Kick mark is the one exception on width: it is taller than
@@ -561,7 +566,10 @@ function TopBarWidget() {
     >
       {/* Left Content - Gamble Aware, Timers, Track */}
       <div className="flex items-center gap-3 flex-1 h-full overflow-x-auto whitespace-nowrap text-base">
-        {/* 18+ Gamble Aware */}
+        {/* The brand mark, then 18+ Gamble Aware. The mark carries its own
+            tile, so it sits at the strip's icon height and needs no frame. */}
+        <BrandMark className="h-5 w-5 shrink-0" />
+
         <div className="flex items-center gap-1 text-white font-bold">
           <span>18+</span>
           <span>GAMBLE AWARE</span>
@@ -592,7 +600,7 @@ function TopBarWidget() {
                     {timer.data_url ? (
                       <img src={timer.data_url} alt="timer icon" className="w-5 h-5" style={{ filter: "brightness(0) saturate(100%) invert(1)" }} />
                     ) : (
-                      <TimerIcon className={ICON_CLASS} />
+                      <img src="/obs-timer-white.png" alt="" className={ICON_CLASS} />
                     )}
                     <span className={timer.boldMessage ? "font-bold" : ""}>{timer.message}</span>
                     <span className={timer.boldTime ? "font-bold" : ""}>
@@ -618,8 +626,11 @@ function TopBarWidget() {
                 
                 return (
                   <div key={info.id} className="flex items-center gap-1">
-                    {info.data_url && (
+                    {info.data_url ? (
                       <img src={info.data_url} alt="info icon" className="w-5 h-5" style={{ filter: "brightness(0) saturate(100%) invert(1)" }} />
+                    ) : (
+                      /* The trophy, for a win line that brought no icon of its own. */
+                      <img src="/obs-win-white.png" alt="" className={ICON_CLASS} />
                     )}
                     {words.map((word, idx) => {
                       const style = wordStyles.find((s) => s.index === idx)

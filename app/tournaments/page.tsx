@@ -3,6 +3,11 @@ import { Swords, Trophy, Users } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
 import { createServerClient } from "@/lib/supabase/server"
 import { PageBody, PageHero } from "@/components/page-hero"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Tournaments",
+}
 
 /**
  * Tournaments, as the audience sees them.
