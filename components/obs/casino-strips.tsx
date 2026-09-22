@@ -46,6 +46,22 @@ export const STRIP = {
   divider: "#28404C",
 } as const
 
+/**
+ * The wallet group in the middle of the top strip.
+ *
+ * Sampled off the reference crop rather than picked: the panel behind the
+ * group is #101E28 — a darker inset, not the strip's own #203744 — the button
+ * #1475E1, the coin disc #0F97F8, and all three labels are white. "(In Play)"
+ * looks grey in the capture but its glyph cores are #FFFFFF; it only reads
+ * dimmer because it is a stop smaller and lighter than the rest.
+ */
+export const WALLET = {
+  panel: "#101E28",
+  button: "#1475E1",
+  coin: "#0F97F8",
+  text: "#FFFFFF",
+} as const
+
 export const FONT_STACK = "var(--font-inter), Inter, sans-serif"
 
 /** A fraction of the strip's height, as a CSS length. */
@@ -91,7 +107,90 @@ function Icon({ name, path }: { name: string; path: string }) {
   )
 }
 
-/** Logo left, icons right. No data, no subscriptions — it is framing. */
+/**
+ * The wallet group that sits in the middle of the strip.
+ *
+ * Proportioned off the reference crop, where the inset panel measures 49px
+ * tall. Everything inside it is that panel's height times a constant, so the
+ * group keeps its shape at any strip height:
+ *
+ *   panel      0.80h — 40px in a 50px strip, leaving 5px above and below
+ *   radius     0.16 of the panel
+ *   labels     0.29h. Cap height measured 10.5px against a 49px panel.
+ *   (In Play)  0.27h, a stop smaller than the other two
+ *   coin       0.36h, a disc with a $ nearly filling it
+ *   button     flush to the panel's right edge, its own left edge square.
+ *              Measured: the blue starts at the same x on every row, so it is
+ *              not a rounded button floating inside a container — the panel's
+ *              right corners ARE the button's. The panel clips them.
+ */
+function WalletGroup() {
+  return (
+    <span
+      className="flex shrink-0 items-center overflow-hidden whitespace-nowrap"
+      style={{
+        height: u(0.8),
+        backgroundColor: WALLET.panel,
+        borderRadius: u(0.13),
+        paddingLeft: u(0.33),
+        fontFamily: FONT_STACK,
+        color: WALLET.text,
+      }}
+    >
+      <span style={{ fontSize: u(0.27), fontWeight: 500 }}>(In Play)</span>
+
+      {/* The USDC disc. A round span rather than an SVG: the casino's own mark
+          is a vector I do not have, and a hand-traced one next to the real
+          icons would read as the wrong logo. A $ in a blue circle does not. */}
+      <span
+        aria-hidden
+        className="flex items-center justify-center font-bold"
+        style={{
+          width: u(0.36),
+          height: u(0.36),
+          marginLeft: u(0.14),
+          borderRadius: "50%",
+          backgroundColor: WALLET.coin,
+          fontSize: u(0.32),
+          lineHeight: 1,
+        }}
+      >
+        $
+      </span>
+
+      <span style={{ fontSize: u(0.29), fontWeight: 600, marginLeft: u(0.13) }}>USDC</span>
+
+      <svg
+        viewBox="0 0 12 7"
+        fill="none"
+        aria-hidden
+        style={{ width: u(0.24), marginLeft: u(0.22), display: "block", flexShrink: 0 }}
+      >
+        <path
+          d="M1 1.5 6 5.5l5-4"
+          stroke={WALLET.text}
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+
+      <span
+        className="flex h-full items-center font-bold"
+        style={{
+          marginLeft: u(0.41),
+          padding: `0 ${u(0.33)}`,
+          backgroundColor: WALLET.button,
+          fontSize: u(0.29),
+        }}
+      >
+        Wallet
+      </span>
+    </span>
+  )
+}
+
+/** Logo left, wallet group centred, icons right. No data — it is framing. */
 export function CasinoTopStrip({ style }: { style?: CSSProperties }) {
   return (
     <div
@@ -103,16 +202,27 @@ export function CasinoTopStrip({ style }: { style?: CSSProperties }) {
         ...style,
       }}
     >
-      {/* A 2:1 white-on-transparent PNG, so it needs a height and nothing
-          else; object-contain keeps it honest if that stops being 2:1. */}
-      <img
-        src="/stake-logo-white.png"
-        alt="Stake"
-        className="shrink-0 object-contain"
-        style={{ height: u(0.4) }}
-      />
+      {/* Equal flex on both flanks, so the middle is centred on the strip
+          rather than on whatever is left over between a logo and four icons.
+          flex-1 is flex: 1 1 0 — the two sides get the same width whatever
+          they contain, which no amount of justify-between would give. */}
+      <span className="flex min-w-0 flex-1 items-center">
+        {/* A 2:1 white-on-transparent PNG, so it needs a height and nothing
+            else; object-contain keeps it honest if that stops being 2:1. */}
+        <img
+          src="/stake-logo-white.png"
+          alt="Stake"
+          className="shrink-0 object-contain"
+          style={{ height: u(0.4) }}
+        />
+      </span>
 
-      <span className="ml-auto flex shrink-0 items-center" style={{ gap: u(0.46) }}>
+      <WalletGroup />
+
+      <span
+        className="flex min-w-0 flex-1 items-center justify-end"
+        style={{ gap: u(0.46) }}
+      >
         {ICONS.map((icon) => (
           <Icon key={icon.name} {...icon} />
         ))}

@@ -23,12 +23,12 @@ import {
  * bottom only its bottom, and the two would drift apart the first time one was
  * touched.
  *
- * Default 1410x900. Set the OBS source to exactly that and place it over the
+ * Default 1410x850. Set the OBS source to exactly that and place it over the
  * capture; do not resize the box, or the text is drawn at one size and
  * stretched to another.
  *
- *   ?w ?h        the frame, default 1410x900
- *   ?top ?bottom strip heights, both default 30
+ *   ?w ?h        the frame, default 1410x850
+ *   ?top ?bottom strip heights, default 50 and 40
  *   ?rail        side rail width, default 4
  *   ?radius      corner radius, default 12
  *   ?preview=1   a sample game without touching what is saved
@@ -37,17 +37,13 @@ import {
 
 const DEFAULTS = {
   width: 1410,
-  height: 900,
+  height: 850,
   /**
-   * Both strips the same height.
-   *
-   * The top one was 80, taken from the casino's own header in the reference
-   * capture — but that header carries a wallet, a currency picker and a search
-   * field, and this one carries a logo and four icons. At 80 it read as a
-   * heavy lid on a thin base. Matching the bottom makes the two a frame rather
-   * than a header with a caption.
+   * The top strip is the taller of the two because it carries more: a logo,
+   * the wallet group and four icons, against a single line of text below.
    */
-  strip: 30,
+  top: 50,
+  bottom: 40,
   rail: 4,
   radius: 12,
 } as const
@@ -61,8 +57,8 @@ function CasinoFrame() {
 
   const width = readPx(params.get("w")) ?? DEFAULTS.width
   const height = readPx(params.get("h")) ?? DEFAULTS.height
-  const top = readPx(params.get("top")) ?? DEFAULTS.strip
-  const bottom = readPx(params.get("bottom")) ?? DEFAULTS.strip
+  const top = readPx(params.get("top")) ?? DEFAULTS.top
+  const bottom = readPx(params.get("bottom")) ?? DEFAULTS.bottom
   const rail = readPx(params.get("rail")) ?? DEFAULTS.rail
   const radius = readPx(params.get("radius")) ?? DEFAULTS.radius
 
@@ -88,10 +84,9 @@ function CasinoFrame() {
           borderRight: `${rail}px solid ${STRIP.background}`,
         }}
       >
-        {/*
-          Each strip still carries its own --h, so ?top and ?bottom can differ
-          if you want them to. They just default to the same number.
-        */}
+        {/* Each strip carries its own --h, and every size inside it is a
+            fraction of that number, so the two keep their shape at any
+            height. ?top and ?bottom change them independently. */}
         <div style={{ ["--h" as string]: `${top}px` }}>
           <CasinoTopStrip style={{ top: 0, left: 0, right: 0 }} />
         </div>
