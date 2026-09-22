@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
-import { readNowPlaying, type NowPlayingRow } from "@/lib/now-playing"
+import { explainDbError, readNowPlaying, type NowPlayingRow } from "@/lib/now-playing"
 
 /**
  * The same row as /api/extension/now-playing, from the admin panel instead.
@@ -38,7 +38,7 @@ export async function GET() {
   const { data, error } = await client.value.from("now_playing").select("*").eq("id", 1).maybeSingle()
   if (error) {
     console.error("[v0] now_playing read failed:", error)
-    return NextResponse.json({ error: "Could not read what is playing." }, { status: 500 })
+    return NextResponse.json({ error: explainDbError(error, "Could not read what is playing.") }, { status: 500 })
   }
 
   return NextResponse.json({ row: data as NowPlayingRow | null })
@@ -71,7 +71,7 @@ export async function PUT(request: Request) {
 
   if (error) {
     console.error("[v0] now_playing write failed:", error)
-    return NextResponse.json({ error: "Could not save." }, { status: 500 })
+    return NextResponse.json({ error: explainDbError(error, "Could not save.") }, { status: 500 })
   }
 
   return NextResponse.json({ row: data as NowPlayingRow })
@@ -105,7 +105,7 @@ export async function DELETE() {
 
   if (error) {
     console.error("[v0] now_playing clear failed:", error)
-    return NextResponse.json({ error: "Could not clear." }, { status: 500 })
+    return NextResponse.json({ error: explainDbError(error, "Could not clear.") }, { status: 500 })
   }
 
   return NextResponse.json({ row: data as NowPlayingRow })

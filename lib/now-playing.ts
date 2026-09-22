@@ -80,6 +80,37 @@ export function cleanImageUrl(value: unknown): string | null {
   return trimmed
 }
 
+/**
+ * The "Only on Stake" chip, sampled out of the reference screenshot.
+ *
+ * A left-to-right gradient, not a flat fill, and a rounded rectangle, not a
+ * pill: the badge measures 77x18 there, and the fill reaches the left edge by
+ * the fourth row down, which is a radius of about 5px — 0.28 of its own height,
+ * where a pill would be 0.5.
+ */
+export const BADGE_GRADIENT = "linear-gradient(90deg, #65FAE7 0%, #26C4F4 50%, #0E81E5 100%)"
+export const BADGE_TEXT = "#021D29"
+
+/**
+ * Turns a Postgres error into something that says what to do about it.
+ *
+ * "Could not read what is playing." is true and useless. The overwhelmingly
+ * likely cause the first time is that the migration has not been run — the
+ * table simply is not there — and that is a thirty-second fix once you know
+ * that is what you are looking at.
+ *
+ * 42P01 is Postgres' undefined_table; PGRST205 is PostgREST failing to find it
+ * in its schema cache, which is what actually comes back through supabase-js.
+ */
+export function explainDbError(error: { code?: string; message?: string } | null, fallback: string): string {
+  const code = error?.code ?? ""
+  const message = error?.message ?? ""
+  if (code === "42P01" || code === "PGRST205" || /relation .*now_playing.* does not exist/i.test(message)) {
+    return "The now_playing table does not exist yet — run scripts/066_now_playing.sql in Supabase."
+  }
+  return fallback
+}
+
 /** True when there is something to draw. */
 export function isPlaying(row: NowPlayingRow | null): row is NowPlayingRow {
   return !!row && typeof row.slot_name === "string" && row.slot_name.trim().length > 0

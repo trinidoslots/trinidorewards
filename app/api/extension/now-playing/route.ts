@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
-import { readNowPlaying, type NowPlayingRow } from "@/lib/now-playing"
+import { explainDbError, readNowPlaying, type NowPlayingRow } from "@/lib/now-playing"
 
 /**
  * "Set as now playing", from the extension's button on the casino page.
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error("[v0] extension now-playing read error:", error)
-    return NextResponse.json({ error: "Failed to read" }, { status: 500 })
+    return NextResponse.json({ error: explainDbError(error, "Failed to read") }, { status: 500 })
   }
 
   return NextResponse.json({ success: true, now_playing: data as NowPlayingRow | null })
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     console.error("[v0] extension now-playing write error:", error)
-    return NextResponse.json({ error: "Failed to set" }, { status: 500 })
+    return NextResponse.json({ error: explainDbError(error, "Failed to set") }, { status: 500 })
   }
 
   return NextResponse.json({ success: true, now_playing: data as NowPlayingRow })
@@ -103,7 +103,7 @@ export async function DELETE(request: NextRequest) {
 
   if (error) {
     console.error("[v0] extension now-playing clear error:", error)
-    return NextResponse.json({ error: "Failed to clear" }, { status: 500 })
+    return NextResponse.json({ error: explainDbError(error, "Failed to clear") }, { status: 500 })
   }
 
   return NextResponse.json({ success: true })

@@ -6,8 +6,8 @@
     <style>
       body {
         margin: 0;
-        width: 260px;
-        background: #0d0e16;
+        width: 320px;
+        background: #16171f;
         color: #fff;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       }
@@ -29,9 +29,10 @@
         font-weight: 600;
         padding: 10px 12px;
         border-radius: 8px;
-        background: #151723;
-        border: 1px solid #2c2f42;
-        margin-bottom: 12px;
+        background-color: rgba(30, 32, 45, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        margin-bottom: 10px;
+        overflow-wrap: anywhere;
       }
       .status.active {
         color: #4ade80;
@@ -45,16 +46,155 @@
         color: #f87171;
         border-color: rgba(248, 113, 113, 0.3);
       }
-      button {
+
+      .summary {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .summary .chip {
+        flex: 1;
+        background: rgba(30, 32, 45, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 7px 8px;
+        text-align: center;
+      }
+      .summary .chip .num {
+        font-size: 13px;
+        font-weight: 700;
+        color: #fff;
+      }
+      .summary .chip .lbl {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #8c8ca0;
+        margin-top: 2px;
+      }
+
+      .bonus-list {
+        max-height: 260px;
+        overflow-y: auto;
+        margin-bottom: 12px;
+        border-radius: 8px;
+      }
+      .bonus-list::-webkit-scrollbar {
+        width: 6px;
+      }
+      .bonus-list::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 3px;
+      }
+      .bonus-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        background: rgba(30, 32, 45, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+        margin-bottom: 6px;
+      }
+      .bonus-item .thumb {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        object-fit: cover;
+        flex-shrink: 0;
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .bonus-item .thumb-placeholder {
+        background: linear-gradient(135deg, rgba(146, 114, 255, 0.18), rgba(122, 92, 229, 0.18));
+      }
+      .bonus-item .info {
+        flex: 1;
+        min-width: 0;
+      }
+      .bonus-item .name {
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .bonus-item .meta {
+        font-size: 10px;
+        color: #8c8ca0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .bonus-item .badge {
+        display: inline-block;
+        font-size: 9px;
+        font-weight: 700;
+        color: #9272ff;
+        background: rgba(146, 114, 255, 0.15);
+        border-radius: 4px;
+        padding: 1px 5px;
+        margin-left: 5px;
+        vertical-align: middle;
+      }
+      .bonus-item .badge.super {
+        color: #facc15;
+        background: rgba(250, 204, 21, 0.15);
+      }
+      .bonus-item .payout {
+        font-size: 12px;
+        font-weight: 700;
+        text-align: right;
+        white-space: nowrap;
+      }
+      .bonus-item .payout.pending {
+        color: #facc15;
+        font-weight: 600;
+        font-size: 10px;
+      }
+      .bonus-item .payout.won {
+        color: #4ade80;
+      }
+      .bonus-item .del {
+        background: transparent;
+        border: none;
+        color: #8c8ca0;
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 4px;
+      }
+      .bonus-item .del:hover {
+        color: #f87171;
+        background: rgba(248, 113, 113, 0.1);
+      }
+
+      .empty-list {
+        font-size: 11px;
+        color: #8c8ca0;
+        text-align: center;
+        padding: 14px 0;
+      }
+
+      button#refresh {
         width: 100%;
         padding: 9px;
         border-radius: 6px;
         border: none;
-        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        background: linear-gradient(135deg, #9272ff 0%, #7a5ce5 100%);
         color: #fff;
         font-size: 12px;
         font-weight: 700;
         cursor: pointer;
+        transition: filter 0.2s ease;
+      }
+
+      button#refresh:hover {
+        filter: brightness(1.1);
+      }
+
+      button#refresh:active {
+        filter: brightness(0.9);
       }
     </style>
   </head>
@@ -63,6 +203,12 @@
       <h1>Trinidorewards Hunt Tracker</h1>
       <p class="sub">Open Stake to add bonuses to the active hunt.</p>
       <div id="status" class="status">Checking&hellip;</div>
+      <div id="summary" class="summary" style="display: none">
+        <div class="chip"><div id="summary-count" class="num">0</div><div class="lbl">Bonuses</div></div>
+        <div class="chip"><div id="summary-bet" class="num">-</div><div class="lbl">Total Bet</div></div>
+        <div class="chip"><div id="summary-win" class="num">-</div><div class="lbl">Total Win</div></div>
+      </div>
+      <div id="bonus-list" class="bonus-list"></div>
       <button id="refresh" type="button">Refresh status</button>
     </div>
     <script src="config.js"></script>

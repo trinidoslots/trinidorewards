@@ -15,6 +15,162 @@
   let currentAnchor = null
   let lastDetectedKey = ""
 
+  // --- Safe chrome.* wrappers ------------------------------------------
+  // Once this content script's extension context is invalidated (the
+  // extension gets reloaded/updated while a Stake tab stays open),
+  // chrome.runtime/chrome.storage calls throw synchronously — not just via
+  // chrome.runtime.lastError — so every call site below is routed through
+  // these helpers instead of calling the APIs directly. Without this, the
+  // page's console fills with uncaught "Extension context invalidated"
+  // errors (the poll loop alone would throw one every 5 seconds) until the
+  // tab is refreshed.
+
+  function isExtensionValid() {
+    try {
+      return !!(chrome.runtime && chrome.runtime.id)
+    } catch (err) {
+      return false
+    }
+  }
+
+  function safeSendMessage(message, callback) {
+    if (!isExtensionValid()) {
+      if (callback) callback(null)
+      return
+    }
+    try {
+      chrome.runtime.sendMessage(message, (response) => {
+        // chrome.storage/runtime calls are async — the context can become
+        // invalidated between firing the call above and this callback
+        // running, so accessing chrome.runtime.lastError here can itself
+        // throw. That happens outside the try/catch above's stack frame,
+        // so it needs its own guard.
+        try {
+          if (chrome.runtime.lastError) {
+            if (callback) callback(null)
+            return
+          }
+          if (callback) callback(response)
+        } catch (err) {
+          if (callback) callback(null)
+        }
+      })
+    } catch (err) {
+      if (callback) callback(null)
+    }
+  }
+
+  function safeStorageGet(keys, callback) {
+    if (!isExtensionValid()) return
+    try {
+      chrome.storage.local.get(keys, (result) => {
+        try {
+          if (chrome.runtime.lastError) return
+          callback(result)
+        } catch (err) {
+          // Context invalidated between the call and this callback firing.
+        }
+      })
+    } catch (err) {
+      // Context invalidated mid-call — nothing more to do.
+    }
+  }
+
+  function safeStorageSet(items) {
+    if (!isExtensionValid()) return
+    try {
+      chrome.storage.local.set(items)
+    } catch (err) {
+      // Context invalidated mid-call — nothing more to do.
+    }
+  }
+
+  // --- Shared state: which bonuses are already in the current hunt --------
+  // Populated by polling background.js (which hits the same hunt-status
+  // endpoint popup.js already uses) and mirrored into chrome.storage.local,
+  // the same pattern the original tracker used so multiple tabs stay in
+  // sync without each one polling the API separately.
+  const BonusTrackerState = {
+    activeBonuses: [],
+    isOpening: false,
+    settings: {
+      bonused: true,
+      next: true,
+    },
+    listeners: [],
+
+    init() {
+      if (!isExtensionValid()) return
+
+      safeStorageGet(
+        ["currentHuntBonuses", "currentHuntIsOpening", "setting_bonused", "setting_next"],
+        (result) => this.updateFromStorage(result),
+      )
+
+      try {
+        chrome.storage.onChanged.addListener((changes, namespace) => {
+          if (namespace !== "local") return
+          const updates = {}
+          if (changes.currentHuntBonuses) updates.currentHuntBonuses = changes.currentHuntBonuses.newValue
+          if (changes.currentHuntIsOpening) updates.currentHuntIsOpening = changes.currentHuntIsOpening.newValue
+          if (changes.setting_bonused) updates.setting_bonused = changes.setting_bonused.newValue
+          if (changes.setting_next) updates.setting_next = changes.setting_next.newValue
+          if (Object.keys(updates).length > 0) this.updateFromStorage(updates)
+        })
+      } catch (err) {
+        // Context invalidated — no point polling further either.
+        return
+      }
+
+      let pollIntervalId = null
+      const poll = () => {
+        if (!isExtensionValid()) {
+          if (pollIntervalId) clearInterval(pollIntervalId)
+          return
+        }
+        safeSendMessage({ action: "getHuntStatus" }, (response) => {
+          if (!response || !response.success) return
+          safeStorageSet({
+            currentHuntBonuses: response.bonuses || [],
+            currentHuntIsOpening: !!response.isOpening,
+          })
+        })
+      }
+      poll()
+      pollIntervalId = setInterval(poll, 5000)
+    },
+
+    updateFromStorage(data) {
+      let changed = false
+      if (data.currentHuntBonuses !== undefined) {
+        this.activeBonuses = data.currentHuntBonuses || []
+        changed = true
+      }
+      if (data.currentHuntIsOpening !== undefined) {
+        this.isOpening = !!data.currentHuntIsOpening
+        changed = true
+      }
+      if (data.setting_bonused !== undefined) {
+        this.settings.bonused = data.setting_bonused !== false
+        changed = true
+      }
+      if (data.setting_next !== undefined) {
+        this.settings.next = data.setting_next !== false
+        changed = true
+      }
+      if (changed) this.notifyListeners()
+    },
+
+    subscribe(callback) {
+      this.listeners.push(callback)
+      callback()
+    },
+
+    notifyListeners() {
+      this.listeners.forEach((cb) => cb())
+    },
+  }
+
   // --- Slot / provider detection -------------------------------------------
   // Reads only the page's own visible title + publisher card, same technique
   // Stake uses to render its own UI — no hidden/internal selectors.
@@ -33,25 +189,39 @@
     return null
   }
 
+  function getStakeSlotImage(slotName) {
+    // Don't just grab "the first <img> in .card-wrapper" — that container
+    // also holds the provider's logo (which sits before the box art in the
+    // DOM on some layouts), so a plain querySelector picks up the wrong
+    // picture. Instead, match on alt text the same way the "already
+    // bonused" overlay matches game cards below: the slot's own thumbnail
+    // is the only <img> on the page whose alt equals the title.
+    const normalizedTarget = normalizeSlotName(slotName)
+    if (normalizedTarget) {
+      const images = document.querySelectorAll("img[alt]")
+      for (const img of images) {
+        if (normalizeSlotName(img.getAttribute("alt")) === normalizedTarget) {
+          const src = img.getAttribute("src")
+          if (src) return src
+        }
+      }
+    }
+
+    // Fallback: Stake's own social-share meta tag, present on every game
+    // detail page even if the thumbnail markup changes shape.
+    const ogImage = document.querySelector('meta[property="og:image"]')
+    if (ogImage?.getAttribute("content")) return ogImage.getAttribute("content")
+
+    return null
+  }
+
   function getStakeSlotDetails() {
     const mainTitle = document.querySelector(".card-wrapper .title-wrap h1") || document.querySelector(".card-wrapper h1")
     if (mainTitle) {
-      return { slotName: mainTitle.textContent.trim(), provider: getStakeProvider(), imageUrl: getStakeSlotImage() }
+      const slotName = mainTitle.textContent.trim()
+      return { slotName, provider: getStakeProvider(), imageUrl: getStakeSlotImage(slotName) }
     }
     return { slotName: null, provider: null, imageUrl: null }
-  }
-
-  // Reads the game's own thumbnail image straight off the page — same
-  // artwork Stake itself shows in the game card / favourites list — so the
-  // admin Opening page can display it without any manual upload step.
-  function getStakeSlotImage() {
-    const cardImg = document.querySelector(".card-wrapper img[src]")
-    if (cardImg?.src) return cardImg.src
-
-    const ogImage = document.querySelector('meta[property="og:image"]')
-    if (ogImage?.content) return ogImage.content
-
-    return null
   }
 
   // Reads the game's max-win multiplier and exclusivity badge out of the same
@@ -83,6 +253,96 @@
   function findAnchorRow() {
     const fav = document.querySelector(".card-wrapper .favourite-wrap")
     return fav ? fav.parentElement : null
+  }
+
+  // --- Already-bonused / next-to-open check ---------------------------------
+  // Scans every game card on the page (grid listings, search results, the
+  // detail page's own card, etc.) and greys out + badges any slot already in
+  // the active hunt, plus highlights whichever unopened bonus is next in line.
+  // Selector confirmed from the real working extension: cards are
+  // `.game-card-wrap`, each containing an `img[alt]` (the slot name) and an
+  // `.img-wrap` (where the badge/highlight gets attached).
+
+  function normalizeSlotName(name) {
+    return (name || "").toLowerCase().trim()
+  }
+
+  function markBonusedSlots() {
+    if (!isExtensionValid()) return
+
+    const gameCards = document.querySelectorAll(".game-card-wrap")
+
+    if (gameCards.length === 0) return
+
+    const hasPayout = BonusTrackerState.activeBonuses.some((b) => b.payout !== null && b.payout !== undefined)
+
+    let nextBonusToOpen = null
+    if (BonusTrackerState.isOpening) {
+      const sortedBonuses = [...BonusTrackerState.activeBonuses].sort((a, b) => (a.order || 0) - (b.order || 0))
+      nextBonusToOpen = sortedBonuses.find((b) => b.payout === null || b.payout === undefined)
+    }
+
+    let matchedCount = 0
+
+    gameCards.forEach((card) => {
+      const img = card.querySelector("img")
+      if (!img) return
+
+      const slotName = img.getAttribute("alt")
+      if (!slotName) return
+
+      const normalizedSlotName = normalizeSlotName(slotName)
+
+      const bonus = BonusTrackerState.activeBonuses.find(
+        (b) =>
+          b.slotName &&
+          normalizeSlotName(b.slotName) === normalizedSlotName &&
+          (b.payout === null || b.payout === undefined),
+      )
+
+      const imgWrap = card.querySelector(".img-wrap")
+      if (!imgWrap) return
+
+      const isNext =
+        nextBonusToOpen && nextBonusToOpen.slotName && normalizeSlotName(nextBonusToOpen.slotName) === normalizedSlotName
+
+      // Next-to-open highlight
+      if (isNext && BonusTrackerState.settings.next) {
+        img.classList.add("tht-next-opening")
+        imgWrap.style.overflow = "visible"
+
+        let nextBadge = imgWrap.querySelector(".tht-next-badge")
+        if (!nextBadge) {
+          nextBadge = document.createElement("div")
+          nextBadge.className = "tht-next-badge"
+          nextBadge.textContent = "Next Bonus"
+          imgWrap.appendChild(nextBadge)
+        }
+      } else {
+        img.classList.remove("tht-next-opening")
+        const nextBadge = imgWrap.querySelector(".tht-next-badge")
+        if (nextBadge) nextBadge.remove()
+      }
+
+      // Already-bonused overlay
+      if (bonus && !(BonusTrackerState.isOpening && hasPayout) && BonusTrackerState.settings.bonused) {
+        img.classList.add("tht-bonused-img")
+        matchedCount++
+
+        let badge = imgWrap.querySelector(".tht-bonused-badge")
+        if (!badge) {
+          badge = document.createElement("div")
+          badge.className = "tht-bonused-badge"
+          imgWrap.appendChild(badge)
+        }
+        const badgeText = bonus.badgeLabel || "Already Bonused"
+        if (badge.textContent !== badgeText) badge.textContent = badgeText
+      } else {
+        img.classList.remove("tht-bonused-img")
+        const badge = imgWrap.querySelector(".tht-bonused-badge")
+        if (badge) badge.remove()
+      }
+    })
   }
 
   // --- Panel -----------------------------------------------------------
@@ -119,7 +379,7 @@
       els.slotInput.dataset.autoFilled = "true"
     }
 
-    chrome.storage.local.get(["tht_last_bet_size"], (result) => {
+    safeStorageGet(["tht_last_bet_size"], (result) => {
       if (result.tht_last_bet_size && !betInput.value) {
         betInput.value = result.tht_last_bet_size
       }
@@ -127,13 +387,14 @@
   }
 
   function setInlineStatus(betInput, message, kind) {
-    betInput.classList.remove("tht-bet-pill-error", "tht-bet-pill-success")
-    if (kind === "error") betInput.classList.add("tht-bet-pill-error")
-    if (kind === "success") betInput.classList.add("tht-bet-pill-success")
+    const box = betInput.parentElement || betInput
+    box.classList.remove("tht-bet-pill-error", "tht-bet-pill-success")
+    if (kind === "error") box.classList.add("tht-bet-pill-error")
+    if (kind === "success") box.classList.add("tht-bet-pill-success")
     betInput.title = message || ""
     if (kind !== "pending") {
       setTimeout(() => {
-        betInput.classList.remove("tht-bet-pill-error", "tht-bet-pill-success")
+        box.classList.remove("tht-bet-pill-error", "tht-bet-pill-success")
         betInput.title = ""
       }, 2500)
     }
@@ -182,33 +443,39 @@
       return
     }
 
-    chrome.storage.local.set({ tht_last_bet_size: betSize })
+    safeStorageSet({ tht_last_bet_size: betSize })
     reportPending("Adding\u2026")
 
-    chrome.runtime.sendMessage(
+    safeSendMessage(
       {
         action: "addBonus",
         data: {
-          gameName: badgeLabel ? `${gameName} (${badgeLabel})` : gameName,
+          // The name sent here must exactly match the slot's real title —
+          // it's later matched against each game card's img[alt] to draw
+          // the "already bonused" overlay. Any quick-action label (Super
+          // Bonus, 5 Scatters) is sent separately below instead of being
+          // appended to the name, so that matching never breaks.
+          gameName,
           provider: detected.provider,
           betSize,
           isSuperBonus: !!isSuperBonus,
-          imageUrl: detected.imageUrl,
+          badgeLabel: badgeLabel || null,
+          imageUrl: detected.imageUrl || null,
         },
       },
       (response) => {
-        if (chrome.runtime.lastError) {
+        if (!response) {
           reportError("Reload the page")
           return
         }
 
-        if (response && response.success) {
+        if (response.success) {
           reportSuccess("Added!")
           flashSuccess(flashEl)
           panel.classList.add("tht-hidden")
           if (els.customFields) els.customFields.classList.add("tht-hidden")
         } else {
-          reportError((response && response.error) || "Failed to add")
+          reportError(response.error || "Failed to add")
         }
       },
     )
@@ -222,11 +489,7 @@
   function handleNowPlaying(statusEl, { clear } = {}) {
     if (clear) {
       setStatus(statusEl, "Clearing\u2026", "pending")
-      chrome.runtime.sendMessage({ action: "clearNowPlaying" }, (response) => {
-        if (chrome.runtime.lastError) {
-          setStatus(statusEl, "Reload the page", "error")
-          return
-        }
+      safeSendMessage({ action: "clearNowPlaying" }, (response) => {
         if (response && response.success) setStatus(statusEl, "Cleared", "success")
         else setStatus(statusEl, (response && response.error) || "Failed to clear", "error")
       })
@@ -242,7 +505,7 @@
     const meta = getStakeGameMeta()
     setStatus(statusEl, "Setting\u2026", "pending")
 
-    chrome.runtime.sendMessage(
+    safeSendMessage(
       {
         action: "setNowPlaying",
         data: {
@@ -254,10 +517,6 @@
         },
       },
       (response) => {
-        if (chrome.runtime.lastError) {
-          setStatus(statusEl, "Reload the page", "error")
-          return
-        }
         if (response && response.success) setStatus(statusEl, "On the overlay", "success")
         else setStatus(statusEl, (response && response.error) || "Failed to set", "error")
       },
@@ -291,7 +550,7 @@
   let pendingSlot = ""
   let settleTimer = null
 
-  chrome.storage.local.get([AUTO_KEY], (result) => {
+  safeStorageGet([AUTO_KEY], (result) => {
     autoEnabled = !!result[AUTO_KEY]
     paintAutoMenu()
   })
@@ -305,7 +564,7 @@
 
   function setAutoEnabled(on, statusEl) {
     autoEnabled = !!on
-    chrome.storage.local.set({ [AUTO_KEY]: autoEnabled })
+    safeStorageSet({ [AUTO_KEY]: autoEnabled })
     paintAutoMenu()
 
     if (autoEnabled) {
@@ -320,7 +579,7 @@
   }
 
   function pushNowPlaying(detected, meta, onDone) {
-    chrome.runtime.sendMessage(
+    safeSendMessage(
       {
         action: "setNowPlaying",
         data: {
@@ -391,17 +650,36 @@
     const root = document.createElement("div")
     root.id = "tht-widget-root"
 
-    // Bet size pill — sits as its own field next to the button, matching
+    // Stake's game-info row itself is clickable (collapses/expands the card),
+    // so every interaction anywhere inside our widget — buttons, the bet
+    // input, the dropdown panel and its menu items — must be stopped here
+    // once, at the root, instead of relying on each child element to guard
+    // itself. Without this, clicking a menu item (Add Super Bonus, Add 5
+    // Scatters, etc.) bubbles straight through to Stake's own handler and
+    // toggles the card's expand/collapse state along with our own action.
+    root.addEventListener("click", (e) => e.stopPropagation())
+    root.addEventListener("mousedown", (e) => e.stopPropagation())
+
+    // Bet size field — sits as its own field next to the button, matching
     // Stake's native "CA$ 0,2" bet-amount pill in the game info row.
+    const betWrap = document.createElement("div")
+    betWrap.className = "tht-bet-wrap"
+
+    const betCurrency = document.createElement("span")
+    betCurrency.className = "tht-bet-currency"
+    betCurrency.textContent = "$"
+
     const betInput = document.createElement("input")
     betInput.type = "number"
     betInput.step = "0.01"
     betInput.className = "tht-bet-pill"
     betInput.placeholder = "Bet size"
 
+    betWrap.append(betCurrency, betInput)
+
     // Restore the last-used bet size immediately (not only when the dropdown
     // opens), so the value survives a full page refresh/navigation.
-    chrome.storage.local.get(["tht_last_bet_size"], (result) => {
+    safeStorageGet(["tht_last_bet_size"], (result) => {
       if (result.tht_last_bet_size && !betInput.value) {
         betInput.value = result.tht_last_bet_size
       }
@@ -423,10 +701,10 @@
     btnWrap.append(mainBtn, arrowBtn)
 
     const panel = buildPanel()
-    root.append(betInput, btnWrap, panel)
+    root.append(betWrap, btnWrap, panel)
 
     betInput.addEventListener("change", () => {
-      chrome.storage.local.set({ tht_last_bet_size: Number.parseFloat(betInput.value) || 0 })
+      safeStorageSet({ tht_last_bet_size: Number.parseFloat(betInput.value) || 0 })
     })
     betInput.addEventListener("click", (e) => e.stopPropagation())
 
@@ -436,7 +714,7 @@
       handleAdd(panel, betInput, { badgeLabel: "Super Bonus", isSuperBonus: true, statusEl, flashEl: mainBtn })
     })
     panel.querySelector('[data-role="quick-scatters"]').addEventListener("click", () => {
-      handleAdd(panel, betInput, { badgeLabel: "5 Scatters", statusEl, flashEl: mainBtn })
+      handleAdd(panel, betInput, { badgeLabel: "5 Scatters", isSuperBonus: true, statusEl, flashEl: mainBtn })
     })
     panel.querySelector('[data-role="now-playing"]').addEventListener("click", () => {
       handleNowPlaying(statusEl)
@@ -512,12 +790,26 @@
     removeWidgetIfOrphaned()
     ensureWidget()
     checkAutoSync()
+    markBonusedSlots()
   }, 1000)
 
-  new MutationObserver(() => {
+  new MutationObserver((mutations) => {
+    // Ignore mutations caused by our own widget updating itself — otherwise
+    // this becomes an infinite loop (update widget -> triggers observer ->
+    // update widget -> ...).
+    const relevant = mutations.some((m) => {
+      const t = m.target
+      if (widgetRoot && (t === widgetRoot || widgetRoot.contains(t))) return false
+      return true
+    })
+    if (!relevant) return
+
     removeWidgetIfOrphaned()
     ensureWidget()
+    markBonusedSlots()
   }).observe(document.body, { childList: true, subtree: true })
 
+  BonusTrackerState.subscribe(markBonusedSlots)
+  BonusTrackerState.init()
   ensureWidget()
 })()

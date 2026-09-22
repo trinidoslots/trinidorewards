@@ -2,31 +2,58 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   margin-left: 8px;
   vertical-align: middle;
-  font-family: "proxima-nova", ui-sans-serif, -apple-system, system-ui, sans-serif;
+  font-family: "proxima-nova", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, ui-sans-serif, system-ui, sans-serif;
   z-index: 40;
 }
 
-/* Bet size pill — its own field next to the button, matching Stake's native
-   "CA$ 0,2" bet-amount pill that sits beside the game's built-in bonus menu.
-   Fully rounded, compact, tabular numerals so it reads like a currency
-   field rather than a generic form input. */
-.tht-bet-pill {
-  height: 36px;
-  width: 78px;
+/* Bet size field — glassy dark box with a purple "$" prefix, matching the
+   tracker's currency-input look. The box (.tht-bet-wrap) carries the
+   border/background/focus styling; the input itself is transparent so the
+   "$" and the number sit inside one shared control. */
+.tht-bet-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 37px;
+  width: 93px;
   box-sizing: border-box;
-  padding: 0 12px;
-  font-size: 12.5px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(30, 32, 45, 0.8);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.tht-bet-wrap:focus-within {
+  border-color: #9272ff;
+  box-shadow: 0 0 0 1px rgba(146, 114, 255, 0.3);
+}
+
+.tht-bet-currency {
+  color: #9272ff;
+  font-weight: 700;
+  font-size: 13px;
+  margin-right: 4px;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.tht-bet-pill {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  border: none;
+  background-color: transparent;
+  font-size: 13px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  text-align: center;
-  border-radius: 999px;
-  border: 1px solid #3e586c;
-  background: #213545;
-  color: #5baeff;
-  transition: border-color 0.15s, background 0.15s;
+  text-align: left;
+  color: #fff;
 }
 
 .tht-bet-pill::-webkit-outer-spin-button,
@@ -36,67 +63,76 @@
 }
 
 .tht-bet-pill::placeholder {
-  color: #82a5bf;
+  color: #8b8ca3;
   font-weight: 500;
 }
 
 .tht-bet-pill:focus {
   outline: none;
-  border-color: #3591ff;
 }
 
 /* Inline status for the main-button flow — the main button adds the bonus
    immediately (no dropdown), so success/error feedback shows directly on
-   the bet pill it read from instead of inside a panel. */
+   the bet box it read from instead of inside a panel. */
 .tht-bet-pill-error {
-  border-color: #ff2757 !important;
-  background: rgba(255, 39, 87, 0.12) !important;
+  border-color: #f87171 !important;
+  background: rgba(248, 113, 113, 0.12) !important;
+  box-shadow: none !important;
 }
 
 .tht-bet-pill-success {
-  border-color: #21d00c !important;
-  background: rgba(33, 208, 12, 0.12) !important;
+  border-color: #4ade80 !important;
+  background: rgba(74, 222, 128, 0.12) !important;
+  box-shadow: none !important;
 }
 
 .tht-split-btn {
   display: flex;
-  height: 36px;
-  border-radius: 999px;
+  height: 37px;
+  border-radius: 6px;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .tht-main-btn,
 .tht-arrow-btn {
-  background: #1475e1;
+  background: linear-gradient(135deg, #9272ff 0%, #7a5ce5 100%);
   color: #fff;
   border: none;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: filter 0.2s ease;
 }
 
 .tht-main-btn {
-  padding: 0 16px;
+  width: 119px;
+  padding: 0 11px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   font-family: inherit;
   white-space: nowrap;
 }
 
 .tht-arrow-btn {
-  width: 28px;
+  width: 31px;
   font-size: 10px;
-  border-left: 1px solid rgba(0, 0, 0, 0.2);
+  border-left: 1px solid rgba(0, 0, 0, 0.15);
 }
 
 .tht-main-btn:hover,
 .tht-arrow-btn:hover {
-  background: #3591ff;
+  filter: brightness(1.1);
 }
 
 .tht-main-btn:active,
 .tht-arrow-btn:active {
-  background: #005dbc;
+  filter: brightness(0.9);
+}
+
+.tht-main-btn:disabled,
+.tht-arrow-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
 }
 
 /* Success pulse on the main button when a bonus is added — a quick scale +
@@ -105,15 +141,15 @@
 @keyframes tht-success-pop {
   0% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(33, 208, 12, 0);
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
   }
   35% {
     transform: scale(1.08);
-    box-shadow: 0 0 0 5px rgba(33, 208, 12, 0.4);
+    box-shadow: 0 0 0 5px rgba(74, 222, 128, 0.4);
   }
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(33, 208, 12, 0);
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
   }
 }
 
@@ -128,12 +164,12 @@
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  width: 210px;
-  background: #213545;
-  border: 1px solid #3e586c;
+  width: 231px;
+  background: #1e202d;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  padding: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  padding: 11px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   z-index: 2147483647;
 }
 
@@ -144,7 +180,7 @@
 .tht-hint {
   font-size: 11px;
   font-weight: 700;
-  color: #a78bfa;
+  color: #9272ff;
   margin-bottom: 8px;
   min-height: 14px;
 }
@@ -156,28 +192,30 @@
   padding: 7px 8px;
   font-size: 12px;
   border-radius: 6px;
-  border: 1px solid #2c2f42;
-  background: #0d0e16;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(30, 32, 45, 0.8);
   color: #fff;
 }
 
 .tht-input:focus {
   outline: none;
-  border-color: #8b5cf6;
+  border-color: #9272ff;
+  box-shadow: 0 0 0 1px rgba(146, 114, 255, 0.3);
 }
 
 .tht-menu-item {
   padding: 9px 10px;
   border-radius: 6px;
   font-size: 13px;
-  font-weight: 600;
-  color: #fff;
+  font-weight: 500;
+  color: #e0e0e0;
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .tht-menu-item:hover {
-  background: rgba(139, 92, 246, 0.2);
+  background: rgba(146, 114, 255, 0.2);
+  color: #fff;
 }
 
 .tht-menu-item.tht-muted {
@@ -188,7 +226,7 @@
 
 .tht-divider {
   height: 1px;
-  background: #2c2f42;
+  background: rgba(255, 255, 255, 0.1);
   margin: 8px 0;
 }
 
@@ -214,16 +252,25 @@
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  transition: filter 0.2s ease, background 0.2s ease;
 }
 
 .tht-actions [data-role="confirm"] {
-  background: #7c3aed;
+  background: linear-gradient(135deg, #9272ff 0%, #7a5ce5 100%);
   color: #fff;
 }
 
+.tht-actions [data-role="confirm"]:hover {
+  filter: brightness(1.1);
+}
+
 .tht-actions [data-role="cancel"] {
-  background: #23263a;
+  background: rgba(255, 255, 255, 0.08);
   color: #ccc;
+}
+
+.tht-actions [data-role="cancel"]:hover {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .tht-status {
@@ -231,16 +278,147 @@
   margin-top: 8px;
   min-height: 14px;
   font-weight: 600;
+  padding: 0 2px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
 }
 
 .tht-status.success {
   color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+  padding: 4px 8px;
 }
 
 .tht-status.error {
   color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+  padding: 4px 8px;
 }
 
 .tht-status.pending {
   color: #facc15;
+  background: rgba(250, 204, 21, 0.1);
+  padding: 4px 8px;
+}
+
+/* Already-bonused marker on the game's own box-art thumbnail — dark,
+   desaturated art with a rectangular badge + checkmark, matching Stake's
+   own "already played"-style overlays. An animated light travels around
+   the badge's border for a subtle "active" feel. */
+.tht-bonused-img {
+  filter: grayscale(100%) !important;
+  opacity: 0.55 !important;
+}
+
+@property --tht-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes tht-border-spin {
+  to {
+    --tht-angle: 360deg;
+  }
+}
+
+.tht-bonused-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(8, 15, 11, 0.92);
+  color: #4ade80;
+  padding: 5px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  font-size: 11px;
+  font-weight: 700;
+  z-index: 20;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Animated conic-gradient ring, masked down to a 2px border, sitting just
+   outside the badge's static border and rotating continuously — a bright
+   segment travels around the otherwise-static green outline. */
+.tht-bonused-badge::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 8px;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--tht-angle),
+    transparent 0deg,
+    rgba(74, 222, 128, 0.9) 40deg,
+    transparent 90deg
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: tht-border-spin 6s linear infinite;
+  pointer-events: none;
+}
+
+.tht-bonused-badge::before {
+  content: "\2713";
+  font-size: 11px;
+  font-weight: 900;
+  color: #4ade80;
+}
+
+/* Next-to-open highlight — shown only while the hunt is actively opening
+   (BonusTrackerState.isOpening), on whichever unpaid bonus is first in
+   order. A pulsing purple ring keeps it clearly distinct from the static,
+   desaturated "Already Bonused" look above, since this slot is about to be
+   opened rather than already done. */
+.tht-next-opening {
+  outline: 2px solid #9272ff;
+  outline-offset: -2px;
+  border-radius: 6px;
+  animation: tht-next-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tht-next-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(146, 114, 255, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(146, 114, 255, 0);
+  }
+}
+
+.tht-next-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(146, 114, 255, 0.95);
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  z-index: 21;
+  white-space: nowrap;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.tht-next-badge::before {
+  content: "\25B6";
+  font-size: 8px;
 }
