@@ -274,7 +274,7 @@ export function NowPlayingStrip({
 
         {shown.badge && (
           <span
-            className="flex shrink-0 items-center whitespace-nowrap font-bold"
+            className="flex shrink-0 items-center whitespace-nowrap"
             style={{
               backgroundImage: BADGE_GRADIENT,
               color: BADGE_TEXT,
@@ -285,6 +285,10 @@ export function NowPlayingStrip({
               // Only the text grew, from 0.26h to 0.30h, so it fills a little
               // more of the chip rather than making the chip bigger.
               fontSize: u(0.3),
+              // A step past the 700 the rest of the bar's bold text uses.
+              // Inter is loaded as a variable font, so 800 is a real weight
+              // here and not the browser thickening 700 by hand.
+              fontWeight: 800,
               marginRight: u(0.41),
             }}
           >
