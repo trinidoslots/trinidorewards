@@ -224,28 +224,67 @@
     return { slotName: null, provider: null, imageUrl: null }
   }
 
-  // Reads the game's max-win multiplier and exclusivity badge out of the same
-  // visible info row the title comes from.
+  // Reads the game's max-win multiplier and exclusivity badge out of the info
+  // row at the bottom of the game.
   //
-  // Matched on the page's own text rather than on class names. The row reads
-  // "Only on Stake  <title>  <provider>  Potential 25,000x", and that text is
-  // the part of the markup actually addressed to a reader, so it is the part
-  // least likely to be renamed under us.
+  // Anchored on the Fun Play / Real Play buttons, which carry stable test ids
+  // (data-testid="footer-fun-play-button"), and then walking up until we reach
+  // the element that also holds the text. .card-wrapper — which this used to
+  // read — belongs to the old layout, so on the current site it matched nothing
+  // and both fields came back null on every single game. That is why the bar
+  // never learned a multiplier or a badge: there was never anything to learn.
   //
-  // NOT verified against the live site — written from a screenshot of the row.
-  // Both fields are optional the whole way down, and the admin panel can
-  // correct either, so a miss leaves the bar short rather than wrong.
-  function getStakeGameMeta() {
-    const wrap = document.querySelector(".card-wrapper")
-    const text = (wrap && wrap.innerText) || ""
+  // Three scopes are tried in order, narrowest first, and the first one that
+  // yields a match wins. The last is the whole page, which is a blunt fallback
+  // but "Potential 25,000x" is a distinctive enough string to risk it.
+  function getStakeMetaScopes() {
+    const scopes = []
 
-    const potential = text.match(/Potential\s*([\d][\d.,]*\s*x)/i)
-    const exclusive = text.match(/Only on [A-Za-z.]+/i)
-
-    return {
-      maxWin: potential ? potential[1].replace(/\s+/g, "") : null,
-      badge: exclusive ? exclusive[0] : null,
+    const button = document.querySelector(
+      '[data-testid="footer-fun-play-button"], [data-testid="footer-real-play-button"]',
+    )
+    if (button) {
+      // Up to the row holding the buttons AND the text. Six is generous; the
+      // buttons sit a couple of wrappers deep inside the footer.
+      let node = button.parentElement
+      for (let i = 0; i < 6 && node && node !== document.body; i++) {
+        const text = node.innerText || ""
+        if (/Potential/i.test(text) || /Only on/i.test(text)) { scopes.push(node); break }
+        node = node.parentElement
+      }
     }
+
+    const card = document.querySelector(".card-wrapper")
+    if (card) scopes.push(card)
+
+    // Deliberately no document.body fallback. A page-wide text scan will
+    // happily match a "Potential 25,000x" that belongs to something else
+    // entirely — in testing it picked up the overlay bar rendered on the same
+    // page and reported the wrong game. A missing field is recoverable; the
+    // table remembers it and the admin panel can set it. A confidently wrong
+    // multiplier on stream is not.
+    return scopes
+  }
+
+  function getStakeGameMeta() {
+    for (const scope of getStakeMetaScopes()) {
+      const text = (scope && scope.innerText) || ""
+      if (!text) continue
+
+      const potential = text.match(/Potential\s*([\d][\d.,]*\s*x)/i)
+      // Bounded to one capitalised word (plus an optional .eu / .us), because
+      // adjacent elements can render with no whitespace between them and
+      // [A-Za-z.]+ then swallows the next word whole: "Only on StakeThunder".
+      const exclusive = text.match(/Only on ([A-Z][a-z]+(?:\.[a-z]{2,4})?)/)
+
+      if (potential || exclusive) {
+        return {
+          maxWin: potential ? potential[1].replace(/\s+/g, "") : null,
+          badge: exclusive ? ("Only on " + exclusive[1]).trim() : null,
+        }
+      }
+    }
+    return { maxWin: null, badge: null }
   }
 
   // --- Anchor: the game info row (favourite/heart icon lives here) --------

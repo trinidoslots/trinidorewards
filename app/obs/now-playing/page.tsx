@@ -11,33 +11,53 @@ import { BADGE_GRADIENT, BADGE_TEXT, formatMoney, isPlaying, type NowPlayingRow 
  * Badge, title, provider, potential, best win — and nothing else. Best X and
  * Avg X are in the reference but deliberately left out.
  *
- * Nothing here was matched by eye. The reference screenshot was measured at
- * native 1920×1080, where the bar is 44px tall, and every size below is that
- * measurement over 44:
+ * Nothing here was matched by eye. Sizes come from the casino's own bar, which
+ * measures 32px tall in the reference capture, and each number below is that
+ * measurement over 32:
  *
- *   left padding   27px   badge  71×22 at x=27
- *   text           ~16px throughout — the title is NOT larger than the
- *                  provider in the reference, only bolder
- *   gaps           7px inside a pair, 11px label→figure, ~40px between groups
+ *   text        0.40h throughout. Solved twice from different strings — the
+ *               title/provider pair and the Potential pair — landing on 0.405
+ *               and 0.398 independently. The title is NOT bigger than the
+ *               provider, only bolder.
+ *   badge       0.50h tall, text 0.26h. The text filling roughly half the chip
+ *               is what makes it read as compact; a smaller label in the same
+ *               chip looks like an empty pill, which is what it was.
+ *   badge gap   0.41h to the title. It sits close, not set apart.
+ *   divider     1px, #28404C, 0.69h tall, between the title group and the
+ *               figures.
  *
  * The typeface was solved for rather than guessed: six candidates, each asked
  * what size reproduces the measured pixel width of six known strings. Inter's
  * three bold strings agree on one size to within 0.3%; Geist, which this was
  * set in before, disagrees by 4.7%.
- *
- * Colours are from the earlier, cleaner capture of the same bar. The newer
- * reference is a frame of a compressed stream and reads several stops darker —
- * that is the video, not the design.
  */
 
-/** Ceiling on the bar's own height, whatever the source is set to. */
+/**
+ * Ceiling on the bar's height when it is sizing itself off the source.
+ *
+ * ?h=40 pins it instead, which is the answer to a blurry overlay: set the OBS
+ * source to the exact pixels it occupies on the canvas and never resize the
+ * box. A source rendered at 960 wide and stretched to 1920 is drawing 960
+ * pixels of text and asking OBS to invent the rest.
+ */
 const MAX_BAR_PX = 120
 
 const BAR = {
   background: "#203744",
   name: "#FFFFFF",
-  provider: "#7D97A3",
-  label: "#E5F2F9",
+  /**
+   * The provider and both stat labels are the same muted blue-grey — measured
+   * at #94ACB8 and #9EB4C0 in the reference, which is one colour plus
+   * antialiasing noise.
+   *
+   * These were #7D97A3 and #E5F2F9: a shade too dull, and a label that was
+   * nearly white. The earlier near-white reading came from averaging the
+   * brightest pixels of thin antialiased type in a region that also caught the
+   * bold figure beside it. Splitting the words first gives the real value, and
+   * only the name and the figures are white.
+   */
+  muted: "#94ACB8",
+  divider: "#28404C",
 } as const
 
 const PREVIEW_ROW: NowPlayingRow = {
@@ -96,14 +116,34 @@ function useNowPlaying(enabled: boolean) {
 const u = (fraction: number) => `calc(var(--h) * ${fraction})`
 
 /** A muted label with a bold figure after it — "Potential 25,000x". */
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, gap }: { label: string; value: string; gap?: number }) {
   return (
-    <span className="flex shrink-0 items-baseline whitespace-nowrap" style={{ gap: u(0.25) }}>
-      <span style={{ color: BAR.label, fontSize: u(0.34) }}>{label}</span>
-      <span className="font-bold tabular-nums" style={{ color: BAR.name, fontSize: u(0.37) }}>
+    <span
+      className="flex shrink-0 items-baseline whitespace-nowrap"
+      style={{ gap: u(0.22), marginLeft: gap ? u(gap) : undefined }}
+    >
+      <span style={{ color: BAR.muted, fontSize: u(0.4) }}>{label}</span>
+      <span className="font-bold tabular-nums" style={{ color: BAR.name, fontSize: u(0.4) }}>
         {value}
       </span>
     </span>
+  )
+}
+
+/** The hairline between the title group and the figures. */
+function Divider() {
+  return (
+    <span
+      aria-hidden
+      className="shrink-0"
+      style={{
+        width: 1,
+        height: u(0.69),
+        backgroundColor: BAR.divider,
+        marginLeft: u(0.44),
+        marginRight: u(0.44),
+      }}
+    />
   )
 }
 
@@ -121,11 +161,12 @@ function NowPlaying() {
   const showArt = params.get("art") === "1" && row.image_url
   const bestWin = formatMoney(row.best_win)
 
+  // ?h=40 pins the bar height; otherwise it fills the source up to the cap.
+  const pinned = Number(params.get("h"))
+  const height = Number.isFinite(pinned) && pinned > 0 ? `${pinned}px` : `min(100vh, ${MAX_BAR_PX}px)`
+
   return (
-    <div
-      className="h-screen w-full bg-transparent"
-      style={{ ["--h" as string]: `min(100vh, ${MAX_BAR_PX}px)` }}
-    >
+    <div className="h-screen w-full bg-transparent" style={{ ["--h" as string]: height }}>
       <div
         // Keyed on the game so the bar plays its entrance again on a change
         // rather than swapping text inside a bar that never moves.
@@ -135,10 +176,10 @@ function NowPlaying() {
           height: "var(--h)",
           backgroundColor: BAR.background,
           fontFamily: "var(--font-inter), Inter, sans-serif",
-          padding: `0 ${u(0.61)}`,
-          // The reference's own spacing: tight inside a pair, wide between
-          // groups. Set per gap below rather than one gap for everything.
-          gap: u(0.16),
+          padding: `0 ${u(0.34)}`,
+          // No shared gap. Every space in the reference is a different width,
+          // so each one is set on the element it belongs to.
+          gap: 0,
         }}
       >
         {showArt && (
@@ -157,14 +198,13 @@ function NowPlaying() {
               backgroundImage: BADGE_GRADIENT,
               color: BADGE_TEXT,
               height: u(0.5),
-              // Solved, not chosen: the reference badge is 70px wide in a 44px
-              // bar, and Inter 700 "Only on Stake" fills that at 8.6px with
-              // 6.2px either side. Set by eye it came out 38px too wide, which
-              // pushed every element after it 35px right.
-              padding: `0 ${u(0.14)}`,
+              // The chip reads compact because the label fills about half of
+              // it. At 0.195h in the same 0.5h chip it was a big empty pill
+              // with small type in it, which is what "too tall" meant.
+              padding: `0 ${u(0.25)}`,
               borderRadius: u(0.15),
-              fontSize: u(0.195),
-              marginRight: u(0.74),
+              fontSize: u(0.26),
+              marginRight: u(0.41),
             }}
           >
             {row.badge}
@@ -176,7 +216,7 @@ function NowPlaying() {
             as a long name and a clipped figure reads as a wrong number. */}
         <span
           className="min-w-0 flex-shrink overflow-hidden text-ellipsis whitespace-nowrap font-bold"
-          style={{ color: BAR.name, fontSize: u(0.37), letterSpacing: "-0.005em" }}
+          style={{ color: BAR.name, fontSize: u(0.4), letterSpacing: "-0.005em" }}
         >
           {row.slot_name}
         </span>
@@ -184,19 +224,16 @@ function NowPlaying() {
         {row.provider && (
           <span
             className="shrink-0 whitespace-nowrap"
-            style={{ color: BAR.provider, fontSize: u(0.37), marginRight: u(0.7) }}
+            style={{ color: BAR.muted, fontSize: u(0.4), marginLeft: u(0.18) }}
           >
             {row.provider}
           </span>
         )}
 
-        {row.max_win && <Stat label="Potential" value={row.max_win} />}
+        {(row.max_win || bestWin) && <Divider />}
 
-        {bestWin && (
-          <span style={{ marginLeft: u(0.27) }}>
-            <Stat label="Best Win" value={bestWin} />
-          </span>
-        )}
+        {row.max_win && <Stat label="Potential" value={row.max_win} />}
+        {bestWin && <Stat label="Best Win" value={bestWin} gap={row.max_win ? 0.44 : 0} />}
       </div>
     </div>
   )
