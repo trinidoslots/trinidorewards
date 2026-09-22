@@ -48,11 +48,12 @@ export const STRIP = {
   /**
    * The top strip is a shade darker than the bottom one.
    *
-   * Sampled off the reference crop of the casino's own header — the tone the
-   * wallet button sits on. Only the colour was taken from it; the header's
-   * contents are not reproduced.
+   * The casino's own header, sampled off the reference capture. Not #101E28,
+   * which is the inset panel the wallet button sits in — that is a control
+   * inside the header, a stop darker than the header itself, and taking it
+   * for the whole strip was the wrong one of the two tones in that crop.
    */
-  topBackground: "#101E28",
+  topBackground: "#172B39",
 } as const
 
 export const FONT_STACK = "var(--font-inter), Inter, sans-serif"
