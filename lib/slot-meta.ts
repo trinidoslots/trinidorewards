@@ -86,20 +86,26 @@ export async function rememberSlot(
     image_url: string | null
     best_win?: number | null
   },
+  /**
+   * Whether an empty field means "clear this" rather than "did not see it".
+   *
+   * False for a scrape: a page that rendered slowly and showed no badge must
+   * not erase the badge we already knew. True for the admin form, where the
+   * fields were typed and an empty one is a decision — and where leaving the
+   * remembered value in place would have the next scrape put it straight back.
+   */
+  authored = false,
 ): Promise<void> {
   const key = nameKey(fields.slot_name)
   if (!key) return
 
-  // Only non-null values are written. A scrape that missed the badge must not
-  // erase a badge we already knew — that would make the table forget things
-  // every time the page rendered slowly.
   const patch: Record<string, unknown> = {
     name_key: key,
     slot_name: cleanText(fields.slot_name, LIMITS.slotName) ?? fields.slot_name,
     updated_at: new Date().toISOString(),
   }
   for (const field of ["provider", "max_win", "badge", "image_url"] as const) {
-    if (fields[field] != null) patch[field] = fields[field]
+    if (authored || fields[field] != null) patch[field] = fields[field]
   }
   // best_win is the exception: it is an explicit admin override, so an explicit
   // null clears it back to "work it out from the hunts".
@@ -112,30 +118,44 @@ export async function rememberSlot(
 /**
  * Turns whatever a caller could see into the full row the overlay renders.
  *
- * `bestWinOverride` is only passed by the admin form; undefined means "leave
- * whatever is stored alone", null means "clear the override".
+ * `bestWin` is only passed by the admin form; undefined means "leave whatever
+ * is stored alone", null means "clear the override".
+ *
+ * `authored` says what an empty field means, and the two callers mean opposite
+ * things by it. The extension is reading a page: a field it did not find is a
+ * gap, and filling it from memory is the whole reason this table exists. The
+ * admin form is a person typing: a field they cleared is a decision, and
+ * filling it back in ignores them.
+ *
+ * Without the distinction, emptying the badge in the form did nothing at all —
+ * the merge restored it from slot_meta on the way out, and the write-back
+ * skipped nulls, so the stored value survived to do it again on the next save.
  */
 export async function resolveNowPlaying(
   db: Db,
   scraped: Omit<NowPlayingRow, "id" | "updated_at" | "best_win">,
-  bestWinOverride?: number | null,
+  { bestWin, authored = false }: { bestWin?: number | null; authored?: boolean } = {},
 ): Promise<Omit<NowPlayingRow, "id" | "updated_at">> {
   const slotName = scraped.slot_name ?? ""
   const known = await readSlotMeta(db, slotName)
-  const merged = mergeWithKnown(scraped, known)
+  const merged = authored ? scraped : mergeWithKnown(scraped, known)
 
   // A typed figure wins; otherwise a previously typed one; otherwise the hunts.
-  const stored = bestWinOverride !== undefined ? bestWinOverride : (known?.best_win ?? null)
+  const stored = bestWin !== undefined ? bestWin : (known?.best_win ?? null)
   const best = stored ?? (await bestWinFromHunts(db, slotName))
 
-  await rememberSlot(db, {
-    slot_name: slotName,
-    provider: merged.provider,
-    max_win: merged.max_win,
-    badge: merged.badge,
-    image_url: merged.image_url,
-    ...(bestWinOverride !== undefined ? { best_win: bestWinOverride } : null),
-  })
+  await rememberSlot(
+    db,
+    {
+      slot_name: slotName,
+      provider: merged.provider,
+      max_win: merged.max_win,
+      badge: merged.badge,
+      image_url: merged.image_url,
+      ...(bestWin !== undefined ? { best_win: bestWin } : null),
+    },
+    authored,
+  )
 
   return { ...merged, best_win: best }
 }

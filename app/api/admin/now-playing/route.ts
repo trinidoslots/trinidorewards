@@ -64,9 +64,16 @@ export async function PUT(request: Request) {
   const client = withService((c) => c)
   if (!client.ok) return client.response
 
-  // An empty Best Win field means "work it out from the hunts", not "zero", so
-  // it is sent through as an explicit null rather than being left out.
-  const patch = await resolveNowPlaying(client.value, typed, readMoney(body.best_win))
+  // authored: these fields were typed, so an empty one means empty. Without
+  // it, clearing the badge or the provider did nothing — the value came back
+  // out of slot_meta on the way to the overlay.
+  //
+  // An empty Best Win field is the one exception. It means "work it out from
+  // the hunts", not "zero", so it goes through as an explicit null.
+  const patch = await resolveNowPlaying(client.value, typed, {
+    bestWin: readMoney(body.best_win),
+    authored: true,
+  })
 
   const { data, error } = await client.value
     .from("now_playing")
