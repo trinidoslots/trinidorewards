@@ -73,6 +73,44 @@ export default function NowPlayingAdmin() {
     void load()
   }, [load])
 
+  /**
+   * Follows the row while the page is open, so pressing the button on the
+   * casino page — or auto-update firing by itself — shows up here without a
+   * Reload click.
+   *
+   * Deliberately updates only the "on the overlay" card, never the draft: the
+   * form is what you are typing, and having it overwritten under the cursor
+   * because the extension pushed a game would be worse than it being stale.
+   *
+   * Read straight from the table rather than through the admin route. It has a
+   * public SELECT policy, so this needs no service role, and it is the same
+   * subscription the overlay itself uses.
+   */
+  useEffect(() => {
+    const supabase = createClient()
+
+    const pull = async () => {
+      const { data } = await supabase.from("now_playing").select("*").eq("id", 1).maybeSingle()
+      if (data) setRow(data as NowPlayingRow)
+    }
+
+    const channel = supabase
+      .channel("now_playing_admin")
+      .on("postgres_changes", { event: "*", schema: "public", table: "now_playing" }, (payload) => {
+        setRow(payload.new as NowPlayingRow)
+      })
+      .subscribe()
+
+    // Realtime can miss a beat, and the whole point of this card is to be
+    // trustworthy about what the audience is seeing.
+    const poll = setInterval(pull, 5_000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(poll)
+    }
+  }, [])
+
   // Suggestions come straight from the browser — the slots table is public and
   // holds nothing but names, so there is no reason to route it through a
   // server handler.
@@ -213,7 +251,8 @@ export default function NowPlayingAdmin() {
                 </span>
               )}
               <span className="ml-auto text-[11px] text-white/30">
-                set from the {row?.source === "extension" ? "extension" : "admin panel"}
+                set from the {row?.source === "extension" ? "extension" : "admin panel"} · follows changes
+                live
               </span>
             </div>
           ) : (

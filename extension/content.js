@@ -264,6 +264,103 @@
     )
   }
 
+  // --- Auto-sync -----------------------------------------------------------
+  // Follows the page: when the game under you changes, the overlay's bar
+  // changes with it, with no click at all.
+  //
+  // Off until switched on, and the state is remembered. On by default would
+  // mean that installing this, or idly opening a game page to look at it,
+  // silently changes what is on stream — the bar is the one thing here that
+  // the audience sees immediately.
+  //
+  // There is no way to do this from the site's side: the database has no idea
+  // which game is open in your browser, only this script does. So the push
+  // starts here.
+
+  const AUTO_KEY = "tht_now_playing_auto"
+
+  // How long the same game has to stay on screen before it is pushed. Clicking
+  // through four games looking for one should not put four of them on stream
+  // in six seconds, and it keeps a slow-rendering page from pushing a title it
+  // is about to replace.
+  const AUTO_SETTLE_MS = 2500
+
+  let autoEnabled = false
+  let autoMenuEl = null
+  let lastPushedSlot = ""
+  let pendingSlot = ""
+  let settleTimer = null
+
+  chrome.storage.local.get([AUTO_KEY], (result) => {
+    autoEnabled = !!result[AUTO_KEY]
+    paintAutoMenu()
+  })
+
+  function paintAutoMenu() {
+    if (autoMenuEl) {
+      autoMenuEl.textContent = "Auto-update: " + (autoEnabled ? "on" : "off")
+      autoMenuEl.classList.toggle("tht-muted", !autoEnabled)
+    }
+  }
+
+  function setAutoEnabled(on, statusEl) {
+    autoEnabled = !!on
+    chrome.storage.local.set({ [AUTO_KEY]: autoEnabled })
+    paintAutoMenu()
+
+    if (autoEnabled) {
+      // Push straight away rather than waiting for the next change: you turn
+      // this on because the game in front of you is the one you are playing.
+      lastPushedSlot = ""
+      checkAutoSync(statusEl)
+      if (statusEl) setStatus(statusEl, "Auto-update on", "success")
+    } else if (statusEl) {
+      setStatus(statusEl, "Auto-update off", "success")
+    }
+  }
+
+  function pushNowPlaying(detected, meta, onDone) {
+    chrome.runtime.sendMessage(
+      {
+        action: "setNowPlaying",
+        data: {
+          slotName: detected.slotName,
+          provider: detected.provider,
+          imageUrl: detected.imageUrl,
+          maxWin: meta.maxWin,
+          badge: meta.badge,
+        },
+      },
+      onDone,
+    )
+  }
+
+  function checkAutoSync(statusEl) {
+    if (!autoEnabled) return
+
+    const slot = getStakeSlotDetails().slotName || ""
+    // No game on this page (a lobby, search results) is not a change — it
+    // leaves whatever is on stream alone rather than clearing it.
+    if (!slot || slot === lastPushedSlot || slot === pendingSlot) return
+
+    pendingSlot = slot
+    clearTimeout(settleTimer)
+    settleTimer = setTimeout(() => {
+      const settled = getStakeSlotDetails()
+      if (!autoEnabled || settled.slotName !== slot) {
+        pendingSlot = ""
+        return
+      }
+      pushNowPlaying(settled, getStakeGameMeta(), (response) => {
+        pendingSlot = ""
+        if (response && response.success) {
+          lastPushedSlot = slot
+          if (statusEl) setStatus(statusEl, "On the overlay", "success")
+        }
+      })
+    }, AUTO_SETTLE_MS)
+  }
+
   function buildPanel() {
     const panel = document.createElement("div")
     panel.className = "tht-panel tht-hidden"
@@ -274,6 +371,7 @@
       <div class="tht-divider"></div>
       <div class="tht-menu-item" data-role="now-playing">Set as now playing</div>
       <div class="tht-menu-item tht-muted" data-role="now-playing-clear">Clear now playing</div>
+      <div class="tht-menu-item tht-muted" data-role="now-playing-auto">Auto-update: off</div>
       <div class="tht-divider"></div>
       <div class="tht-menu-item tht-muted" data-role="toggle-custom">+ Custom bonus\u2026</div>
       <div class="tht-custom-fields tht-hidden" data-role="custom-fields">
@@ -346,6 +444,11 @@
     panel.querySelector('[data-role="now-playing-clear"]').addEventListener("click", () => {
       handleNowPlaying(statusEl, { clear: true })
     })
+    autoMenuEl = panel.querySelector('[data-role="now-playing-auto"]')
+    paintAutoMenu()
+    autoMenuEl.addEventListener("click", () => {
+      setAutoEnabled(!autoEnabled, statusEl)
+    })
     panel.querySelector('[data-role="toggle-custom"]').addEventListener("click", () => {
       panel.querySelector('[data-role="custom-fields"]').classList.toggle("tht-hidden")
     })
@@ -408,6 +511,7 @@
   setInterval(() => {
     removeWidgetIfOrphaned()
     ensureWidget()
+    checkAutoSync()
   }, 1000)
 
   new MutationObserver(() => {
