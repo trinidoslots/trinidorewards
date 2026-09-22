@@ -109,7 +109,10 @@ const NAV: Item[] = [
     label: "OBS Widgets",
     icon: Tv,
     match: "/admin/obs",
-    children: [{ href: "/admin/obs/widget-settings", label: "Widget Settings" }],
+    children: [
+      { href: "/admin/obs/widget-settings", label: "Widget Settings" },
+      { href: "/admin/obs/starting-soon", label: "Starting Soon" },
+    ],
   },
   { kind: "link", href: "/admin/modules", label: "Modules", icon: Puzzle },
   { kind: "link", href: "/admin/extension", label: "Extension", icon: Database },

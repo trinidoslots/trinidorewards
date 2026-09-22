@@ -2,7 +2,8 @@
 
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
-import { COLUMN_GRADIENT, SCENE_GRADIENT, SCENE_ORBS } from "@/lib/obs-theme"
+import { SceneBackground } from "@/components/obs/scene-background"
+import { COLUMN_GRADIENT } from "@/lib/obs-theme"
 
 /**
  * Every overlay in one browser source, 1920×1080.
@@ -136,47 +137,6 @@ function Complete() {
           <Frame title="Stream column" src={`/obs/stream${streamQuery}`} style={{ inset: 0, width: "100%", height: "100%" }} />
         </Column>
       )}
-    </div>
-  )
-}
-
-/**
- * The scene's ground: a diagonal gradient with three slow colour fields on it.
- *
- * Painted here rather than inside any of the three sources, because it is one
- * surface spanning the whole 1920x1080 and each source only knows about its own
- * box. It is also the reason the columns are no longer trying to continue the
- * bar's gradient — there is something behind them now for them to sit on.
- *
- * Rendered first, so the bar and the columns paint over it on DOM order alone.
- */
-function SceneBackground() {
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden"
-      style={{ backgroundImage: SCENE_GRADIENT, zIndex: 0 }}
-    >
-      {SCENE_ORBS.map((orb) => (
-        <div
-          key={orb.color}
-          className="obs-scene-orb absolute rounded-full"
-          style={{
-            width: orb.size,
-            height: orb.size,
-            left: orb.left,
-            top: orb.top,
-            background: `radial-gradient(circle, ${orb.color} 0%, transparent 70%)`,
-            opacity: orb.opacity,
-            filter: "blur(60px)",
-            // alternate, so it eases back rather than snapping to the start —
-            // a jump every 37 seconds is exactly the kind of thing that is
-            // invisible in a preview and obvious on a stream.
-            animation: `obs-scene-drift ${orb.duration} ease-in-out infinite alternate`,
-            willChange: "transform",
-          }}
-        />
-      ))}
     </div>
   )
 }
