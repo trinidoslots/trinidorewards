@@ -65,11 +65,29 @@ const ICON_CLASS = "w-4 h-4 shrink-0 text-white"
 /** The channel the follower count is for. */
 const KICK_SLUG = "trinidoslots"
 
-/** Kick's mark, which lucide does not carry. Drawn to lucide's 24px box. */
+/**
+ * Kick's mark — the real one.
+ *
+ * The first K of the KICK wordmark at static.kick.com/kick-logo.svg, taken
+ * path-for-path: the first subpath of four, which spans x 0 to 20.523 of that
+ * file's 72x24 box. My first attempt was a K I drew myself, with a diagonal
+ * in it, and Kick's is built entirely from right angles — which is exactly
+ * why it read as "some K" rather than as their logo.
+ *
+ * Taller than it is wide, so it cannot use the square ICON_CLASS. Height is
+ * matched to the others and the width follows from the aspect ratio.
+ */
 function KickIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className={className}>
-      <path d="M3 3h5v6l4.5-6H19l-6 8 6 8h-6.5L8 15v6H3z" />
+    <svg
+      viewBox="0 0 20.523 24"
+      fill="currentColor"
+      fillRule="evenodd"
+      clipRule="evenodd"
+      aria-hidden
+      className={className}
+    >
+      <path d="M0 .028h7.7v5.32h2.561v-2.66h2.562V.028h7.7v7.996H17.96v2.66h-2.562v2.66h2.562v2.66h2.562V24h-7.699v-2.66h-2.562v-2.66H7.7V24H0V.028Z" />
     </svg>
   )
 }
@@ -565,13 +583,12 @@ function TopBarWidget() {
         {/* Kick followers. Hidden until the number is known, so a failed fetch
             leaves a gap rather than a confident 0 next to the wallet. */}
         {kickFollowers !== null && (
-          <>
-            <div className="flex items-center gap-1 text-white">
-              <KickIcon className={ICON_CLASS} />
-              <span className="font-bold">{kickFollowers.toLocaleString("en-US")}</span>
-            </div>
-            <span className="text-[#4D84FF]/50">|</span>
-          </>
+          <div className="flex items-center gap-1 text-white">
+            {/* h-4 w-auto, not ICON_CLASS: the mark is 20.5 wide by 24 tall,
+                and a square box would squash it. */}
+            <KickIcon className="h-4 w-auto shrink-0 text-white" />
+            <span className="font-bold">{kickFollowers.toLocaleString("en-US")}</span>
+          </div>
         )}
 
         {/* Wallet Difference */}
