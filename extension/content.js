@@ -54,6 +54,30 @@
     return null
   }
 
+  // Reads the game's max-win multiplier and exclusivity badge out of the same
+  // visible info row the title comes from.
+  //
+  // Matched on the page's own text rather than on class names. The row reads
+  // "Only on Stake  <title>  <provider>  Potential 25,000x", and that text is
+  // the part of the markup actually addressed to a reader, so it is the part
+  // least likely to be renamed under us.
+  //
+  // NOT verified against the live site — written from a screenshot of the row.
+  // Both fields are optional the whole way down, and the admin panel can
+  // correct either, so a miss leaves the bar short rather than wrong.
+  function getStakeGameMeta() {
+    const wrap = document.querySelector(".card-wrapper")
+    const text = (wrap && wrap.innerText) || ""
+
+    const potential = text.match(/Potential\s*([\d][\d.,]*\s*x)/i)
+    const exclusive = text.match(/Only on [A-Za-z.]+/i)
+
+    return {
+      maxWin: potential ? potential[1].replace(/\s+/g, "") : null,
+      badge: exclusive ? exclusive[0] : null,
+    }
+  }
+
   // --- Anchor: the game info row (favourite/heart icon lives here) --------
 
   function findAnchorRow() {
@@ -190,6 +214,56 @@
     )
   }
 
+  // --- Now playing ---------------------------------------------------------
+  // Sets the slot shown by the /obs/now-playing bar to whatever game this page
+  // is. Separate from adding a bonus on purpose: the game you are about to play
+  // and the game you are logging into the hunt are not always the same one.
+
+  function handleNowPlaying(statusEl, { clear } = {}) {
+    if (clear) {
+      setStatus(statusEl, "Clearing\u2026", "pending")
+      chrome.runtime.sendMessage({ action: "clearNowPlaying" }, (response) => {
+        if (chrome.runtime.lastError) {
+          setStatus(statusEl, "Reload the page", "error")
+          return
+        }
+        if (response && response.success) setStatus(statusEl, "Cleared", "success")
+        else setStatus(statusEl, (response && response.error) || "Failed to clear", "error")
+      })
+      return
+    }
+
+    const detected = getStakeSlotDetails()
+    if (!detected.slotName) {
+      setStatus(statusEl, "Could not detect the game", "error")
+      return
+    }
+
+    const meta = getStakeGameMeta()
+    setStatus(statusEl, "Setting\u2026", "pending")
+
+    chrome.runtime.sendMessage(
+      {
+        action: "setNowPlaying",
+        data: {
+          slotName: detected.slotName,
+          provider: detected.provider,
+          imageUrl: detected.imageUrl,
+          maxWin: meta.maxWin,
+          badge: meta.badge,
+        },
+      },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          setStatus(statusEl, "Reload the page", "error")
+          return
+        }
+        if (response && response.success) setStatus(statusEl, "On the overlay", "success")
+        else setStatus(statusEl, (response && response.error) || "Failed to set", "error")
+      },
+    )
+  }
+
   function buildPanel() {
     const panel = document.createElement("div")
     panel.className = "tht-panel tht-hidden"
@@ -197,6 +271,9 @@
       <div class="tht-hint" data-role="hint"></div>
       <div class="tht-menu-item" data-role="quick-super">Add Super Bonus</div>
       <div class="tht-menu-item" data-role="quick-scatters">Add 5 Scatters</div>
+      <div class="tht-divider"></div>
+      <div class="tht-menu-item" data-role="now-playing">Set as now playing</div>
+      <div class="tht-menu-item tht-muted" data-role="now-playing-clear">Clear now playing</div>
       <div class="tht-divider"></div>
       <div class="tht-menu-item tht-muted" data-role="toggle-custom">+ Custom bonus\u2026</div>
       <div class="tht-custom-fields tht-hidden" data-role="custom-fields">
@@ -262,6 +339,12 @@
     })
     panel.querySelector('[data-role="quick-scatters"]').addEventListener("click", () => {
       handleAdd(panel, betInput, { badgeLabel: "5 Scatters", statusEl, flashEl: mainBtn })
+    })
+    panel.querySelector('[data-role="now-playing"]').addEventListener("click", () => {
+      handleNowPlaying(statusEl)
+    })
+    panel.querySelector('[data-role="now-playing-clear"]').addEventListener("click", () => {
+      handleNowPlaying(statusEl, { clear: true })
     })
     panel.querySelector('[data-role="toggle-custom"]').addEventListener("click", () => {
       panel.querySelector('[data-role="custom-fields"]').classList.toggle("tht-hidden")

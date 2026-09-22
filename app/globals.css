@@ -388,9 +388,26 @@
   }
 }
 
+/* The now-playing bar arriving, and changing game. */
+@keyframes obs-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.obs-now-playing {
+  animation: obs-slide-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .obs-banner-layer,
-  .obs-scene-orb {
+  .obs-scene-orb,
+  .obs-now-playing {
     animation: none !important;
   }
 }

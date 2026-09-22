@@ -112,6 +112,7 @@ const NAV: Item[] = [
     children: [
       { href: "/admin/obs/widget-settings", label: "Widget Settings" },
       { href: "/admin/obs/starting-soon", label: "Starting Soon" },
+      { href: "/admin/obs/now-playing", label: "Now Playing" },
     ],
   },
   { kind: "link", href: "/admin/modules", label: "Modules", icon: Puzzle },

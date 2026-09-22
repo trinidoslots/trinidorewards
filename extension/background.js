@@ -47,6 +47,49 @@ async function deleteBonus({ bonusId }) {
   }
 }
 
+
+async function setNowPlaying({ slotName, provider, imageUrl, maxWin, badge }) {
+  try {
+    const res = await fetch(`${CONFIG.BASE_URL}/api/extension/now-playing`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${CONFIG.API_KEY}`,
+      },
+      body: JSON.stringify({
+        slot_name: slotName,
+        provider: provider || null,
+        image_url: imageUrl || null,
+        max_win: maxWin || null,
+        badge: badge || null,
+      }),
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok) {
+      return { success: false, error: data.error || `Request failed (${res.status})` }
+    }
+
+    return { success: true, nowPlaying: data.now_playing }
+  } catch (err) {
+    return { success: false, error: "Network error — check your connection" }
+  }
+}
+
+async function clearNowPlaying() {
+  try {
+    const res = await fetch(`${CONFIG.BASE_URL}/api/extension/now-playing`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${CONFIG.API_KEY}` },
+    })
+    const data = await res.json().catch(() => ({}))
+    return { success: res.ok, error: data.error }
+  } catch (err) {
+    return { success: false, error: "Network error — check your connection" }
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.action === "addBonus") {
     addBonus(message.data).then(sendResponse)
@@ -54,6 +97,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   if (message?.action === "deleteBonus") {
     deleteBonus(message.data).then(sendResponse)
+    return true
+  }
+  if (message?.action === "setNowPlaying") {
+    setNowPlaying(message.data).then(sendResponse)
+    return true
+  }
+  if (message?.action === "clearNowPlaying") {
+    clearNowPlaying().then(sendResponse)
     return true
   }
   return false
