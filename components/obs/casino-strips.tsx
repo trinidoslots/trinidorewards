@@ -54,6 +54,19 @@ export const STRIP = {
    * for the whole strip was the wrong one of the two tones in that crop.
    */
   topBackground: "#172B39",
+  /**
+   * The hairline around the outside of the frame.
+   *
+   * The bar's own tone with the lightness raised and nothing else touched:
+   * #203744 is hsl(202, 36%, 20%) and this is hsl(202, 36%, 30%). Same hue,
+   * same saturation — so it reads as the frame's edge catching the light
+   * rather than as a second colour laid on top of it.
+   *
+   * Not the #28404C used for the divider inside the bar. That one only has to
+   * separate two blocks of text on a known background; this one has to stay
+   * visible against whatever the capture happens to be showing behind it.
+   */
+  outline: "#315468",
 } as const
 
 export const FONT_STACK = "var(--font-inter), Inter, sans-serif"

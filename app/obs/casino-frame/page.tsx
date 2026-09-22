@@ -46,6 +46,15 @@ const DEFAULTS = {
   bottom: 40,
   rail: 4,
   radius: 12,
+  /**
+   * The hairline around the outside. ?outline=0 turns it off.
+   *
+   * Drawn as a border on the frame, so it sits outside both strips and both
+   * rails and closes the shape. box-sizing is border-box, so it comes out of
+   * the frame's own pixels rather than adding to them — the source stays
+   * exactly ?w by ?h.
+   */
+  outline: 1,
 } as const
 
 /** Top strip's tone at the top of the rail, bottom strip's at the bottom. */
@@ -64,6 +73,7 @@ function CasinoFrame() {
   const bottom = readPx(params.get("bottom")) ?? DEFAULTS.bottom
   const rail = readPx(params.get("rail")) ?? DEFAULTS.rail
   const radius = readPx(params.get("radius")) ?? DEFAULTS.radius
+  const outline = readPx(params.get("outline")) ?? DEFAULTS.outline
 
   const showArt = params.get("art") === "1"
 
@@ -71,12 +81,18 @@ function CasinoFrame() {
     <div className="h-screen w-full bg-transparent">
       <div
         // Fixed to the viewport rather than sitting in the document flow. In
-        // flow it started 6px down, because dev builds inject elements ahead of
-        // it in <body>, and a frame 6px lower than its own source then pushed
-        // the document past the viewport and grew a scrollbar, which narrowed
-        // it again. Nothing before it in the DOM can move it now.
+        // flow it started 6px down: app/template.tsx wrapped every route in a
+        // motion.div with a transform, and a transform is the containing block
+        // for position: fixed, so the frame was measured from there instead of
+        // the viewport. That wrapper no longer covers the OBS routes, but fixed
+        // is still the right answer — nothing before it in the DOM can move it.
         className="fixed left-0 top-0 overflow-hidden"
-        style={{ width, height, borderRadius: radius }}
+        style={{
+          width,
+          height,
+          borderRadius: radius,
+          border: outline ? `${outline}px solid ${STRIP.outline}` : undefined,
+        }}
       >
         {/*
           The rails run between the two strips, not down the whole frame, and
