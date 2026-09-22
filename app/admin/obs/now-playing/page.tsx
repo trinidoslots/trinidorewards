@@ -5,7 +5,7 @@ import { Check, Copy, Eraser, RefreshCw } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader } from "@/components/ui/panel"
 import { FIELD_CLASS } from "@/components/ui/select-menu"
 import { createClient } from "@/lib/supabase/client"
-import { cleanMaxWin, type NowPlayingRow } from "@/lib/now-playing"
+import { cleanMaxWin, formatMoney, readMoney, type NowPlayingRow } from "@/lib/now-playing"
 
 /**
  * What the /obs/now-playing bar is showing.
@@ -15,9 +15,14 @@ import { cleanMaxWin, type NowPlayingRow } from "@/lib/now-playing"
  * This page is the manual path: a game the extension cannot see, a correction,
  * or taking the bar down.
  *
- * The slot library is only used for suggestions. It holds names and providers
- * and nothing else, so picking from it fills two of the four fields — the max
- * win and the badge are not in that table and have to be typed.
+ * Anything typed here is remembered against the slot, so the next time that
+ * game comes up — from here or from the extension — it arrives complete. That
+ * is the fix for the multiplier and the badge going missing on a slot switch:
+ * they only have to be right once.
+ *
+ * Best win is the exception to "typed wins": left empty, it is the biggest
+ * payout that slot has ever had across your hunts, which keeps itself current.
+ * Typing a figure pins it until you clear it again.
  */
 
 type Draft = {
@@ -26,9 +31,10 @@ type Draft = {
   maxWin: string
   badge: string
   imageUrl: string
+  bestWin: string
 }
 
-const emptyDraft: Draft = { slotName: "", provider: "", maxWin: "", badge: "", imageUrl: "" }
+const emptyDraft: Draft = { slotName: "", provider: "", maxWin: "", badge: "", imageUrl: "", bestWin: "" }
 
 function draftFromRow(row: NowPlayingRow | null): Draft {
   if (!row) return emptyDraft
@@ -38,6 +44,9 @@ function draftFromRow(row: NowPlayingRow | null): Draft {
     maxWin: row.max_win ?? "",
     badge: row.badge ?? "",
     imageUrl: row.image_url ?? "",
+    // Blank means "work it out from the hunts", which is the normal case, so
+    // the resolved figure is shown as a placeholder rather than filled in.
+    bestWin: "",
   }
 }
 
@@ -150,6 +159,7 @@ export default function NowPlayingAdmin() {
           max_win: draft.maxWin,
           badge: draft.badge,
           image_url: draft.imageUrl,
+          best_win: draft.bestWin,
         }),
       })
       const payload = await response.json()
@@ -250,6 +260,11 @@ export default function NowPlayingAdmin() {
                   Potential {row.max_win}
                 </span>
               )}
+              {formatMoney(row?.best_win) && (
+                <span className="text-[13px]" style={{ color: ACCENTS.green }}>
+                  Best Win {formatMoney(row?.best_win)}
+                </span>
+              )}
               <span className="ml-auto text-[11px] text-white/30">
                 set from the {row?.source === "extension" ? "extension" : "admin panel"} · follows changes
                 live
@@ -326,6 +341,21 @@ export default function NowPlayingAdmin() {
               placeholder="Only on Stake"
               className={FIELD_CLASS}
             />
+          </div>
+
+          <div className="md:col-span-2">
+            <MonoLabel className="mb-2 block text-white/40">Best win</MonoLabel>
+            <input
+              value={draft.bestWin}
+              onChange={(event) => setDraft({ ...draft, bestWin: event.target.value })}
+              placeholder={formatMoney(row?.best_win) ?? "worked out from your hunts"}
+              className={`${FIELD_CLASS} max-w-[280px]`}
+            />
+            <p className="mt-2 text-[11px] text-white/30">
+              {readMoney(draft.bestWin)
+                ? `Pinned to ${formatMoney(readMoney(draft.bestWin))} for this slot, until you clear it.`
+                : "Leave empty and it takes the biggest payout this slot has ever had across your hunts. Typing a figure pins it."}
+            </p>
           </div>
 
           <div className="md:col-span-2">

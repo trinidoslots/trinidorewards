@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
-import { explainDbError, readNowPlaying, type NowPlayingRow } from "@/lib/now-playing"
+import { explainDbError, readMoney, readNowPlaying, type NowPlayingRow } from "@/lib/now-playing"
+import { resolveNowPlaying } from "@/lib/slot-meta"
 
 /**
  * The same row as /api/extension/now-playing, from the admin panel instead.
@@ -55,13 +56,17 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 })
   }
 
-  const patch = readNowPlaying(body, "admin")
-  if (!patch.slot_name) {
+  const typed = readNowPlaying(body, "admin")
+  if (!typed.slot_name) {
     return NextResponse.json({ error: "A slot name is required — use Clear to take the bar down." }, { status: 400 })
   }
 
   const client = withService((c) => c)
   if (!client.ok) return client.response
+
+  // An empty Best Win field means "work it out from the hunts", not "zero", so
+  // it is sent through as an explicit null rather than being left out.
+  const patch = await resolveNowPlaying(client.value, typed, readMoney(body.best_win))
 
   const { data, error } = await client.value
     .from("now_playing")
@@ -95,6 +100,7 @@ export async function DELETE() {
         image_url: null,
         max_win: null,
         badge: null,
+        best_win: null,
         source: "admin",
         updated_at: new Date().toISOString(),
       },

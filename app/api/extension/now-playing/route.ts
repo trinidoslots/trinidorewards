@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { explainDbError, readNowPlaying, type NowPlayingRow } from "@/lib/now-playing"
+import { resolveNowPlaying } from "@/lib/slot-meta"
 
 /**
  * "Set as now playing", from the extension's button on the casino page.
@@ -56,16 +57,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Expected a JSON body" }, { status: 400 })
   }
 
-  const patch = readNowPlaying(body as Record<string, unknown>, "extension")
+  const scraped = readNowPlaying(body as Record<string, unknown>, "extension")
 
   // The whole point of the button is that a game is on screen. Refusing an
   // empty name here means a failed scrape shows an error on the casino page
   // rather than silently clearing the bar mid-stream.
-  if (!patch.slot_name) {
+  if (!scraped.slot_name) {
     return NextResponse.json({ error: "Could not read a game name from this page" }, { status: 400 })
   }
 
   const supabase = getServiceRoleClient()
+
+  // The multiplier and the badge come out of the page's visible text and do
+  // not survive every layout change. Anything this scrape missed is filled in
+  // from what we already know about the game, and anything it found is written
+  // back — which is why switching to a game you have played before arrives
+  // complete.
+  const patch = await resolveNowPlaying(supabase, scraped)
+
   const { data, error } = await supabase
     .from("now_playing")
     .upsert({ id: 1, ...patch, updated_at: new Date().toISOString() }, { onConflict: "id" })
@@ -95,6 +104,7 @@ export async function DELETE(request: NextRequest) {
         image_url: null,
         max_win: null,
         badge: null,
+        best_win: null,
         source: "extension",
         updated_at: new Date().toISOString(),
       },

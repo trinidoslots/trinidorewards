@@ -20,7 +20,36 @@ export type NowPlayingRow = {
   /** e.g. "Only on Stake". */
   badge: string | null
   source: NowPlayingSource
+  /** Biggest payout ever recorded for this game, in dollars. */
+  best_win: number | null
   updated_at: string
+}
+
+/**
+ * The key a game is remembered under.
+ *
+ * Case and inner whitespace are not identity: "Loan Shark", "loan shark" and
+ * " Loan  Shark " are one game, and a scrape that picks up a stray newline
+ * should not create a second row that knows nothing.
+ */
+export function nameKey(name: string | null | undefined): string {
+  return (name ?? "").replace(/\s+/g, " ").trim().toLowerCase()
+}
+
+/** "$31,665" — whole dollars, as the reference bar shows it. */
+export function formatMoney(value: number | null | undefined): string | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null
+  return "$" + Math.round(value).toLocaleString("en-US")
+}
+
+/** Reads a money figure typed into the admin form. */
+export function readMoney(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) && value > 0 ? value : null
+  if (typeof value !== "string") return null
+  const cleaned = value.replace(/[$\s,]/g, "")
+  if (!cleaned) return null
+  const parsed = Number(cleaned)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
 export const LIMITS = {
@@ -105,9 +134,27 @@ export const BADGE_TEXT = "#021D29"
 export function explainDbError(error: { code?: string; message?: string } | null, fallback: string): string {
   const code = error?.code ?? ""
   const message = error?.message ?? ""
-  if (code === "42P01" || code === "PGRST205" || /relation .*now_playing.* does not exist/i.test(message)) {
-    return "The now_playing table does not exist yet — run scripts/066_now_playing.sql in Supabase."
+
+  // Name the script that creates whichever table is missing, rather than always
+  // naming the first one — by 067 there are two, and sending someone to re-run
+  // a migration they have already run is worse than the generic message.
+  const missing = code === "42P01" || code === "PGRST205" || /does not exist/i.test(message)
+  if (missing) {
+    if (/slot_meta/i.test(message)) {
+      return "The slot_meta table does not exist yet — run scripts/067_slot_meta_and_best_win.sql in Supabase."
+    }
+    if (/now_playing/i.test(message) || code === "42P01" || code === "PGRST205") {
+      return "The now_playing table does not exist yet — run scripts/066_now_playing.sql in Supabase."
+    }
   }
+
+  // A column missing means 066 ran but 067 did not.
+  if (code === "42703" || code === "PGRST204") {
+    if (/best_win/i.test(message)) {
+      return "now_playing has no best_win column yet — run scripts/067_slot_meta_and_best_win.sql in Supabase."
+    }
+  }
+
   return fallback
 }
 
@@ -126,7 +173,7 @@ export function isPlaying(row: NowPlayingRow | null): row is NowPlayingRow {
 export function readNowPlaying(
   body: Record<string, unknown>,
   source: NowPlayingSource,
-): Omit<NowPlayingRow, "id" | "updated_at"> {
+): Omit<NowPlayingRow, "id" | "updated_at" | "best_win"> {
   return {
     slot_name: cleanText(body.slot_name, LIMITS.slotName),
     provider: cleanText(body.provider, LIMITS.provider),
@@ -135,4 +182,27 @@ export function readNowPlaying(
     badge: cleanText(body.badge, LIMITS.badge),
     source,
   }
+}
+
+/**
+ * Fills the gaps in a scrape from what we already know about the game.
+ *
+ * The scrape wins whenever it found something — the page is the live truth for
+ * a game whose multiplier was rebalanced. Everything it missed falls back to
+ * the remembered row, which is the whole point: the badge and the multiplier
+ * come out of the page's visible text and do not survive every layout change,
+ * and a bar missing half its fields on every slot switch is what this fixes.
+ */
+export function mergeWithKnown<T extends Record<string, unknown>>(
+  scraped: T,
+  known: Partial<Record<keyof T, unknown>> | null,
+): T {
+  if (!known) return scraped
+  const merged = { ...scraped }
+  for (const field of ["provider", "max_win", "badge", "image_url"] as const) {
+    if (merged[field] == null && known[field as keyof T] != null) {
+      ;(merged as Record<string, unknown>)[field] = known[field as keyof T]
+    }
+  }
+  return merged
 }
