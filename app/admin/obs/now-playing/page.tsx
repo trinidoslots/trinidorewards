@@ -413,10 +413,20 @@ export default function NowPlayingAdmin() {
               {copied ? "Copied" : "Copy"}
             </button>
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <code className="rounded-md border border-white/[0.10] bg-black/40 px-3 py-1.5 text-[12px] text-white/70">
+              {obsUrl.replace("/now-playing", "/casino-top")}
+            </code>
+            <span className="text-[11px] text-white/30">the matching strip above the capture</span>
+          </div>
+
           <p className="mt-3 text-[11px] leading-relaxed text-white/30">
-            The bar fills whatever the browser source is set to — 1920×72 spans the scene, 900×64 sits in a
-            corner. <code className="text-white/45">?preview=1</code> shows a sample without touching what is
-            saved, and <code className="text-white/45">?art=0</code> leaves the thumbnail off.
+            Both take <code className="text-white/45">?x ?y ?w ?h</code> to place the strip inside the source,
+            or <code className="text-white/45">?align=top|middle|bottom</code>. Set the source to the size it
+            occupies on the canvas and never resize the box — a source rendered at half the width and
+            stretched is what makes an overlay look soft.{" "}
+            <code className="text-white/45">?preview=1</code> shows a sample without touching what is saved,
+            and <code className="text-white/45">?art=1</code> adds the thumbnail.
           </p>
         </div>
       </Panel>

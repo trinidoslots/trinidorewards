@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { BADGE_GRADIENT, BADGE_TEXT, formatMoney, isPlaying, type NowPlayingRow } from "@/lib/now-playing"
+import { barHeight, placementFrom } from "@/lib/obs-placement"
 
 /**
  * The slot currently being played, as the casino's own info bar.
@@ -52,18 +53,6 @@ import { BADGE_GRADIENT, BADGE_TEXT, formatMoney, isPlaying, type NowPlayingRow 
  * source from the top left as before.
  */
 const MAX_BAR_PX = 120
-
-/**
- * A pixel value from the query string.
- *
- * Returns null when absent, blank or unreadable, so 0 stays a usable value —
- * ?y=0 means the top edge, not "unset".
- */
-function readPx(raw: string | null): number | null {
-  if (raw === null || raw.trim() === "") return null
-  const parsed = Number(raw)
-  return Number.isFinite(parsed) ? parsed : null
-}
 
 const BAR = {
   background: "#203744",
@@ -184,28 +173,10 @@ function NowPlaying() {
   const showArt = params.get("art") === "1" && row.image_url
   const bestWin = formatMoney(row.best_win)
 
-  // ?h=40 pins the bar height; otherwise it fills the source up to the cap.
-  const pinnedHeight = readPx(params.get("h"))
-  const height = pinnedHeight && pinnedHeight > 0 ? `${pinnedHeight}px` : `min(100vh, ${MAX_BAR_PX}px)`
-
-  // Where the bar sits inside the source. ?y wins over ?align if both are given.
-  const x = readPx(params.get("x"))
-  const y = readPx(params.get("y"))
-  const width = readPx(params.get("w"))
-  const align = params.get("align")
-
-  const placement: React.CSSProperties = {
-    left: x ?? 0,
-    width: width ?? undefined,
-    right: width === null && x === null ? 0 : undefined,
-  }
-  if (y !== null) placement.top = y
-  else if (align === "bottom") placement.bottom = 0
-  // Centred by arithmetic, not by translateY(-50%): the entrance animation
-  // ends on `transform: none`, which would win over an inline transform and
-  // drop the bar half its own height too low.
-  else if (align === "middle") placement.top = "calc(50% - var(--h) / 2)"
-  else placement.top = 0
+  // Shared with /obs/casino-top, so the two strips cannot drift apart on the
+  // one thing they must agree on — where they sit.
+  const placement = placementFrom(params)
+  const height = barHeight(params, MAX_BAR_PX)
 
   return (
     <div className="relative h-screen w-full bg-transparent" style={{ ["--h" as string]: height }}>
