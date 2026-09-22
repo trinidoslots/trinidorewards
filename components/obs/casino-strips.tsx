@@ -150,6 +150,71 @@ function Stat({ label, value, gap }: { label: string; value: string; gap?: numbe
   )
 }
 
+/**
+ * The Fun Play / Real Play pair at the right-hand end of the bar.
+ *
+ * Sampled off the reference crop, where the group measures 40px tall:
+ *
+ *   group       #172530, a sunken well darker than the bar itself
+ *   active      #3E586C, filled, white label — Real Play, since that is what
+ *               a stream is doing
+ *   inactive    transparent, label #A1BFD6
+ *   padding     0.10 of the group's height, all round; the buttons are 0.80
+ *   radius      0.15 of the group, 0.10 on the button inside it
+ *   label       0.29h, semibold. The reference has 0.35 of the group, which
+ *               works out at 10px here and reads as undersized beside the
+ *               12px badge — the group is 29px tall against the crop's 40.
+ *
+ * Static, and deliberately outside the part of the bar that fades: these do
+ * not change with the game, and blinking them on every slot switch would say
+ * they did.
+ */
+const PLAY = {
+  well: "#172530",
+  active: "#3E586C",
+  activeLabel: "#FFFFFF",
+  idleLabel: "#A1BFD6",
+} as const
+
+function PlayToggle() {
+  /** Group height as a fraction of the strip; every size below is off this. */
+  const box = 0.72
+
+  const label = (text: string, on: boolean) => (
+    <span
+      key={text}
+      className="flex items-center whitespace-nowrap"
+      style={{
+        height: u(box * 0.8),
+        padding: `0 ${u(box * 0.3)}`,
+        borderRadius: u(box * 0.1),
+        backgroundColor: on ? PLAY.active : "transparent",
+        color: on ? PLAY.activeLabel : PLAY.idleLabel,
+        fontSize: u(0.29),
+        fontWeight: 600,
+      }}
+    >
+      {text}
+    </span>
+  )
+
+  return (
+    <span
+      className="ml-auto flex shrink-0 items-center"
+      style={{
+        height: u(box),
+        padding: u(box * 0.1),
+        gap: u(box * 0.1),
+        borderRadius: u(box * 0.15),
+        backgroundColor: PLAY.well,
+      }}
+    >
+      {label("Fun Play", false)}
+      {label("Real Play", true)}
+    </span>
+  )
+}
+
 /** The hairline between the title group and the figures. */
 function Divider() {
   return (
@@ -322,6 +387,9 @@ export function NowPlayingStrip({
         {shown.max_win && <Stat label="Potential" value={shown.max_win} />}
         {bestWin && <Stat label="Best Win" value={bestWin} gap={shown.max_win ? 0.44 : 0} />}
       </div>
+
+      {/* Outside the fading half on purpose — see PlayToggle. */}
+      <PlayToggle />
     </div>
   )
 }
