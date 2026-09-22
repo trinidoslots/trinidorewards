@@ -420,6 +420,18 @@ export default function NowPlayingAdmin() {
             <span className="text-[11px] text-white/30">the matching strip above the capture</span>
           </div>
 
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <code
+              className="rounded-md border px-3 py-1.5 text-[12px]"
+              style={{ borderColor: `${ACCENTS.green}55`, backgroundColor: "rgba(0,0,0,0.4)", color: "#DDE7EC" }}
+            >
+              {obsUrl.replace("/now-playing", "/casino-frame")}
+            </code>
+            <span className="text-[11px] text-white/45">
+              both strips and the side rails as one 1410×900 frame — set the source to that size
+            </span>
+          </div>
+
           <p className="mt-3 text-[11px] leading-relaxed text-white/30">
             Both take <code className="text-white/45">?x ?y ?w ?h</code> to place the strip inside the source,
             or <code className="text-white/45">?align=top|middle|bottom</code>. Set the source to the size it
