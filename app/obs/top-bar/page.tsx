@@ -86,6 +86,8 @@ const ICON_CLASS = "h-3.5 w-auto shrink-0 text-white"
 /** The channel the follower count is for. */
 const KICK_SLUG = "trinidoslots"
 
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+
 /**
  * Kick's mark — the real one.
  *
@@ -163,9 +165,12 @@ function TopBarWidget() {
       const hours = String(now.getHours()).padStart(2, "0")
       const minutes = String(now.getMinutes()).padStart(2, "0")
       const day = String(now.getDate()).padStart(2, "0")
-      const month = String(now.getMonth() + 1).padStart(2, "0")
+      // Spelled out, because 09 and 23 next to each other are two numbers and
+      // nothing says which is the month. MONTHS rather than toLocaleString:
+      // the widget must read the same whatever locale OBS happens to run in.
+      const month = MONTHS[now.getMonth()]
       const year = now.getFullYear()
-      setCurrentTime(`${hours}:${minutes} CEST ${day}.${month}.${year}`)
+      setCurrentTime(`${hours}:${minutes} CEST ${day}-${month}-${year}`)
     }
 
     updateTime()
@@ -630,7 +635,7 @@ function TopBarWidget() {
           {/* 13px, not the shared 14: it is the only wide icon in the row,
               and a shape that runs sideways looks larger than a tall one of
               the same height. */}
-          <img src="/obs-wallet.png" alt="" className="h-[13px] w-auto shrink-0" />
+          <img src="/obs-wallet.png" alt="" className="h-3 w-auto shrink-0" />
           <AnimatedAmount value={walletStats.difference} className="font-bold" toneClassName="text-white" />
         </div>
 
@@ -650,7 +655,9 @@ function TopBarWidget() {
         <span className="text-[#4D84FF]/50">|</span>
 
         {/* Time */}
-        <span className="text-white">{currentTime}</span>
+        {/* One step lighter than the figures beside it: the clock is context,
+            not a number anyone reads off the stream. */}
+        <span className="font-light text-white">{currentTime}</span>
       </div>
     </div>
   )
