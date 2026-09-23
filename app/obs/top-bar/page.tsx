@@ -89,6 +89,40 @@ const KICK_SLUG = "trinidoslots"
 const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
 /**
+ * The clock is Berlin's, not the machine's.
+ *
+ * It has to be, now that the strip names the zone: if OBS ran on a machine
+ * set to anything else, local time under a "CET" label would simply be a lie.
+ * Formatting in the zone makes the label true by construction.
+ */
+const CLOCK_ZONE = "Europe/Berlin"
+
+const CLOCK_PARTS = new Intl.DateTimeFormat("en-GB", {
+  timeZone: CLOCK_ZONE,
+  hourCycle: "h23",
+  hour: "2-digit",
+  minute: "2-digit",
+  day: "2-digit",
+  month: "numeric",
+  year: "numeric",
+})
+
+/**
+ * CEST or CET, from the offset rather than from the name.
+ *
+ * Intl can supply "CET" and "CEST" directly, and here it does — but the short
+ * name it returns depends on the locale data the browser was built with, and
+ * a build that answered "GMT+2" would put that on the stream. The offset is a
+ * number, and +2 means summer time wherever the data came from.
+ */
+function centralEuropeanAbbreviation(date: Date) {
+  const offset = new Intl.DateTimeFormat("en-GB", { timeZone: CLOCK_ZONE, timeZoneName: "shortOffset" })
+    .formatToParts(date)
+    .find((part) => part.type === "timeZoneName")?.value
+  return offset === "GMT+2" ? "CEST" : "CET"
+}
+
+/**
  * Kick's mark — the real one.
  *
  * The first K of the KICK wordmark at static.kick.com/kick-logo.svg, taken
@@ -162,15 +196,19 @@ function TopBarWidget() {
   useEffect(() => {
     const updateTime = () => {
       const now = new Date()
-      const hours = String(now.getHours()).padStart(2, "0")
-      const minutes = String(now.getMinutes()).padStart(2, "0")
-      const day = String(now.getDate()).padStart(2, "0")
-      // Spelled out, because 09 and 23 next to each other are two numbers and
-      // nothing says which is the month. MONTHS rather than toLocaleString:
-      // the widget must read the same whatever locale OBS happens to run in.
-      const month = MONTHS[now.getMonth()]
-      const year = now.getFullYear()
-      setCurrentTime(`${hours}:${minutes} CEST ${day}-${month}-${year}`)
+      const parts = CLOCK_PARTS.formatToParts(now)
+      const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
+
+      // The month is spelled out from MONTHS rather than asked of Intl,
+      // because 09 and 23 side by side are two numbers with nothing to say
+      // which is which, and a short month name differs by locale — SEP, SEPT,
+      // SET. This way the strip reads the same on any machine.
+      const month = MONTHS[Number(part("month")) - 1] ?? ""
+
+      setCurrentTime(
+        `${part("hour")}:${part("minute")} ${centralEuropeanAbbreviation(now)} ` +
+          `${part("day")}-${month}-${part("year")}`,
+      )
     }
 
     updateTime()
