@@ -627,7 +627,10 @@ function TopBarWidget() {
 
         {/* Wallet Difference */}
         <div className="flex items-center gap-1 text-white">
-          <img src="/obs-wallet.png" alt="" className={ICON_CLASS} />
+          {/* 13px, not the shared 14: it is the only wide icon in the row,
+              and a shape that runs sideways looks larger than a tall one of
+              the same height. */}
+          <img src="/obs-wallet.png" alt="" className="h-[13px] w-auto shrink-0" />
           <AnimatedAmount value={walletStats.difference} className="font-bold" toneClassName="text-white" />
         </div>
 
