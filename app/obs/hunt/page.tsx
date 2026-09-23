@@ -114,6 +114,25 @@ const RANK_BADGE =
 const RANK_BADGE_STYLE = { minWidth: 15, height: 15, fontSize: 10, lineHeight: "15px" } as const
 
 /**
+ * How a label and its figure are set, everywhere in this column.
+ *
+ * Labels used to be white at 25–35%, which over a translucent column on a
+ * moving capture is not a colour at all — it is whatever happens to be behind
+ * it, shifted. Both sides are white at full strength now and the same size,
+ * and the whole distinction is carried by weight: 300 against 600.
+ *
+ * In one place because it was not. The statistics panel had five rows each
+ * carrying its own copy of the old grey, and the cards had their own — which
+ * is how the two halves of one widget come to be set differently.
+ *
+ * The label truncates and the figure does not: a row short of room should
+ * clip three letters rather than push out the number it exists to show.
+ */
+const LABEL_CLASS = "min-w-0 truncate text-white"
+const LABEL_STYLE = { fontWeight: 300 } as const
+const VALUE_CLASS = "shrink-0 font-semibold text-white"
+
+/**
  * A game's thumbnail with its position in the hunt on it.
  *
  * Width comes from the 180:236 cover shape unless one is given. Given one, the
@@ -234,23 +253,31 @@ function SlotTile({ hunt, number, duplicate }: { hunt: BonusHunt; number: number
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-2" style={{ lineHeight: `${CARD_LINE}px` }}>
-      {/*
-        White and light, at the figure's own size.
-
-        The label used to be 11px white at 35%, which on a translucent column
-        over a moving capture is a grey that changes with whatever happens to
-        be behind it. Weight carries the whole distinction now — 300 against
-        600, both at 13px and both at full strength — so neither of the two
-        depends on the background to stay readable.
-
-        The label gives way first if a row ever runs out of room: it is three
-        letters that can be clipped without losing anything, where the figure
-        is the point of the row.
-      */}
-      <span className="min-w-0 truncate text-[13px] text-white" style={{ fontWeight: 300 }}>
+      <span className={`${LABEL_CLASS} text-[13px]`} style={LABEL_STYLE}>
         {label}
       </span>
-      <span className="shrink-0 text-[13px] font-semibold tabular-nums text-white">{value}</span>
+      <span className={`${VALUE_CLASS} text-[13px] tabular-nums`}>{value}</span>
+    </div>
+  )
+}
+
+/**
+ * One line of the statistics panel at the top of the column.
+ *
+ * The panel sets its own size, so no size is named here — that is what keeps
+ * these rows and the cards' rows agreeing on everything except the size the
+ * two places actually want to differ on.
+ *
+ * The figure is an inline-flex so the Bonus row can put the crown and its
+ * count beside the tally without needing a row of its own.
+ */
+function KpiRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <span className={LABEL_CLASS} style={LABEL_STYLE}>
+        {label}
+      </span>
+      <span className={`${VALUE_CLASS} inline-flex items-center gap-1.5`}>{children}</span>
     </div>
   )
 }
@@ -686,34 +713,19 @@ function HuntWidget() {
               boxShadow: OBS.raisedInset,
             }}
           >
-            <div className="flex justify-between">
-              <span className="text-white/35">B.E. X</span>
-              <span className="text-white font-semibold">{breakEvenX.toFixed(1)}x</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-white/35">Avg X</span>
-              <span className="text-white font-semibold">{averageMultiplier.toFixed(0)}x</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-white/35">Target</span>
-              <span className="text-white font-semibold">{money(startingBalance)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-white/35">Total</span>
-              <span className="text-white font-semibold">{money(totalWinsSoFar)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-white/35">Bonus</span>
-              <span className="text-white font-semibold flex items-center gap-1.5">
-                {completedHunts.length} / {totalBonuses}
-                {superBonuses.length > 0 && (
-                  <span className="flex items-center gap-0.5">
-                    <Crown className="w-3.5 h-3.5 text-[color:var(--obs-gold)]" />
-                    {superBonuses.length}
-                  </span>
-                )}
-              </span>
-            </div>
+            <KpiRow label="B.E. X">{breakEvenX.toFixed(1)}x</KpiRow>
+            <KpiRow label="Avg X">{averageMultiplier.toFixed(0)}x</KpiRow>
+            <KpiRow label="Target">{money(startingBalance)}</KpiRow>
+            <KpiRow label="Total">{money(totalWinsSoFar)}</KpiRow>
+            <KpiRow label="Bonus">
+              {completedHunts.length} / {totalBonuses}
+              {superBonuses.length > 0 && (
+                <span className="flex items-center gap-0.5">
+                  <Crown className="h-3.5 w-3.5 text-[color:var(--obs-gold)]" />
+                  {superBonuses.length}
+                </span>
+              )}
+            </KpiRow>
             <div className="relative h-1.5 overflow-hidden rounded-full bg-black/30 mt-1">
               <div
                 className="absolute top-0 left-0 h-full bg-gradient-to-r from-[color:var(--obs-super)] to-[color:var(--obs-accent)] transition-all duration-1000 ease-out"
@@ -809,7 +821,12 @@ function HuntWidget() {
                   <span className="text-xs font-semibold uppercase tracking-wide text-[color:var(--obs-accent)]">
                     To open
                   </span>
-                  <span className="text-[11px] text-white/25">{unopenedBonuses.length}</span>
+                  {/* A figure, not a placeholder, so it gets the same white
+                      as every other figure in the column rather than the 25%
+                      grey it was. */}
+                  <span className="text-[11px] text-white" style={LABEL_STYLE}>
+                    {unopenedBonuses.length}
+                  </span>
                 </div>
                 <div className="flex items-start">
                   <AnimatePresence mode="popLayout" initial={false}>
