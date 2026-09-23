@@ -169,6 +169,13 @@ function EthereumIcon({ className }: { className?: string }) {
 /**
  * The wallet, cut out of a filled square by a mask.
  *
+ * The viewBox is 19 wide, not 17. The body is only 17 (x 2.5 to 19.5), but the
+ * card slot is a separate white rect in the mask running to x 21.5 — it sticks
+ * out past the body on purpose, which is what makes it read as a card half in
+ * the wallet. Trimming to the body alone sliced its end off, and a bounding
+ * box read off the element cannot catch that: getBBox measures the 24x24 rect
+ * being painted, not the shape the mask leaves behind.
+ *
  * The mask's id is namespaced. In the file it is "w", and an id that short in
  * a page that also renders a hunt board and a scene column is asking for a
  * collision — mask references resolve document-wide, and the loser silently
@@ -176,7 +183,7 @@ function EthereumIcon({ className }: { className?: string }) {
  */
 function WalletIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="2.5 5.5 17 13" aria-hidden className={className}>
+    <svg viewBox="2.5 5.5 19 13" aria-hidden className={className}>
       <defs>
         <mask id="obs-top-bar-wallet">
           <rect width="24" height="24" fill="#000" />
@@ -580,9 +587,11 @@ function TopBarWidget() {
     >
       {/* Left Content - Gamble Aware, Timers, Track */}
       <div className="flex items-center gap-3 flex-1 h-full overflow-x-auto whitespace-nowrap text-base">
-        {/* The brand mark, then 18+ Gamble Aware. The mark carries its own
-            tile, so it sits at the strip's icon height and needs no frame. */}
-        <BrandMark className="h-5 w-5 shrink-0" />
+        {/* The brand mark, then 18+ Gamble Aware. It carries its own tile, so
+            it needs no frame, and it is not held to the icon height — at 32px
+            it nearly fills the 34px the strip's padding leaves, which is the
+            point of a logo. */}
+        <BrandMark className="h-8 w-8 shrink-0" />
 
         <div className="flex items-center gap-1 text-white font-bold">
           <span>18+</span>
