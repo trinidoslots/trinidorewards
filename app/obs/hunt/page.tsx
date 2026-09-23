@@ -45,8 +45,23 @@ const ACCENT_VARS = {
 const money = (value: number) =>
   value > 0 && value < 1 ? `$${value.toFixed(2)}` : `$${Math.round(value).toLocaleString("en-US")}`
 
-/** Height of one bonus card. Fixed so the cover can fill it. */
-const CARD_HEIGHT = 66
+/**
+ * Height of one bonus card, and the leading of the four lines inside it.
+ *
+ * Fixed so the cover can fill it. 66 was exactly four 15px lines with nothing
+ * to spare, which is why the card looked squeezed: the text ran wall to wall
+ * with no air above or below it.
+ *
+ * 84 leaves 78px inside the padding and the border. The four lines measure 71
+ * — not 4 x 17, because a stat row aligns an 11px label and a 13px figure on
+ * their shared baseline and that makes its line box 18 rather than 17 — so
+ * there are 7px of air, and the cover is 78 tall by 59 wide.
+ *
+ * TO_OPEN_HEIGHT below is set to the same 78, so a cover is one size in this
+ * column and not two that differ by a few pixels.
+ */
+const CARD_HEIGHT = 84
+const CARD_LINE = 17
 
 /**
  * The "to open" row: five whole covers, each one sliding in behind the last.
@@ -59,11 +74,15 @@ const CARD_HEIGHT = 66
  * width of its own; the four behind it are flex items sharing what is left of
  * the row, and each one's cover hangs out of its slot to the left by however
  * much does not fit. So the row always ends flush with the cards below it and
- * the overlap is whatever that costs — at 214px wide, 55px covers showing
- * 32px each.
+ * the overlap is whatever that costs — at 214px wide, 59px covers showing
+ * 31px each.
+ *
+ * The height is the card's inside height (CARD_HEIGHT less its 4px of padding
+ * and 2px of border), so this cover and the one on a card below are the same
+ * size rather than two sizes that happen to be close.
  */
 const TO_OPEN_SHOWN = 5
-const TO_OPEN_HEIGHT = 72
+const TO_OPEN_HEIGHT = CARD_HEIGHT - 6
 const TO_OPEN_WIDTH = Math.round((TO_OPEN_HEIGHT * 180) / 236)
 
 /**
@@ -90,6 +109,8 @@ function BonusThumb({
   height,
   width,
   rank,
+  lifted,
+  lead,
 }: {
   hunt: BonusHunt
   /** A number of pixels, or "100%" to fill a parent of definite height. */
@@ -97,11 +118,25 @@ function BonusThumb({
   /** Overrides the cover shape; the artwork is cropped to it. */
   width?: number | string
   rank?: number
+  /** Casts a shadow to its right, onto whatever it is lying on top of. */
+  lifted?: boolean
+  /** The next one to be opened: ringed in the accent so it is picked out. */
+  lead?: boolean
 }) {
   return (
     <div
-      className="relative flex flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.08] bg-white/[0.022]"
-      style={width === undefined ? { height, aspectRatio: "180 / 236" } : { height, width }}
+      className="relative flex flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/[0.022]"
+      style={{
+        ...(width === undefined ? { height, aspectRatio: "180 / 236" } : { height, width }),
+        // Border-box, so the ring thickens inward and the cover keeps the
+        // same outer size whether it is the lead or not.
+        border: lead ? "2px solid var(--obs-accent)" : "1px solid rgba(255, 255, 255, 0.08)",
+        // Offset right with a negative spread: the shadow falls on the cover
+        // behind this one and barely bleeds above or below it, which is what
+        // makes the row read as a stack rather than as a flat row that
+        // happens to be clipped.
+        boxShadow: lifted ? "5px 0 10px -1px rgba(0, 0, 0, 0.6)" : undefined,
+      }}
     >
       {hunt.image_url ? (
         <img
@@ -169,9 +204,9 @@ function SlotTile({ hunt, number, duplicate }: { hunt: BonusHunt; number: number
  */
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-2 leading-[15px]">
+    <div className="flex items-baseline justify-between gap-2" style={{ lineHeight: `${CARD_LINE}px` }}>
       <span className="text-[11px] text-white/35">{label}</span>
-      <span className="text-[12px] font-semibold tabular-nums text-white">{value}</span>
+      <span className="text-[13px] font-semibold tabular-nums text-white">{value}</span>
     </div>
   )
 }
@@ -205,7 +240,9 @@ function BonusCard({ hunt, rank }: { hunt: BonusHunt; rank?: number }) {
       {/* Fills the card's height; the 180:236 cover gives it its width. */}
       <BonusThumb hunt={hunt} height="100%" rank={rank} />
       <div className="flex min-w-0 flex-1 flex-col justify-center">
-        <div className="truncate text-[12px] font-medium leading-[15px] text-white/80">{hunt.game_name}</div>
+        <div className="truncate text-[13px] font-medium text-white/80" style={{ lineHeight: `${CARD_LINE}px` }}>
+          {hunt.game_name}
+        </div>
         <StatRow label="Bet" value={money(bet)} />
         <StatRow label="X" value={multiplier == null ? "—" : `${multiplier.toFixed(0)}x`} />
         <StatRow label="Win" value={win == null ? "—" : money(win)} />
@@ -376,83 +413,24 @@ function HuntWidget() {
     }
   }, [huntSource])
 
-  useEffect(() => {
-    if (obsViewMode === "opening" || hunts.length <= 6) return
+  /*
+    There used to be a second scroll loop here, for the opened list in
+    "normal" view mode. It ran at 60fps and did nothing at all.
 
-    const container = scrollContainerRef.current
-    if (!container) return
+    Its container was `scrollContainerRef`, which is on the opened list itself
+    — a plain div with no overflow, sitting inside the element that actually
+    scrolls. Writing `scrollTop` to it moved nothing, and its stop position
+    was `scrollHeight / 5 * 4`, a fifth of the height because the list used to
+    be rendered five times over. It has not been for a long time.
 
-    let scrollPosition = 0
-    let isPaused = false
-    let isScrollingUp = false
-    let scrollUpStartTime = 0
-    let scrollUpStartPosition = 0
-    let animationId: number
-
-    const animate = (timestamp: number) => {
-      if (!container) return
-
-      if (isPaused) {
-        animationId = requestAnimationFrame(animate)
-        return
-      }
-
-      if (isScrollingUp) {
-        if (scrollUpStartTime === 0) {
-          scrollUpStartTime = timestamp
-          scrollUpStartPosition = scrollPosition
-        }
-
-        const elapsed = timestamp - scrollUpStartTime
-        const duration = 800
-        const progress = Math.min(elapsed / duration, 1)
-
-        const easeOutCubic = 1 - Math.pow(1 - progress, 3)
-
-        scrollPosition = scrollUpStartPosition * (1 - easeOutCubic)
-        container.scrollTop = scrollPosition
-
-        if (progress >= 1) {
-          scrollPosition = 0
-          container.scrollTop = 0
-          isScrollingUp = false
-          scrollUpStartTime = 0
-
-          isPaused = true
-          setTimeout(() => {
-            isPaused = false
-          }, 1000)
-        }
-
-        animationId = requestAnimationFrame(animate)
-        return
-      }
-
-      scrollPosition += 0.4
-
-      const totalHeight = container.scrollHeight
-      const singleListHeight = totalHeight / 5
-      const maxScroll = singleListHeight * 4 + 20
-
-      if (scrollPosition >= maxScroll) {
-        isPaused = true
-        setTimeout(() => {
-          isScrollingUp = true
-          isPaused = false
-        }, 3000)
-      } else {
-        container.scrollTop = scrollPosition
-      }
-
-      animationId = requestAnimationFrame(animate)
-    }
-
-    animationId = requestAnimationFrame(animate)
-
-    return () => {
-      if (animationId) cancelAnimationFrame(animationId)
-    }
-  }, [obsViewMode, hunts.length])
+    What it did do was read `container.scrollHeight` inside the animation
+    frame. Reading that forces the browser to lay the document out before it
+    can answer, so this loop made the whole page re-layout sixty times a
+    second to compute a number it then threw away. In /obs/complete that cost
+    is paid by everything: the three sources are same-origin frames and share
+    one main thread with the scene behind them, so a column quietly forcing
+    layout at 60fps is why the top bar and the other column stuttered too.
+  */
 
   useLayoutEffect(() => {
     setLoopList(false)
@@ -477,6 +455,14 @@ function HuntWidget() {
     // The grid is rendered twice back-to-back (see JSX), so once we scroll past
     // the height of the first copy we can silently loop back to 0 for a seamless,
     // indefinite scroll instead of pausing and reversing.
+    //
+    // Measured once, here, and not inside the frame. `scrollHeight` cannot be
+    // answered without laying the document out, so reading it per frame made
+    // the widget force a full layout sixty times a second for a number that
+    // only changes when the list does — and the effect already re-runs when
+    // that happens.
+    const loopPoint = container.scrollHeight / 2
+
     let scrollPosition = 0
     let isPaused = true
     let animationId: number
@@ -494,8 +480,6 @@ function HuntWidget() {
       }
 
       scrollPosition += 0.4
-
-      const loopPoint = container.scrollHeight / 2
 
       if (scrollPosition >= loopPoint) {
         scrollPosition -= loopPoint
@@ -805,6 +789,8 @@ function HuntWidget() {
                             hunt={hunt}
                             height="100%"
                             width="100%"
+                            lifted
+                            lead={index === 0}
                             rank={index === 0 ? bonusNumbers.get(hunt.id) : undefined}
                           />
                         </div>
