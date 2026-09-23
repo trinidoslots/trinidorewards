@@ -1,1043 +1,715 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Trash2, Plus } from "lucide-react"
-import { createBrowserClient } from "@/lib/supabase/client"
+import { useCallback, useEffect, useRef, useState } from "react"
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  Pause,
+  Play,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react"
+import { ACCENTS, MonoLabel, Panel, PanelHeader, Tag } from "@/components/ui/panel"
+import { FIELD_CLASS, SelectMenu } from "@/components/ui/select-menu"
+import {
+  formatDuration,
+  isTimerVisible,
+  parseDuration,
+  remainingSeconds,
+  timerReadout,
+  timerState,
+  type ObsTimerRow,
+  type OnZero,
+} from "@/lib/obs-timers"
 
-interface Timer {
+/**
+ * What the top bar's timers and info lines say.
+ *
+ * Every write goes through /api/admin/obs-timers and /api/admin/obs-info.
+ * Nothing here talks to Supabase directly any more: the page used to write
+ * with the public anon key, which ships in the browser bundle of every page
+ * on the site, to tables that accepted writes from anyone holding it.
+ *
+ * Timers are set by LENGTH, not by a wall-clock end time. Typing "20" means
+ * twenty minutes from the moment you press Add, which is what someone setting
+ * a stream timer means; before, you had to work out what time it would be and
+ * type that into a datetime field.
+ */
+
+type Info = {
   id: string
   message: string
-  end_time: string
   active: boolean
-  boldIcon?: boolean
-  boldMessage?: boolean
-  boldTime?: boolean
-  data_url?: string
+  sort_order: number
+  word_styles: { index: number; bold?: boolean; italic?: boolean; underline?: boolean }[] | null
+  data_url: string | null
 }
 
-interface SpotifyConfig {
-  clientId: string
-  clientSecret: string
-  refreshToken: string
+const ON_ZERO_OPTIONS = [
+  { value: "hide", label: "Disappear" },
+  { value: "hold", label: "Hold at 0:00" },
+  { value: "message", label: "Show a message" },
+]
+
+/** The lengths worth one press. Anything else gets typed. */
+const QUICK_MINUTES = [5, 10, 15, 30]
+
+const STATE_ACCENT = { running: "green", paused: "amber", finished: "slate" } as const
+
+/* ------------------------------------------------------------- plumbing */
+
+async function call<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    cache: "no-store",
+    headers: init?.body ? { "Content-Type": "application/json" } : undefined,
+    ...init,
+  })
+  const payload = await response.json().catch(() => null)
+  if (!response.ok) throw new Error(payload?.error ?? "That did not work.")
+  return payload as T
 }
 
-interface WordStyle {
-  index: number
-  bold?: boolean
-  italic?: boolean
-  underline?: boolean
+/** Reads a file the admin picked into a data URL for the widget to draw. */
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error("Could not read that file."))
+    reader.readAsDataURL(file)
+  })
 }
 
-interface Info {
-  id: string
-  message: string
-  active: boolean
-  word_styles?: WordStyle[]
-  data_url?: string
-}
+/* ---------------------------------------------------------------- pieces */
 
-export default function ObsWidgetSettings() {
-  const [timers, setTimers] = useState<Timer[]>([])
-  const [newMessage, setNewMessage] = useState("")
-  const [newEndTime, setNewEndTime] = useState("")
-  const [saving, setSaving] = useState(false)
-  const [boldSettings, setBoldSettings] = useState({
-    icon: true,
-    message: false,
-    time: true,
-  })
-
-
-  const [spotifyConfig, setSpotifyConfig] = useState<SpotifyConfig>({
-    clientId: "",
-    clientSecret: "",
-    refreshToken: "",
-  })
-  const [spotifySaving, setSpotifySaving] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editMessage, setEditMessage] = useState("")
-  const [editEndTime, setEditEndTime] = useState("")
-  const [editTimerDataUrl, setEditTimerDataUrl] = useState("")
-  const [newTimerDataUrl, setNewTimerDataUrl] = useState("")
-
-  const [infos, setInfos] = useState<Info[]>([])
-  const [newInfo, setNewInfo] = useState("")
-  const [newInfoDataUrl, setNewInfoDataUrl] = useState("")
-  const [savingInfo, setSavingInfo] = useState(false)
-  const [selectedWords, setSelectedWords] = useState<number[]>([])
-  const [wordStyles, setWordStyles] = useState({
-    bold: false,
-    italic: false,
-    underline: false,
-  })
-  const [editingInfoId, setEditingInfoId] = useState<string | null>(null)
-  const [editInfoMessage, setEditInfoMessage] = useState("")
-  const [editInfoDataUrl, setEditInfoDataUrl] = useState("")
-  const [editSelectedWords, setEditSelectedWords] = useState<number[]>([])
-  const [editWordStyles, setEditWordStyles] = useState({
-    bold: false,
-    italic: false,
-    underline: false,
-  })
-
-  const supabase = createBrowserClient()
+/**
+ * A destructive button that asks first, in place.
+ *
+ * Not window.confirm: this page had nineteen browser dialogs in it, and they
+ * stop the page dead, look nothing like the rest of the panel, and say
+ * "localhost:3000 says".
+ */
+function DeleteButton({ onConfirm, label }: { onConfirm: () => void; label: string }) {
+  const [armed, setArmed] = useState(false)
 
   useEffect(() => {
-    loadTimers()
-    loadSpotifyConfig()
-    loadInfoItems()
-  }, [])
+    if (!armed) return
+    const timeout = setTimeout(() => setArmed(false), 4000)
+    return () => clearTimeout(timeout)
+  }, [armed])
 
-  function loadTimers() {
-    loadTimersFromDatabase()
-  }
-
-  async function loadTimersFromDatabase() {
-    try {
-      const { data, error } = await supabase
-        .from("obs_timers")
-        .select("*")
-        .order("created_at", { ascending: false })
-
-      if (!error && data) {
-        setTimers(data as Timer[])
-      }
-    } catch (error) {
-      console.error("Error loading timers from database:", error)
-    }
-  }
-
-
-
-
-  function loadSpotifyConfig() {
-    const stored = localStorage.getItem("spotifyConfig")
-    if (stored) {
-      try {
-        setSpotifyConfig(JSON.parse(stored))
-      } catch (error) {
-        console.error("Error parsing Spotify config:", error)
-      }
-    }
-  }
-
-  function saveSpotifyConfig() {
-    try {
-      setSpotifySaving(true)
-      localStorage.setItem("spotifyConfig", JSON.stringify(spotifyConfig))
-      alert("Spotify configuration saved successfully!")
-    } catch (error) {
-      console.error("Error saving Spotify config:", error)
-      alert("Failed to save Spotify configuration")
-    } finally {
-      setSpotifySaving(false)
-    }
-  }
-
-  async function saveTimers(updatedTimers: Timer[]) {
-    try {
-      setTimers(updatedTimers)
-    } catch (error) {
-      console.error("Error saving timers:", error)
-    }
-  }
-
-  async function addTimer() {
-    if (!newMessage.trim()) {
-      alert("Enter a timer message")
-      return
-    }
-    if (!newEndTime) {
-      alert("Select an end time for the timer")
-      return
-    }
-
-    try {
-      setSaving(true)
-      // Use snake_case for database columns
-      const timerData = {
-        id: Date.now().toString(),
-        message: newMessage,
-        end_time: newEndTime,
-        active: true,
-        bold_icon: boldSettings.icon,
-        bold_message: boldSettings.message,
-        bold_time: boldSettings.time,
-        data_url: newTimerDataUrl || null,
-      }
-
-      console.log("[v0] Creating timer:", timerData)
-      const { data, error } = await supabase
-        .from("obs_timers")
-        .insert([timerData])
-        .select()
-
-      console.log("[v0] Timer insert response - Data:", data, "Error:", error)
-
-      if (!error && data) {
-        // Convert snake_case back to camelCase for state
-        const newTimer: Timer = {
-          id: data[0].id,
-          message: data[0].message,
-          end_time: data[0].end_time,
-          active: data[0].active,
-          boldIcon: data[0].bold_icon,
-          boldMessage: data[0].bold_message,
-          boldTime: data[0].bold_time,
-          data_url: data[0].data_url,
-        }
-        setTimers([newTimer, ...timers])
-        setNewMessage("")
-        setNewEndTime("")
-        setNewTimerDataUrl("")
-        alert("Timer added successfully!")
-      } else {
-        alert(`Failed to add timer: ${error?.message}`)
-      }
-    } catch (error) {
-      console.error("Error adding timer:", error)
-      alert(`Error adding timer: ${error}`)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function removeTimer(id: string) {
-    try {
-      const { error } = await supabase
-        .from("obs_timers")
-        .delete()
-        .eq("id", id)
-
-      if (!error) {
-        const updated = timers.filter((t) => t.id !== id)
-        setTimers(updated)
-      }
-    } catch (error) {
-      console.error("Error removing timer:", error)
-      alert("Failed to remove timer")
-    }
-  }
-
-  async function toggleTimer(id: string) {
-    try {
-      const timer = timers.find((t) => t.id === id)
-      if (!timer) return
-
-      const { error } = await supabase
-        .from("obs_timers")
-        .update({ active: !timer.active })
-        .eq("id", id)
-
-      if (!error) {
-        const updated = timers.map((t) => (t.id === id ? { ...t, active: !t.active } : t))
-        setTimers(updated)
-      }
-    } catch (error) {
-      console.error("Error toggling timer:", error)
-      alert("Failed to toggle timer")
-    }
-  }
-
-  async function startTimer(id: string) {
-    try {
-      const timer = timers.find((t) => t.id === id)
-      if (!timer) return
-
-      const { error } = await supabase
-        .from("obs_timers")
-        .update({ started: true })
-        .eq("id", id)
-
-      if (!error) {
-        const updated = timers.map((t) => (t.id === id ? { ...t, started: true } : t))
-        setTimers(updated)
-      }
-    } catch (error) {
-      console.error("Error starting timer:", error)
-      alert("Failed to start timer")
-    }
-  }
-
-  async function stopTimer(id: string) {
-    try {
-      const timer = timers.find((t) => t.id === id)
-      if (!timer) return
-
-      const { error } = await supabase
-        .from("obs_timers")
-        .update({ started: false })
-        .eq("id", id)
-
-      if (!error) {
-        const updated = timers.map((t) => (t.id === id ? { ...t, started: false } : t))
-        setTimers(updated)
-      }
-    } catch (error) {
-      console.error("Error stopping timer:", error)
-      alert("Failed to stop timer")
-    }
-  }
-
-  async function editTimer(id: string, newMessage: string, newEndTime: string) {
-    try {
-      const { error } = await supabase
-        .from("obs_timers")
-        .update({ message: newMessage, end_time: newEndTime })
-        .eq("id", id)
-
-      if (!error) {
-        const updated = timers.map((t) =>
-          t.id === id ? { ...t, message: newMessage, end_time: newEndTime } : t
-        )
-        setTimers(updated)
-      }
-    } catch (error) {
-      console.error("Error editing timer:", error)
-      alert("Failed to edit timer")
-    }
-  }
-
-  async function loadInfoItems() {
-    try {
-      const { data, error } = await supabase
-        .from("obs_info")
-        .select("*")
-        .order("created_at", { ascending: false })
-
-      if (!error && data) {
-        setInfos(data as Info[])
-      }
-    } catch (error) {
-      console.error("Error loading info items:", error)
-    }
-  }
-
-  async function addInfoItem() {
-    if (!newInfo.trim()) {
-      alert("Enter info text")
-      return
-    }
-
-    try {
-      setSavingInfo(true)
-      
-      // Build word_styles array from selected words
-      const stylesArray: WordStyle[] = selectedWords
-        .map((wordIdx) => ({
-          index: wordIdx,
-          bold: wordStyles.bold,
-          italic: wordStyles.italic,
-          underline: wordStyles.underline,
-        }))
-        .filter((s) => s.bold || s.italic || s.underline)
-      
-      const infoData = {
-        id: Date.now().toString(),
-        message: newInfo,
-        active: true,
-        word_styles: stylesArray.length > 0 ? stylesArray : null,
-        data_url: newInfoDataUrl || null,
-      }
-
-      console.log("[v0] Inserting info item:", infoData)
-      const { data, error } = await supabase
-        .from("obs_info")
-        .insert([infoData])
-
-      console.log("[v0] Insert response - Data:", data, "Error:", error)
-      if (!error) {
-        setInfos([infoData as Info, ...infos])
-        setNewInfo("")
-        setNewInfoDataUrl("")
-        setSelectedWords([])
-        setWordStyles({ bold: false, italic: false, underline: false })
-      } else {
-        console.error("[v0] Insert error details:", error)
-        alert("Failed to add info item: " + error.message)
-      }
-    } catch (error) {
-      console.error("Error adding info item:", error)
-      alert("Error adding info item")
-    } finally {
-      setSavingInfo(false)
-    }
-  }
-
-  async function removeInfoItem(id: string) {
-    try {
-      const { error } = await supabase
-        .from("obs_info")
-        .delete()
-        .eq("id", id)
-
-      if (!error) {
-        const updated = infos.filter((i) => i.id !== id)
-        setInfos(updated)
-      }
-    } catch (error) {
-      console.error("Error removing info item:", error)
-      alert("Failed to remove info item")
-    }
-  }
-
-  async function updateInfoItem(id: string) {
-    try {
-      const editStylesArray: WordStyle[] = editSelectedWords
-        .map((wordIdx) => ({
-          index: wordIdx,
-          bold: editWordStyles.bold,
-          italic: editWordStyles.italic,
-          underline: editWordStyles.underline,
-        }))
-        .filter((s) => s.bold || s.italic || s.underline)
-
-      const { error } = await supabase
-        .from("obs_info")
-        .update({
-          message: editInfoMessage,
-          data_url: editInfoDataUrl || null,
-          word_styles: editStylesArray.length > 0 ? editStylesArray : null,
-        })
-        .eq("id", id)
-
-      if (!error) {
-        const updated = infos.map((i) =>
-          i.id === id
-            ? {
-                ...i,
-                message: editInfoMessage,
-                data_url: editInfoDataUrl,
-                word_styles: editStylesArray,
-              }
-            : i
-        )
-        setInfos(updated)
-        setEditingInfoId(null)
-      } else {
-        alert("Failed to update info item")
-      }
-    } catch (error) {
-      console.error("Error updating info item:", error)
-      alert("Failed to update info item")
-    }
-  }
-
-  function startEditingInfo(info: Info) {
-    setEditingInfoId(info.id)
-    setEditInfoMessage(info.message)
-    setEditInfoDataUrl(info.data_url || "")
-    setEditSelectedWords([])
-    setEditWordStyles({ bold: false, italic: false, underline: false })
-  }
-
-  async function toggleInfoActive(id: string) {
-    try {
-      const info = infos.find((i) => i.id === id)
-      if (!info) return
-
-      const { error } = await supabase
-        .from("obs_info")
-        .update({ active: !info.active })
-        .eq("id", id)
-
-      if (!error) {
-        const updated = infos.map((i) => (i.id === id ? { ...i, active: !i.active } : i))
-        setInfos(updated)
-      }
-    } catch (error) {
-      console.error("Error toggling info item:", error)
-      alert("Failed to toggle info item")
-    }
-  }
-
-  function formatTime(seconds: number) {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${String(secs).padStart(2, "0")}`
+  if (!armed) {
+    return (
+      <button
+        type="button"
+        aria-label={label}
+        onClick={() => setArmed(true)}
+        className="flex h-7 w-7 items-center justify-center rounded border border-white/[0.10] text-white/35 transition hover:border-white/25 hover:text-white"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0B0B0D] to-[#101014] p-8">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold text-white mb-8">OBS Widget Settings</h1>
+    <span className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={onConfirm}
+        className="rounded px-2 py-1 text-[11px] font-medium transition"
+        style={{ backgroundColor: `${ACCENTS.red}22`, color: ACCENTS.red }}
+      >
+        Remove
+      </button>
+      <button
+        type="button"
+        aria-label="Keep it"
+        onClick={() => setArmed(false)}
+        className="flex h-7 w-7 items-center justify-center rounded text-white/35 transition hover:text-white"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </span>
+  )
+}
 
-        {/* Add Timer Form */}
-        <Card className="bg-white/[0.04] border-white/[0.10] mb-8">
-          <CardHeader>
-            <CardTitle className="text-white">Add Timer</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-white/60 mb-2">Timer Message</label>
-              <Input
-                placeholder="e.g., Stream Raid, Daily Bonus"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25"
-                onKeyPress={(e) => e.key === "Enter" && addTimer()}
-              />
-            </div>
+function IconButton({
+  onClick,
+  title,
+  disabled,
+  children,
+}: {
+  onClick: () => void
+  title: string
+  disabled?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex h-7 w-7 items-center justify-center rounded border border-white/[0.10] text-white/45 transition hover:border-white/25 hover:text-white disabled:pointer-events-none disabled:opacity-25"
+    >
+      {children}
+    </button>
+  )
+}
 
-            <div>
-              <label className="block text-sm font-medium text-white/60 mb-2">End Time</label>
-              <div className="flex gap-2">
-                <Input
-                  type="datetime-local"
-                  value={newEndTime}
-                  onChange={(e) => setNewEndTime(e.target.value)}
-                  className="bg-white/[0.06] border-white/[0.12] text-white flex-1"
-                />
-                <Button
-                  onClick={addTimer}
-                  className="bg-[#5B8DEF] hover:bg-[#4A7AD8] text-white whitespace-nowrap"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Timer
-                </Button>
-              </div>
-            </div>
+/** Picks an image and hands back a data URL, with a preview of what is set. */
+function IconPicker({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+  const input = useRef<HTMLInputElement>(null)
 
-            <div>
-              <label className="block text-sm font-medium text-white/60 mb-2">Data URL (emoji/icon image)</label>
-              <Input
-                placeholder="Paste data URL with emoji image (e.g., data:image/png;base64,...)"
-                value={newTimerDataUrl}
-                onChange={(e) => setNewTimerDataUrl(e.target.value)}
-                className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25 text-sm"
-              />
-            </div>
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (event) => {
+          const file = event.target.files?.[0]
+          if (file) onChange(await readAsDataUrl(file))
+          event.target.value = ""
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => input.current?.click()}
+        className="flex items-center gap-1.5 rounded-md border border-white/[0.10] px-2.5 py-1.5 text-[12px] text-white/55 transition hover:border-white/20 hover:text-white"
+      >
+        <Upload className="h-3.5 w-3.5" />
+        {value ? "Replace icon" : "Icon"}
+      </button>
+      {value && (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element -- a data URL */}
+          <img
+            src={value}
+            alt=""
+            className="h-5 w-5 object-contain"
+            style={{ filter: "brightness(0) saturate(100%) invert(1)" }}
+          />
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            className="text-[11px] text-white/35 transition hover:text-white"
+          >
+            Clear
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
 
-            <div className="border-t border-white/[0.10] pt-4">
-              <label className="block text-sm font-medium text-white/60 mb-3">Bold Elements</label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={boldSettings.icon}
-                    onChange={(e) => setBoldSettings({ ...boldSettings, icon: e.target.checked })}
-                    className="w-4 h-4 accent-[#5B8DEF]"
-                  />
-                  <span className="text-sm text-white/60">Bold Timer Icon (⏱)</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={boldSettings.message}
-                    onChange={(e) => setBoldSettings({ ...boldSettings, message: e.target.checked })}
-                    className="w-4 h-4 accent-[#5B8DEF]"
-                  />
-                  <span className="text-sm text-white/60">Bold Message</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={boldSettings.time}
-                    onChange={(e) => setBoldSettings({ ...boldSettings, time: e.target.checked })}
-                    className="w-4 h-4 accent-[#5B8DEF]"
-                  />
-                  <span className="text-sm text-white/60">Bold Countdown Time</span>
-                </label>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+/* ------------------------------------------------------------------ page */
 
-        {/* Active Timers */}
-        {timers.length > 0 ? (
-          <Card className="bg-white/[0.04] border-white/[0.10]">
-            <CardHeader>
-              <CardTitle className="text-white">Active Timers ({timers.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {timers.map((timer) => (
-                  <div key={timer.id}>
-                    {editingId === timer.id ? (
-                      <div className="p-3 bg-white/[0.06] rounded-lg border border-white/[0.12]/50 space-y-3">
-                        <div>
-                          <label className="block text-xs font-medium text-white/60 mb-1">Message</label>
-                          <Input
-                            value={editMessage}
-                            onChange={(e) => setEditMessage(e.target.value)}
-                            className="bg-white/[0.08] border-white/[0.12] text-white text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-white/60 mb-1">End Time</label>
-                          <Input
-                            type="datetime-local"
-                            value={editEndTime}
-                            onChange={(e) => setEditEndTime(e.target.value)}
-                            className="bg-white/[0.08] border-white/[0.12] text-white text-sm"
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => {
-                              editTimer(timer.id, editMessage, editEndTime)
-                              setEditingId(null)
-                            }}
-                            size="sm"
-                            className="bg-[#5B8DEF] hover:bg-[#4A7AD8] text-white flex-1"
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            onClick={() => setEditingId(null)}
-                            size="sm"
-                            variant="outline"
-                            className="border-white/[0.12] text-white/40"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between p-3 bg-white/[0.06] rounded-lg border border-white/[0.12]/50">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={timer.active}
-                              onChange={() => toggleTimer(timer.id)}
-                              className="w-4 h-4 accent-[#5B8DEF]"
-                            />
-                            <span className="text-white font-medium">{timer.message}</span>
-                            <span className="text-xs text-white/40">
-                              {new Date(timer.end_time) > new Date() ? "● Active" : "● Expired"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className={`text-xs ${timer.active ? "text-green-400" : "text-white/40"}`}>
-                              {timer.active ? "Enabled" : "Disabled"}
-                            </span>
-                            <span className="text-xs text-white/40">
-                              Ends: {new Date(timer.end_time).toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            onClick={() => {
-                              setEditingId(timer.id)
-                              setEditMessage(timer.message)
-                              setEditEndTime(timer.end_time)
-                            }}
-                            size="sm"
-                            variant="outline"
-                            className="border-white/[0.12] hover:bg-white/[0.10]/50 text-white/60"
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            onClick={() => removeTimer(timer.id)}
-                            variant="outline"
-                            size="sm"
-                            className="border-red-700/50 hover:bg-red-900/20 text-red-400"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="bg-white/[0.04] border-white/[0.10]">
-            <CardContent className="py-8">
-              <p className="text-center text-white/40">No timers configured. Add one to get started!</p>
-            </CardContent>
-          </Card>
-        )}
+export default function WidgetSettingsPage() {
+  const [timers, setTimers] = useState<ObsTimerRow[]>([])
+  const [infos, setInfos] = useState<Info[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState<string | null>(null)
 
-        {/* Info */}
-        <div className="mt-8 p-4 bg-white/[0.06]/30 border border-white/[0.08] rounded-lg">
-          <p className="text-sm text-white/40">
-            <strong>Info:</strong> Timers added here will automatically appear on the OBS widget bar at{" "}
-            <code className="bg-[#101014] px-2 py-1 rounded text-[#5B8DEF]">/obs/top-bar</code>
-          </p>
+  // A new timer.
+  const [label, setLabel] = useState("")
+  const [length, setLength] = useState("15")
+  const [onZero, setOnZero] = useState<OnZero>("hide")
+  const [zeroMessage, setZeroMessage] = useState("")
+  const [timerIcon, setTimerIcon] = useState("")
+
+  // A new info line.
+  const [infoText, setInfoText] = useState("")
+  const [infoIcon, setInfoIcon] = useState("")
+
+  /** Ticks once a second so the countdowns move. */
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const interval = setInterval(() => setTick((n) => n + 1), 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const announce = (message: string) => {
+    setSaved(message)
+    setError(null)
+    setTimeout(() => setSaved((current) => (current === message ? null : current)), 2500)
+  }
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [timerData, infoData] = await Promise.all([
+        call<{ rows: ObsTimerRow[] }>("/api/admin/obs-timers"),
+        call<{ rows: Info[] }>("/api/admin/obs-info"),
+      ])
+      setTimers(timerData.rows)
+      setInfos(infoData.rows)
+      setError(null)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load.")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  /** Runs a write, shows what went wrong, and never leaves the page busy. */
+  const run = async (work: () => Promise<void>, done?: string) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await work()
+      if (done) announce(done)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "That did not work.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const seconds = parseDuration(length)
+
+  const addTimer = () =>
+    run(async () => {
+      if (!label.trim()) throw new Error("Give the timer a label.")
+      if (!seconds) throw new Error(`"${length}" is not a length. Try 20, 90s, 1h30m or 5:00.`)
+      const { row } = await call<{ row: ObsTimerRow }>("/api/admin/obs-timers", {
+        method: "POST",
+        body: JSON.stringify({
+          message: label,
+          duration_seconds: seconds,
+          on_zero: onZero,
+          zero_message: zeroMessage,
+          data_url: timerIcon || null,
+        }),
+      })
+      setTimers((current) => [...current, row])
+      setLabel("")
+      setZeroMessage("")
+      setTimerIcon("")
+    }, "Timer started.")
+
+  const patchTimer = (id: string, body: Record<string, unknown>, done?: string) =>
+    run(async () => {
+      const { row } = await call<{ row: ObsTimerRow }>("/api/admin/obs-timers", {
+        method: "PATCH",
+        body: JSON.stringify({ id, ...body }),
+      })
+      setTimers((current) => current.map((timer) => (timer.id === id ? row : timer)))
+    }, done)
+
+  const removeTimer = (id: string) =>
+    run(async () => {
+      await call(`/api/admin/obs-timers?id=${encodeURIComponent(id)}`, { method: "DELETE" })
+      setTimers((current) => current.filter((timer) => timer.id !== id))
+    }, "Timer removed.")
+
+  /**
+   * Swaps two rows' sort_order.
+   *
+   * Two writes rather than one, because the pair has to end up with each
+   * other's number and there is no single update that says that.
+   */
+  const moveTimer = (index: number, delta: number) => {
+    const a = timers[index]
+    const b = timers[index + delta]
+    if (!a || !b) return
+    return run(async () => {
+      await Promise.all([
+        call("/api/admin/obs-timers", { method: "PATCH", body: JSON.stringify({ id: a.id, sort_order: b.sort_order }) }),
+        call("/api/admin/obs-timers", { method: "PATCH", body: JSON.stringify({ id: b.id, sort_order: a.sort_order }) }),
+      ])
+      setTimers((current) => {
+        const next = [...current]
+        next[index] = { ...b, sort_order: a.sort_order }
+        next[index + delta] = { ...a, sort_order: b.sort_order }
+        return next
+      })
+    })
+  }
+
+  const addInfo = () =>
+    run(async () => {
+      if (!infoText.trim()) throw new Error("Type the line first.")
+      const { row } = await call<{ row: Info }>("/api/admin/obs-info", {
+        method: "POST",
+        body: JSON.stringify({ message: infoText, data_url: infoIcon || null }),
+      })
+      setInfos((current) => [...current, row])
+      setInfoText("")
+      setInfoIcon("")
+    }, "Info line added.")
+
+  const patchInfo = (id: string, body: Record<string, unknown>, done?: string) =>
+    run(async () => {
+      const { row } = await call<{ row: Info }>("/api/admin/obs-info", {
+        method: "PATCH",
+        body: JSON.stringify({ id, ...body }),
+      })
+      setInfos((current) => current.map((info) => (info.id === id ? row : info)))
+    }, done)
+
+  const removeInfo = (id: string) =>
+    run(async () => {
+      await call(`/api/admin/obs-info?id=${encodeURIComponent(id)}`, { method: "DELETE" })
+      setInfos((current) => current.filter((info) => info.id !== id))
+    }, "Info line removed.")
+
+  const onStrip = timers.filter((timer) => isTimerVisible(timer)).length
+
+  return (
+    <div className="space-y-4 pb-10">
+      <header className="flex items-center gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight text-white">Widget settings</h1>
+        <MonoLabel className="text-white/25">{onStrip} on the strip</MonoLabel>
+        <button
+          type="button"
+          onClick={() => void load()}
+          disabled={loading}
+          className="ml-auto flex items-center gap-1.5 rounded-md border border-white/[0.10] px-2.5 py-1.5 text-[12px] text-white/60 transition hover:border-white/20 hover:text-white disabled:opacity-40"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          Reload
+        </button>
+      </header>
+
+      {/* One banner for the whole page, where the alerts used to be. */}
+      {(error || saved) && (
+        <div
+          className="flex items-center gap-2 rounded-md border px-3 py-2 text-[13px]"
+          style={
+            error
+              ? { borderColor: `${ACCENTS.red}55`, color: ACCENTS.red, backgroundColor: `${ACCENTS.red}11` }
+              : { borderColor: `${ACCENTS.green}55`, color: ACCENTS.green, backgroundColor: `${ACCENTS.green}11` }
+          }
+        >
+          {error ? <X className="h-3.5 w-3.5 shrink-0" /> : <Check className="h-3.5 w-3.5 shrink-0" />}
+          {error ?? saved}
         </div>
+      )}
 
-        {/* Deposits & Withdrawals Section */}
-        <div className="mt-12 pt-8 border-t border-white/[0.10]">
-          <h2 className="text-2xl font-bold text-white mb-6">Info Settings</h2>
+      {/* ------------------------------------------------------- timers */}
 
-          {/* Add Info Form */}
-          <Card className="bg-white/[0.04] border-white/[0.10] mb-8">
-            <CardHeader>
-              <CardTitle className="text-white">Add Info Item</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      <Panel accent="blue">
+        <PanelHeader title="New timer" accent="blue" />
+        <div className="space-y-3 p-3.5">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
+            <div>
+              <label htmlFor="timer-label" className="mb-1.5 block">
+                <MonoLabel className="text-white/40">Label</MonoLabel>
+              </label>
+              <input
+                id="timer-label"
+                value={label}
+                onChange={(event) => setLabel(event.target.value)}
+                placeholder="Giveaway closes in"
+                className={FIELD_CLASS}
+              />
+            </div>
+            <div>
+              <label htmlFor="timer-length" className="mb-1.5 block">
+                <MonoLabel className="text-white/40">Length</MonoLabel>
+              </label>
+              <input
+                id="timer-length"
+                value={length}
+                onChange={(event) => setLength(event.target.value)}
+                placeholder="20"
+                className={FIELD_CLASS}
+                aria-describedby="timer-length-hint"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {QUICK_MINUTES.map((minutes) => (
+              <button
+                key={minutes}
+                type="button"
+                onClick={() => setLength(String(minutes))}
+                className="rounded-md border border-white/[0.10] px-2.5 py-1 text-[12px] text-white/55 transition hover:border-white/25 hover:text-white"
+              >
+                {minutes} min
+              </button>
+            ))}
+            <span id="timer-length-hint" className="ml-1">
+              <MonoLabel className="text-white/30">
+                {seconds ? `= ${formatDuration(seconds)}` : "20 · 90s · 1h30m · 5:00"}
+              </MonoLabel>
+            </span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-[180px_minmax(0,1fr)]">
+            <div>
+              <label htmlFor="timer-zero" className="mb-1.5 block">
+                <MonoLabel className="text-white/40">At zero</MonoLabel>
+              </label>
+              <SelectMenu
+                id="timer-zero"
+                value={onZero}
+                onChange={(value) => setOnZero(value as OnZero)}
+                options={ON_ZERO_OPTIONS}
+              />
+            </div>
+            {onZero === "message" && (
               <div>
-                <label className="block text-sm font-medium text-white/60 mb-2">Info Text</label>
-                <div className="flex gap-2 mb-3">
-                  <Input
-                    placeholder="e.g., Raid incoming!, Special event live"
-                    value={newInfo}
-                    onChange={(e) => setNewInfo(e.target.value)}
-                    className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25"
-                    onKeyPress={(e) => e.key === "Enter" && addInfoItem()}
-                  />
-                  <Button
-                    onClick={addInfoItem}
-                    disabled={savingInfo}
-                    className="bg-[#5B8DEF] hover:bg-[#4A7AD8] text-white whitespace-nowrap"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Info
-                  </Button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-white/60 mb-2">Data URL (emoji/icon image)</label>
-                <Input
-                  placeholder="Paste data URL with emoji image (e.g., data:image/png;base64,...)"
-                  value={newInfoDataUrl}
-                  onChange={(e) => setNewInfoDataUrl(e.target.value)}
-                  className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25 text-sm"
+                <label htmlFor="timer-zero-message" className="mb-1.5 block">
+                  <MonoLabel className="text-white/40">Message</MonoLabel>
+                </label>
+                <input
+                  id="timer-zero-message"
+                  value={zeroMessage}
+                  onChange={(event) => setZeroMessage(event.target.value)}
+                  placeholder="NOW"
+                  className={FIELD_CLASS}
                 />
               </div>
-              {newInfo && (
-                <div>
-                  <label className="block text-sm font-medium text-white/60 mb-2">Select Words to Format</label>
-                  <div className="bg-white/[0.08]/30 p-3 rounded-lg mb-3 flex flex-wrap gap-2">
-                    {newInfo.split(" ").map((word, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setSelectedWords(
-                            selectedWords.includes(idx)
-                              ? selectedWords.filter((i) => i !== idx)
-                              : [...selectedWords, idx]
-                          )
-                        }}
-                        className={`px-3 py-1 rounded transition-colors ${
-                          selectedWords.includes(idx)
-                            ? "bg-[#5B8DEF] text-white"
-                            : "bg-white/[0.10] text-white/60 hover:bg-white/[0.14]"
-                        }`}
-                      >
-                        {word}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-white/60 mb-2">
-                  Apply Formatting {selectedWords.length > 0 && `(${selectedWords.length} word${selectedWords.length !== 1 ? "s" : ""} selected)`}
-                </label>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => setWordStyles({ ...wordStyles, bold: !wordStyles.bold })}
-                    className={`px-3 py-2 rounded font-bold ${
-                      wordStyles.bold
-                        ? "bg-[#5B8DEF] text-white"
-                        : "bg-white/[0.06] text-white/60 border border-white/[0.12]"
-                    }`}
-                  >
-                    B
-                  </Button>
-                  <Button
-                    onClick={() => setWordStyles({ ...wordStyles, italic: !wordStyles.italic })}
-                    className={`px-3 py-2 rounded italic ${
-                      wordStyles.italic
-                        ? "bg-[#5B8DEF] text-white"
-                        : "bg-white/[0.06] text-white/60 border border-white/[0.12]"
-                    }`}
-                  >
-                    I
-                  </Button>
-                  <Button
-                    onClick={() => setWordStyles({ ...wordStyles, underline: !wordStyles.underline })}
-                    className={`px-3 py-2 rounded underline ${
-                      wordStyles.underline
-                        ? "bg-[#5B8DEF] text-white"
-                        : "bg-white/[0.06] text-white/60 border border-white/[0.12]"
-                    }`}
-                  >
-                    U
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            )}
+          </div>
 
-          {/* Active Info Items */}
-          {infos.length > 0 ? (
-            <Card className="bg-white/[0.04] border-white/[0.10]">
-              <CardHeader>
-                <CardTitle className="text-white">Info Items ({infos.length})</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {infos.map((info) => (
-                    <div key={info.id}>
-                      {editingInfoId === info.id ? (
-                        <div className="p-3 bg-white/[0.06] rounded-lg border border-white/[0.12]/50 space-y-3">
-                          <div>
-                            <label className="block text-xs font-medium text-white/60 mb-1">Message</label>
-                            <Input
-                              value={editInfoMessage}
-                              onChange={(e) => setEditInfoMessage(e.target.value)}
-                              className="bg-white/[0.08] border-white/[0.12] text-white text-sm"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-white/60 mb-1">Data URL (emoji/icon)</label>
-                            <Input
-                              value={editInfoDataUrl}
-                              onChange={(e) => setEditInfoDataUrl(e.target.value)}
-                              className="bg-white/[0.08] border-white/[0.12] text-white text-sm"
-                              placeholder="Paste data URL..."
-                            />
-                          </div>
-                          {editInfoMessage && (
-                            <div>
-                              <label className="block text-xs font-medium text-white/60 mb-1">Select Words to Format</label>
-                              <div className="bg-white/[0.08]/30 p-2 rounded flex flex-wrap gap-1">
-                                {editInfoMessage.split(" ").map((word, idx) => (
-                                  <button
-                                    key={idx}
-                                    onClick={() => {
-                                      setEditSelectedWords(
-                                        editSelectedWords.includes(idx)
-                                          ? editSelectedWords.filter((i) => i !== idx)
-                                          : [...editSelectedWords, idx]
-                                      )
-                                    }}
-                                    className={`px-2 py-0.5 text-xs rounded transition-colors ${
-                                      editSelectedWords.includes(idx)
-                                        ? "bg-[#5B8DEF] text-white"
-                                        : "bg-white/[0.10] text-white/60"
-                                    }`}
-                                  >
-                                    {word}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          <div className="flex gap-1">
-                            <Button
-                              onClick={() => setEditWordStyles({ ...editWordStyles, bold: !editWordStyles.bold })}
-                              className={`px-2 py-1 text-xs rounded font-bold ${
-                                editWordStyles.bold
-                                  ? "bg-[#5B8DEF] text-white"
-                                  : "bg-white/[0.10] text-white/60"
-                              }`}
-                            >
-                              B
-                            </Button>
-                            <Button
-                              onClick={() => setEditWordStyles({ ...editWordStyles, italic: !editWordStyles.italic })}
-                              className={`px-2 py-1 text-xs rounded italic ${
-                                editWordStyles.italic
-                                  ? "bg-[#5B8DEF] text-white"
-                                  : "bg-white/[0.10] text-white/60"
-                              }`}
-                            >
-                              I
-                            </Button>
-                            <Button
-                              onClick={() => setEditWordStyles({ ...editWordStyles, underline: !editWordStyles.underline })}
-                              className={`px-2 py-1 text-xs rounded underline ${
-                                editWordStyles.underline
-                                  ? "bg-[#5B8DEF] text-white"
-                                  : "bg-white/[0.10] text-white/60"
-                              }`}
-                            >
-                              U
-                            </Button>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => updateInfoItem(info.id)}
-                              size="sm"
-                              className="bg-[#5B8DEF] hover:bg-[#4A7AD8] text-white flex-1"
-                            >
-                              Save
-                            </Button>
-                            <Button
-                              onClick={() => setEditingInfoId(null)}
-                              size="sm"
-                              variant="outline"
-                              className="border-white/[0.12] text-white/40"
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between p-3 bg-white/[0.06] rounded-lg border border-white/[0.12]/50">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={info.active}
-                                onChange={() => toggleInfoActive(info.id)}
-                                className="w-4 h-4 accent-[#5B8DEF]"
-                              />
-                              {info.data_url && (
-                                <img src={info.data_url} alt="info icon" className="w-4 h-4" style={{ filter: "brightness(0) saturate(100%) invert(1)" }} />
-                              )}
-                              <div className="flex flex-wrap items-center gap-1">
-                                {info.message.split(" ").map((word, idx) => {
-                                  const style = (info.word_styles || []).find((s) => s.index === idx)
-                                  return (
-                                    <span
-                                      key={idx}
-                                      className={`text-white text-sm ${style?.bold ? "font-bold" : ""} ${
-                                        style?.italic ? "italic" : ""
-                                      } ${style?.underline ? "underline" : ""}`}
-                                    >
-                                      {word}
-                                    </span>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <div className={`text-xs ${info.active ? "text-green-400" : "text-white/40"}`}>
-                                {info.active ? "● Active" : "● Inactive"}
-                              </div>
-                              {(info.word_styles || []).length > 0 && (
-                                <div className="flex gap-1 text-xs">
-                                  {(info.word_styles || []).some((s) => s.bold) && (
-                                    <span className="bg-white/[0.10] px-1.5 py-0.5 rounded font-bold text-white/60">B</span>
-                                  )}
-                                  {(info.word_styles || []).some((s) => s.italic) && (
-                                    <span className="bg-white/[0.10] px-1.5 py-0.5 rounded italic text-white/60">I</span>
-                                  )}
-                                  {(info.word_styles || []).some((s) => s.underline) && (
-                                    <span className="bg-white/[0.10] px-1.5 py-0.5 rounded underline text-white/60">U</span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <Button
-                              onClick={() => startEditingInfo(info)}
-                              size="sm"
-                              className="bg-blue-600 hover:bg-blue-700 text-white"
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              onClick={() => removeInfoItem(info.id)}
-                              variant="outline"
-                              size="sm"
-                              className="border-red-700/50 hover:bg-red-900/20 text-red-400"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="bg-white/[0.04] border-white/[0.10]">
-              <CardContent className="py-8">
-                <p className="text-center text-white/40">No info items configured. Add one to get started!</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Info */}
-          <div className="mt-4 p-4 bg-white/[0.06]/30 border border-white/[0.08] rounded-lg">
-            <p className="text-sm text-white/40">
-              <strong>Info:</strong> Info items added here will automatically appear on the OBS widget bar at{" "}
-              <code className="bg-[#101014] px-2 py-1 rounded text-[#5B8DEF]">/obs/top-bar</code> in the right column next to the timers.
-            </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <IconPicker value={timerIcon} onChange={setTimerIcon} />
+            <button
+              type="button"
+              onClick={() => void addTimer()}
+              disabled={busy}
+              className="ml-auto flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-black transition disabled:opacity-40"
+              style={{ backgroundColor: ACCENTS.blue }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add and start
+            </button>
           </div>
         </div>
+      </Panel>
 
-        {/* Spotify Section */}
-        <div className="mt-12 pt-8 border-t border-white/[0.10]">
-          <h2 className="text-2xl font-bold text-white mb-6">Spotify Configuration</h2>
-
-          {/* Spotify API Setup */}
-          <Card className="bg-white/[0.04] border-white/[0.10] mb-8">
-            <CardHeader>
-              <CardTitle className="text-white">Spotify API Credentials</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-white/[0.08]/30 border border-white/[0.12]/50 p-4 rounded-lg mb-4">
-                <p className="text-sm text-white/60 mb-2">
-                  <strong>How to get your credentials:</strong>
-                </p>
-                <ol className="text-xs text-white/40 list-decimal list-inside space-y-1">
-                  <li>Go to <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-[#5B8DEF] hover:underline">Spotify Developer Dashboard</a></li>
-                  <li>Create a new app and get your Client ID and Client Secret</li>
-                  <li>Use the Spotify Authorization flow to generate a Refresh Token</li>
-                  <li>Paste them here to enable live track display on the OBS widget</li>
-                </ol>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-white/60 mb-2">Client ID</label>
-                <Input
-                  type="password"
-                  placeholder="Your Spotify Client ID"
-                  value={spotifyConfig.clientId}
-                  onChange={(e) => setSpotifyConfig({ ...spotifyConfig, clientId: e.target.value })}
-                  className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-white/60 mb-2">Client Secret</label>
-                <Input
-                  type="password"
-                  placeholder="Your Spotify Client Secret"
-                  value={spotifyConfig.clientSecret}
-                  onChange={(e) => setSpotifyConfig({ ...spotifyConfig, clientSecret: e.target.value })}
-                  className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-white/60 mb-2">Refresh Token</label>
-                <Input
-                  type="password"
-                  placeholder="Your Spotify Refresh Token"
-                  value={spotifyConfig.refreshToken}
-                  onChange={(e) => setSpotifyConfig({ ...spotifyConfig, refreshToken: e.target.value })}
-                  className="bg-white/[0.06] border-white/[0.12] text-white placeholder:text-white/25"
-                />
-              </div>
-              <Button
-                onClick={saveSpotifyConfig}
-                disabled={spotifySaving}
-                className="w-full bg-[#5B8DEF] hover:bg-[#4A7AD8] text-white"
-              >
-                Save Spotify Configuration
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Transactions moved to /admin/settings — one ledger, one screen. */}
-        <div className="mt-12 pt-8 border-t border-white/[0.10]">
-          <h2 className="mb-2 text-2xl font-bold text-white">Wallet</h2>
-          <p className="text-sm text-white/40">
-            Deposits and cashouts now live in{" "}
-            <a href="/admin/settings" className="font-semibold text-[#7FB3FF] underline underline-offset-2">
-              Settings &rarr; Transactions
-            </a>
-            , where each movement is its own entry and the totals are worked out from them.
+      <Panel>
+        <PanelHeader
+          title="Timers"
+          accent="green"
+          right={<MonoLabel className="text-white/25">{timers.length}</MonoLabel>}
+        />
+        {timers.length === 0 ? (
+          <p className="px-3.5 py-8 text-center text-[13px] text-white/30">
+            {loading ? "Loading…" : "No timers yet."}
           </p>
+        ) : (
+          <ul className="divide-y divide-white/[0.05]">
+            {timers.map((timer, index) => {
+              const state = timerState(timer)
+              const left = remainingSeconds(timer)
+              return (
+                <li key={timer.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5">
+                  <span className="flex w-16 shrink-0 flex-col gap-1">
+                    <span
+                      className="font-mono text-[15px] tabular-nums leading-none"
+                      style={{ color: state === "finished" ? "rgba(255,255,255,0.35)" : "#fff" }}
+                    >
+                      {timerReadout(timer)}
+                    </span>
+                    <Tag accent={STATE_ACCENT[state]}>{state}</Tag>
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <input
+                      value={timer.message}
+                      aria-label="Timer label"
+                      onChange={(event) =>
+                        setTimers((current) =>
+                          current.map((row) => (row.id === timer.id ? { ...row, message: event.target.value } : row)),
+                        )
+                      }
+                      onBlur={(event) => {
+                        const next = event.target.value.trim()
+                        if (next && next !== timer.message) void patchTimer(timer.id, { message: next }, "Saved.")
+                      }}
+                      className="w-full bg-transparent text-[13px] text-white outline-none"
+                    />
+                    <MonoLabel className="text-white/25">
+                      {formatDuration(timer.duration_seconds)} · at zero: {timer.on_zero}
+                      {!timer.active && " · off"}
+                    </MonoLabel>
+                  </span>
+
+                  <span className="flex shrink-0 items-center gap-1">
+                    {state === "paused" ? (
+                      <IconButton title="Resume" onClick={() => void patchTimer(timer.id, { action: "resume" })}>
+                        <Play className="h-3.5 w-3.5" />
+                      </IconButton>
+                    ) : (
+                      <IconButton
+                        title="Pause"
+                        disabled={state === "finished"}
+                        onClick={() => void patchTimer(timer.id, { action: "pause" })}
+                      >
+                        <Pause className="h-3.5 w-3.5" />
+                      </IconButton>
+                    )}
+                    <IconButton title="Restart" onClick={() => void patchTimer(timer.id, { action: "restart" })}>
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    </IconButton>
+                    <button
+                      type="button"
+                      onClick={() => void patchTimer(timer.id, { action: "extend", seconds: 300 })}
+                      className="rounded border border-white/[0.10] px-2 py-1 text-[11px] text-white/45 transition hover:border-white/25 hover:text-white"
+                    >
+                      +5m
+                    </button>
+                    <button
+                      type="button"
+                      disabled={left <= 0}
+                      onClick={() => void patchTimer(timer.id, { action: "extend", seconds: -300 })}
+                      className="rounded border border-white/[0.10] px-2 py-1 text-[11px] text-white/45 transition hover:border-white/25 hover:text-white disabled:pointer-events-none disabled:opacity-25"
+                    >
+                      −5m
+                    </button>
+                  </span>
+
+                  <span className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => void patchTimer(timer.id, { active: !timer.active })}
+                      className="rounded border px-2 py-1 text-[11px] transition"
+                      style={
+                        timer.active
+                          ? { borderColor: `${ACCENTS.green}55`, color: ACCENTS.green }
+                          : { borderColor: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.35)" }
+                      }
+                    >
+                      {timer.active ? "On" : "Off"}
+                    </button>
+                    <IconButton title="Move up" disabled={index === 0} onClick={() => void moveTimer(index, -1)}>
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </IconButton>
+                    <IconButton
+                      title="Move down"
+                      disabled={index === timers.length - 1}
+                      onClick={() => void moveTimer(index, 1)}
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </IconButton>
+                    <DeleteButton label="Remove timer" onConfirm={() => void removeTimer(timer.id)} />
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </Panel>
+
+      {/* --------------------------------------------------------- info */}
+
+      <Panel accent="purple">
+        <PanelHeader title="New info line" accent="purple" />
+        <div className="space-y-3 p-3.5">
+          <div>
+            <label htmlFor="info-text" className="mb-1.5 block">
+              <MonoLabel className="text-white/40">Text</MonoLabel>
+            </label>
+            <input
+              id="info-text"
+              value={infoText}
+              onChange={(event) => setInfoText(event.target.value)}
+              placeholder="!WIN: Thunder vs Underworld 250"
+              className={FIELD_CLASS}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <IconPicker value={infoIcon} onChange={setInfoIcon} />
+            <button
+              type="button"
+              onClick={() => void addInfo()}
+              disabled={busy}
+              className="ml-auto flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-black transition disabled:opacity-40"
+              style={{ backgroundColor: ACCENTS.purple }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add
+            </button>
+          </div>
         </div>
-      </div>
+      </Panel>
+
+      <Panel>
+        <PanelHeader
+          title="Info lines"
+          accent="purple"
+          right={<MonoLabel className="text-white/25">{infos.length}</MonoLabel>}
+        />
+        {infos.length === 0 ? (
+          <p className="px-3.5 py-8 text-center text-[13px] text-white/30">
+            {loading ? "Loading…" : "No info lines yet."}
+          </p>
+        ) : (
+          <ul className="divide-y divide-white/[0.05]">
+            {infos.map((info) => (
+              <li key={info.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5">
+                {info.data_url && (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- a data URL */}
+                    <img
+                      src={info.data_url}
+                      alt=""
+                      className="h-5 w-5 shrink-0 object-contain"
+                      style={{ filter: "brightness(0) saturate(100%) invert(1)" }}
+                    />
+                  </>
+                )}
+                <input
+                  value={info.message}
+                  aria-label="Info line"
+                  onChange={(event) =>
+                    setInfos((current) =>
+                      current.map((row) => (row.id === info.id ? { ...row, message: event.target.value } : row)),
+                    )
+                  }
+                  onBlur={(event) => {
+                    const next = event.target.value.trim()
+                    if (next && next !== info.message) void patchInfo(info.id, { message: next }, "Saved.")
+                  }}
+                  className="min-w-0 flex-1 bg-transparent text-[13px] text-white outline-none"
+                />
+                <span className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => void patchInfo(info.id, { active: !info.active })}
+                    className="rounded border px-2 py-1 text-[11px] transition"
+                    style={
+                      info.active
+                        ? { borderColor: `${ACCENTS.green}55`, color: ACCENTS.green }
+                        : { borderColor: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.35)" }
+                    }
+                  >
+                    {info.active ? "On" : "Off"}
+                  </button>
+                  <DeleteButton label="Remove info line" onConfirm={() => void removeInfo(info.id)} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+
+      <Panel accent="slate">
+        <PanelHeader title="Spotify" accent="slate" />
+        <p className="px-3.5 py-3 text-[13px] leading-relaxed text-white/45">
+          The credentials form that used to be here saved to this browser&apos;s local storage, which the OBS source —
+          a different browser — could never read. Nothing set the track, so the music line never appeared. It has been
+          taken out rather than left looking like it works. Say the word and it can be built properly: credentials on
+          the server, the now-playing track polled into the strip.
+        </p>
+      </Panel>
     </div>
   )
 }

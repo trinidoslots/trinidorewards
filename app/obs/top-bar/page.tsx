@@ -10,6 +10,7 @@ import { AnimatedAmount } from "@/components/animated-amount"
 import { BrandMark } from "@/components/brand-mark"
 import { totalsFor } from "@/lib/transactions"
 import { COLUMN_EDGE, TOP_BAR_GRADIENT } from "@/lib/obs-theme"
+import { isTimerVisible, timerReadout, type ObsTimerRow } from "@/lib/obs-timers"
 import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
 
@@ -26,15 +27,17 @@ interface WalletStats {
   difference: number
 }
 
-interface Timer {
-  id: string
-  message: string
-  end_time: string
-  active: boolean
+/**
+ * A row of obs_timers, plus the three camelCase aliases the markup reads.
+ *
+ * Whether it is running, paused or finished — and what it prints at zero —
+ * is worked out by lib/obs-timers.ts, shared with the admin route that
+ * writes it, so the two cannot drift on what a pause means.
+ */
+type Timer = ObsTimerRow & {
   boldIcon?: boolean
   boldMessage?: boolean
   boldTime?: boolean
-  data_url?: string
 }
 
 interface WordStyle {
@@ -270,19 +273,19 @@ function TopBarWidget() {
     }
   }, [])
 
-  // Calculate remaining seconds until end_time
-  function getRemainingSeconds(endTime: string): number {
-    const now = new Date().getTime()
-    const end = new Date(endTime).getTime()
-    const remaining = Math.floor((end - now) / 1000)
-    return Math.max(0, remaining)
-  }
+  /**
+   * Re-renders once a second so the countdowns move.
+   *
+   * The strip used to lean on the five-second poll for this, which is why a
+   * timer could sit on the same number for four seconds and then jump.
+   */
+  const [, setClockTick] = useState(0)
+  useEffect(() => {
+    const interval = setInterval(() => setClockTick((n) => n + 1), 1000)
+    return () => clearInterval(interval)
+  }, [])
 
-  // Format seconds to MM:SS
-  function formatTime(seconds: number): string {
-    if (seconds <= 0) return "SOON"
-    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
-  }
+  const shownTimers = timers.filter((timer) => isTimerVisible(timer))
 
   useEffect(() => {
     fetchWalletStats()
@@ -441,25 +444,23 @@ function TopBarWidget() {
       console.log("[v0] Loading full timer data from database...")
       const { data, error } = await supabase
         .from("obs_timers")
-        .select("id, message, end_time, active, bold_icon, bold_message, bold_time, data_url")
+        .select("*")
         .eq("active", true)
-        .order("created_at", { ascending: false })
+        // sort_order, not created_at: the admin page can reorder these, and
+        // newest-first meant a new timer jumped in front of a running one.
+        .order("sort_order", { ascending: true })
 
       if (!error && data) {
         // Create a hash of the timer IDs and end_time
-        const currentHash = data.map((t: any) => `${t.id}:${t.end_time}`).join("|")
+        const currentHash = data.map((t: any) => `${t.id}:${t.end_time}:${t.paused_remaining_seconds}`).join("|")
         setLastTimerCheckHash(currentHash)
         
         // Convert snake_case from database to camelCase for component
         const timersWithCamelCase = data.map((t: any) => ({
-          id: t.id,
-          message: t.message,
-          end_time: t.end_time,
-          active: t.active,
+          ...t,
           boldIcon: t.bold_icon,
           boldMessage: t.bold_message,
           boldTime: t.bold_time,
-          data_url: t.data_url,
         }))
         console.log("[v0] Loaded full timers from database:", timersWithCamelCase)
         setTimers(timersWithCamelCase as Timer[])
@@ -613,11 +614,10 @@ function TopBarWidget() {
         )}
 
         {/* Active Timers */}
-        {timers && timers.filter((t) => getRemainingSeconds(t.end_time) > 0).length > 0 && (
+        {shownTimers.length > 0 && (
           <>
             <div className="flex items-center gap-2 text-white">
-              {timers
-                .filter((t) => getRemainingSeconds(t.end_time) > 0)
+              {shownTimers
                 .map((timer, idx) => (
                   <div key={timer.id} className="flex items-center gap-1">
                     {timer.data_url ? (
@@ -627,9 +627,9 @@ function TopBarWidget() {
                     )}
                     <span className={timer.boldMessage ? "font-bold" : ""}>{timer.message}</span>
                     <span className={timer.boldTime ? "font-bold" : ""}>
-                      {formatTime(getRemainingSeconds(timer.end_time))}
+                      {timerReadout(timer)}
                     </span>
-                    {idx < timers.filter((t) => getRemainingSeconds(t.end_time) > 0).length - 1 && (
+                    {idx < shownTimers.length - 1 && (
                       <span className="text-[#4D84FF]/50">|</span>
                     )}
                   </div>
