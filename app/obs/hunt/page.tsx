@@ -48,10 +48,21 @@ const money = (value: number) =>
 /** Height of one bonus card. Fixed so the cover can fill it. */
 const CARD_HEIGHT = 66
 
-/** The "to open" deck: how many covers it shows, how big, and how far each tucks under the last. */
+/**
+ * The "to open" row: one full cover, then the rest as narrow slices.
+ *
+ * Five covers, one height. The lead keeps the 180:236 cover shape, so at 72
+ * tall it is 55 wide; the four behind it share what is left of the column's
+ * 182px — about 29 each — and crop their artwork to fit rather than shrink it.
+ *
+ * Taken off the reference: its lead cover is 36% of the row and each slice is
+ * about 44% of the lead. At 72 this comes out at 30% and 52%, which is as
+ * close as those proportions get in a column this wide without the lead cover
+ * growing taller than the cards below it.
+ */
 const TO_OPEN_SHOWN = 5
-const TO_OPEN_HEIGHT = 54
-const TO_OPEN_OVERLAP = 8
+const TO_OPEN_HEIGHT = 72
+const TO_OPEN_GAP = 3
 
 /**
  * The number on a cover.
@@ -65,21 +76,30 @@ const RANK_BADGE =
   "absolute left-0.5 top-0.5 flex items-center justify-center rounded bg-black/70 px-1 font-bold text-white"
 const RANK_BADGE_STYLE = { minWidth: 15, height: 15, fontSize: 10, lineHeight: "15px" } as const
 
-/** A game's thumbnail with its position in the hunt on it. */
+/**
+ * A game's thumbnail with its position in the hunt on it.
+ *
+ * Width comes from the 180:236 cover shape unless one is given. Given one, the
+ * artwork crops to it — `object-cover` keeps the middle of the picture at full
+ * height rather than squashing the whole thing into a narrower box.
+ */
 function BonusThumb({
   hunt,
   height,
+  width,
   rank,
 }: {
   hunt: BonusHunt
   /** A number of pixels, or "100%" to fill a parent of definite height. */
   height: number | string
+  /** Overrides the cover shape; the artwork is cropped to it. */
+  width?: number | string
   rank?: number
 }) {
   return (
     <div
       className="relative flex flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.08] bg-white/[0.022]"
-      style={{ height, aspectRatio: "180 / 236" }}
+      style={width === undefined ? { height, aspectRatio: "180 / 236" } : { height, width }}
     >
       {hunt.image_url ? (
         <img
@@ -729,21 +749,21 @@ function HuntWidget() {
             </div>
 
             {/*
-              Still to open: one deck of covers, all the same size, each tucked
-              a little under the one to its left.
+              Still to open: the next one in full, the four behind it as
+              slices of the same height.
 
-              They used to step down in height and fade out along the row, on
-              the idea that "further back" should look further away. At 46px
-              and shrinking, the fifth was 30px tall and the number on it was
-              unreadable, and a row of five different sizes reads as five
-              different kinds of thing rather than one stack.
+              Two earlier attempts at "further back looks further away" were
+              wrong in different ways. Stepping the covers down in height left
+              the fifth at 30px with an unreadable number on it, and a row of
+              five sizes reads as five kinds of thing. Overlapping them into a
+              deck hid the artwork that identifies each one — a cover you can
+              only see a sliver of is still a cover, but one half-hidden
+              behind another just looks like a rendering error.
 
-              Left-most on top, which is also what puts one number on the deck
-              instead of five: every badge but the front one is behind the
-              cover in front of it.
-
-              Five at most. The column has 182px of usable width, and five
-              41px covers overlapped by 8 come to 174.
+              Slicing keeps every cover full height and full scale. They are
+              cropped, not shrunk, so the art stays legible, and only the lead
+              carries a number: on a 29px slice the badge would take a quarter
+              of the picture.
             */}
             {unopenedBonuses.length > 0 && (
               <div className="border-b border-white/[0.08] px-2 py-2.5">
@@ -753,19 +773,27 @@ function HuntWidget() {
                   </span>
                   <span className="text-[11px] text-white/25">{unopenedBonuses.length}</span>
                 </div>
-                <div className="flex items-start">
+                <div className="flex items-start" style={{ gap: TO_OPEN_GAP }}>
                   <AnimatePresence mode="popLayout" initial={false}>
                     {unopenedBonuses.slice(0, TO_OPEN_SHOWN).map((hunt, index) => (
                       <motion.div
                         key={hunt.id}
                         layout
-                        style={{ marginLeft: index === 0 ? 0 : -TO_OPEN_OVERLAP, zIndex: TO_OPEN_SHOWN - index }}
+                        // The lead keeps its cover shape; the slices divide up
+                        // whatever the column has left, so the row always ends
+                        // flush with the cards under it.
+                        style={index === 0 ? { flex: "none" } : { flex: "1 1 0", minWidth: 0 }}
                         initial={{ opacity: 0, scale: 0.85 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.85 }}
                         transition={{ duration: 0.35, ease: "easeOut" }}
                       >
-                        <BonusThumb hunt={hunt} height={TO_OPEN_HEIGHT} rank={bonusNumbers.get(hunt.id)} />
+                        <BonusThumb
+                          hunt={hunt}
+                          height={TO_OPEN_HEIGHT}
+                          width={index === 0 ? undefined : "100%"}
+                          rank={index === 0 ? bonusNumbers.get(hunt.id) : undefined}
+                        />
                       </motion.div>
                     ))}
                   </AnimatePresence>
