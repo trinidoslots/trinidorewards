@@ -25,3 +25,7 @@ node_modules
 
 # TypeScript incremental build artifact
 *.tsbuildinfo
+
+# Stream Deck: the filled-in copy holds a live key, the log is local noise.
+streamdeck/config.ps1
+streamdeck/grant-log.txt

@@ -4,7 +4,8 @@ import { createClient } from "@supabase/supabase-js"
  * The service-role client, which bypasses RLS.
  *
  * Only ever for route handlers that have already established who is asking —
- * the owner via their cookie, or an admin via their Supabase session. Never
+ * the owner via their cookie, an admin via their Supabase session, or a device
+ * with no browser via a static bearer token. Never
  * import this into anything that runs in the browser: the key is a full
  * bypass of every policy in the database.
  */

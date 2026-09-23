@@ -1,0 +1,6 @@
+@echo off
+rem One .bat per button. Copy this, rename it, change the numbers, and point a
+rem Stream Deck "System: Open" action at it.
+rem
+rem -WindowStyle Hidden keeps a console from flashing over the stream.
+powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0grant-points.ps1" -Points 500 -Minutes 3

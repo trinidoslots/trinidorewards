@@ -1,0 +1,7 @@
+# Copy this file to config.ps1 and fill it in. config.ps1 is gitignored:
+# the key below is a live credential and must never be committed.
+
+$SiteUrl = "https://trinidorewards.com"
+
+# The value of CONTROL_API_KEY in Vercel.
+$ControlApiKey = "PASTE_YOUR_CONTROL_API_KEY_HERE"
