@@ -564,30 +564,35 @@ function HuntWidget() {
           </h1>
         </div>
 
-        {/* Statistics */}
+        {/*
+          The same panel in both phases.
+
+          Avg X, Total and the progress bar used to be hidden while collecting,
+          on the reasoning that nothing had been opened yet so they had nothing
+          to say. But the panel then changed shape the moment the opening
+          started — rows appearing, everything below them moving — and reading
+          "Avg X 0x" before a hunt begins is not confusing, it is the starting
+          position.
+        */}
         <div className="px-2 py-2 space-y-1.5 text-sm flex-shrink-0">
           <div className="flex justify-between">
             <span className="text-white/35">B.E. X</span>
             <span className="text-white font-semibold">{breakEvenX.toFixed(1)}x</span>
           </div>
-          {!isCollecting && (
-            <div className="flex justify-between">
-              <span className="text-white/35">Avg X</span>
-              <span className="text-white font-semibold">{averageMultiplier.toFixed(0)}x</span>
-            </div>
-          )}
+          <div className="flex justify-between">
+            <span className="text-white/35">Avg X</span>
+            <span className="text-white font-semibold">{averageMultiplier.toFixed(0)}x</span>
+          </div>
           <div className="flex justify-between">
             <span className="text-white/35">Target</span>
-            <span className="text-white font-semibold">${startingBalance.toLocaleString("en-US")}</span>
+            <span className="text-white font-semibold">{money(startingBalance)}</span>
           </div>
-          {!isCollecting && (
-            <div className="flex justify-between">
-              <span className="text-white/35">Total</span>
-              <span className="text-white font-semibold">${totalWinsSoFar.toLocaleString("en-US")}</span>
-            </div>
-          )}
           <div className="flex justify-between">
-            <span className="text-white/35">{isCollecting ? "Bonuses" : "Bonus"}</span>
+            <span className="text-white/35">Total</span>
+            <span className="text-white font-semibold">{money(totalWinsSoFar)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-white/35">Bonus</span>
             <span className="text-white font-semibold flex items-center gap-1.5">
               {completedHunts.length} / {totalBonuses}
               {superBonuses.length > 0 && (
@@ -598,14 +603,12 @@ function HuntWidget() {
               )}
             </span>
           </div>
-          {!isCollecting && (
-            <div className="relative h-1.5 bg-white/[0.022] rounded-full overflow-hidden mt-1">
-              <div
-                className="absolute top-0 left-0 h-full bg-gradient-to-r from-[color:var(--obs-super)] to-[color:var(--obs-accent)] transition-all duration-1000 ease-out"
-                style={{ width: `${totalBonuses > 0 ? (completedHunts.length / totalBonuses) * 100 : 0}%` }}
-              />
-            </div>
-          )}
+          <div className="relative h-1.5 bg-white/[0.022] rounded-full overflow-hidden mt-1">
+            <div
+              className="absolute top-0 left-0 h-full bg-gradient-to-r from-[color:var(--obs-super)] to-[color:var(--obs-accent)] transition-all duration-1000 ease-out"
+              style={{ width: `${totalBonuses > 0 ? (completedHunts.length / totalBonuses) * 100 : 0}%` }}
+            />
+          </div>
         </div>
 
         {isCollecting ? (
