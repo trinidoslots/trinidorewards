@@ -56,37 +56,32 @@ interface Info {
 }
 
 /**
- * Every icon in the strip, at one size and one colour.
+ * Every icon in the strip.
  *
  * They used to be a mix: two lucide glyphs, and ♫ ⏱ ₿ Ξ typed as text. A text
  * character is the font's drawing rather than an icon set's — its own weight,
  * its own optical size, and on some builds the timer one renders as a colour
  * emoji — so the row read as four icons from four places.
  *
- * Now they are drawn: Kick's own mark, the Bitcoin, Ethereum and wallet set
- * supplied below, and two supplied PNGs — a stopwatch for a timer and a
- * trophy for a win line, each the default when no custom icon was uploaded
- * against that row. Both were cropped to their opaque bounds — 256x256 down to
- * 184x216 and 204x166 — so they still carry more than ten times the detail
- * they are drawn at, need no recolouring, and no longer bring a square of
- * padding into the row with them.
+ * Now every one of them is supplied artwork: Bitcoin, Ethereum and the wallet
+ * as #94ACB8 PNGs, a stopwatch and a trophy in white as the defaults for a
+ * timer or an info line that brought no icon of its own, and Kick's own mark
+ * as a path from static.kick.com. Only the music note is still lucide,
+ * because nothing was supplied for it and it only appears while a track is
+ * playing.
  *
- * Music is still lucide: nothing was supplied for it, and it only appears
- * while a track is playing.
+ * They are sized by their ARTWORK, not by their box. Each arrived in a square
+ * with a different amount of padding baked in, so a shared square made them
+ * look wildly unequal — measured in the strip, Kick drew 16px of ink where
+ * the wallet drew 8.7. Every PNG is cropped to its opaque bounds on disk and
+ * the one remaining SVG fills its own viewBox, so a single height is all it
+ * takes and the width follows from each icon's real proportions.
  *
- * They are sized by their ARTWORK, not by their box. Every one of them
- * arrived in a square with a different amount of padding baked in, so a
- * shared 16px square made them look wildly unequal: measured in the strip,
- * Kick's mark filled its box and drew 16px of ink, Ethereum 13.5, Bitcoin
- * 12.8, and the wallet 8.7 — half the size of the one beside it.
- *
- * So each is trimmed to its own ink instead. The SVGs carry a viewBox cut to
- * their drawing, strokes included; the two PNGs were cropped to their opaque
- * bounds on disk. Then one height is all it takes, and the width follows from
- * each icon's real proportions — a wallet comes out wider than tall, which it
- * should be.
+ * 14px, down from 16. Kick is 12: a solid blocky mark reads heavier than an
+ * open letterform at the same height, so it steps down one to sit level with
+ * them.
  */
-const ICON_CLASS = "h-4 w-auto shrink-0 text-white"
+const ICON_CLASS = "h-3.5 w-auto shrink-0 text-white"
 
 /** The channel the follower count is for. */
 const KICK_SLUG = "trinidoslots"
@@ -100,14 +95,16 @@ const KICK_SLUG = "trinidoslots"
  * in it, and Kick's is built entirely from right angles — which is exactly
  * why it read as "some K" rather than as their logo.
  *
- * Its drawing fills its box already, so the viewBox is the file's own — it
- * is the one these others were trimmed to match.
+ * Its drawing fills its box already, so the viewBox is the file's own.
+ *
+ * Painted #94ACB8 rather than inheriting a colour: it is the only icon left
+ * that could take one from CSS, and it has to match three PNGs that cannot.
  */
 function KickIcon({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 20.523 24"
-      fill="currentColor"
+      fill="#94ACB8"
       fillRule="evenodd"
       clipRule="evenodd"
       aria-hidden
@@ -119,87 +116,19 @@ function KickIcon({ className }: { className?: string }) {
 }
 
 /*
- * Bitcoin, Ethereum and the wallet, from the set supplied in Downloads/icons
- * neu — path for path, with the viewBox cut down to what each one draws.
+ * Bitcoin, Ethereum and the wallet, as supplied.
  *
- * The files paint #C8C8D0. That is replaced by currentColor throughout, so the
- * icons take the strip's white like everything else and a single class changes
- * all three. To go back to the supplied grey, set that colour on the wrapper
- * rather than on the paths.
+ * Artwork rather than code this time: the set that arrived is a different
+ * drawing from the one before — a solid B instead of a stroked one, a wallet
+ * with a strap — so it is used as given rather than traced. Each was cropped
+ * to its opaque bounds, 256x256 down to 140x206, 138x216 and 204x150, which
+ * is what lets one height class size them evenly.
  *
- * Their C2PA metadata is dropped: a few kilobytes of signed provenance per
- * icon, inlined into every page load, describing where the file came from
- * rather than what it draws.
- *
- * The viewBoxes are measured, not eyeballed: each is the group's bounding box
- * read off the rendered SVG, widened by half a stroke on every side so a
- * round cap is not clipped.
+ * They paint #94ACB8 in the files, the same muted blue-grey the bar below
+ * uses for its labels. That is baked into the pixels, so unlike the SVGs
+ * before them they cannot be recoloured from CSS; a new colour means new
+ * files.
  */
-
-/** A stroked ₿, the letterform rather than a roundel. */
-function BitcoinIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="4.8 2.45 13.5 20.1" aria-hidden className={className}>
-      <g
-        transform="translate(-0.6,0)"
-        fill="none"
-        stroke="currentColor"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        strokeWidth="2.2"
-      >
-        <path d="M6.5 6 H13.5 A3 3 0 0 1 13.5 12 H8.2" />
-        <path d="M8.2 12 H14.3 A3.5 3.5 0 0 1 14.3 19 H6.5" />
-        <path d="M8.2 6 V19" />
-        <path d="M10.4 3.4 V6 M13.4 3.4 V6 M10.4 19 V21.6 M13.4 19 V21.6" strokeWidth="1.9" />
-      </g>
-    </svg>
-  )
-}
-
-/** The Ethereum diamond, upper and lower halves. */
-function EthereumIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="5.4 1.9 13.2 20.2" aria-hidden className={className}>
-      <g fill="currentColor" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round">
-        <path d="M12 2.5 L18 12 L12 15.4 L6 12 Z" />
-        <path d="M6 14 L12 17.5 L18 14 L12 21.5 Z" />
-      </g>
-    </svg>
-  )
-}
-
-/**
- * The wallet, cut out of a filled square by a mask.
- *
- * The viewBox is 19 wide, not 17. The body is only 17 (x 2.5 to 19.5), but the
- * card slot is a separate white rect in the mask running to x 21.5 — it sticks
- * out past the body on purpose, which is what makes it read as a card half in
- * the wallet. Trimming to the body alone sliced its end off, and a bounding
- * box read off the element cannot catch that: getBBox measures the 24x24 rect
- * being painted, not the shape the mask leaves behind.
- *
- * The mask's id is namespaced. In the file it is "w", and an id that short in
- * a page that also renders a hunt board and a scene column is asking for a
- * collision — mask references resolve document-wide, and the loser silently
- * renders as a solid block.
- */
-function WalletIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="2.5 5.5 19 13" aria-hidden className={className}>
-      <defs>
-        <mask id="obs-top-bar-wallet">
-          <rect width="24" height="24" fill="#000" />
-          <rect x="2.5" y="5.5" width="17" height="13" rx="3.5" fill="#fff" />
-          <rect x="13" y="8.6" width="9.5" height="6.8" rx="3.4" fill="#000" />
-          <rect x="14" y="9.5" width="7.5" height="5" rx="2.5" fill="#fff" />
-          <circle cx="16.6" cy="12" r="1.05" fill="#000" />
-        </mask>
-      </defs>
-      <rect width="24" height="24" fill="currentColor" mask="url(#obs-top-bar-wallet)" />
-    </svg>
-  )
-}
 
 function TopBarWidget() {
   // Set by /obs/complete: a column continues directly below this strip.
@@ -691,26 +620,26 @@ function TopBarWidget() {
           <div className="flex items-center gap-1 text-white">
             {/* h-4 w-auto, not ICON_CLASS: the mark is 20.5 wide by 24 tall,
                 and a square box would squash it. */}
-            <KickIcon className={ICON_CLASS} />
+            <KickIcon className="h-3 w-auto shrink-0" />
             <span className="font-bold">{kickFollowers.toLocaleString("en-US")}</span>
           </div>
         )}
 
         {/* Wallet Difference */}
         <div className="flex items-center gap-1 text-white">
-          <WalletIcon className={ICON_CLASS} />
+          <img src="/obs-wallet.png" alt="" className={ICON_CLASS} />
           <AnimatedAmount value={walletStats.difference} className="font-bold" toneClassName="text-white" />
         </div>
 
         {/* BTC Price */}
         <div className="flex items-center gap-1 text-white">
-          <BitcoinIcon className={ICON_CLASS} />
+          <img src="/obs-bitcoin.png" alt="" className={ICON_CLASS} />
           <span className="font-bold">{formatCrypto(cryptoPrices.btc)}</span>
         </div>
 
         {/* ETH Price */}
         <div className="flex items-center gap-1 text-white">
-          <EthereumIcon className={ICON_CLASS} />
+          <img src="/obs-ethereum.png" alt="" className={ICON_CLASS} />
           <span className="font-bold">{formatCrypto(cryptoPrices.eth)}</span>
         </div>
 
