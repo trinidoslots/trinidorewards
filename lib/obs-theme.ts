@@ -58,6 +58,19 @@ export const OBS = {
   raised: `linear-gradient(color-mix(in srgb, ${ACCENTS.blue} 18%, transparent), color-mix(in srgb, ${ACCENTS.blue} 10%, transparent))`,
   raisedBorder: `color-mix(in srgb, ${ACCENTS.blue} 30%, transparent)`,
 
+  /**
+   * The inside of that box, shaded.
+   *
+   * A hairline of light along the top edge and a soft darkening in from all
+   * four, so the box has a depth of its own rather than being a flat rectangle
+   * of a slightly lighter colour. The gradient above only lights the top half;
+   * this is what gives the edges somewhere to turn.
+   *
+   * Carried with `raised` because the two are one surface — a box that takes
+   * the fill without the shading stops matching the ones that took both.
+   */
+  raisedInset: "inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 14px rgba(0, 0, 0, 0.35)",
+
   /** The tile the icon sits in. A hairline box, not a coloured block. */
   iconTile: "rgba(255, 255, 255, 0.04)",
 

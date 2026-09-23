@@ -48,14 +48,15 @@ const money = (value: number) =>
 /**
  * Height of one bonus card, and the leading of the four lines inside it.
  *
- * Fixed so the cover can fill it. 66 was exactly four 15px lines with nothing
- * to spare, which is why the card looked squeezed: the text ran wall to wall
+ * Fixed so the cover can fill it. 66 was exactly four lines with nothing to
+ * spare, which is why the card looked squeezed: the text ran wall to wall
  * with no air above or below it.
  *
- * 84 leaves 78px inside the padding and the border. The four lines measure 71
- * — not 4 x 17, because a stat row aligns an 11px label and a 13px figure on
- * their shared baseline and that makes its line box 18 rather than 17 — so
- * there are 7px of air, and the cover is 78 tall by 59 wide.
+ * 84 leaves 78px inside the padding and the border, and the cover is 78 tall
+ * by 59 wide. The three stat rows measure 54 — 18 each, not 17, because a row
+ * aligns an 11px label and a 13px figure on their shared baseline and that
+ * makes its line box a pixel taller than the leading asks for — so they are
+ * centred in 78 with 12px above and below.
  *
  * TO_OPEN_HEIGHT below is set to the same 78, so a cover is one size in this
  * column and not two that differ by a few pixels.
@@ -235,14 +236,19 @@ function BonusCard({ hunt, rank }: { hunt: BonusHunt; rank?: number }) {
         height: CARD_HEIGHT,
         border: `1px solid ${OBS.raisedBorder}`,
         backgroundImage: OBS.raised,
+        boxShadow: OBS.raisedInset,
       }}
     >
       {/* Fills the card's height; the 180:236 cover gives it its width. */}
       <BonusThumb hunt={hunt} height="100%" rank={rank} />
+      {/*
+        No game name. The cover is the name — it is the thing a viewer
+        recognises, and spelling it out underneath was a line of small text
+        saying what the picture beside it already said, often truncated.
+        Without it the three figures are what the card is for, so they sit
+        centred against the cover rather than hanging off the top of it.
+      */}
       <div className="flex min-w-0 flex-1 flex-col justify-center">
-        <div className="truncate text-[13px] font-medium text-white/80" style={{ lineHeight: `${CARD_LINE}px` }}>
-          {hunt.game_name}
-        </div>
         <StatRow label="Bet" value={money(bet)} />
         <StatRow label="X" value={multiplier == null ? "—" : `${multiplier.toFixed(0)}x`} />
         <StatRow label="Win" value={win == null ? "—" : money(win)} />
@@ -631,7 +637,11 @@ function HuntWidget() {
         <div className="flex-shrink-0 px-2 pb-1">
           <div
             className="space-y-1.5 rounded-2xl px-2.5 py-2 text-sm"
-            style={{ backgroundImage: OBS.raised, border: `1px solid ${OBS.raisedBorder}` }}
+            style={{
+              backgroundImage: OBS.raised,
+              border: `1px solid ${OBS.raisedBorder}`,
+              boxShadow: OBS.raisedInset,
+            }}
           >
             <div className="flex justify-between">
               <span className="text-white/35">B.E. X</span>
