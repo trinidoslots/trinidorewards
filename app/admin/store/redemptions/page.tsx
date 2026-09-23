@@ -2,15 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { Check, Clock, Package, RefreshCw, Search, Undo2, X } from "lucide-react"
+import { RefreshCw } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
-import { CopyableId, CopyButton } from "@/components/ui/copyable-id"
-import { describePayout, type PayoutDetails } from "@/lib/payout"
-import { SelectMenu } from "@/components/ui/select-menu"
+import { ACCENTS, Panel, StatTile } from "@/components/ui/panel"
+import type { PayoutDetails } from "@/lib/payout"
+import { points, RedemptionsList, type Redemption, type Wallet } from "@/components/admin/redemptions-list"
 
 /**
  * What people have bought, and whether it has been handed over.
+ *
+ * Fetching and the status writes; the list itself is in RedemptionsList.
  *
  * The user is joined in a second query rather than through a foreign-key
  * select: redemptions has no relationship declared to users in PostgREST, so
@@ -18,32 +19,7 @@ import { SelectMenu } from "@/components/ui/select-menu"
  * others.
  */
 
-type Redemption = {
-  id: string
-  user_id: string
-  item_id: string
-  item_name: string
-  cost: number
-  status: string
-  created_at: string
-}
-
 type UserRow = { id: string; username: string }
-
-const STATUSES = [
-  { id: "pending", label: "Pending", accent: "amber" as const },
-  { id: "completed", label: "Completed", accent: "green" as const },
-  { id: "cancelled", label: "Cancelled", accent: "red" as const },
-]
-
-const points = (value: number) => Math.round(Number(value) || 0).toLocaleString()
-
-const when = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
-
-function statusMeta(status: string) {
-  return STATUSES.find((entry) => entry.id === status) ?? { id: status, label: status, accent: "slate" as const }
-}
 
 export default function StoreRedemptionsPage() {
   const supabaseRef = useRef(createClient())
@@ -52,11 +28,13 @@ export default function StoreRedemptionsPage() {
   const [users, setUsers] = useState<Map<string, string>>(new Map())
   const [payouts, setPayouts] = useState<Record<string, PayoutDetails>>({})
   /** Wallets each buyer has saved, keyed by user id. See the API route. */
-  const [wallets, setWallets] = useState<Record<string, { crypto: string | null; chain: string | null; address: string }[]>>({})
+  const [wallets, setWallets] = useState<Record<string, Wallet[]>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState("all")
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -126,14 +104,20 @@ export default function StoreRedemptionsPage() {
     [redemptions],
   )
 
-  async function setStatusOf(row: Redemption, next: string) {
-    const { error: problem } = await supabaseRef.current.from("redemptions").update({ status: next }).eq("id", row.id)
+  const setStatusOf = useCallback(async (ids: string[], next: string) => {
+    if (ids.length === 0) return
+
+    const { error: problem } = await supabaseRef.current.from("redemptions").update({ status: next }).in("id", ids)
     if (problem) {
-      setError(problem.message || "Could not update that redemption")
+      setError(problem.message || "Could not update those redemptions")
       return
     }
-    setRedemptions((current) => current.map((entry) => (entry.id === row.id ? { ...entry, status: next } : entry)))
-  }
+
+    const changed = new Set(ids)
+    setRedemptions((current) => current.map((entry) => (changed.has(entry.id) ? { ...entry, status: next } : entry)))
+    setSelected(new Set())
+    setError(null)
+  }, [])
 
   return (
     <div className="space-y-4">
@@ -172,186 +156,23 @@ export default function StoreRedemptionsPage() {
         <StatTile label="Points spent" value={points(totals.spent)} accent="green" />
       </div>
 
-      <Panel>
-        <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.08] p-3">
-          <div className="relative min-w-52 flex-1">
-            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/25" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search item or user…"
-              className="h-9 w-full rounded-md border border-white/10 bg-black/40 pl-9 pr-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
-            />
-          </div>
-          <div className="w-44">
-            <SelectMenu
-              aria-label="Filter by status"
-              value={status}
-              onChange={setStatus}
-              options={[{ value: "all", label: "Any status" }, ...STATUSES.map((e) => ({ value: e.id, label: e.label }))]}
-            />
-          </div>
-          <MonoLabel className="text-white/25">{rows.length}</MonoLabel>
-        </div>
-
-        {loading ? (
-          <div className="py-16 text-center">
-            <MonoLabel className="text-white/25">Loading</MonoLabel>
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16">
-            <Package className="h-7 w-7 text-white/10" />
-            <p className="text-[13px] text-white/30">
-              {redemptions.length === 0 ? "Nothing redeemed yet." : "Nothing matches those filters."}
-            </p>
-          </div>
-        ) : (
-          <ul className="divide-y divide-white/[0.05]">
-            {rows.map((row) => {
-              const meta = statusMeta(row.status)
-              const username = users.get(row.user_id)
-              const done = row.status === "completed"
-              return (
-                <li key={row.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5">
-                  {row.status === "pending" ? (
-                    <Clock className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.amber }} />
-                  ) : done ? (
-                    <Check className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.green }} />
-                  ) : (
-                    <X className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.red }} />
-                  )}
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] text-white">{row.item_name}</p>
-                    <div className="flex items-center gap-2">
-                      {username ? (
-                        <>
-                          <Link
-                            href={`/admin/users/${row.user_id}`}
-                            className="truncate text-[11px] text-white/40 underline-offset-4 hover:text-white hover:underline"
-                          >
-                            {username}
-                          </Link>
-                          {/* Paying someone out means pasting their exact name
-                              somewhere else; picking it out of the row by hand
-                              is one mistyped character away from the wrong
-                              person. */}
-                          <CopyButton value={username} label="username" />
-                        </>
-                      ) : (
-                        <CopyableId value={row.user_id} chars={4} />
-                      )}
-                    </div>
-
-                    {/* What actually has to be done to fulfil it. The address is
-                        shown in full rather than truncated — an admin about to
-                        send money needs to see the whole thing. */}
-                    {payouts[row.id] && (
-                      <p className="mt-0.5 flex items-start gap-1 text-[11px] text-white/45">
-                        <span className="break-all" style={{ color: ACCENTS.purple }}>
-                          {describePayout(payouts[row.id])}
-                        </span>
-                        {payouts[row.id].method === "crypto" ? (
-                          <>
-                            <span className="break-all font-mono text-[10px] text-white/35">
-                              {(payouts[row.id] as { address: string }).address}
-                            </span>
-                            <CopyButton
-                              value={(payouts[row.id] as { address: string }).address}
-                              label="wallet address"
-                            />
-                          </>
-                        ) : (
-                          <CopyButton
-                            value={(payouts[row.id] as { username: string }).username}
-                            label="payout username"
-                          />
-                        )}
-                      </p>
-                    )}
-
-                    {/*
-                      What this buyer has on their profile.
-
-                      Paying someone out used to mean opening their profile in
-                      another tab to see whether the address typed at checkout
-                      was one they had held for a while or one that appeared at
-                      the moment of purchase. The match is marked, so the
-                      difference is visible without comparing two strings of
-                      forty characters by eye.
-                    */}
-                    {(wallets[row.user_id]?.length ?? 0) > 0 && (
-                      <div className="mt-1 space-y-0.5">
-                        <MonoLabel className="text-white/20">On file</MonoLabel>
-                        {wallets[row.user_id].map((wallet) => {
-                          const used =
-                            payouts[row.id]?.method === "crypto" &&
-                            (payouts[row.id] as { address: string }).address.trim().toLowerCase() ===
-                              wallet.address.trim().toLowerCase()
-                          return (
-                            <p
-                              key={`${wallet.crypto}-${wallet.chain}-${wallet.address}`}
-                              className="flex items-start gap-1 text-[11px]"
-                            >
-                              <MonoLabel style={{ color: used ? ACCENTS.green : "rgba(255,255,255,0.25)" }}>
-                                {wallet.crypto ?? "?"}
-                                {wallet.chain ? ` · ${wallet.chain}` : ""}
-                              </MonoLabel>
-                              <span className="break-all font-mono text-[10px] text-white/30">
-                                {wallet.address}
-                              </span>
-                              <CopyButton value={wallet.address} label="saved wallet address" />
-                              {used && (
-                                <span className="shrink-0 font-mono text-[10px]" style={{ color: ACCENTS.green }}>
-                                  used
-                                </span>
-                              )}
-                            </p>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  <Tag accent={meta.accent}>{meta.label}</Tag>
-
-                  <span className="w-20 shrink-0 text-right text-[13px] tabular-nums" style={{ color: ACCENTS.blue }}>
-                    {points(row.cost)}
-                  </span>
-
-                  <MonoLabel className="w-36 shrink-0 text-right text-white/20">{when(row.created_at)}</MonoLabel>
-
-                  <div className="flex shrink-0 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setStatusOf(row, done ? "pending" : "completed")}
-                      className="inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 font-mono text-[10px] uppercase tracking-[0.1em] transition"
-                      style={
-                        done
-                          ? { borderColor: `${ACCENTS.green}55`, color: ACCENTS.green }
-                          : { borderColor: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.4)" }
-                      }
-                    >
-                      {done ? <Undo2 className="h-3 w-3" /> : <Check className="h-3 w-3" />}
-                      {done ? "Done" : "Complete"}
-                    </button>
-                    {row.status !== "cancelled" && (
-                      <button
-                        type="button"
-                        onClick={() => setStatusOf(row, "cancelled")}
-                        aria-label={`Cancel ${row.item_name}`}
-                        className="rounded p-1.5 text-white/20 transition hover:bg-white/[0.06] hover:text-[#E5484D]"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </Panel>
+      <RedemptionsList
+        rows={rows}
+        total={redemptions.length}
+        users={users}
+        payouts={payouts}
+        wallets={wallets}
+        loading={loading}
+        query={query}
+        onQuery={setQuery}
+        status={status}
+        onStatus={setStatus}
+        selected={selected}
+        onSelected={setSelected}
+        expanded={expanded}
+        onExpanded={setExpanded}
+        onSetStatus={setStatusOf}
+      />
     </div>
   )
 }
