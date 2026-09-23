@@ -63,17 +63,27 @@ interface Info {
  * Now they are drawn: Kick's own mark, the Bitcoin, Ethereum and wallet set
  * supplied below, and two supplied PNGs — a stopwatch for a timer and a
  * trophy for a win line, each the default when no custom icon was uploaded
- * against that row. Those two are 256px white-on-transparent, so they carry
- * sixteen times the detail they are drawn at and need no recolouring.
+ * against that row. Both were cropped to their opaque bounds — 256x256 down to
+ * 184x216 and 204x166 — so they still carry more than ten times the detail
+ * they are drawn at, need no recolouring, and no longer bring a square of
+ * padding into the row with them.
  *
  * Music is still lucide: nothing was supplied for it, and it only appears
  * while a track is playing.
  *
- * 16px square and white, which is also what user-uploaded custom icons are
- * forced to. The Kick mark is the one exception on width: it is taller than
- * it is wide and sets its own.
+ * They are sized by their ARTWORK, not by their box. Every one of them
+ * arrived in a square with a different amount of padding baked in, so a
+ * shared 16px square made them look wildly unequal: measured in the strip,
+ * Kick's mark filled its box and drew 16px of ink, Ethereum 13.5, Bitcoin
+ * 12.8, and the wallet 8.7 — half the size of the one beside it.
+ *
+ * So each is trimmed to its own ink instead. The SVGs carry a viewBox cut to
+ * their drawing, strokes included; the two PNGs were cropped to their opaque
+ * bounds on disk. Then one height is all it takes, and the width follows from
+ * each icon's real proportions — a wallet comes out wider than tall, which it
+ * should be.
  */
-const ICON_CLASS = "w-4 h-4 shrink-0 text-white"
+const ICON_CLASS = "h-4 w-auto shrink-0 text-white"
 
 /** The channel the follower count is for. */
 const KICK_SLUG = "trinidoslots"
@@ -87,8 +97,8 @@ const KICK_SLUG = "trinidoslots"
  * in it, and Kick's is built entirely from right angles — which is exactly
  * why it read as "some K" rather than as their logo.
  *
- * Taller than it is wide, so it cannot use the square ICON_CLASS. Height is
- * matched to the others and the width follows from the aspect ratio.
+ * Its drawing fills its box already, so the viewBox is the file's own — it
+ * is the one these others were trimmed to match.
  */
 function KickIcon({ className }: { className?: string }) {
   return (
@@ -107,7 +117,7 @@ function KickIcon({ className }: { className?: string }) {
 
 /*
  * Bitcoin, Ethereum and the wallet, from the set supplied in Downloads/icons
- * neu — path for path, at their own 24x24 box.
+ * neu — path for path, with the viewBox cut down to what each one draws.
  *
  * The files paint #C8C8D0. That is replaced by currentColor throughout, so the
  * icons take the strip's white like everything else and a single class changes
@@ -117,12 +127,16 @@ function KickIcon({ className }: { className?: string }) {
  * Their C2PA metadata is dropped: a few kilobytes of signed provenance per
  * icon, inlined into every page load, describing where the file came from
  * rather than what it draws.
+ *
+ * The viewBoxes are measured, not eyeballed: each is the group's bounding box
+ * read off the rendered SVG, widened by half a stroke on every side so a
+ * round cap is not clipped.
  */
 
 /** A stroked ₿, the letterform rather than a roundel. */
 function BitcoinIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden className={className}>
+    <svg viewBox="4.8 2.45 13.5 20.1" aria-hidden className={className}>
       <g
         transform="translate(-0.6,0)"
         fill="none"
@@ -143,7 +157,7 @@ function BitcoinIcon({ className }: { className?: string }) {
 /** The Ethereum diamond, upper and lower halves. */
 function EthereumIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden className={className}>
+    <svg viewBox="5.4 1.9 13.2 20.2" aria-hidden className={className}>
       <g fill="currentColor" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round">
         <path d="M12 2.5 L18 12 L12 15.4 L6 12 Z" />
         <path d="M6 14 L12 17.5 L18 14 L12 21.5 Z" />
@@ -162,7 +176,7 @@ function EthereumIcon({ className }: { className?: string }) {
  */
 function WalletIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden className={className}>
+    <svg viewBox="2.5 5.5 17 13" aria-hidden className={className}>
       <defs>
         <mask id="obs-top-bar-wallet">
           <rect width="24" height="24" fill="#000" />
@@ -668,7 +682,7 @@ function TopBarWidget() {
           <div className="flex items-center gap-1 text-white">
             {/* h-4 w-auto, not ICON_CLASS: the mark is 20.5 wide by 24 tall,
                 and a square box would squash it. */}
-            <KickIcon className="h-4 w-auto shrink-0 text-white" />
+            <KickIcon className={ICON_CLASS} />
             <span className="font-bold">{kickFollowers.toLocaleString("en-US")}</span>
           </div>
         )}
