@@ -34,31 +34,52 @@ const ACCENT_VARS = {
   ["--obs-gold" as string]: OBS.prediction,
 } as React.CSSProperties
 
+/**
+ * A figure in dollars.
+ *
+ * Whole dollars: a hunt's numbers run to five figures and the cents on a
+ * $53,220 win are noise. Under a dollar is the exception — a $0.40 bet rounded
+ * to the nearest dollar is "$0", which is not a bet size — so anything below 1
+ * keeps both decimals.
+ */
 const money = (value: number) =>
-  `$${Math.round(value).toLocaleString("en-US")}`
+  value > 0 && value < 1 ? `$${value.toFixed(2)}` : `$${Math.round(value).toLocaleString("en-US")}`
+
+/** Height of one bonus card. Fixed so the cover can fill it. */
+const CARD_HEIGHT = 66
+
+/** The "to open" deck: how many covers it shows, how big, and how far each tucks under the last. */
+const TO_OPEN_SHOWN = 5
+const TO_OPEN_HEIGHT = 54
+const TO_OPEN_OVERLAP = 8
 
 /**
- * A game's thumbnail with its position in the hunt on it.
+ * The number on a cover.
  *
- * The number is a rounded square in the corner rather than the circle it was:
- * a circle on a rectangular cover reads as a sticker, and at 11px the digits
- * in one were touching its edge.
+ * A rounded square in the corner rather than the circle it was: a circle on a
+ * rectangular cover reads as a sticker, and at 11px the digits in one were
+ * touching its edge. Shared so the slot list cannot drift back to the circle
+ * while the opening cards use this — which is exactly what had happened.
  */
+const RANK_BADGE =
+  "absolute left-0.5 top-0.5 flex items-center justify-center rounded bg-black/70 px-1 font-bold text-white"
+const RANK_BADGE_STYLE = { minWidth: 15, height: 15, fontSize: 10, lineHeight: "15px" } as const
+
+/** A game's thumbnail with its position in the hunt on it. */
 function BonusThumb({
   hunt,
   height,
   rank,
-  dim,
 }: {
   hunt: BonusHunt
-  height: number
+  /** A number of pixels, or "100%" to fill a parent of definite height. */
+  height: number | string
   rank?: number
-  dim?: boolean
 }) {
   return (
     <div
       className="relative flex flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.08] bg-white/[0.022]"
-      style={{ height, aspectRatio: "180 / 236", opacity: dim ? 0.55 : 1 }}
+      style={{ height, aspectRatio: "180 / 236" }}
     >
       {hunt.image_url ? (
         <img
@@ -71,10 +92,7 @@ function BonusThumb({
         <Coins className="h-4 w-4 text-white/20" />
       )}
       {rank !== undefined && (
-        <span
-          className="absolute left-0.5 top-0.5 flex items-center justify-center rounded bg-black/70 px-1 font-bold text-white"
-          style={{ minWidth: 15, height: 15, fontSize: 10, lineHeight: "15px" }}
-        >
+        <span className={RANK_BADGE} style={RANK_BADGE_STYLE}>
           {rank}
         </span>
       )}
@@ -85,14 +103,53 @@ function BonusThumb({
   )
 }
 
-/** One "Bet $300" line: muted label on the left, figure hard right. */
-function StatRow({ label, value, accent }: { label: string; value: string; accent?: string }) {
+/**
+ * One tile in the slot list, before the opening starts.
+ *
+ * Same cover and same number badge as the opening cards use — this grid was
+ * still on the old badge, a filled accent circle, so the two phases of the
+ * same hunt numbered their slots two different ways. It cannot reuse
+ * BonusThumb: that one is sized by its height, and a grid cell gives its tile
+ * a width.
+ */
+function SlotTile({ hunt, number, duplicate }: { hunt: BonusHunt; number: number; duplicate?: boolean }) {
   return (
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-[11px] text-white/35">{label}</span>
-      <span className="text-[12px] font-semibold tabular-nums" style={{ color: accent ?? "#fff" }}>
-        {value}
+    <div
+      aria-hidden={duplicate ? "true" : undefined}
+      className="relative flex aspect-[180/236] items-center justify-center overflow-hidden rounded-lg border border-white/[0.08] bg-white/[0.022]"
+    >
+      {hunt.image_url ? (
+        <img
+          src={hunt.image_url || "/placeholder.svg"}
+          alt={duplicate ? "" : hunt.game_name}
+          crossOrigin="anonymous"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <Coins className="h-6 w-6 text-white/20" />
+      )}
+      <span className={RANK_BADGE} style={RANK_BADGE_STYLE}>
+        {number}
       </span>
+      {hunt.is_super && (
+        <Crown className="absolute right-0.5 top-0.5 h-4 w-4 text-[color:var(--obs-gold)] drop-shadow" />
+      )}
+    </div>
+  )
+}
+
+/**
+ * One "Bet $300" line: muted label on the left, figure hard right.
+ *
+ * Line height is fixed rather than inherited. The card is a fixed height now so
+ * the cover can fill it, and four lines of inherited leading do not reliably
+ * add up to the same thing.
+ */
+function StatRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2 leading-[15px]">
+      <span className="text-[11px] text-white/35">{label}</span>
+      <span className="text-[12px] font-semibold tabular-nums text-white">{value}</span>
     </div>
   )
 }
@@ -100,63 +157,36 @@ function StatRow({ label, value, accent }: { label: string; value: string; accen
 /**
  * A bonus as a card: cover on the left, its figures stacked on the right.
  *
- * One component for all three states — the one being opened, the ones already
- * opened, and the best win — because they are the same card at different
- * emphases, and three near-identical blocks is how the old layout ended up
- * with three slightly different thumbnails and three badge styles.
+ * One card, one look. It used to tint itself three ways — the one being
+ * opened in violet, the best win in blue, the rest plain — so a list of opened
+ * bonuses read as a list of unrelated things with one of them singled out for
+ * no reason the viewer can see. The surface is the KPI box's surface exactly,
+ * which makes every box in the column the same material.
+ *
+ * The cover sits 2px off the edge, not 6. At 6 it read as a small picture
+ * placed on a large card; the card is a frame around the cover.
  */
-function BonusCard({
-  hunt,
-  rank,
-  tone,
-  note,
-}: {
-  hunt: BonusHunt
-  rank?: number
-  tone: "current" | "opened" | "best"
-  note?: string
-}) {
+function BonusCard({ hunt, rank }: { hunt: BonusHunt; rank?: number }) {
   const bet = Number(hunt.bet_size) || 0
   const win = hunt.result == null ? null : Number(hunt.result)
   const multiplier = win != null && bet > 0 ? win / bet : null
 
-  const border =
-    tone === "current"
-      ? "1px solid color-mix(in srgb, var(--obs-super) 55%, transparent)"
-      : tone === "best"
-        ? "1px solid color-mix(in srgb, var(--obs-accent) 45%, transparent)"
-        : `1px solid ${OBS.raisedBorder}`
-
   return (
     <div
-      className="flex items-center gap-2.5 rounded-xl p-1.5"
+      className="flex items-stretch gap-2 rounded-xl p-0.5 pr-2"
       style={{
-        border,
-        // The lift first, an accent tint over it. An accent on its own was
-        // barely a tint against the column, which is why the opened cards and
-        // the best win did not read as boxes at all.
-        //
-        // The lift is already this widget's blue, so the best win goes a good
-        // deal further into it rather than a shade — otherwise the card that
-        // is supposed to stand out looks like the ones it stands out from.
-        backgroundImage:
-          tone === "current"
-            ? `linear-gradient(color-mix(in srgb, var(--obs-super) 26%, transparent), color-mix(in srgb, var(--obs-super) 14%, transparent)), ${OBS.raised}`
-            : tone === "best"
-              ? `linear-gradient(color-mix(in srgb, var(--obs-accent) 30%, transparent), color-mix(in srgb, var(--obs-accent) 16%, transparent)), ${OBS.raised}`
-              : OBS.raised,
+        height: CARD_HEIGHT,
+        border: `1px solid ${OBS.raisedBorder}`,
+        backgroundImage: OBS.raised,
       }}
     >
-      <BonusThumb hunt={hunt} height={tone === "current" ? 64 : 56} rank={rank} />
-      <div className="min-w-0 flex-1">
-        <div className="mb-0.5 truncate text-[12px] font-medium text-white/80">{hunt.game_name}</div>
+      {/* Fills the card's height; the 180:236 cover gives it its width. */}
+      <BonusThumb hunt={hunt} height="100%" rank={rank} />
+      <div className="flex min-w-0 flex-1 flex-col justify-center">
+        <div className="truncate text-[12px] font-medium leading-[15px] text-white/80">{hunt.game_name}</div>
         <StatRow label="Bet" value={money(bet)} />
         <StatRow label="X" value={multiplier == null ? "—" : `${multiplier.toFixed(0)}x`} />
-        <StatRow
-          label={note ? "" : "Win"}
-          value={note ?? (win == null ? "—" : money(win))}
-          accent={tone === "best" ? "var(--obs-super)" : undefined}
-        />
+        <StatRow label="Win" value={win == null ? "—" : money(win)} />
       </div>
     </div>
   )
@@ -469,15 +499,23 @@ function HuntWidget() {
     const container = scrollContainerRef.current
     if (!container) return
 
-    const firstUnopened = hunts.find((h) => !h.result || h.result === 0)
-    if (!firstUnopened) return
+    /*
+      The bonus that has just been opened.
 
-    // Only scroll if the unopened bonus has changed
-    if (lastScrolledBonusRef.current === firstUnopened.id) return
+      This used to follow the next *un*opened one, back when that had a card of
+      its own. It has not had one since the "Opening" card was dropped, so the
+      lookup below found nothing and the column stopped following the hunt at
+      all. The newest opened card is the one that moves, and it goes in at the
+      top of the list, so that is what to stay on.
+    */
+    const lastOpened = [...hunts].reverse().find((h) => h.result && h.result > 0)
+    if (!lastOpened) return
 
-    lastScrolledBonusRef.current = firstUnopened.id
+    if (lastScrolledBonusRef.current === lastOpened.id) return
 
-    const bonusElement = document.getElementById(`bonus-${firstUnopened.id}`)
+    lastScrolledBonusRef.current = lastOpened.id
+
+    const bonusElement = document.getElementById(`bonus-${lastOpened.id}`)
     if (bonusElement) {
       bonusElement.scrollIntoView({ behavior: "smooth", block: "center" })
     }
@@ -538,15 +576,18 @@ function HuntWidget() {
     return win / bet > Number(best.result) / Number(best.bet_size) ? hunt : best
   }, null)
 
-  const currentBonus = unopenedBonuses[0]
   const openedBonuses = [...completedHunts].reverse()
   const bonusNumbers = new Map(hunts.map((hunt, index) => [hunt.id, index + 1]))
 
-  const displayBonuses = obsViewMode === "opening"
-    ? hunts
-    : hunts.length > 6
-      ? [...hunts, ...hunts, ...hunts, ...hunts, ...hunts]
-      : hunts
+  /**
+   * The slot list, newest first.
+   *
+   * The numbers still count the opening order — the bonus added first is still
+   * #1 and still opens first. Only the reading order is flipped, so the one
+   * just added is at the top of the column where it can be seen going in,
+   * instead of at the bottom of a list that has to scroll to reach it.
+   */
+  const slotList = hunts.map((hunt, index) => ({ hunt, number: index + 1 })).reverse()
 
   const isCollecting = !isOpening
 
@@ -642,56 +683,15 @@ function HuntWidget() {
                   than they have ever been.
               */}
               <div className="grid grid-cols-2 gap-2">
-                {hunts.map((hunt, index) => (
-                  <div
-                    key={hunt.id}
-                    className="relative aspect-[180/236] rounded-lg bg-white/[0.022] border border-white/[0.08] overflow-hidden flex items-center justify-center"
-                  >
-                    {hunt.image_url ? (
-                      <img
-                        src={hunt.image_url || "/placeholder.svg"}
-                        alt={hunt.game_name}
-                        crossOrigin="anonymous"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Coins className="w-6 h-6 text-white/20" />
-                    )}
-                    <span className="absolute top-1 left-1 flex items-center justify-center w-5 h-5 rounded-full bg-[color:var(--obs-accent)] text-white text-[11px] font-bold shadow">
-                      {index + 1}
-                    </span>
-                    {hunt.is_super && (
-                      <Crown className="absolute top-1 right-1 w-4 h-4 text-[color:var(--obs-gold)] drop-shadow" />
-                    )}
-                  </div>
+                {slotList.map(({ hunt, number }) => (
+                  <SlotTile key={hunt.id} hunt={hunt} number={number} />
                 ))}
                 {hunts.length === 0 && (
                   <div className="col-span-2 text-center text-white/35 text-sm py-6">No bonuses collected yet</div>
                 )}
                 {loopList &&
-                  hunts.map((hunt, index) => (
-                    <div
-                      key={`${hunt.id}-dup`}
-                      aria-hidden="true"
-                      className="relative aspect-[180/236] rounded-lg bg-white/[0.022] border border-white/[0.08] overflow-hidden flex items-center justify-center"
-                    >
-                      {hunt.image_url ? (
-                        <img
-                          src={hunt.image_url || "/placeholder.svg"}
-                          alt=""
-                          crossOrigin="anonymous"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Coins className="w-6 h-6 text-white/20" />
-                      )}
-                      <span className="absolute top-1 left-1 flex items-center justify-center w-5 h-5 rounded-full bg-[color:var(--obs-accent)] text-white text-[11px] font-bold shadow">
-                        {index + 1}
-                      </span>
-                      {hunt.is_super && (
-                        <Crown className="absolute top-1 right-1 w-4 h-4 text-[color:var(--obs-gold)] drop-shadow" />
-                      )}
-                    </div>
+                  slotList.map(({ hunt, number }) => (
+                    <SlotTile key={`${hunt.id}-dup`} hunt={hunt} number={number} duplicate />
                   ))}
               </div>
             </div>
@@ -700,15 +700,18 @@ function HuntWidget() {
           /*
             Opening phase, read top to bottom as the hunt runs:
 
-              still to open   a row that recedes to the right, smallest last
-              being opened    one card, front and centre, the only accented one
+              best X win      the one to beat, at the top where it stays put
+              still to open   a deck of covers, dealt off the left
               already opened  cards falling away downwards, newest first
 
-            The old version had this as three equal lists stacked under
-            headings — "Up Next", "Opened" — which said what each was but not
-            where the hunt had got to. Here the shape does that: the row above
-            shortens, the list below grows, and the card between them is the
-            one on screen.
+            No card for the bonus currently being opened. It had one, sitting
+            between the deck and the list, and it was the wrong thing to draw:
+            the bonus on screen is the one on screen. Repeating its cover in
+            the column while the stream shows it full size took the room that
+            the results — the part a viewer cannot get anywhere else — need.
+
+            The shape carries the progress instead: the deck above shortens,
+            the list below grows.
           */
           <div className="flex-1 min-h-0 overflow-y-auto hide-scrollbar animate-in fade-in duration-500">
             {/* Best X Win */}
@@ -717,7 +720,7 @@ function HuntWidget() {
                 Best X Win
               </div>
               {bestWinHunt ? (
-                <BonusCard hunt={bestWinHunt} rank={bonusNumbers.get(bestWinHunt.id)} tone="best" />
+                <BonusCard hunt={bestWinHunt} rank={bonusNumbers.get(bestWinHunt.id)} />
               ) : (
                 <div className="flex items-center justify-center rounded-lg border border-dashed border-white/[0.08] py-3">
                   <span className="text-xs font-medium text-white/25">Awaiting Opening</span>
@@ -726,12 +729,21 @@ function HuntWidget() {
             </div>
 
             {/*
-              Still to open, receding.
+              Still to open: one deck of covers, all the same size, each tucked
+              a little under the one to its left.
 
-              Each one is a little shorter and a little fainter than the one
-              before it, so the row reads as going back rather than as a set
-              of equals. Six at most: past that they are too small to tell
-              apart, and the count beside the heading says how many there are.
+              They used to step down in height and fade out along the row, on
+              the idea that "further back" should look further away. At 46px
+              and shrinking, the fifth was 30px tall and the number on it was
+              unreadable, and a row of five different sizes reads as five
+              different kinds of thing rather than one stack.
+
+              Left-most on top, which is also what puts one number on the deck
+              instead of five: every badge but the front one is behind the
+              cover in front of it.
+
+              Five at most. The column has 182px of usable width, and five
+              41px covers overlapped by 8 come to 174.
             */}
             {unopenedBonuses.length > 0 && (
               <div className="border-b border-white/[0.08] px-2 py-2.5">
@@ -741,54 +753,23 @@ function HuntWidget() {
                   </span>
                   <span className="text-[11px] text-white/25">{unopenedBonuses.length}</span>
                 </div>
-                <div className="flex items-start gap-1.5">
+                <div className="flex items-start">
                   <AnimatePresence mode="popLayout" initial={false}>
-                    {unopenedBonuses.slice(0, 6).map((hunt, index) => (
+                    {unopenedBonuses.slice(0, TO_OPEN_SHOWN).map((hunt, index) => (
                       <motion.div
                         key={hunt.id}
                         layout
+                        style={{ marginLeft: index === 0 ? 0 : -TO_OPEN_OVERLAP, zIndex: TO_OPEN_SHOWN - index }}
                         initial={{ opacity: 0, scale: 0.85 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.85 }}
                         transition={{ duration: 0.35, ease: "easeOut" }}
                       >
-                        <BonusThumb
-                          hunt={hunt}
-                          height={46 - index * 4}
-                          rank={bonusNumbers.get(hunt.id)}
-                          dim={index > 0}
-                        />
+                        <BonusThumb hunt={hunt} height={TO_OPEN_HEIGHT} rank={bonusNumbers.get(hunt.id)} />
                       </motion.div>
                     ))}
                   </AnimatePresence>
                 </div>
-              </div>
-            )}
-
-            {/* Being opened — the one card that is not part of a list. */}
-            {currentBonus && (
-              <div className="border-b border-white/[0.08] px-2 py-2.5">
-                <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[color:var(--obs-super)]">
-                  Opening
-                </div>
-                <AnimatePresence mode="popLayout" initial={false}>
-                  <motion.div
-                    key={currentBonus.id}
-                    id={`bonus-${currentBonus.id}`}
-                    layout
-                    initial={{ opacity: 0, scale: 0.96 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ duration: 0.45, ease: "easeOut" }}
-                  >
-                    <BonusCard
-                      hunt={currentBonus}
-                      rank={bonusNumbers.get(currentBonus.id)}
-                      tone="current"
-                      note="Opening"
-                    />
-                  </motion.div>
-                </AnimatePresence>
               </div>
             )}
 
@@ -809,11 +790,7 @@ function HuntWidget() {
                       exit={{ opacity: 0, y: 14 }}
                       transition={{ duration: 0.45, ease: "easeOut" }}
                     >
-                      <BonusCard
-                        hunt={hunt}
-                        rank={bonusNumbers.get(hunt.id)}
-                        tone={hunt.id === bestWinHunt?.id ? "best" : "opened"}
-                      />
+                      <BonusCard hunt={hunt} rank={bonusNumbers.get(hunt.id)} />
                     </motion.div>
                   ))}
                 </AnimatePresence>
