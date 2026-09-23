@@ -40,14 +40,23 @@ export const OBS = {
    * you are reading a foot away, and all but invisible over a stream at a
    * glance. The hunt column's KPI block and its bonus cards use this instead.
    *
-   * The gradient is the reference's: lighter along the top edge, so the box
-   * has a lit side rather than being one flat rectangle. Measured there as a
-   * ground of #0A061B carrying a box from #2B2548 down to #211E3E — a step of
-   * roughly three times the ground's lightness, which is what these alphas
-   * come to over this column's own surface.
+   * Built from OUR blue, not from the reference's violet and not from white.
+   *
+   * The reference's box solves back to its own accent at about 20% over its
+   * own ground — that is the part worth taking, a lift made of the palette
+   * rather than a grey one. Its actual violet belongs to its palette, not
+   * this one.
+   *
+   * White is the other wrong answer, and less obviously so: this column's
+   * surface is a blue-black, and a white overlay pulls it toward neutral
+   * grey. The box then sits on the column looking like a different material
+   * instead of a lit part of the same one.
+   *
+   * The gradient is lighter along the top edge, so the box has a lit side
+   * instead of being one flat rectangle.
    */
-  raised: "linear-gradient(rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.05))",
-  raisedBorder: "rgba(255, 255, 255, 0.14)",
+  raised: `linear-gradient(color-mix(in srgb, ${ACCENTS.blue} 18%, transparent), color-mix(in srgb, ${ACCENTS.blue} 10%, transparent))`,
+  raisedBorder: `color-mix(in srgb, ${ACCENTS.blue} 30%, transparent)`,
 
   /** The tile the icon sits in. A hairline box, not a coloured block. */
   iconTile: "rgba(255, 255, 255, 0.04)",

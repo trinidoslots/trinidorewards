@@ -57,7 +57,7 @@ function BonusThumb({
 }) {
   return (
     <div
-      className="relative flex flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/[0.08] bg-white/[0.022]"
+      className="relative flex flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.08] bg-white/[0.022]"
       style={{ height, aspectRatio: "180 / 236", opacity: dim ? 0.55 : 1 }}
     >
       {hunt.image_url ? (
@@ -129,17 +129,21 @@ function BonusCard({
 
   return (
     <div
-      className="flex items-center gap-2.5 rounded-lg p-1.5"
+      className="flex items-center gap-2.5 rounded-xl p-1.5"
       style={{
         border,
         // The lift first, an accent tint over it. An accent on its own was
         // barely a tint against the column, which is why the opened cards and
         // the best win did not read as boxes at all.
+        //
+        // The lift is already this widget's blue, so the best win goes a good
+        // deal further into it rather than a shade — otherwise the card that
+        // is supposed to stand out looks like the ones it stands out from.
         backgroundImage:
           tone === "current"
-            ? `linear-gradient(color-mix(in srgb, var(--obs-super) 22%, transparent), color-mix(in srgb, var(--obs-super) 12%, transparent)), ${OBS.raised}`
+            ? `linear-gradient(color-mix(in srgb, var(--obs-super) 26%, transparent), color-mix(in srgb, var(--obs-super) 14%, transparent)), ${OBS.raised}`
             : tone === "best"
-              ? `linear-gradient(color-mix(in srgb, var(--obs-accent) 18%, transparent), color-mix(in srgb, var(--obs-accent) 8%, transparent)), ${OBS.raised}`
+              ? `linear-gradient(color-mix(in srgb, var(--obs-accent) 30%, transparent), color-mix(in srgb, var(--obs-accent) 16%, transparent)), ${OBS.raised}`
               : OBS.raised,
       }}
     >
@@ -579,7 +583,7 @@ function HuntWidget() {
         */}
         <div className="flex-shrink-0 px-2 pb-1">
           <div
-            className="space-y-1.5 rounded-lg px-2.5 py-2 text-sm"
+            className="space-y-1.5 rounded-2xl px-2.5 py-2 text-sm"
             style={{ backgroundImage: OBS.raised, border: `1px solid ${OBS.raisedBorder}` }}
           >
             <div className="flex justify-between">
