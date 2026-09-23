@@ -52,17 +52,22 @@ const money = (value: number) =>
  * spare, which is why the card looked squeezed: the text ran wall to wall
  * with no air above or below it.
  *
- * 84 leaves 78px inside the padding and the border, and the cover is 78 tall
- * by 59 wide. The three stat rows measure 54 — 18 each, not 17, because a row
+ * 92 leaves 86px inside the padding and the border, and the cover is 86 tall
+ * by 66 wide. The three stat rows measure 54 — 18 each, not 17, because a row
  * aligns an 11px label and a 13px figure on their shared baseline and that
- * makes its line box a pixel taller than the leading asks for — so they are
- * centred in 78 with 12px above and below.
+ * makes its line box a pixel taller than the leading asks for — plus two
+ * CARD_ROW_GAPs between them, so 72 centred in 86 with 7px above and below.
+ *
+ * The gap is the point of the extra height. Three lines stacked on the
+ * leading alone read as one block of text; set apart they read as three
+ * figures, which is what they are.
  *
  * TO_OPEN_HEIGHT below is set to the same 78, so a cover is one size in this
  * column and not two that differ by a few pixels.
  */
-const CARD_HEIGHT = 84
+const CARD_HEIGHT = 92
 const CARD_LINE = 17
+const CARD_ROW_GAP = 9
 
 /**
  * The "to open" row: five whole covers, each one sliding in behind the last.
@@ -248,7 +253,7 @@ function BonusCard({ hunt, rank }: { hunt: BonusHunt; rank?: number }) {
         Without it the three figures are what the card is for, so they sit
         centred against the cover rather than hanging off the top of it.
       */}
-      <div className="flex min-w-0 flex-1 flex-col justify-center">
+      <div className="flex min-w-0 flex-1 flex-col justify-center" style={{ gap: CARD_ROW_GAP }}>
         <StatRow label="Bet" value={money(bet)} />
         <StatRow label="X" value={multiplier == null ? "—" : `${multiplier.toFixed(0)}x`} />
         <StatRow label="Win" value={win == null ? "—" : money(win)} />
