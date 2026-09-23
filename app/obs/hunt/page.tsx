@@ -62,21 +62,22 @@ const money = (value: number) =>
  * with no air above or below it.
  *
  * 92 leaves 86px inside the padding and the border, and the cover is 86 tall
- * by 66 wide. The three stat rows measure 54 — 18 each, not 17, because a row
- * aligns an 11px label and a 13px figure on their shared baseline and that
- * makes its line box a pixel taller than the leading asks for — plus two
- * CARD_ROW_GAPs between them, so 72 centred in 86 with 7px above and below.
+ * by 66 wide. The three stat rows take CARD_LINE each — label and figure are
+ * the same size, so the line box is the leading and nothing more — plus two
+ * CARD_ROW_GAPs between them, which is 61 centred in 86.
  *
- * The gap is the point of the extra height. Three lines stacked on the
- * leading alone read as one block of text; set apart they read as three
- * figures, which is what they are.
+ * The gap wants to be small. On the leading alone the three rows read as one
+ * block of text, but 9 pushed them apart far enough that they stopped reading
+ * as a group at all; 5 separates them without scattering them. The height
+ * stays at 92 either way — what is left over becomes air around the figures,
+ * which is the part that stopped the card looking squeezed.
  *
  * TO_OPEN_HEIGHT below is derived from this, so a cover is one size in this
  * column and not two that differ by a few pixels.
  */
 const CARD_HEIGHT = 92
 const CARD_LINE = 17
-const CARD_ROW_GAP = 9
+const CARD_ROW_GAP = 5
 
 /**
  * The "to open" row: five whole covers, each one sliding in behind the last.
@@ -135,9 +136,26 @@ function BonusThumb({
   rank?: number
   /** Casts a shadow to its right, onto whatever it is lying on top of. */
   lifted?: boolean
-  /** The next one to be opened: ringed in the accent so it is picked out. */
+  /** The next one to be opened: ringed in white so it is picked out. */
   lead?: boolean
 }) {
+  /*
+    Both shadows at once on the lead cover, white first.
+
+    They overlap along its right edge, where the glow spreads out and the drop
+    shadow falls across the cover behind. A box-shadow list paints in order
+    with the first on top, so putting the glow first keeps the ring reading
+    white there instead of being muddied by the black underneath it.
+  */
+  const shadows = [
+    lead ? "0 0 6px 1px rgba(255, 255, 255, 0.4)" : null,
+    // Offset right with a negative spread: the shadow falls on the cover
+    // behind this one and barely bleeds above or below it, which is what
+    // makes the row read as a stack rather than as a flat row that happens
+    // to be clipped.
+    lifted ? "5px 0 10px -1px rgba(0, 0, 0, 0.6)" : null,
+  ].filter(Boolean)
+
   return (
     <div
       className="relative flex flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/[0.022]"
@@ -145,12 +163,8 @@ function BonusThumb({
         ...(width === undefined ? { height, aspectRatio: "180 / 236" } : { height, width }),
         // Border-box, so the ring thickens inward and the cover keeps the
         // same outer size whether it is the lead or not.
-        border: lead ? "2px solid var(--obs-accent)" : "1px solid rgba(255, 255, 255, 0.08)",
-        // Offset right with a negative spread: the shadow falls on the cover
-        // behind this one and barely bleeds above or below it, which is what
-        // makes the row read as a stack rather than as a flat row that
-        // happens to be clipped.
-        boxShadow: lifted ? "5px 0 10px -1px rgba(0, 0, 0, 0.6)" : undefined,
+        border: lead ? "2px solid #FFFFFF" : "1px solid rgba(255, 255, 255, 0.08)",
+        boxShadow: shadows.length > 0 ? shadows.join(", ") : undefined,
       }}
     >
       {hunt.image_url ? (
@@ -220,8 +234,23 @@ function SlotTile({ hunt, number, duplicate }: { hunt: BonusHunt; number: number
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-2" style={{ lineHeight: `${CARD_LINE}px` }}>
-      <span className="text-[11px] text-white/35">{label}</span>
-      <span className="text-[13px] font-semibold tabular-nums text-white">{value}</span>
+      {/*
+        White and light, at the figure's own size.
+
+        The label used to be 11px white at 35%, which on a translucent column
+        over a moving capture is a grey that changes with whatever happens to
+        be behind it. Weight carries the whole distinction now — 300 against
+        600, both at 13px and both at full strength — so neither of the two
+        depends on the background to stay readable.
+
+        The label gives way first if a row ever runs out of room: it is three
+        letters that can be clipped without losing anything, where the figure
+        is the point of the row.
+      */}
+      <span className="min-w-0 truncate text-[13px] text-white" style={{ fontWeight: 300 }}>
+        {label}
+      </span>
+      <span className="shrink-0 text-[13px] font-semibold tabular-nums text-white">{value}</span>
     </div>
   )
 }
