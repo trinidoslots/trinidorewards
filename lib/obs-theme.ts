@@ -33,6 +33,22 @@ export const OBS = {
   card: "rgba(255, 255, 255, 0.022)",
   cardBorder: "rgba(255, 255, 255, 0.08)",
 
+  /**
+   * A block that has to read as a box, not as a hint of one.
+   *
+   * `card` above is 2.2% white, which is the site's Panel — right on a page
+   * you are reading a foot away, and all but invisible over a stream at a
+   * glance. The hunt column's KPI block and its bonus cards use this instead.
+   *
+   * The gradient is the reference's: lighter along the top edge, so the box
+   * has a lit side rather than being one flat rectangle. Measured there as a
+   * ground of #0A061B carrying a box from #2B2548 down to #211E3E — a step of
+   * roughly three times the ground's lightness, which is what these alphas
+   * come to over this column's own surface.
+   */
+  raised: "linear-gradient(rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.05))",
+  raisedBorder: "rgba(255, 255, 255, 0.14)",
+
   /** The tile the icon sits in. A hairline box, not a coloured block. */
   iconTile: "rgba(255, 255, 255, 0.04)",
 

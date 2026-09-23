@@ -124,20 +124,23 @@ function BonusCard({
     tone === "current"
       ? "1px solid color-mix(in srgb, var(--obs-super) 55%, transparent)"
       : tone === "best"
-        ? "1px solid color-mix(in srgb, var(--obs-accent) 40%, transparent)"
-        : "1px solid rgba(255,255,255,0.08)"
+        ? "1px solid color-mix(in srgb, var(--obs-accent) 45%, transparent)"
+        : `1px solid ${OBS.raisedBorder}`
 
   return (
     <div
       className="flex items-center gap-2.5 rounded-lg p-1.5"
       style={{
         border,
-        background:
+        // The lift first, an accent tint over it. An accent on its own was
+        // barely a tint against the column, which is why the opened cards and
+        // the best win did not read as boxes at all.
+        backgroundImage:
           tone === "current"
-            ? "color-mix(in srgb, var(--obs-super) 14%, transparent)"
+            ? `linear-gradient(color-mix(in srgb, var(--obs-super) 22%, transparent), color-mix(in srgb, var(--obs-super) 12%, transparent)), ${OBS.raised}`
             : tone === "best"
-              ? "color-mix(in srgb, var(--obs-accent) 10%, transparent)"
-              : "rgba(255,255,255,0.022)",
+              ? `linear-gradient(color-mix(in srgb, var(--obs-accent) 18%, transparent), color-mix(in srgb, var(--obs-accent) 8%, transparent)), ${OBS.raised}`
+              : OBS.raised,
       }}
     >
       <BonusThumb hunt={hunt} height={tone === "current" ? 64 : 56} rank={rank} />
@@ -560,7 +563,7 @@ function HuntWidget() {
               the name is a bare number — "#1435", but "Bonus Hunt Sunday"
               rather than "Bonus Hunt #Sunday". */}
           <h1 className="truncate text-[17px] font-bold text-white">
-            Bonus Hunt{huntTitle ? ` ${/^d+$/.test(huntTitle) ? "#" : ""}${huntTitle}` : ""}
+            Bonus Hunt{huntTitle ? ` ${/^\d+$/.test(huntTitle) ? "#" : ""}${huntTitle}` : ""}
           </h1>
         </div>
 
@@ -574,40 +577,45 @@ function HuntWidget() {
           "Avg X 0x" before a hunt begins is not confusing, it is the starting
           position.
         */}
-        <div className="px-2 py-2 space-y-1.5 text-sm flex-shrink-0">
-          <div className="flex justify-between">
-            <span className="text-white/35">B.E. X</span>
-            <span className="text-white font-semibold">{breakEvenX.toFixed(1)}x</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-white/35">Avg X</span>
-            <span className="text-white font-semibold">{averageMultiplier.toFixed(0)}x</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-white/35">Target</span>
-            <span className="text-white font-semibold">{money(startingBalance)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-white/35">Total</span>
-            <span className="text-white font-semibold">{money(totalWinsSoFar)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-white/35">Bonus</span>
-            <span className="text-white font-semibold flex items-center gap-1.5">
-              {completedHunts.length} / {totalBonuses}
-              {superBonuses.length > 0 && (
-                <span className="flex items-center gap-0.5">
-                  <Crown className="w-3.5 h-3.5 text-[color:var(--obs-gold)]" />
-                  {superBonuses.length}
-                </span>
-              )}
-            </span>
-          </div>
-          <div className="relative h-1.5 bg-white/[0.022] rounded-full overflow-hidden mt-1">
-            <div
-              className="absolute top-0 left-0 h-full bg-gradient-to-r from-[color:var(--obs-super)] to-[color:var(--obs-accent)] transition-all duration-1000 ease-out"
-              style={{ width: `${totalBonuses > 0 ? (completedHunts.length / totalBonuses) * 100 : 0}%` }}
-            />
+        <div className="flex-shrink-0 px-2 pb-1">
+          <div
+            className="space-y-1.5 rounded-lg px-2.5 py-2 text-sm"
+            style={{ backgroundImage: OBS.raised, border: `1px solid ${OBS.raisedBorder}` }}
+          >
+            <div className="flex justify-between">
+              <span className="text-white/35">B.E. X</span>
+              <span className="text-white font-semibold">{breakEvenX.toFixed(1)}x</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-white/35">Avg X</span>
+              <span className="text-white font-semibold">{averageMultiplier.toFixed(0)}x</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-white/35">Target</span>
+              <span className="text-white font-semibold">{money(startingBalance)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-white/35">Total</span>
+              <span className="text-white font-semibold">{money(totalWinsSoFar)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-white/35">Bonus</span>
+              <span className="text-white font-semibold flex items-center gap-1.5">
+                {completedHunts.length} / {totalBonuses}
+                {superBonuses.length > 0 && (
+                  <span className="flex items-center gap-0.5">
+                    <Crown className="w-3.5 h-3.5 text-[color:var(--obs-gold)]" />
+                    {superBonuses.length}
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="relative h-1.5 overflow-hidden rounded-full bg-black/30 mt-1">
+              <div
+                className="absolute top-0 left-0 h-full bg-gradient-to-r from-[color:var(--obs-super)] to-[color:var(--obs-accent)] transition-all duration-1000 ease-out"
+                style={{ width: `${totalBonuses > 0 ? (completedHunts.length / totalBonuses) * 100 : 0}%` }}
+              />
+            </div>
           </div>
         </div>
 
