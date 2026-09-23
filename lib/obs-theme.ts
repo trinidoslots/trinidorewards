@@ -207,6 +207,23 @@ export const SCENE_ORBS = [
 export const COLUMN_EDGE = "rgba(255, 255, 255, 0.08)"
 
 /**
+ * The overlay's typeface.
+ *
+ * The site is set in Geist and the body carries it, so anything in the overlay
+ * that does not say otherwise inherits Geist — which is how the hunt column
+ * ended up in a different face from the casino bar beside it. Inter was picked
+ * for that bar by measurement, and it is the face the overlay reads as.
+ *
+ * Declared here rather than in whichever component happened to need it first,
+ * so a widget that wants the overlay's font does not have to import it from a
+ * casino strip to get it.
+ *
+ * The variable comes from app/layout.tsx; the literal behind it is the
+ * fallback for anything rendered before the font loads.
+ */
+export const OBS_FONT = "var(--font-inter), Inter, sans-serif"
+
+/**
  * A widget paints its own background unless it is told not to.
  *
  * /obs/complete passes ?transparent=1 so the gradient it draws behind the

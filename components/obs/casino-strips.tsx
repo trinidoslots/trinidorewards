@@ -4,6 +4,7 @@ import type { CSSProperties, TransitionEvent } from "react"
 import { useEffect, useRef, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { BADGE_GRADIENT, BADGE_TEXT, formatMoney, type NowPlayingRow } from "@/lib/now-playing"
+import { OBS_FONT } from "@/lib/obs-theme"
 
 /**
  * The two strips that frame the game capture.
@@ -69,7 +70,8 @@ export const STRIP = {
   outline: "#315468",
 } as const
 
-export const FONT_STACK = "var(--font-inter), Inter, sans-serif"
+/** Kept as a name local to the strips; the stack itself lives in obs-theme. */
+export const FONT_STACK = OBS_FONT
 
 /** A fraction of the strip's height, as a CSS length. */
 export const u = (fraction: number) => `calc(var(--h) * ${fraction})`

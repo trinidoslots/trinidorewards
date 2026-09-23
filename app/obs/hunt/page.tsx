@@ -6,7 +6,7 @@ import { Coins, Crown } from "lucide-react"
 import { Suspense, useEffect, useLayoutEffect, useState, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
-import { OBS, OBS_RADIUS, shellBackground } from "@/lib/obs-theme"
+import { OBS, OBS_FONT, OBS_RADIUS, shellBackground } from "@/lib/obs-theme"
 
 type BonusHunt = {
   id: string
@@ -32,6 +32,15 @@ const ACCENT_VARS = {
   ["--obs-accent" as string]: OBS.label,
   ["--obs-super" as string]: OBS.giveaway,
   ["--obs-gold" as string]: OBS.prediction,
+  /*
+    The overlay's typeface, stated rather than inherited.
+
+    The site's body carries Geist, so this column was set in Geist while the
+    casino bar next to it was set in Inter — two faces in one overlay, which
+    is what it looked like. It is spread from here alongside the accents so
+    the loading state and the widget cannot end up on different fonts.
+  */
+  fontFamily: OBS_FONT,
 } as React.CSSProperties
 
 /**
@@ -62,7 +71,7 @@ const money = (value: number) =>
  * leading alone read as one block of text; set apart they read as three
  * figures, which is what they are.
  *
- * TO_OPEN_HEIGHT below is set to the same 78, so a cover is one size in this
+ * TO_OPEN_HEIGHT below is derived from this, so a cover is one size in this
  * column and not two that differ by a few pixels.
  */
 const CARD_HEIGHT = 92
