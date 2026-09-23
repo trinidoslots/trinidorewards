@@ -132,6 +132,83 @@ const LABEL_CLASS = "min-w-0 truncate text-white"
 const LABEL_STYLE = { fontWeight: 300 } as const
 const VALUE_CLASS = "shrink-0 font-semibold text-white"
 
+/** How fast the slot list creeps past, in pixels per second. */
+const MARQUEE_SPEED = 24
+/** A moment to read the top of the list before it starts moving. */
+const MARQUEE_DELAY_MS = 1500
+
+/**
+ * Creeps a list past its window, forever, by moving it rather than scrolling it.
+ *
+ * This was `container.scrollTop += 0.4` once a frame, and that is why the slot
+ * list juddered. `scrollTop` is quantised to whole pixels: set it to 0.4, 0.8,
+ * 1.2, 1.6, 2.0 and it reads back 0, 1, 1, 2, 2 — so the list stands still for
+ * a frame or two and then jumps a whole pixel. Measured, the painted movement
+ * per frame went −1, 0, −1, 0, 0, −1, 0. That irregular hop is the judder; the
+ * frames themselves were always on time.
+ *
+ * A transform has no such rounding. The same 0.4 a frame comes out as a clean
+ * −0.4 every frame, and it is handed to the compositor rather than triggering
+ * layout.
+ *
+ * Time-based, too. A fixed step per frame is a different speed on every
+ * refresh rate — 0.4 a frame is 24px/s at 60Hz and 58px/s at 144 — and a
+ * dropped frame silently shortens the travel.
+ *
+ * `track` holds two copies of the list stacked, so the loop point is where the
+ * second one starts. Measured from their offsets rather than by halving the
+ * total height: at two tiles across, an odd number of slots does not make two
+ * copies exactly twice as tall as one, and halving would have put the seam in
+ * the wrong place.
+ */
+function useMarquee(
+  track: React.RefObject<HTMLDivElement | null>,
+  enabled: boolean,
+  deps: React.DependencyList,
+) {
+  useEffect(() => {
+    const element = track.current
+    if (!enabled || !element) return
+
+    const first = element.children[0] as HTMLElement | undefined
+    const second = element.children[1] as HTMLElement | undefined
+    if (!first || !second) return
+
+    const loopPoint = second.offsetTop - first.offsetTop
+    if (loopPoint <= 0) return
+
+    let offset = 0
+    let previous = 0
+    let startedAt = 0
+    let frame = 0
+
+    const step = (now: number) => {
+      if (startedAt === 0) {
+        startedAt = now
+        previous = now
+      }
+
+      const elapsed = now - previous
+      previous = now
+
+      if (now - startedAt > MARQUEE_DELAY_MS) {
+        offset = (offset + (MARQUEE_SPEED * elapsed) / 1000) % loopPoint
+        element.style.transform = `translate3d(0, ${-offset}px, 0)`
+      }
+
+      frame = requestAnimationFrame(step)
+    }
+
+    frame = requestAnimationFrame(step)
+
+    return () => {
+      cancelAnimationFrame(frame)
+      element.style.transform = ""
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, track, ...deps])
+}
+
 /**
  * A game's thumbnail with its position in the hunt on it.
  *
@@ -343,6 +420,8 @@ function HuntWidget() {
   const supabase = createClient()
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const collectingScrollRef = useRef<HTMLDivElement>(null)
+  /** The moving track inside that window — two copies of the slot list. */
+  const marqueeRef = useRef<HTMLDivElement>(null)
   /**
    * Whether the slot list is taller than the space it has, and so needs the
    * second copy that makes the scroll loop seamlessly.
@@ -521,59 +600,8 @@ function HuntWidget() {
     if (container.scrollHeight > container.clientHeight + 1) setLoopList(true)
   }, [loopList, isOpening, hunts])
 
-  useEffect(() => {
-    if (isOpening) return
-    if (!loopList) return
-
-    const container = collectingScrollRef.current
-    if (!container) return
-
-    // The grid is rendered twice back-to-back (see JSX), so once we scroll past
-    // the height of the first copy we can silently loop back to 0 for a seamless,
-    // indefinite scroll instead of pausing and reversing.
-    //
-    // Measured once, here, and not inside the frame. `scrollHeight` cannot be
-    // answered without laying the document out, so reading it per frame made
-    // the widget force a full layout sixty times a second for a number that
-    // only changes when the list does — and the effect already re-runs when
-    // that happens.
-    const loopPoint = container.scrollHeight / 2
-
-    let scrollPosition = 0
-    let isPaused = true
-    let animationId: number
-
-    const startTimeout = setTimeout(() => {
-      isPaused = false
-    }, 1500)
-
-    const animate = () => {
-      if (!container) return
-
-      if (isPaused) {
-        animationId = requestAnimationFrame(animate)
-        return
-      }
-
-      scrollPosition += 0.4
-
-      if (scrollPosition >= loopPoint) {
-        scrollPosition -= loopPoint
-      }
-
-      container.scrollTop = scrollPosition
-
-      animationId = requestAnimationFrame(animate)
-    }
-
-    animationId = requestAnimationFrame(animate)
-
-    return () => {
-      clearTimeout(startTimeout)
-      if (animationId) cancelAnimationFrame(animationId)
-    }
-    // loopList gates this, so the scroll has to restart when it flips.
-  }, [isOpening, hunts.length, loopList])
+  // loopList gates it, so the scroll restarts when the duplicate goes in.
+  useMarquee(marqueeRef, !isOpening && loopList, [hunts.length, loopList])
 
   useEffect(() => {
     if (obsViewMode !== "opening") return
@@ -597,10 +625,19 @@ function HuntWidget() {
 
     lastScrolledBonusRef.current = lastOpened.id
 
-    const bonusElement = document.getElementById(`bonus-${lastOpened.id}`)
-    if (bonusElement) {
-      bonusElement.scrollIntoView({ behavior: "smooth", block: "center" })
-    }
+    /*
+      The list, not the card.
+
+      It used to scroll the new card itself into view, and that card is the
+      one framer-motion is animating into place at that exact moment. A smooth
+      scroll works out where to stop from where its target is when it starts,
+      so it was aiming at something still moving, overshooting, and being
+      corrected — which looks like the scroll stuttering.
+
+      The section around the list does not move. The newest card is at the top
+      of it either way, since the list runs newest first.
+    */
+    container.scrollIntoView({ behavior: "smooth", block: "start" })
   }, [obsViewMode, hunts])
 
   if (loading) {
@@ -625,7 +662,6 @@ function HuntWidget() {
   const totalBonuses = hunts.length
   const completedHunts = hunts.filter((h) => h.result && h.result > 0)
   const unopenedBonuses = hunts.filter((h) => !h.result || h.result === 0)
-  const superBonuses = hunts.filter((h) => h.is_super)
 
   const totalWinsSoFar = hunts.reduce((sum, h) => sum + (Number(h.result) || 0), 0)
   const totalRemainingStakes = unopenedBonuses.reduce((sum, h) => sum + Number(h.bet_size), 0)
@@ -717,14 +753,12 @@ function HuntWidget() {
             <KpiRow label="Avg X">{averageMultiplier.toFixed(0)}x</KpiRow>
             <KpiRow label="Target">{money(startingBalance)}</KpiRow>
             <KpiRow label="Total">{money(totalWinsSoFar)}</KpiRow>
+            {/* Just the tally. The super count used to ride along here behind
+                a crown, which put two unrelated numbers on one line — the
+                covers already carry a crown each, so the panel was repeating
+                what the list below it shows. */}
             <KpiRow label="Bonus">
               {completedHunts.length} / {totalBonuses}
-              {superBonuses.length > 0 && (
-                <span className="flex items-center gap-0.5">
-                  <Crown className="h-3.5 w-3.5 text-[color:var(--obs-gold)]" />
-                  {superBonuses.length}
-                </span>
-              )}
             </KpiRow>
             <div className="relative h-1.5 overflow-hidden rounded-full bg-black/30 mt-1">
               <div
@@ -741,29 +775,45 @@ function HuntWidget() {
             <div className="text-[color:var(--obs-accent)] text-xs font-semibold uppercase tracking-wide px-2 pt-2 mb-2 flex-shrink-0">
               Slot List
             </div>
-            <div ref={collectingScrollRef} className="px-2 pb-3 flex-1 min-h-0 overflow-y-auto hide-scrollbar">
-              {/*
-                  Two across, at the size the tiles have always been.
-                  
-                  Measured off the old layout: a 300px box, 12px of list
-                  padding each side and two 8px gaps put three tiles at
-                  86.66 wide. Keeping that size and going to two across is what
-                  sets the column width — 87 + 8 + 87, plus 8px of list padding
-                  and 8px of shell padding each side, is 214. Widening the
-                  tiles instead would have doubled them to 180, which is bigger
-                  than they have ever been.
-              */}
-              <div className="grid grid-cols-2 gap-2">
-                {slotList.map(({ hunt, number }) => (
-                  <SlotTile key={hunt.id} hunt={hunt} number={number} />
-                ))}
-                {hunts.length === 0 && (
-                  <div className="col-span-2 text-center text-white/35 text-sm py-6">No bonuses collected yet</div>
-                )}
-                {loopList &&
-                  slotList.map(({ hunt, number }) => (
-                    <SlotTile key={`${hunt.id}-dup`} hunt={hunt} number={number} duplicate />
+            {/*
+              The window the list creeps past. It does not scroll any more —
+              the track inside it is moved instead, see useMarquee.
+            */}
+            <div ref={collectingScrollRef} className="px-2 pb-3 flex-1 min-h-0 overflow-hidden">
+              <div ref={marqueeRef} className="space-y-2" style={{ willChange: "transform" }}>
+                {/*
+                    Two across, at the size the tiles have always been.
+
+                    Measured off the old layout: a 300px box, 12px of list
+                    padding each side and two 8px gaps put three tiles at
+                    86.66 wide. Keeping that size and going to two across is
+                    what sets the column width — 87 + 8 + 87, plus 8px of list
+                    padding and 8px of shell padding each side, is 214.
+                    Widening the tiles instead would have doubled them to 180,
+                    which is bigger than they have ever been.
+
+                    The duplicate is a grid of its own rather than more cells
+                    in this one. Two copies in a single grid do not make it
+                    exactly twice as tall when the slot count is odd — five
+                    slots are three rows, ten are five — so the loop point
+                    could not be found by halving.
+                */}
+                <div className="grid grid-cols-2 gap-2">
+                  {slotList.map(({ hunt, number }) => (
+                    <SlotTile key={hunt.id} hunt={hunt} number={number} />
                   ))}
+                  {hunts.length === 0 && (
+                    <div className="col-span-2 text-center text-white/35 text-sm py-6">No bonuses collected yet</div>
+                  )}
+                </div>
+
+                {loopList && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {slotList.map(({ hunt, number }) => (
+                      <SlotTile key={`${hunt.id}-dup`} hunt={hunt} number={number} duplicate />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
