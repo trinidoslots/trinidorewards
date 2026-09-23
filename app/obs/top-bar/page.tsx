@@ -670,9 +670,13 @@ function TopBarWidget() {
 
         {/* Wallet Difference */}
         <div className="flex items-center gap-1 text-white">
-          {/* 13px, not the shared 14: it is the only wide icon in the row,
-              and a shape that runs sideways looks larger than a tall one of
-              the same height. */}
+          {/* 12px, not the shared 14: it is the widest icon in the row, and a
+              shape that runs sideways looks larger than a tall one of the same
+              height.
+
+              The height is all that is set. The artwork is cropped to its own
+              opaque bounds on disk — 192x158 — so the width follows from the
+              wallet's real proportions and comes out at 14.6. */}
           <img src="/obs-wallet.png" alt="" className="h-3 w-auto shrink-0" />
           <AnimatedAmount value={walletStats.difference} className="font-bold" toneClassName="text-white" />
         </div>
