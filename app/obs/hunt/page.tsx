@@ -49,20 +49,22 @@ const money = (value: number) =>
 const CARD_HEIGHT = 66
 
 /**
- * The "to open" row: one full cover, then the rest as narrow slices.
+ * The "to open" row: five whole covers, each one sliding in behind the last.
  *
- * Five covers, one height. The lead keeps the 180:236 cover shape, so at 72
- * tall it is 55 wide; the four behind it share what is left of the column's
- * 182px — about 29 each — and crop their artwork to fit rather than shrink it.
+ * Every cover is the same: full height, full 180:236 shape, nothing cropped
+ * and nothing shrunk. What makes the four behind the lead read as narrow is
+ * that most of each is under its neighbour — they are stacked, not resized.
  *
- * Taken off the reference: its lead cover is 36% of the row and each slice is
- * about 44% of the lead. At 72 this comes out at 30% and 52%, which is as
- * close as those proportions get in a column this wide without the lead cover
- * growing taller than the cards below it.
+ * The widths are not written down anywhere. The lead is the only item with a
+ * width of its own; the four behind it are flex items sharing what is left of
+ * the row, and each one's cover hangs out of its slot to the left by however
+ * much does not fit. So the row always ends flush with the cards below it and
+ * the overlap is whatever that costs — at 214px wide, 55px covers showing
+ * 32px each.
  */
 const TO_OPEN_SHOWN = 5
 const TO_OPEN_HEIGHT = 72
-const TO_OPEN_GAP = 3
+const TO_OPEN_WIDTH = Math.round((TO_OPEN_HEIGHT * 180) / 236)
 
 /**
  * The number on a cover.
@@ -749,21 +751,20 @@ function HuntWidget() {
             </div>
 
             {/*
-              Still to open: the next one in full, the four behind it as
-              slices of the same height.
+              Still to open: the next one in full, the four after it sliding
+              in behind it.
 
-              Two earlier attempts at "further back looks further away" were
-              wrong in different ways. Stepping the covers down in height left
-              the fifth at 30px with an unreadable number on it, and a row of
-              five sizes reads as five kinds of thing. Overlapping them into a
-              deck hid the artwork that identifies each one — a cover you can
-              only see a sliver of is still a cover, but one half-hidden
-              behind another just looks like a rendering error.
+              Two earlier versions got the depth wrong. Stepping the covers
+              down in height left the fifth at 30px with an unreadable number
+              on it, and a row of five sizes reads as five kinds of thing.
+              Cutting them into separate boxes with gaps between them made
+              five things side by side — the queue was there but the order
+              was not, because nothing said which came before which.
 
-              Slicing keeps every cover full height and full scale. They are
-              cropped, not shrunk, so the art stays legible, and only the lead
-              carries a number: on a 29px slice the badge would take a quarter
-              of the picture.
+              Overlap says it: the lead is whole, each one after it is partly
+              under the one in front, so the row is read left to right by its
+              shape alone. Only the lead carries a number — on the others the
+              badge sits in the covered part by construction.
             */}
             {unopenedBonuses.length > 0 && (
               <div className="border-b border-white/[0.08] px-2 py-2.5">
@@ -773,27 +774,40 @@ function HuntWidget() {
                   </span>
                   <span className="text-[11px] text-white/25">{unopenedBonuses.length}</span>
                 </div>
-                <div className="flex items-start" style={{ gap: TO_OPEN_GAP }}>
+                <div className="flex items-start">
                   <AnimatePresence mode="popLayout" initial={false}>
                     {unopenedBonuses.slice(0, TO_OPEN_SHOWN).map((hunt, index) => (
                       <motion.div
                         key={hunt.id}
                         layout
-                        // The lead keeps its cover shape; the slices divide up
-                        // whatever the column has left, so the row always ends
-                        // flush with the cards under it.
-                        style={index === 0 ? { flex: "none" } : { flex: "1 1 0", minWidth: 0 }}
+                        className="relative"
+                        style={{
+                          height: TO_OPEN_HEIGHT,
+                          // Front-most first, so each cover is drawn over the
+                          // one after it rather than under it.
+                          zIndex: TO_OPEN_SHOWN - index,
+                          // The lead gets its own width; the rest divide up
+                          // what is left, which is what sets the overlap.
+                          ...(index === 0
+                            ? { flex: "none", width: TO_OPEN_WIDTH }
+                            : { flex: "1 1 0", minWidth: 0 }),
+                        }}
                         initial={{ opacity: 0, scale: 0.85 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.85 }}
                         transition={{ duration: 0.35, ease: "easeOut" }}
                       >
-                        <BonusThumb
-                          hunt={hunt}
-                          height={TO_OPEN_HEIGHT}
-                          width={index === 0 ? undefined : "100%"}
-                          rank={index === 0 ? bonusNumbers.get(hunt.id) : undefined}
-                        />
+                        {/* A whole cover pinned to the right of a slot too
+                            narrow for it, so it hangs back under its
+                            neighbour instead of being squeezed. */}
+                        <div className="absolute right-0 top-0 h-full" style={{ width: TO_OPEN_WIDTH }}>
+                          <BonusThumb
+                            hunt={hunt}
+                            height="100%"
+                            width="100%"
+                            rank={index === 0 ? bonusNumbers.get(hunt.id) : undefined}
+                          />
+                        </div>
                       </motion.div>
                     ))}
                   </AnimatePresence>
