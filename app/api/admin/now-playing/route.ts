@@ -73,12 +73,13 @@ export async function PUT(request: Request) {
   // it, clearing the badge or the provider did nothing — the value came back
   // out of slot_meta on the way to the overlay.
   //
-  // An empty Best Win field is the one exception. It means "work it out from
-  // the hunts", not "zero", so it goes through as an explicit null.
-  const patch = await resolveNowPlaying(client.value, typed, {
-    bestWin: typedBest,
-    authored: true,
-  })
+  // Best Win is the one exception. The field is always empty when the page
+  // loads — a pinned figure shows as the placeholder — so an empty field has
+  // to mean "leave it alone" (undefined). Treating it as "unpin" made every
+  // save of an unrelated field silently drop a pinned best win. Unpinning is
+  // its own explicit request, and goes through as null.
+  const bestWin = typedBest !== null ? typedBest : body.unpin_best_win === true ? null : undefined
+  const patch = await resolveNowPlaying(client.value, typed, { bestWin, authored: true })
 
   const { data, error } = await client.value
     .from("now_playing")

@@ -5,7 +5,7 @@ import { Check, Copy, Eraser, RefreshCw } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader } from "@/components/ui/panel"
 import { FIELD_CLASS } from "@/components/ui/select-menu"
 import { createClient } from "@/lib/supabase/client"
-import { cleanMaxWin, formatMoney, readMoney, readMultiplier, type NowPlayingRow } from "@/lib/now-playing"
+import { cleanMaxWin, formatMoney, nameKey, readMoney, readMultiplier, type NowPlayingRow } from "@/lib/now-playing"
 
 /**
  * What the /obs/now-playing bar is showing.
@@ -20,9 +20,10 @@ import { cleanMaxWin, formatMoney, readMoney, readMultiplier, type NowPlayingRow
  * is the fix for the multiplier and the badge going missing on a slot switch:
  * they only have to be right once.
  *
- * Best win is the exception to "typed wins": left empty, it is the biggest
+ * Best win is the exception to "typed wins": unpinned, it is the biggest
  * payout that slot has ever had across your hunts, which keeps itself current.
- * Typing a figure pins it until you clear it again.
+ * Typing a figure pins it. The field is empty on every load, so empty means
+ * "leave it as it is" — unpinning is the Unpin button, not a blank field.
  *
  * Typing one higher than the figure the bar was showing is a record, and puts
  * "NEW RECORD!" in the stream column — the same card the opening page triggers
@@ -37,6 +38,8 @@ type Draft = {
   imageUrl: string
   bestWin: string
   recordMultiplier: string
+  /** Hand the slot back to its best hunt result on save. */
+  unpinBestWin: boolean
 }
 
 const emptyDraft: Draft = {
@@ -47,6 +50,7 @@ const emptyDraft: Draft = {
   imageUrl: "",
   bestWin: "",
   recordMultiplier: "",
+  unpinBestWin: false,
 }
 
 function draftFromRow(row: NowPlayingRow | null): Draft {
@@ -57,10 +61,11 @@ function draftFromRow(row: NowPlayingRow | null): Draft {
     maxWin: row.max_win ?? "",
     badge: row.badge ?? "",
     imageUrl: row.image_url ?? "",
-    // Blank means "work it out from the hunts", which is the normal case, so
-    // the resolved figure is shown as a placeholder rather than filled in.
+    // Always blank: the resolved figure shows as the placeholder, and blank
+    // means "unchanged" when saved.
     bestWin: "",
     recordMultiplier: "",
+    unpinBestWin: false,
   }
 }
 
@@ -74,6 +79,8 @@ export default function NowPlayingAdmin() {
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [recordSent, setRecordSent] = useState(false)
+  /** The pinned best win for the slot on the bar, or null when it follows the hunts. */
+  const [pinned, setPinned] = useState<number | null>(null)
   const [copied, setCopied] = useState(false)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
 
@@ -96,6 +103,32 @@ export default function NowPlayingAdmin() {
   useEffect(() => {
     void load()
   }, [load])
+
+  // Whether the bar's best win is pinned lives in slot_meta, not on the row.
+  // Re-read whenever the row changes: a record from the opening page unpins a
+  // beaten figure, and this should say so without a reload. slot_meta has a
+  // public SELECT policy, so no route is needed.
+  const rowKey = nameKey(row?.slot_name)
+  useEffect(() => {
+    if (!rowKey) {
+      setPinned(null)
+      return
+    }
+    let cancelled = false
+    void createClient()
+      .from("slot_meta")
+      .select("best_win")
+      .eq("name_key", rowKey)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return
+        const value = Number(data?.best_win)
+        setPinned(Number.isFinite(value) && value > 0 ? value : null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [rowKey, row?.updated_at])
 
   /**
    * Follows the row while the page is open, so pressing the button on the
@@ -176,6 +209,7 @@ export default function NowPlayingAdmin() {
           badge: draft.badge,
           image_url: draft.imageUrl,
           best_win: draft.bestWin,
+          unpin_best_win: draft.unpinBestWin,
           record_multiplier: draft.recordMultiplier,
         }),
       })
@@ -381,11 +415,50 @@ export default function NowPlayingAdmin() {
                 className={`${FIELD_CLASS} max-w-[180px]`}
               />
             </div>
-            <p className="mt-2 text-[11px] text-white/30">
-              {readMoney(draft.bestWin)
-                ? `Pinned to ${formatMoney(readMoney(draft.bestWin))} for this slot, until you clear it.`
-                : "Leave empty and it takes the biggest payout this slot has ever had across your hunts. Typing a figure pins it."}
-            </p>
+            {(() => {
+              const typed = readMoney(draft.bestWin)
+              // The pin shown is the saved slot's; a different name in the
+              // form is a different slot with a pin of its own, if any.
+              const pinApplies = pinned !== null && nameKey(draft.slotName) === rowKey
+              const toggle = (unpin: boolean) => (
+                <button
+                  type="button"
+                  onClick={() => setDraft({ ...draft, unpinBestWin: unpin })}
+                  className="ml-1.5 underline decoration-white/30 underline-offset-2 transition hover:text-white"
+                >
+                  {unpin ? "Unpin" : "Keep it pinned"}
+                </button>
+              )
+
+              if (typed) {
+                return (
+                  <p className="mt-2 text-[11px] text-white/30">
+                    Pinned to {formatMoney(typed)} for this slot, until you unpin it.
+                  </p>
+                )
+              }
+              if (pinApplies && draft.unpinBestWin) {
+                return (
+                  <p className="mt-2 text-[11px] text-white/50">
+                    Saving unpins {formatMoney(pinned)} and goes back to the biggest payout across your hunts.
+                    {toggle(false)}
+                  </p>
+                )
+              }
+              if (pinApplies) {
+                return (
+                  <p className="mt-2 text-[11px] text-white/30">
+                    Pinned to {formatMoney(pinned)}. Left empty, it stays pinned.
+                    {toggle(true)}
+                  </p>
+                )
+              }
+              return (
+                <p className="mt-2 text-[11px] text-white/30">
+                  Follows the biggest payout this slot has ever had across your hunts. Typing a figure pins it.
+                </p>
+              )
+            })()}
             {(() => {
               // Mirrors the route's rule, so the admin knows before saving.
               const typed = readMoney(draft.bestWin)
