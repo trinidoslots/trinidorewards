@@ -21,6 +21,7 @@ import { KickChatFeed } from "@/components/kick-chat-feed"
 import { useKickChat } from "@/hooks/use-kick-chat"
 import { pingEnabled, readVolume, unlockOnInteraction } from "@/lib/obs-ping"
 import { useChatRecorder } from "@/hooks/use-chat-recorder"
+import { usePingOnStart } from "@/hooks/use-ping-on-start"
 import type { KickMessage } from "@/lib/kick-chat"
 import { OBS_RADIUS, shellBackground } from "@/lib/obs-theme"
 import { PREVIEW_TOURNAMENT } from "@/lib/tournament-preview"
@@ -130,6 +131,19 @@ function StreamWidget() {
   const tournament = isPreview
     ? { ...PREVIEW_TOURNAMENT, visible: true, startedAt: Date.now() - 4 * 60_000 }
     : liveTournament
+
+  /**
+   * The three that announce themselves by appearing rather than by arriving as
+   * a row: "Start giveaway", "Open for 5 minutes" and "Start tournament".
+   *
+   * Each is hung off the same flag that puts its card on screen, so the sound
+   * and the picture cannot disagree. They share the cashout signal — the one
+   * assigned to everything that is not a points payout — so the coin stays
+   * reserved for chat actually being paid.
+   */
+  usePingOnStart(giveawayVisible, "event", pingVolume)
+  usePingOnStart(predictionSeconds > 0, "event", pingVolume)
+  usePingOnStart(tournament.visible, "event", pingVolume)
 
   // One list, ordered by when each event started, so whatever happened most
   // recently is at the top regardless of what kind of event it is.
