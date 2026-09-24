@@ -19,7 +19,7 @@ import {
 import { TournamentEventCard, useTournamentEvent } from "@/components/obs/tournament-event-card"
 import { KickChatFeed } from "@/components/kick-chat-feed"
 import { useKickChat } from "@/hooks/use-kick-chat"
-import { pingEnabled, readVolume, unlockOnInteraction } from "@/lib/obs-ping"
+import { pingEnabled, preloadPing, readVolume, unlockOnInteraction } from "@/lib/obs-ping"
 import { useChatRecorder } from "@/hooks/use-chat-recorder"
 import type { KickMessage } from "@/lib/kick-chat"
 import { OBS_RADIUS, shellBackground } from "@/lib/obs-theme"
@@ -103,6 +103,14 @@ function StreamWidget() {
   // Only needed outside OBS, whose browser source allows autoplay: a normal
   // browser keeps the audio context suspended until the page has been clicked.
   useEffect(() => unlockOnInteraction(), [])
+
+  // Fetch and decode the coin now rather than on the first payout. Left to
+  // then, the payout is the one paying for the round trip and the decode — the
+  // one moment it must not be late — and a missing file would be found out on
+  // stream instead of at load.
+  useEffect(() => {
+    if (pingVolume > 0) preloadPing()
+  }, [pingVolume])
 
   const prediction = usePredictionWindow()
   const giveaway = useGiveawayState()

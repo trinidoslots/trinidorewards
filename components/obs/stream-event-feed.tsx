@@ -67,12 +67,16 @@ export function useTransactionEvents(pingVolume = 0) {
     const channel = supabase
       .channel("transaction_events_realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "transaction_events" }, (payload) => {
-        setEvents((current) => [payload.new as TransactionEvent, ...current])
+        const event = payload.new as TransactionEvent
+        setEvents((current) => [event, ...current])
         // Here and not in backfill(): a source that reloads mid-announcement
         // picks up everything from the last thirty seconds, and pinging for
         // each of those would turn every OBS restart into a burst of beeps for
         // things that already happened.
-        playPing(volumeRef.current)
+        //
+        // The row already carries its direction, so the two get different
+        // sounds for free: deposits fall, cashouts rise.
+        playPing(volumeRef.current, event.kind === "deposit" ? "deposit" : "withdrawal")
       })
       .subscribe()
 
@@ -490,7 +494,7 @@ export function usePointsEvents(pingVolume = 0) {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "points_events" }, (payload) => {
         setEvents((current) => [payload.new as PointsEvent, ...current])
         // Live payouts only, not the backfill — see useTransactionEvents.
-        playPing(volumeRef.current)
+        playPing(volumeRef.current, "points")
       })
       .subscribe()
 

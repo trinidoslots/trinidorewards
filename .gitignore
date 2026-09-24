@@ -29,3 +29,5 @@ node_modules
 # Stream Deck: the filled-in copy holds a live key, the log is local noise.
 streamdeck/config.ps1
 streamdeck/grant-log.txt
+# The buttons you actually made; the .bat.example stays as the template.
+streamdeck/*.bat
