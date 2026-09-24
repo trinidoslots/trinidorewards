@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Coins, Target } from "lucide-react"
+import { Coins, Target, Trophy } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import {
   BANNER_ASPECT_RATIO,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/obs-banners"
 import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
 import { playPing } from "@/lib/obs-ping"
+import { formatMoney } from "@/lib/now-playing"
 
 export type TransactionKind = "deposit" | "cashout"
 
@@ -150,15 +151,20 @@ function BanknoteArrow({
 /**
  * The shared card shape for everything in the event column: an icon tile on the
  * left, then a label row carrying the timestamp on the right, then the value.
+ *
+ * `media` replaces the icon tile outright, for a card whose left edge is a
+ * picture rather than a glyph.
  */
 export function EventCard({
   icon,
+  media,
   label,
   labelColor,
   timestamp,
   children,
 }: {
-  icon: React.ReactNode
+  icon?: React.ReactNode
+  media?: React.ReactNode
   label: string
   labelColor?: string
   timestamp?: React.ReactNode
@@ -176,16 +182,18 @@ export function EventCard({
         borderLeft: `2px solid ${labelColor ?? OBS.label}`,
       }}
     >
-      <div
-        className="mt-[2px] flex h-9 w-9 shrink-0 items-center justify-center border"
-        style={{
-          backgroundColor: OBS.iconTile,
-          borderColor: OBS.cardBorder,
-          borderRadius: OBS_RADIUS.iconTile,
-        }}
-      >
-        {icon}
-      </div>
+      {media ?? (
+        <div
+          className="mt-[2px] flex h-9 w-9 shrink-0 items-center justify-center border"
+          style={{
+            backgroundColor: OBS.iconTile,
+            borderColor: OBS.cardBorder,
+            borderRadius: OBS_RADIUS.iconTile,
+          }}
+        >
+          {icon}
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
           <span
@@ -531,6 +539,141 @@ export function PointsEventCard({ event }: { event: PointsEvent }) {
       <div className="text-[11px] leading-snug" style={{ color: OBS.muted }}>
         {`to ${users.toLocaleString("en-US")} active ${users === 1 ? "chatter" : "chatters"}`}
       </div>
+    </EventCard>
+  )
+}
+
+// --- records ----------------------------------------------------------------
+
+export type RecordEvent = {
+  id: string
+  slot_name: string
+  provider: string | null
+  image_url: string | null
+  win: number
+  multiplier: number | null
+  previous_best: number | null
+  source: "opening" | "admin"
+  created_at: string
+}
+
+/**
+ * Streams in "NEW RECORD!" announcements — a slot's best win beaten, either by
+ * a bonus being opened or by a higher figure typed on /admin/obs/now-playing.
+ * Both end as a row in record_events (scripts/069), so this is the points hook
+ * again with a different table.
+ */
+export function useRecordEvents(pingVolume = 0) {
+  const [events, setEvents] = useState<RecordEvent[]>([])
+  const supabaseRef = useRef(createClient())
+
+  const volumeRef = useRef(pingVolume)
+  volumeRef.current = pingVolume
+
+  useEffect(() => {
+    const supabase = supabaseRef.current
+    const isFresh = (event: RecordEvent) =>
+      Date.now() - new Date(event.created_at).getTime() < TRANSACTION_EVENT_TTL_MS
+
+    const backfill = async () => {
+      const since = new Date(Date.now() - TRANSACTION_EVENT_TTL_MS).toISOString()
+      const { data, error } = await supabase
+        .from("record_events")
+        .select("*")
+        .gte("created_at", since)
+        .order("created_at", { ascending: false })
+      if (error) {
+        // Most likely 069 has not been run. Quiet rather than noisy: the rest
+        // of the column works without it.
+        console.error("[records] Error fetching record events:", error)
+        return
+      }
+      setEvents(((data ?? []) as RecordEvent[]).filter(isFresh))
+    }
+
+    backfill()
+
+    const channel = supabase
+      .channel("record_events_realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "record_events" }, (payload) => {
+        setEvents((current) => [payload.new as RecordEvent, ...current])
+        // Live records only, not the backfill — see useTransactionEvents.
+        playPing(volumeRef.current, "event")
+      })
+      .subscribe()
+
+    const sweep = setInterval(() => {
+      setEvents((current) => {
+        const next = current.filter(isFresh)
+        return next.length === current.length ? current : next
+      })
+    }, 1_000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(sweep)
+    }
+  }, [])
+
+  return events
+}
+
+/** "172x", "88.4x", "1,234x" — whole numbers once the figure is big enough that decimals are noise. */
+function formatMultiplier(value: number | null): string | null {
+  const multiplier = Number(value)
+  if (!Number.isFinite(multiplier) || multiplier <= 0) return null
+  return `${multiplier.toLocaleString("en-US", { maximumFractionDigits: multiplier >= 100 ? 0 : 2 })}x`
+}
+
+/** Slot artwork, portrait like the casino's own tiles, spanning the card's three rows. */
+function SlotTile({ src, alt }: { src: string | null; alt: string }) {
+  const [failed, setFailed] = useState(false)
+  const frame = {
+    backgroundColor: OBS.iconTile,
+    borderColor: OBS.cardBorder,
+    borderRadius: OBS_RADIUS.iconTile,
+  }
+
+  // A dead thumbnail must not leave a broken-image glyph on stream.
+  if (!src || failed) {
+    return (
+      <div className="mt-[2px] flex h-9 w-9 shrink-0 items-center justify-center border" style={frame}>
+        <Trophy className="h-5 w-5" style={{ color: OBS.record }} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-[58px] w-[44px] shrink-0 overflow-hidden border" style={frame}>
+      <img src={src} alt={alt} className="h-full w-full object-cover" onError={() => setFailed(true)} />
+    </div>
+  )
+}
+
+export function RecordEventCard({ event }: { event: RecordEvent }) {
+  const multiplier = formatMultiplier(event.multiplier)
+
+  return (
+    <EventCard
+      media={<SlotTile src={event.image_url} alt={event.slot_name} />}
+      label="NEW RECORD!"
+      labelColor={OBS.record}
+      timestamp="now"
+    >
+      <div className="text-[20px] font-extrabold leading-tight" style={{ color: OBS.value }}>
+        {formatMoney(Number(event.win)) ?? "—"}
+      </div>
+      {/* The tile already says which slot, so the line under the win is the
+          multiplier alone. A typed record may have none; the name stands in. */}
+      {multiplier ? (
+        <div className="text-[12px] font-semibold leading-snug" style={{ color: OBS.value }}>
+          {multiplier}
+        </div>
+      ) : (
+        <div className="truncate text-[11px] leading-snug" style={{ color: OBS.muted }}>
+          {event.slot_name}
+        </div>
+      )}
     </EventCard>
   )
 }

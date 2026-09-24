@@ -9,11 +9,14 @@ import {
   EventDivider,
   PointsEventCard,
   PredictionEventCard,
+  RecordEventCard,
   TransactionEventCard,
   usePointsEvents,
   usePredictionWindow,
+  useRecordEvents,
   useTransactionEvents,
   type PointsEvent,
+  type RecordEvent,
   type TransactionEvent,
 } from "@/components/obs/stream-event-feed"
 import { TournamentEventCard, useTournamentEvent } from "@/components/obs/tournament-event-card"
@@ -37,6 +40,20 @@ const PREVIEW_EVENTS: TransactionEvent[] = [
 
 const PREVIEW_POINTS: PointsEvent[] = [
   { id: "preview-points", points_each: 500, user_count: 47, total_points: 23_500, created_at: new Date().toISOString() },
+]
+
+const PREVIEW_RECORDS: RecordEvent[] = [
+  {
+    id: "preview-record",
+    slot_name: "Elemental Ways",
+    provider: null,
+    image_url: null,
+    win: 51_690,
+    multiplier: 172,
+    previous_best: 31_665,
+    source: "opening",
+    created_at: new Date().toISOString(),
+  },
 ]
 
 const PREVIEW_MESSAGES: KickMessage[] = [
@@ -115,6 +132,7 @@ function StreamWidget() {
   const giveaway = useGiveawayState()
   const liveTransactions = useTransactionEvents(pingVolume)
   const livePointsEvents = usePointsEvents(pingVolume)
+  const liveRecords = useRecordEvents(pingVolume)
   const liveTournament = useTournamentEvent({ enabled: !isPreview })
 
   // Add ?recorder=<RECORDER_TOKEN> to this source's URL in OBS and it also
@@ -127,6 +145,7 @@ function StreamWidget() {
 
   const transactions = isPreview ? PREVIEW_EVENTS : liveTransactions
   const pointsEvents = isPreview ? PREVIEW_POINTS : livePointsEvents
+  const records = isPreview ? PREVIEW_RECORDS : liveRecords
   // In preview the countdown is faked so the card can be positioned off-stream.
   const predictionSeconds = prediction?.secondsLeft ?? (isPreview ? 287 : 0)
   const chatMessages = isPreview && messages.length === 0 ? PREVIEW_MESSAGES : messages
@@ -202,6 +221,14 @@ function StreamWidget() {
       key: payout.id,
       startedAt: startedAtOr(payout.created_at, Date.now()),
       node: <PointsEventCard event={payout} />,
+    })
+  }
+
+  for (const record of records) {
+    events.push({
+      key: record.id,
+      startedAt: startedAtOr(record.created_at, Date.now()),
+      node: <RecordEventCard event={record} />,
     })
   }
 

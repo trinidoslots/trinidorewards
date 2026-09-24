@@ -159,3 +159,40 @@ export async function resolveNowPlaying(
 
   return { ...merged, best_win: best }
 }
+
+/**
+ * The best win the now-playing bar would show for this game right now: a
+ * pinned figure if there is one, otherwise the hunts. The same rule as
+ * resolveNowPlaying, and the figure a record has to beat.
+ */
+export async function currentBestWin(db: Db, slotName: string): Promise<number | null> {
+  const known = await readSlotMeta(db, slotName)
+  return known?.best_win ?? (await bestWinFromHunts(db, slotName))
+}
+
+/**
+ * Puts "NEW RECORD!" on stream for a best win typed on /admin/obs/now-playing.
+ *
+ * The opening page's records are announced by a trigger on hunt_bonuses
+ * (scripts/069); this is the other way a record happens. Never throws: the
+ * bar has already been saved by the time this runs, and a missing table must
+ * not turn that into an error.
+ */
+export async function announceRecord(
+  db: Db,
+  record: {
+    slot_name: string
+    provider: string | null
+    image_url: string | null
+    win: number
+    multiplier: number | null
+    previous_best: number
+  },
+): Promise<boolean> {
+  const { error } = await db.from("record_events").insert({ ...record, source: "admin" })
+  if (error) {
+    console.error("[v0] record_events insert failed — has scripts/069_record_events.sql been run?", error)
+    return false
+  }
+  return true
+}

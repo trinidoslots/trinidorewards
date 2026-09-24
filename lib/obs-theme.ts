@@ -96,6 +96,9 @@ export const OBS = {
   // The one ACCENT not already spoken for by another event card, so a points
   // payout is never mistaken at a glance for a giveaway or a cashout.
   points: ACCENTS.pink,
+  // Every ACCENT is taken, so a record gets gold of its own — yellower than the
+  // prediction amber, and the colour a record is expected to be.
+  record: "#F5C84C",
 } as const
 
 /**

@@ -52,6 +52,19 @@ export function readMoney(value: unknown): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
+/**
+ * Reads a multiplier typed into the admin form: "172x", "172", "1,234.5 x".
+ * Comma is a thousands separator here, as in every figure the casino shows.
+ */
+export function readMultiplier(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) && value > 0 ? value : null
+  if (typeof value !== "string") return null
+  const cleaned = value.replace(/[x×\s,]/gi, "")
+  if (!cleaned) return null
+  const parsed = Number(cleaned)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
 export const LIMITS = {
   slotName: 90,
   provider: 60,

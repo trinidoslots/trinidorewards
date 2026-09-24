@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
-import { explainDbError, readMoney, readNowPlaying, type NowPlayingRow } from "@/lib/now-playing"
-import { resolveNowPlaying } from "@/lib/slot-meta"
+import { explainDbError, readMoney, readMultiplier, readNowPlaying, type NowPlayingRow } from "@/lib/now-playing"
+import { announceRecord, currentBestWin, resolveNowPlaying } from "@/lib/slot-meta"
 
 /**
  * The same row as /api/extension/now-playing, from the admin panel instead.
@@ -64,6 +64,11 @@ export async function PUT(request: Request) {
   const client = withService((c) => c)
   if (!client.ok) return client.response
 
+  // Measured before the save, because the save is what moves it. Only needed
+  // when a figure was typed — an empty field can never be a record.
+  const typedBest = readMoney(body.best_win)
+  const previousBest = typedBest !== null ? await currentBestWin(client.value, typed.slot_name) : null
+
   // authored: these fields were typed, so an empty one means empty. Without
   // it, clearing the badge or the provider did nothing — the value came back
   // out of slot_meta on the way to the overlay.
@@ -71,7 +76,7 @@ export async function PUT(request: Request) {
   // An empty Best Win field is the one exception. It means "work it out from
   // the hunts", not "zero", so it goes through as an explicit null.
   const patch = await resolveNowPlaying(client.value, typed, {
-    bestWin: readMoney(body.best_win),
+    bestWin: typedBest,
     authored: true,
   })
 
@@ -86,7 +91,21 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: explainDbError(error, "Could not save.") }, { status: 500 })
   }
 
-  return NextResponse.json({ row: data as NowPlayingRow })
+  // Beating the figure the bar showed is a record. A slot with no best win yet
+  // has nothing to beat, so typing its first one is just setting it.
+  let record = false
+  if (typedBest !== null && previousBest !== null && previousBest > 0 && typedBest > previousBest) {
+    record = await announceRecord(client.value, {
+      slot_name: patch.slot_name ?? typed.slot_name,
+      provider: patch.provider,
+      image_url: patch.image_url,
+      win: typedBest,
+      multiplier: readMultiplier(body.record_multiplier),
+      previous_best: previousBest,
+    })
+  }
+
+  return NextResponse.json({ row: data as NowPlayingRow, record })
 }
 
 /** Takes the bar off the stream. The row stays; every field is emptied. */

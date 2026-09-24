@@ -5,7 +5,7 @@ import { Check, Copy, Eraser, RefreshCw } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader } from "@/components/ui/panel"
 import { FIELD_CLASS } from "@/components/ui/select-menu"
 import { createClient } from "@/lib/supabase/client"
-import { cleanMaxWin, formatMoney, readMoney, type NowPlayingRow } from "@/lib/now-playing"
+import { cleanMaxWin, formatMoney, readMoney, readMultiplier, type NowPlayingRow } from "@/lib/now-playing"
 
 /**
  * What the /obs/now-playing bar is showing.
@@ -23,6 +23,10 @@ import { cleanMaxWin, formatMoney, readMoney, type NowPlayingRow } from "@/lib/n
  * Best win is the exception to "typed wins": left empty, it is the biggest
  * payout that slot has ever had across your hunts, which keeps itself current.
  * Typing a figure pins it until you clear it again.
+ *
+ * Typing one higher than the figure the bar was showing is a record, and puts
+ * "NEW RECORD!" in the stream column — the same card the opening page triggers
+ * when a bonus beats the slot's best. The multiplier field only feeds that card.
  */
 
 type Draft = {
@@ -32,9 +36,18 @@ type Draft = {
   badge: string
   imageUrl: string
   bestWin: string
+  recordMultiplier: string
 }
 
-const emptyDraft: Draft = { slotName: "", provider: "", maxWin: "", badge: "", imageUrl: "", bestWin: "" }
+const emptyDraft: Draft = {
+  slotName: "",
+  provider: "",
+  maxWin: "",
+  badge: "",
+  imageUrl: "",
+  bestWin: "",
+  recordMultiplier: "",
+}
 
 function draftFromRow(row: NowPlayingRow | null): Draft {
   if (!row) return emptyDraft
@@ -47,6 +60,7 @@ function draftFromRow(row: NowPlayingRow | null): Draft {
     // Blank means "work it out from the hunts", which is the normal case, so
     // the resolved figure is shown as a placeholder rather than filled in.
     bestWin: "",
+    recordMultiplier: "",
   }
 }
 
@@ -59,6 +73,7 @@ export default function NowPlayingAdmin() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [recordSent, setRecordSent] = useState(false)
   const [copied, setCopied] = useState(false)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
 
@@ -149,6 +164,7 @@ export default function NowPlayingAdmin() {
     setBusy(true)
     setError(null)
     setSaved(false)
+    setRecordSent(false)
     try {
       const response = await fetch("/api/admin/now-playing", {
         method: "PUT",
@@ -160,6 +176,7 @@ export default function NowPlayingAdmin() {
           badge: draft.badge,
           image_url: draft.imageUrl,
           best_win: draft.bestWin,
+          record_multiplier: draft.recordMultiplier,
         }),
       })
       const payload = await response.json()
@@ -168,7 +185,11 @@ export default function NowPlayingAdmin() {
       setDraft(draftFromRow(payload.row as NowPlayingRow))
       setSuggestions([])
       setSaved(true)
-      setTimeout(() => setSaved(false), 2500)
+      setRecordSent(payload.record === true)
+      setTimeout(() => {
+        setSaved(false)
+        setRecordSent(false)
+      }, 4000)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not save.")
     } finally {
@@ -345,17 +366,40 @@ export default function NowPlayingAdmin() {
 
           <div className="md:col-span-2">
             <MonoLabel className="mb-2 block text-white/40">Best win</MonoLabel>
-            <input
-              value={draft.bestWin}
-              onChange={(event) => setDraft({ ...draft, bestWin: event.target.value })}
-              placeholder={formatMoney(row?.best_win) ?? "worked out from your hunts"}
-              className={`${FIELD_CLASS} max-w-[280px]`}
-            />
+            <div className="flex flex-wrap gap-2">
+              <input
+                value={draft.bestWin}
+                onChange={(event) => setDraft({ ...draft, bestWin: event.target.value })}
+                placeholder={formatMoney(row?.best_win) ?? "worked out from your hunts"}
+                className={`${FIELD_CLASS} max-w-[280px]`}
+              />
+              <input
+                value={draft.recordMultiplier}
+                onChange={(event) => setDraft({ ...draft, recordMultiplier: event.target.value })}
+                placeholder="Multiplier, e.g. 172x"
+                aria-label="Record multiplier"
+                className={`${FIELD_CLASS} max-w-[180px]`}
+              />
+            </div>
             <p className="mt-2 text-[11px] text-white/30">
               {readMoney(draft.bestWin)
                 ? `Pinned to ${formatMoney(readMoney(draft.bestWin))} for this slot, until you clear it.`
                 : "Leave empty and it takes the biggest payout this slot has ever had across your hunts. Typing a figure pins it."}
             </p>
+            {(() => {
+              // Mirrors the route's rule, so the admin knows before saving.
+              const typed = readMoney(draft.bestWin)
+              const current = row?.best_win ?? null
+              const sameSlot = row?.slot_name?.trim().toLowerCase() === draft.slotName.trim().toLowerCase()
+              if (!typed || !sameSlot || !current || typed <= current) return null
+              const multiplier = readMultiplier(draft.recordMultiplier)
+              return (
+                <p className="mt-1 text-[11px]" style={{ color: ACCENTS.amber }}>
+                  Beats {formatMoney(current)} — saving puts NEW RECORD! on stream
+                  {multiplier ? ` with ${multiplier.toLocaleString("en-US")}x` : ", without a multiplier unless you add one"}.
+                </p>
+              )
+            })()}
           </div>
 
           <div className="md:col-span-2">
@@ -388,6 +432,11 @@ export default function NowPlayingAdmin() {
           <span className="flex items-center gap-1.5 text-[12px]" style={{ color: ACCENTS.green }}>
             <Check className="h-3.5 w-3.5" />
             Live — the overlay updates itself.
+          </span>
+        )}
+        {recordSent && (
+          <span className="text-[12px] font-medium" style={{ color: ACCENTS.amber }}>
+            NEW RECORD! sent to the stream column.
           </span>
         )}
         {error && (
