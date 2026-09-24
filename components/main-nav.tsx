@@ -10,6 +10,7 @@ import {
   Grid2X2,
   Home,
   Landmark,
+  Menu,
   Radio,
   Trophy,
   Users,
@@ -99,13 +100,36 @@ export function MainNav() {
 
   return (
     <>
-      {/* Below the top bar, which carries the logo and the account now. */}
+      {/* Full height, with the top bar starting at its right edge rather than
+          running over it. The logo and the account live in the top bar. */}
       <aside
-        className={`fixed bottom-0 left-0 top-14 z-40 flex flex-col border-r border-white/[0.08] bg-[#0B0B0D] transition-all duration-300 ease-in-out ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-white/[0.08] bg-[#0B0B0D] transition-all duration-300 ease-in-out ${
           collapsed ? "w-14" : "w-56"
         } ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
-        <nav className="absolute inset-x-0 bottom-14 top-0 space-y-0.5 overflow-y-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* The collapse button, level with the top bar, as the top of the nav. */}
+        <div
+          className={`flex h-14 shrink-0 items-center border-b border-white/[0.08] px-2 ${
+            collapsed ? "justify-center" : "justify-start"
+          }`}
+        >
+          <button
+            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+            onClick={() => setCollapsed(!collapsed)}
+            className="hidden h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-white/60 transition hover:border-white/[0.16] hover:text-white md:flex"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+          <button
+            aria-label="Close navigation"
+            onClick={() => setMobileOpen(false)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-white/40 md:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <nav className="absolute inset-x-0 bottom-0 top-14 space-y-0.5 overflow-y-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Link
             href="/"
             onClick={() => setMobileOpen(false)}
@@ -171,35 +195,13 @@ export function MainNav() {
           })}
         </nav>
 
-        {/* Collapse on desktop, close on mobile. The account that sat here is
-            in the top bar now. */}
-        <div
-          className={`absolute inset-x-0 bottom-0 flex h-14 items-center border-t border-white/[0.08] px-2 ${
-            collapsed ? "justify-center" : "justify-end"
-          }`}
-        >
-          <button
-            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
-            onClick={() => setCollapsed(!collapsed)}
-            className="hidden h-8 w-8 items-center justify-center rounded text-white/30 transition hover:bg-white/[0.06] hover:text-white md:flex"
-          >
-            <ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
-          </button>
-          <button
-            aria-label="Close navigation"
-            onClick={() => setMobileOpen(false)}
-            className="flex h-8 w-8 items-center justify-center rounded text-white/40 md:hidden"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
       </aside>
 
       {mobileOpen && (
         <button
           aria-label="Close navigation overlay"
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 top-14 z-30 bg-black/70 md:hidden"
+          className="fixed inset-0 z-40 bg-black/70 md:hidden"
         />
       )}
     </>

@@ -2,6 +2,7 @@
 
 import type React from "react"
 import AdminSidebar from "@/components/admin-sidebar"
+import { AdminTopBar } from "@/components/admin-top-bar"
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
@@ -27,7 +28,10 @@ export function AdminShell({
   return (
     <div className="min-h-screen bg-[#0B0B0D]">
       <AdminSidebar onCollapse={setCollapsed} />
-      <div className={`p-5 transition-all duration-300 ${collapsed ? "ml-14" : "ml-56"}`}>
+      <div className={`transition-all duration-300 ${collapsed ? "ml-14" : "ml-56"}`}>
+        {/* Beside the sidebar, never over it, and level with its header row. */}
+        <AdminTopBar />
+        <div className="p-5">
         {/*
           The page switch is marked here, around the content, and never around
           the sidebar — a transform on a shared ancestor would take the fixed
@@ -48,6 +52,7 @@ export function AdminShell({
         >
           {children}
         </motion.div>
+        </div>
       </div>
     </div>
   )

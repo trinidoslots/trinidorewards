@@ -1,11 +1,30 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Crown, Trophy, Users, Play, Square, Shuffle, Tv, XCircle, X, ChevronDown, History, Pencil } from "lucide-react"
+import {
+  AlertCircle,
+  BadgeCheck,
+  ChevronDown,
+  Crown,
+  Gem,
+  History,
+  Play,
+  Search,
+  Settings,
+  Shield,
+  Shuffle,
+  Square,
+  Star,
+  Trophy,
+  Tv,
+  XCircle,
+} from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { createClient } from "@/lib/supabase/client"
 import { restoreRound } from "@/lib/giveaway-restore"
 import { RecordWinDialog, WinnerName } from "@/components/admin/record-win-dialog"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ACCENTS } from "@/components/ui/panel"
 
 const PUSHER_URL = "wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false"
 const MOD_TYPES = new Set(["moderator", "broadcaster"])
@@ -70,6 +89,37 @@ function renderMessageContent(content: string, onUseEmote: (code: string) => voi
   }
 
   return nodes
+}
+
+const KICK_GREEN = "#53FC18"
+
+/** Kick's K, drawn so the channel button needs no image. */
+function KickGlyph(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+      <path d="M2 3h6v5h3V5.5h3V3h6v6h-3v3h-3v3h3v3h3v6h-6v-2.5h-3V19H8v5H2V3z" />
+    </svg>
+  )
+}
+
+/**
+ * The badges an entry can be limited to, and how an entrant's badges are shown.
+ *
+ * Read from the chat message itself (sender.identity.badges), so a filter
+ * costs nothing and needs no lookup. Kick does not put "follower" in a chat
+ * message, so that is not offered: it could not be checked.
+ */
+const ENTRY_BADGES = [
+  { id: "moderator", label: "Moderator", types: ["moderator", "broadcaster"], icon: Shield, color: KICK_GREEN },
+  { id: "vip", label: "VIP", types: ["vip"], icon: Crown, color: ACCENTS.amber },
+  { id: "og", label: "OG", types: ["og"], icon: Gem, color: ACCENTS.blue },
+  { id: "subscriber", label: "Subscriber", types: ["subscriber", "founder"], icon: Star, color: ACCENTS.purple },
+  { id: "verified", label: "Verified", types: ["verified"], icon: BadgeCheck, color: ACCENTS.green },
+] as const
+
+function badgesFor(types: string[] | undefined) {
+  if (!types?.length) return []
+  return ENTRY_BADGES.filter((badge) => badge.types.some((type) => types.includes(type)))
 }
 
 type ConnectionStatus = "idle" | "connecting" | "connected" | "error"
@@ -138,6 +188,19 @@ export default function GiveawayAdminPage() {
   // auto-connect, which would otherwise announce a status derived from the
   // empty state this page starts in. See the restore effect below.
   const [hydrated, setHydrated] = useState(false)
+  // When each entrant came in and what badges they wore. Local to this tab:
+  // the OBS widget only needs the names, and a restored round simply has no
+  // times for the entries made before the page was reloaded.
+  const [entrantMeta, setEntrantMeta] = useState<Record<string, { at: number; badges: string[] }>>({})
+  // Empty means everyone. Read through a ref by the chat handler, which is
+  // created once per connection.
+  const [allowedBadges, setAllowedBadges] = useState<Set<string>>(new Set())
+  const allowedBadgesRef = useRef<Set<string>>(allowedBadges)
+  allowedBadgesRef.current = allowedBadges
+  const [search, setSearch] = useState("")
+  const [rightTab, setRightTab] = useState<"entries" | "chat">("entries")
+  const [copied, setCopied] = useState(false)
+  const [channelOpen, setChannelOpen] = useState(false)
 
   const socketRef = useRef<WebSocket | null>(null)
   const feedRef = useRef<HTMLDivElement | null>(null)
@@ -320,11 +383,17 @@ export default function GiveawayAdminPage() {
   // Duplicate entries are rejected here: the Set is keyed by lowercased username,
   // so a user typing the keyword multiple times only ever counts once per giveaway.
   const handleChatEntry = useCallback(
-    (username: string, content: string) => {
+    (username: string, content: string, badges: Badge[] = []) => {
       const trimmedContent = content.trim().toLowerCase()
       const trimmedKeyword = keywordRef.current.trim().toLowerCase()
       const open = isOpenRef.current
-      const counted = open && trimmedContent === trimmedKeyword && trimmedKeyword.length > 0
+      const types = badges.map((badge) => badge.type)
+      // "Who can enter": with badges picked, the chatter has to wear one.
+      const allowed = allowedBadgesRef.current
+      const eligible =
+        allowed.size === 0 ||
+        ENTRY_BADGES.some((badge) => allowed.has(badge.id) && badge.types.some((type) => types.includes(type)))
+      const counted = open && eligible && trimmedContent === trimmedKeyword && trimmedKeyword.length > 0
 
       console.log("[v0] chat message:", content, "| counted as entry:", counted)
 
@@ -333,6 +402,7 @@ export default function GiveawayAdminPage() {
           if (current.has(username.toLowerCase())) return current // already entered — ignore duplicate
           const next = new Set(current)
           next.add(username.toLowerCase())
+          setEntrantMeta((meta) => ({ ...meta, [username.toLowerCase()]: { at: Date.now(), badges: types } }))
           // Fetch the entrant's avatar now, pre-roll, instead of at draw time.
           fetchAvatarFor(username)
           // Keep the OBS widget's entrant count live as people enter, not just at start/draw.
@@ -400,7 +470,7 @@ export default function GiveawayAdminPage() {
               const content = payload.content ?? ""
               const isMod = isModOrBroadcaster(payload.sender?.identity?.badges)
               appendMessage(username, content, isMod)
-              handleChatEntry(username, content)
+              handleChatEntry(username, content, payload.sender?.identity?.badges ?? [])
             }
           } catch {
             // ignore malformed frames
@@ -447,6 +517,7 @@ export default function GiveawayAdminPage() {
   const startGiveaway = useCallback(() => {
     if (finishedTimerRef.current) clearTimeout(finishedTimerRef.current)
     setEntrants(new Set())
+    setEntrantMeta({})
     setWinner(null)
     setRevealPhase("idle")
     setRoundWinners(new Set())
@@ -477,6 +548,7 @@ export default function GiveawayAdminPage() {
     if (finishedTimerRef.current) clearTimeout(finishedTimerRef.current)
     setIsOpen(false)
     setEntrants(new Set())
+    setEntrantMeta({})
     setWinner(null)
     setRevealPhase("idle")
     setRoundWinners(new Set())
@@ -595,234 +667,297 @@ export default function GiveawayAdminPage() {
 
   const entrantList = Array.from(entrants)
   const eligibleCount = entrantList.filter((name) => !roundWinners.has(name)).length
+  const needle = search.trim().toLowerCase()
+  const shownEntrants = needle ? entrantList.filter((name) => name.includes(needle)) : entrantList
+  const displayKeyword = formatKeywordForDisplay(keyword)
+
+  const exportRows = () =>
+    entrantList.map((name) => {
+      const meta = entrantMeta[name]
+      return { name, at: meta ? new Date(meta.at).toISOString() : "", badges: (meta?.badges ?? []).join(" ") }
+    })
+
+  const download = (filename: string, body: string, type: string) => {
+    const url = URL.createObjectURL(new Blob([body], { type }))
+    const link = document.createElement("a")
+    link.href = url
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")
+  const copyNames = async () => {
+    try {
+      await navigator.clipboard.writeText(entrantList.join("\n"))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // Clipboard refused (an unfocused tab); Text still works.
+    }
+  }
+  const exportText = () => download(`giveaway-entries-${stamp}.txt`, entrantList.join("\n"), "text/plain")
+  const exportCsv = () => {
+    const quote = (value: string) => `"${value.replace(/"/g, '""')}"`
+    const lines = ["username,entered_at,badges", ...exportRows().map((row) => [row.name, row.at, row.badges].map(quote).join(","))]
+    download(`giveaway-entries-${stamp}.csv`, lines.join("\n"), "text/csv")
+  }
+
+  const toggleBadge = (id: string) => {
+    setAllowedBadges((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   return (
-    <main className="hide-scrollbar min-h-screen overflow-y-auto bg-[#0B0B0D] px-4 py-6 text-white/90 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-[1400px]">
-        {/* Page header */}
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-white sm:text-4xl">Kick Giveaway</h1>
-            <p className="mt-1 text-sm text-white/30">
-              Reading <span className="font-semibold text-white/60">{slug}</span>&apos;s chat directly in this tab.
-            </p>
-            {/* Active-round indicator — visible from Start until End, independent of
-                whether entries are currently open or a roll is in progress. */}
-            <AnimatePresence>
-              {startedAt !== null && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  className="mt-2 inline-flex items-center gap-2 rounded-full border border-[#53fc18]/30 bg-[#53fc18]/10 px-3 py-1 text-xs font-semibold text-[#53fc18]"
-                >
-                  <span className="relative flex size-2">
-                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-[#53fc18] opacity-60" />
-                    <span className="relative inline-flex size-2 rounded-full bg-[#53fc18]" />
-                  </span>
-                  Giveaway active for {formatElapsed(elapsedSeconds)}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+    <main className="min-h-screen text-white/90">
+      <div className="mx-auto max-w-[1100px]">
+        {/* Title row */}
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-[26px] font-semibold tracking-tight text-white">Keyword Giveaways</h1>
 
-          {/* Channel pill — click Go to (re)connect to a channel, X to disconnect. Once
-              connected it morphs into a compact avatar+name pill; the pencil re-opens editing. */}
-          <motion.div
-            layout
-            transition={{ type: "spring", stiffness: 500, damping: 32 }}
-            className="flex items-center gap-1.5 overflow-hidden rounded-full border border-white/[0.06] bg-white/[0.022] py-1 pl-1.5 pr-1.5"
-          >
-            <AnimatePresence mode="popLayout" initial={false}>
-              {status === "connected" && !isEditingChannel ? (
-                <motion.div
-                  key="pill"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex items-center gap-2 pl-1"
+          <div className="flex items-center gap-2">
+            {/* The channel being read. Connected, it is a name; click to change it. */}
+            <Popover open={channelOpen} onOpenChange={setChannelOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-9 items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 text-[13px] font-semibold text-white transition hover:border-white/[0.16]"
                 >
                   {channelAvatar ? (
-                    <img
-                      src={channelAvatar || "/placeholder.svg"}
-                      alt=""
-                      className="size-6 rounded-full object-cover"
-                    />
+                    <img src={channelAvatar} alt="" className="size-5 rounded-full object-cover" />
                   ) : (
-                    <div className="flex size-6 items-center justify-center rounded-full bg-white/[0.06]">
-                      <Tv className="size-3.5 text-white/30" />
-                    </div>
+                    <KickGlyph className="size-4" style={{ color: KICK_GREEN }} />
                   )}
-                  <span className="text-sm font-semibold text-white">{slug}</span>
-                  <span className="size-2 rounded-full bg-[#53fc18]" />
-                  <button
-                    onClick={() => {
-                      setSlugInput(slug)
-                      setIsEditingChannel(true)
-                    }}
-                    title="Change channel"
-                    className="flex size-6 cursor-pointer items-center justify-center rounded-full text-white/30 hover:bg-white/[0.06] hover:text-white/60"
-                  >
-                    <Pencil className="size-3.5" />
-                  </button>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="input"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex items-center gap-1.5 pl-1.5"
-                >
+                  {status === "connected" ? slug : "Kick"}
                   <span className={`size-2 rounded-full ${statusColor}`} />
+                  <ChevronDown className="size-3.5 text-white/40" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-[280px] border-white/[0.10] bg-[#0E0E11] p-3 text-white">
+                <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.1em] text-white/35">Kick channel</p>
+                <div className="flex items-center gap-1.5">
                   <input
                     value={slugInput}
                     onChange={(event) => setSlugInput(event.target.value)}
                     onKeyDown={(event) => {
-                      if (event.key === "Enter") connect()
+                      if (event.key === "Enter") {
+                        connect()
+                        setChannelOpen(false)
+                      }
                     }}
                     placeholder="channel-slug"
-                    className="w-32 bg-transparent text-sm font-semibold text-white outline-none placeholder:text-white/30"
+                    className="h-9 min-w-0 flex-1 rounded-md border border-white/[0.10] bg-black/30 px-2.5 text-[13px] text-white outline-none focus:border-white/25"
                   />
                   <button
-                    onClick={() => connect()}
-                    className="cursor-pointer rounded-full bg-[#53fc18] px-3 py-1 text-xs font-bold text-[#0B0B0D] hover:bg-[#68ff34]"
+                    type="button"
+                    onClick={() => {
+                      connect()
+                      setChannelOpen(false)
+                    }}
+                    className="h-9 rounded-md px-3 text-[12px] font-bold text-[#0B0B0D]"
+                    style={{ backgroundColor: KICK_GREEN }}
                   >
-                    Go
+                    Connect
                   </button>
-                  <button
-                    onClick={disconnect}
-                    title="Disconnect"
-                    className="flex size-6 cursor-pointer items-center justify-center rounded-full text-white/30 hover:bg-white/[0.06] hover:text-white/60"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[12px]">
+                  <span className="capitalize text-white/40">{status}</span>
+                  {status !== "idle" && (
+                    <button type="button" onClick={disconnect} className="text-white/40 underline-offset-2 hover:text-white hover:underline">
+                      Disconnect
+                    </button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Round settings: the roll length, and the OBS sources. */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Giveaway settings"
+                  className="flex size-9 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-white/60 transition hover:border-white/[0.16] hover:text-white"
+                >
+                  <Settings className="size-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-[320px] border-white/[0.10] bg-[#0E0E11] p-4 text-white">
+                <label className="flex items-center justify-between gap-3 text-[13px] text-white/70">
+                  <span>Roll duration</span>
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min={2}
+                      max={20}
+                      value={rollDuration}
+                      onChange={(event) => setRollDuration(Number(event.target.value))}
+                      className="h-1.5 w-28 cursor-pointer appearance-none rounded-full bg-white/[0.08]"
+                      style={{ accentColor: ACCENTS.purple }}
+                    />
+                    <span className="w-8 text-right text-[12px] font-semibold tabular-nums text-white">{rollDuration}s</span>
+                  </span>
+                </label>
+                <div className="mt-4 space-y-2.5 border-t border-white/[0.08] pt-3">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-white/35">OBS sources</p>
+                  {[
+                    { href: "/obs/giveaway", label: "Giveaway only", hint: "The card on its own, 300x120." },
+                    { href: "/obs/stream", label: "Stream column", hint: "Giveaway, events and chat, ~340px wide." },
+                  ].map((widget) => (
+                    <a
+                      key={widget.href}
+                      href={widget.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 transition hover:bg-white/[0.04]"
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-[13px] text-white/80">{widget.label}</span>
+                        <span className="block text-[11px] text-white/35">{widget.hint}</span>
+                      </span>
+                      <Tv className="size-4 shrink-0 text-white/35" />
+                    </a>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
 
+        {/* The keyword, and the round's two buttons */}
+        <section className="rounded-xl border border-white/[0.08] bg-white/[0.022] p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+              placeholder="keyword"
+              aria-label="Entry keyword"
+              className="min-w-0 flex-1 bg-transparent text-[28px] font-bold tracking-tight text-white outline-none placeholder:text-white/20"
+            />
+            <button
+              type="button"
+              onClick={drawWinner}
+              disabled={eligibleCount === 0 || revealPhase === "rolling"}
+              className="flex h-11 items-center gap-2 rounded-lg px-5 text-[14px] font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ backgroundColor: ACCENTS.purple }}
+            >
+              <Shuffle className={`size-4 ${revealPhase === "rolling" ? "animate-spin" : ""}`} />
+              {revealPhase === "rolling" ? "Rolling…" : "Roll winner"}
+            </button>
+            {isOpen ? (
+              <button
+                type="button"
+                onClick={stopEntries}
+                className="flex h-11 items-center gap-2 rounded-lg px-4 text-[14px] font-medium text-white/60 transition hover:bg-white/[0.05] hover:text-white"
+              >
+                <Square className="size-4" /> Stop
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={startGiveaway}
+                className="flex h-11 items-center gap-2 rounded-lg px-4 text-[14px] font-semibold text-[#0B0B0D] transition hover:brightness-110"
+                style={{ backgroundColor: KICK_GREEN }}
+              >
+                <Play className="size-4" /> Start
+              </button>
+            )}
+          </div>
+
+          {/* Only the button's label says "entries are closed"; this line says what is happening. */}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-3 text-[12px]">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-white/45">
+              <span className={`size-1.5 rounded-full ${status === "connected" ? "bg-[#53fc18]" : statusColor}`} />
+              {status === "connected" ? (
+                <>
+                  {isOpen ? "Listening in" : "Connected to"} <span className="font-semibold text-white/80">{slug}</span>&apos;s chat
+                </>
+              ) : (
+                <span className="capitalize">{status === "idle" ? "Not connected" : status}</span>
+              )}
+              <span className="text-white/20">·</span>
+              <span className="font-semibold text-white/80">{entrants.size.toLocaleString("en-US")}</span> entrants
+              {startedAt !== null && (
+                <>
+                  <span className="text-white/20">·</span>
+                  <span style={{ color: isOpen ? KICK_GREEN : undefined }}>
+                    {isOpen ? "open" : "entries stopped"} for {formatElapsed(elapsedSeconds)}
+                  </span>
+                </>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                if (entrants.size === 0 || window.confirm("End the giveaway and clear every entry?")) endGiveaway()
+              }}
+              className="flex items-center gap-1.5 text-white/40 transition hover:text-white"
+            >
+              <XCircle className="size-3.5" /> End &amp; clear entries
+            </button>
+          </div>
+        </section>
+
         {statusMessage && (
-          <div className="mb-4 rounded-xl border border-red-900/60 bg-red-950/30 px-4 py-2 text-sm text-red-300">
+          <div
+            className="mt-3 flex items-center gap-2 rounded-lg border px-3.5 py-2.5 text-[12px]"
+            style={{ borderColor: `${ACCENTS.amber}55`, backgroundColor: `${ACCENTS.amber}12`, color: ACCENTS.amber }}
+          >
+            <AlertCircle className="size-4 shrink-0" />
             {statusMessage}
           </div>
         )}
+        {isOpen && !displayKeyword && (
+          <div
+            className="mt-3 flex items-center gap-2 rounded-lg border px-3.5 py-2.5 text-[12px]"
+            style={{ borderColor: `${ACCENTS.amber}55`, backgroundColor: `${ACCENTS.amber}12`, color: ACCENTS.amber }}
+          >
+            <AlertCircle className="size-4 shrink-0" />
+            There is no keyword, so nobody can enter. Type one above.
+          </div>
+        )}
 
-        {/* Three-column layout: Entries · Keyword & controls · Live chat */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr_320px]">
-          {/* Entries */}
-          <section className="flex flex-col rounded-2xl border border-white/[0.06] bg-white/[0.022] p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/40">
-                <Users className="size-3.5" /> Entries
-              </span>
-              <span className="rounded-full bg-[#53fc18]/15 px-2 py-0.5 text-xs font-bold text-[#53fc18]">
-                {entrants.size}
-              </span>
-            </div>
-            <div className="hide-scrollbar flex-1 space-y-1 overflow-y-auto lg:max-h-[600px]">
-              {entrantList.length === 0 ? (
-                <p className="py-10 text-center text-sm text-white/30">
-                  {isOpen ? `Type ${formatKeywordForDisplay(keyword)} in chat to enter.` : "Entries are closed."}
-                </p>
-              ) : (
-                entrantList.map((entrant) => (
-                  <div
-                    key={entrant}
-                    className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-sm font-medium ${
-                      winner === entrant
-                        ? "bg-[#53fc18]/15 text-[#53fc18]"
-                        : roundWinners.has(entrant)
-                          ? "bg-white/[0.06]/30 text-white/30"
-                          : "bg-white/[0.04] text-white/60"
-                    }`}
-                  >
-                    <span className="truncate">{entrant}</span>
-                    {roundWinners.has(entrant) && (
-                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-white/30">
-                        Won
-                      </span>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-
-          {/* Keyword, controls, winner */}
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
+          {/* Left: who can enter, and the round's winners */}
           <div className="flex flex-col gap-4">
-            <section className="rounded-2xl border border-white/[0.06] bg-white/[0.022] p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-white/40">Keyword</span>
-                <span className="font-semibold capitalize text-white/30">
-                  {status}
-                </span>
+            <section className="rounded-xl border border-white/[0.08] bg-white/[0.022] p-4">
+              <p className="mb-3 text-[13px] text-white/45">Who can enter</p>
+              <p className="mb-2 text-[13px] font-semibold text-white/85">Badges</p>
+              <div className="flex flex-wrap gap-1.5">
+                {ENTRY_BADGES.map((badge) => {
+                  const on = allowedBadges.has(badge.id)
+                  return (
+                    <button
+                      key={badge.id}
+                      type="button"
+                      onClick={() => toggleBadge(badge.id)}
+                      aria-pressed={on}
+                      className="flex items-center gap-1.5 rounded-md border px-2 py-1 text-[12px] transition"
+                      style={
+                        on
+                          ? { borderColor: `${badge.color}66`, backgroundColor: `${badge.color}1a`, color: "#fff" }
+                          : { borderColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.45)" }
+                      }
+                    >
+                      <badge.icon className="size-3.5" style={{ color: badge.color }} />
+                      {badge.label}
+                    </button>
+                  )
+                })}
               </div>
-
-              <input
-                value={keyword}
-                onChange={(event) => setKeyword(event.target.value)}
-                placeholder="leave empty to enter everyone"
-                className="mb-4 w-full rounded-lg border border-white/[0.10] bg-black/30 px-3 py-2.5 text-sm text-white/90 outline-none focus:border-[#53fc18]"
-              />
-
-              <label className="mb-5 flex items-center justify-between gap-3 text-sm font-semibold text-white/60">
-                <span>Roll duration</span>
-                <span className="flex items-center gap-2">
-                  <input
-                    type="range"
-                    min={2}
-                    max={20}
-                    value={rollDuration}
-                    onChange={(event) => setRollDuration(Number(event.target.value))}
-                    className="h-1.5 w-32 cursor-pointer appearance-none rounded-full bg-white/[0.08] accent-[#53fc18]"
-                  />
-                  <span className="w-10 text-right text-xs font-bold text-[#53fc18]">{rollDuration}s</span>
-                </span>
-              </label>
-
-              <div className="mb-4 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-4">
-                <button
-                  onClick={startGiveaway}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg bg-[#53fc18] px-3 py-2 text-sm font-bold text-[#0B0B0D] hover:bg-[#68ff34]"
-                >
-                  <Play className="size-4" /> Start
-                </button>
-                <button
-                  onClick={stopEntries}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/[0.10] px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/[0.06]"
-                >
-                  <Square className="size-4" /> Stop entries
-                </button>
-                <button
-                  onClick={endGiveaway}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-red-900/60 px-3 py-2 text-sm font-semibold text-red-300 hover:bg-red-950/40"
-                >
-                  <XCircle className="size-4" /> End giveaway
-                </button>
-              </div>
-
-              <button
-                onClick={drawWinner}
-                disabled={eligibleCount === 0 || revealPhase === "rolling"}
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Shuffle className={`size-4 ${revealPhase === "rolling" ? "animate-spin" : ""}`} />
-                {revealPhase === "rolling" ? "Rolling…" : "Roll winner"}
-              </button>
-              {revealPhase !== "rolling" && entrants.size > 0 && eligibleCount === 0 && (
-                <p className="mt-2 text-center text-xs font-semibold text-white/30">
-                  Everyone left has already won this round.
-                </p>
-              )}
+              <p className="mt-2.5 text-[11px] leading-relaxed text-white/30">
+                {allowedBadges.size === 0
+                  ? "None picked: anyone who types the keyword gets in."
+                  : "Only chatters wearing one of these badges get in. Applies to new entries."}
+              </p>
             </section>
 
-            {/* Current winner — rolls in suspense alongside the OBS widget instead of
-                revealing the name the instant Roll winner is clicked. */}
-            <section className="flex min-h-[180px] flex-1 flex-col items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.022] p-5">
+            {/* Rolls in suspense with the OBS widget instead of spoiling the name. */}
+            <section className="flex min-h-[150px] flex-col items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.022] p-4">
               <AnimatePresence mode="wait">
                 {revealPhase === "revealed" && winner ? (
                   <motion.div
@@ -831,17 +966,11 @@ export default function GiveawayAdminPage() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.3, ease: "easeOut" }}
-                    className="flex flex-col items-center gap-2 text-center"
+                    className="flex flex-col items-center gap-1.5 text-center"
                   >
-                    <Trophy className="size-8 text-amber-400" />
-                    <WinnerName
-                      username={winner}
-                      onClick={() => setLogWinner(winner)}
-                      className="text-2xl font-bold text-white"
-                    />
-                    <p className="text-xs font-semibold uppercase tracking-wider text-white/30">
-                      Current winner · click to log it
-                    </p>
+                    <Trophy className="size-7" style={{ color: ACCENTS.amber }} />
+                    <WinnerName username={winner} onClick={() => setLogWinner(winner)} className="text-xl font-bold text-white" />
+                    <p className="text-[11px] uppercase tracking-wider text-white/30">Winner · click to log it</p>
                   </motion.div>
                 ) : revealPhase === "rolling" ? (
                   <motion.div
@@ -849,13 +978,13 @@ export default function GiveawayAdminPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex flex-col items-center gap-2 text-center text-emerald-400"
+                    className="flex flex-col items-center gap-2 text-center"
+                    style={{ color: ACCENTS.purple }}
                   >
                     <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.9, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}>
-                      <Shuffle className="size-8" />
+                      <Shuffle className="size-7" />
                     </motion.div>
-                    <p className="text-sm font-semibold uppercase tracking-wider">Rolling…</p>
+                    <p className="text-[12px] font-semibold uppercase tracking-wider">Rolling…</p>
                   </motion.div>
                 ) : (
                   <motion.div
@@ -863,108 +992,137 @@ export default function GiveawayAdminPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
                     className="flex flex-col items-center gap-2 text-center text-white/30"
                   >
-                    <Crown className="size-8" />
-                    <p className="text-sm font-semibold">No winner yet</p>
+                    <Crown className="size-7" />
+                    <p className="text-[13px]">No winner yet</p>
                   </motion.div>
                 )}
               </AnimatePresence>
             </section>
 
-            {/* Past winners */}
-            <section className="rounded-2xl border border-white/[0.06] bg-white/[0.022] p-5">
-              <span className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white/40">
+            <section className="rounded-xl border border-white/[0.08] bg-white/[0.022] p-4">
+              <p className="mb-2.5 flex items-center gap-2 text-[13px] text-white/45">
                 <History className="size-3.5" /> Past winners
-              </span>
+              </p>
               {pastWinners.length === 0 ? (
-                <p className="py-4 text-center text-sm text-white/30">No rolls yet.</p>
+                <p className="text-[12px] text-white/30">No rolls yet.</p>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {pastWinners.map((name, index) => (
                     <WinnerName
                       key={`${name}-${index}`}
                       username={name}
                       onClick={() => setLogWinner(name)}
-                      className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-semibold text-white/60 hover:text-white"
+                      className="rounded-md bg-white/[0.05] px-2.5 py-1 text-[12px] text-white/65 hover:text-white"
                     />
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* OBS widget link */}
-            <section className="rounded-2xl border border-white/[0.06] bg-white/[0.022]">
-              <button
-                onClick={() => setObsExpanded((current) => !current)}
-                className="flex w-full cursor-pointer items-center justify-between px-5 py-4 text-xs font-bold uppercase tracking-wider text-white/40"
-              >
-                OBS widget
-                <ChevronDown className={`size-4 transition-transform ${obsExpanded ? "rotate-180" : ""}`} />
-              </button>
-              {obsExpanded && (
-                <div className="flex flex-col gap-3 border-t border-white/[0.06] px-5 py-4">
-                  {[
-                    {
-                      href: "/obs/giveaway",
-                      label: "Giveaway only",
-                      hint: "Just this giveaway card — 300x120.",
-                    },
-                    {
-                      href: "/obs/stream",
-                      label: "Stream column",
-                      hint: "Giveaway, deposits/cashouts, banners and Kick chat in one narrow column (~340px wide).",
-                    },
-                  ].map((widget) => (
-                    <div key={widget.href} className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-white/80">{widget.label}</p>
-                        <p className="text-xs text-white/40">{widget.hint}</p>
-                      </div>
-                      <a
-                        href={widget.href}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-2 whitespace-nowrap rounded-lg border border-white/[0.10] px-3 py-1.5 text-xs font-semibold text-white/60 hover:bg-white/[0.06]"
-                      >
-                        <Tv className="size-3.5" /> Open widget
-                      </a>
-                    </div>
                   ))}
                 </div>
               )}
             </section>
           </div>
 
-          {/* Live chat */}
-          <section className="flex flex-col rounded-2xl border border-white/[0.06] bg-white/[0.022]">
-            <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
-              <h2 className="text-sm font-semibold text-white/80">Live chat</h2>
-            </div>
-            <p className="border-b border-white/[0.06] px-4 py-2 text-xs text-white/30">
-              {`Type ${formatKeywordForDisplay(keyword)} in chat to enter · click an emote below to use it as the keyword`}
-            </p>
-            <div
-              ref={feedRef}
-              className="hide-scrollbar flex h-[520px] flex-col gap-1.5 overflow-y-auto p-4 font-mono text-sm lg:h-[600px]"
-            >
-              {messages.length === 0 ? (
-                <p className="py-16 text-center text-white/30">
-                  {status === "idle" ? "Connect to a channel to see live chat." : "Waiting for messages…"}
-                </p>
-              ) : (
-                messages.map((message) => (
-                  <div key={message.id} className="leading-relaxed">
-                    <span className={`font-bold ${message.isMod ? "text-[#53fc18]" : "text-white/80"}`}>
-                      {message.username}
-                    </span>
-                    <span className="text-white/30">: </span>
-                    <span className="text-white/60">{renderMessageContent(message.content, setKeyword)}</span>
-                  </div>
-                ))
+          {/* Right: the entries, or the live chat the keyword is read from */}
+          <section className="flex min-h-[520px] flex-col rounded-xl border border-white/[0.08] bg-white/[0.022]">
+            <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-4 py-3">
+              <div className="flex items-center gap-1">
+                {(["entries", "chat"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setRightTab(tab)}
+                    className="rounded-md px-2.5 py-1 text-[13px] transition"
+                    style={rightTab === tab ? { backgroundColor: "rgba(255,255,255,0.07)", color: "#fff" } : { color: "rgba(255,255,255,0.45)" }}
+                  >
+                    {tab === "entries" ? `Entries${entrants.size ? ` · ${entrants.size}` : ""}` : "Live chat"}
+                  </button>
+                ))}
+              </div>
+              {rightTab === "entries" && (
+                <div className="flex items-center gap-3 text-[12px] text-white/45">
+                  <button type="button" onClick={() => void copyNames()} disabled={!entrants.size} className="transition hover:text-white disabled:opacity-40">
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                  <button type="button" onClick={exportText} disabled={!entrants.size} className="transition hover:text-white disabled:opacity-40">
+                    Text
+                  </button>
+                  <button type="button" onClick={exportCsv} disabled={!entrants.size} className="transition hover:text-white disabled:opacity-40">
+                    CSV
+                  </button>
+                </div>
               )}
             </div>
+
+            {rightTab === "entries" ? (
+              <>
+                <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-2.5">
+                  <Search className="size-3.5 text-white/30" />
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Find a name"
+                    className="min-w-0 flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-white/30"
+                  />
+                </div>
+                <div className="hide-scrollbar flex-1 overflow-y-auto px-2 py-1.5 lg:max-h-[560px]">
+                  {entrantList.length === 0 ? (
+                    <p className="py-16 text-center text-[13px] text-white/30">
+                      {isOpen ? `Type ${displayKeyword || "the keyword"} in chat to enter.` : "No entries. Start a round to open entries."}
+                    </p>
+                  ) : shownEntrants.length === 0 ? (
+                    <p className="py-16 text-center text-[13px] text-white/30">Nobody by that name.</p>
+                  ) : (
+                    shownEntrants.map((entrant) => {
+                      const meta = entrantMeta[entrant]
+                      // The pick is known the moment the roll starts; saying so here would spoil it.
+                      const won = roundWinners.has(entrant) && !(revealPhase === "rolling" && winner === entrant)
+                      const current = winner === entrant && revealPhase === "revealed"
+                      return (
+                        <div
+                          key={entrant}
+                          className="flex items-center gap-2 rounded-md px-2.5 py-2 text-[13px]"
+                          style={current ? { backgroundColor: `${ACCENTS.amber}14` } : undefined}
+                        >
+                          <span className={`truncate font-medium ${won && !current ? "text-white/35" : "text-white/85"}`}>{entrant}</span>
+                          {badgesFor(meta?.badges).map((badge) => (
+                            <badge.icon key={badge.id} className="size-3.5 shrink-0" style={{ color: badge.color }} aria-label={badge.label} />
+                          ))}
+                          {won && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: ACCENTS.amber }}>
+                              Won
+                            </span>
+                          )}
+                          <span className="ml-auto shrink-0 text-[11px] tabular-nums text-white/30">
+                            {meta ? new Date(meta.at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : ""}
+                          </span>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="border-b border-white/[0.06] px-4 py-2 text-[11px] text-white/30">
+                  Click an emote to make it the keyword.
+                </p>
+                <div ref={feedRef} className="hide-scrollbar flex h-[520px] flex-col gap-1.5 overflow-y-auto p-4 font-mono text-[13px]">
+                  {messages.length === 0 ? (
+                    <p className="py-16 text-center text-white/30">
+                      {status === "idle" ? "Connect to a channel to see live chat." : "Waiting for messages…"}
+                    </p>
+                  ) : (
+                    messages.map((message) => (
+                      <div key={message.id} className="leading-relaxed">
+                        <span className={`font-bold ${message.isMod ? "text-[#53fc18]" : "text-white/80"}`}>{message.username}</span>
+                        <span className="text-white/30">: </span>
+                        <span className="text-white/60">{renderMessageContent(message.content, setKeyword)}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
           </section>
         </div>
       </div>

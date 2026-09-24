@@ -28,8 +28,11 @@ export function SiteTopBar() {
 
   return (
     <>
+      {/* Starts where the left nav ends (its width is published as
+          --main-nav-width, collapsed or not), so the nav runs the full height
+          beside it instead of being cut off under it. */}
       <header
-        className="fixed inset-x-0 top-0 z-50 flex items-center gap-3 border-b border-white/[0.08] bg-[#0B0B0D]/95 px-3 backdrop-blur md:px-4"
+        className="fixed left-0 right-0 top-0 z-40 flex items-center gap-3 border-b border-white/[0.08] bg-[#0B0B0D]/95 px-3 backdrop-blur transition-[left] duration-300 ease-in-out md:left-[var(--main-nav-width,224px)] md:px-5"
         style={{ height: TOP_BAR_HEIGHT }}
       >
         <button
@@ -42,8 +45,8 @@ export function SiteTopBar() {
         </button>
 
         <Link href="/" aria-label="TrinidoRewards home" className="flex shrink-0 items-center">
-          <BrandMark className="h-8 w-8 sm:hidden" />
-          <BrandWordmark className="hidden h-[26px] w-auto sm:block" />
+          <BrandMark className="h-7 w-7 sm:hidden" />
+          <BrandWordmark className="hidden h-[18px] w-auto sm:block" />
         </Link>
 
         {/* Centred on the bar, not on the space left between the two sides,

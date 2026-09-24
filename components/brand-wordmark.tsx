@@ -9,7 +9,7 @@ import { BRAND_ACCENT } from "@/components/brand-mark"
  * content-credentials block in <metadata>; it renders nothing and is 16 KB of
  * mostly zeros, so it is not repeated in every page's markup.
  *
- * 841 x 65. At the top bar's 26px that is 336px wide, so below `sm` the bar
+ * 841 x 65. At the top bar's 18px that is 233px wide, and below `sm` the bar
  * shows BrandMark alone.
  */
 export function BrandWordmark(props: SVGProps<SVGSVGElement>) {

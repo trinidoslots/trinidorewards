@@ -26,14 +26,14 @@ import {
 import { cn } from "@/lib/utils"
 import { MonoLabel } from "@/components/ui/panel"
 
-type Leaf = { href: string; label: string }
-type Item =
+export type Leaf = { href: string; label: string }
+export type Item =
   | { kind: "link"; href: string; label: string; icon: typeof Home }
   | { kind: "group"; id: string; label: string; icon: typeof Home; match: string; children: Leaf[] }
 
 // One flat description of the whole nav. Groups used to be four near-identical
 // blocks of JSX; expressing them as data means adding "Hunt" is one entry.
-const NAV: Item[] = [
+export const NAV: Item[] = [
   { kind: "link", href: "/admin", label: "Overview", icon: Home },
   {
     kind: "group",
