@@ -5,6 +5,7 @@ import type React from "react"
 import { useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { MainNav } from "@/components/main-nav"
+import { SiteTopBar } from "@/components/site-top-bar"
 import { Footer } from "@/components/footer"
 import { AmbientBackground } from "@/components/ambient-background"
 import { PageTransition } from "@/components/page-transition"
@@ -48,8 +49,10 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen transition-[padding-left] duration-300 ease-in-out md:pl-[var(--main-nav-width,238px)]">
+    // pt-14 clears the fixed top bar, the same 56px it is tall.
+    <div className="min-h-screen pt-14 transition-[padding-left] duration-300 ease-in-out md:pl-[var(--main-nav-width,238px)]">
       <AmbientBackground />
+      <SiteTopBar />
       <MainNav />
       {/* The full-screen loading overlay used to live here, shown whenever a
           navigation took longer than 150ms. The entry animation is that

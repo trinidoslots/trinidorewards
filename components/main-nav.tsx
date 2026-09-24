@@ -10,17 +10,14 @@ import {
   Grid2X2,
   Home,
   Landmark,
-  Lock,
-  Menu,
   Radio,
   Trophy,
   Users,
   WalletCards,
   X,
 } from "lucide-react"
-import { LoginModal } from "./login-modal"
-import { BrandMark } from "@/components/brand-mark"
 import { createClient } from "@/lib/supabase/client"
+import { OPEN_MAIN_NAV_EVENT } from "@/components/site-top-bar"
 import { MonoLabel } from "@/components/ui/panel"
 import {
   ALL_OFF,
@@ -67,10 +64,6 @@ export function MainNav() {
     Bonuses: true,
     Community: true,
   })
-  const [loginOpen, setLoginOpen] = useState(false)
-  const [username, setUsername] = useState<string | null>(null)
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
-  const [points, setPoints] = useState(0)
   const [modules, setModules] = useState<ModuleStatus>(ALL_OFF)
   const [moduleRows, setModuleRows] = useState<ModuleRow[]>([])
 
@@ -78,19 +71,14 @@ export function MainNav() {
     document.documentElement.style.setProperty("--main-nav-width", collapsed ? "56px" : "224px")
   }, [collapsed])
 
+  // The drawer's button is in the top bar now; it asks for the drawer by event.
   useEffect(() => {
-    fetch("/api/auth/session")
-      .then(async (response) => {
-        if (!response.ok) return
-        const data = await response.json()
-        setUsername(data.username)
-        // The session has always carried this; the nav just never read it and
-        // drew a flat coloured disc instead.
-        setAvatarUrl(data.avatar_url || null)
-        setPoints(data.points || 0)
-      })
-      .catch(() => {})
+    const open = () => setMobileOpen(true)
+    window.addEventListener(OPEN_MAIN_NAV_EVENT, open)
+    return () => window.removeEventListener(OPEN_MAIN_NAV_EVENT, open)
+  }, [])
 
+  useEffect(() => {
     supabase
       .from("modules")
       // The row, not two columns: category is what decides the group now, and
@@ -111,53 +99,13 @@ export function MainNav() {
 
   return (
     <>
-      <button
-        aria-label="Open navigation"
-        onClick={() => setMobileOpen(true)}
-        className="fixed left-4 top-4 z-40 rounded-md border border-white/[0.10] bg-[#0B0B0D] p-2 text-white/70 md:hidden"
-      >
-        <Menu className="h-5 w-5" />
-      </button>
-
+      {/* Below the top bar, which carries the logo and the account now. */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col border-r border-white/[0.08] bg-[#0B0B0D] transition-all duration-300 ease-in-out ${
+        className={`fixed bottom-0 left-0 top-14 z-40 flex flex-col border-r border-white/[0.08] bg-[#0B0B0D] transition-all duration-300 ease-in-out ${
           collapsed ? "w-14" : "w-56"
         } ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
-        {/* Brand */}
-        <div
-          className={`flex h-14 items-center border-b border-white/[0.08] px-3 ${
-            collapsed ? "justify-center" : "justify-between"
-          }`}
-        >
-          {!collapsed && (
-            <Link href="/" className="flex min-w-0 items-center" aria-label="TrinidoRewards home">
-              {/* No wrapper: the mark draws its own tile and hairline, and the
-                  mascot's frame around it doubled the border. 28px and 8px to
-                  the name, as the canvas's navigation artboard has it. */}
-              <BrandMark className="h-7 w-7 shrink-0" />
-              <span className="ml-2 truncate text-[13px] font-bold tracking-tight text-white">TrinidoRewards</span>
-            </Link>
-          )}
-          <button
-            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
-            onClick={() => setCollapsed(!collapsed)}
-            className="ml-auto flex h-7 w-7 items-center justify-center rounded text-white/30 transition hover:bg-white/[0.06] hover:text-white"
-          >
-            <ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
-          </button>
-          {!collapsed && (
-            <button
-              aria-label="Close navigation"
-              onClick={() => setMobileOpen(false)}
-              className="ml-1 p-1 text-white/30 md:hidden"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          )}
-        </div>
-
-        <nav className="absolute inset-x-0 bottom-14 top-14 space-y-0.5 overflow-y-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <nav className="absolute inset-x-0 bottom-14 top-0 space-y-0.5 overflow-y-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Link
             href="/"
             onClick={() => setMobileOpen(false)}
@@ -223,43 +171,27 @@ export function MainNav() {
           })}
         </nav>
 
-        {/* Session */}
-        <div className="absolute inset-x-0 bottom-0 border-t border-white/[0.08] p-2">
-          {username ? (
-            <Link
-              href="/profile"
-              aria-label="Open profile"
-              className={`flex items-center gap-2 rounded-md px-2 py-2 text-[12px] text-white/50 transition hover:bg-white/[0.04] hover:text-white/80 ${
-                collapsed ? "justify-center" : ""
-              }`}
-            >
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt=""
-                  className="h-6 w-6 shrink-0 rounded-full object-cover"
-                  // A Kick avatar URL can rot; fall back to the disc rather
-                  // than leaving a broken-image glyph in the nav.
-                  onError={() => setAvatarUrl(null)}
-                />
-              ) : (
-                <span className="h-6 w-6 shrink-0 rounded-full" style={{ backgroundColor: `${ACCENT}44` }} />
-              )}
-              <span className={collapsed ? "sr-only" : "truncate"}>
-                {username} · {points.toFixed(0)} pts
-              </span>
-            </Link>
-          ) : (
-            <button
-              onClick={() => setLoginOpen(true)}
-              className={`flex h-9 items-center justify-center gap-2 rounded-md border border-white/12 bg-white/[0.06] font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12] ${
-                collapsed ? "w-9 px-0" : "w-full px-3"
-              }`}
-            >
-              {collapsed ? <Lock aria-hidden="true" className="h-4 w-4" /> : "Log in"}
-              {collapsed && <span className="sr-only">Log in</span>}
-            </button>
-          )}
+        {/* Collapse on desktop, close on mobile. The account that sat here is
+            in the top bar now. */}
+        <div
+          className={`absolute inset-x-0 bottom-0 flex h-14 items-center border-t border-white/[0.08] px-2 ${
+            collapsed ? "justify-center" : "justify-end"
+          }`}
+        >
+          <button
+            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+            onClick={() => setCollapsed(!collapsed)}
+            className="hidden h-8 w-8 items-center justify-center rounded text-white/30 transition hover:bg-white/[0.06] hover:text-white md:flex"
+          >
+            <ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
+          </button>
+          <button
+            aria-label="Close navigation"
+            onClick={() => setMobileOpen(false)}
+            className="flex h-8 w-8 items-center justify-center rounded text-white/40 md:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
       </aside>
 
@@ -267,11 +199,9 @@ export function MainNav() {
         <button
           aria-label="Close navigation overlay"
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-black/70 md:hidden"
+          className="fixed inset-0 top-14 z-30 bg-black/70 md:hidden"
         />
       )}
-
-      <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
     </>
   )
 }
