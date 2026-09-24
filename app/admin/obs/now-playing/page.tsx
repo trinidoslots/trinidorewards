@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Check, Copy, Eraser, RefreshCw } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader } from "@/components/ui/panel"
 import { FIELD_CLASS } from "@/components/ui/select-menu"
@@ -69,6 +69,11 @@ function draftFromRow(row: NowPlayingRow | null): Draft {
   }
 }
 
+/** Field-by-field, because two drafts built from the same row are never the same object. */
+function sameDraft(a: Draft, b: Draft): boolean {
+  return (Object.keys(a) as (keyof Draft)[]).every((key) => a[key] === b[key])
+}
+
 type Suggestion = { game_name: string; provider: string }
 
 export default function NowPlayingAdmin() {
@@ -81,6 +86,26 @@ export default function NowPlayingAdmin() {
   const [recordSent, setRecordSent] = useState(false)
   /** The pinned best win for the slot on the bar, or null when it follows the hunts. */
   const [pinned, setPinned] = useState<number | null>(null)
+  /** Set when the bar changed while the form had edits in it, so it was left alone. */
+  const [behind, setBehind] = useState(false)
+
+  // What the form was last filled with. Equal to the draft means "untouched",
+  // which is what lets a new game on the bar flow into the form by itself.
+  const baseRef = useRef<Draft>(emptyDraft)
+  const draftRef = useRef<Draft>(emptyDraft)
+  draftRef.current = draft
+  // A slot name the page put there itself, which should not open the
+  // suggestion list as if it had been typed.
+  const filledNameRef = useRef("")
+
+  const fill = useCallback((next: NowPlayingRow | null) => {
+    const filled = draftFromRow(next)
+    baseRef.current = filled
+    filledNameRef.current = filled.slotName
+    setDraft(filled)
+    setBehind(false)
+    setSuggestions([])
+  }, [])
   const [copied, setCopied] = useState(false)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
 
@@ -92,13 +117,13 @@ export default function NowPlayingAdmin() {
       const payload = await response.json()
       if (!response.ok) throw new Error(payload?.error ?? "Could not load.")
       setRow(payload.row as NowPlayingRow | null)
-      setDraft(draftFromRow(payload.row as NowPlayingRow | null))
+      fill(payload.row as NowPlayingRow | null)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load.")
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [fill])
 
   useEffect(() => {
     void load()
@@ -135,9 +160,9 @@ export default function NowPlayingAdmin() {
    * casino page — or auto-update firing by itself — shows up here without a
    * Reload click.
    *
-   * Deliberately updates only the "on the overlay" card, never the draft: the
-   * form is what you are typing, and having it overwritten under the cursor
-   * because the extension pushed a game would be worse than it being stale.
+   * The form follows too, but only while it is untouched — see the effect
+   * below. Overwriting something being typed because the extension pushed a
+   * game would be worse than the form being a step behind.
    *
    * Read straight from the table rather than through the admin route. It has a
    * public SELECT policy, so this needs no service role, and it is the same
@@ -168,12 +193,30 @@ export default function NowPlayingAdmin() {
     }
   }, [])
 
+  // A new game on the bar — from the extension, auto-update, or a record that
+  // moved the best win — refills the form, so there is nothing to reload
+  // before editing it. Keyed on what the form would show, not on the row
+  // object: the five-second poll hands back a fresh object every time.
+  const rowDraft = draftFromRow(row)
+  const rowSignature = JSON.stringify(rowDraft)
+  useEffect(() => {
+    const next = JSON.parse(rowSignature) as Draft
+    if (sameDraft(next, baseRef.current)) return
+    if (sameDraft(draftRef.current, baseRef.current)) {
+      fill(row)
+    } else {
+      setBehind(true)
+    }
+    // row is read only for its fields, which rowSignature already covers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowSignature, fill])
+
   // Suggestions come straight from the browser — the slots table is public and
   // holds nothing but names, so there is no reason to route it through a
   // server handler.
   useEffect(() => {
     const term = draft.slotName.trim()
-    if (term.length < 2) {
+    if (term.length < 2 || draft.slotName === filledNameRef.current) {
       setSuggestions([])
       return
     }
@@ -216,8 +259,7 @@ export default function NowPlayingAdmin() {
       const payload = await response.json()
       if (!response.ok) throw new Error(payload?.error ?? "Could not save.")
       setRow(payload.row as NowPlayingRow)
-      setDraft(draftFromRow(payload.row as NowPlayingRow))
-      setSuggestions([])
+      fill(payload.row as NowPlayingRow)
       setSaved(true)
       setRecordSent(payload.record === true)
       setTimeout(() => {
@@ -239,8 +281,7 @@ export default function NowPlayingAdmin() {
       const payload = await response.json()
       if (!response.ok) throw new Error(payload?.error ?? "Could not clear.")
       setRow(payload.row as NowPlayingRow)
-      setDraft(emptyDraft)
-      setSuggestions([])
+      fill(null)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not clear.")
     } finally {
@@ -501,6 +542,18 @@ export default function NowPlayingAdmin() {
         >
           {busy ? "Saving…" : "Put it on the overlay"}
         </button>
+        {behind && (
+          <span className="text-[12px]" style={{ color: ACCENTS.amber }}>
+            The bar moved on to {row?.slot_name?.trim() || "nothing"} while you were editing.
+            <button
+              type="button"
+              onClick={() => fill(row)}
+              className="ml-1.5 underline decoration-current/40 underline-offset-2 transition hover:text-white"
+            >
+              Load it
+            </button>
+          </span>
+        )}
         {saved && (
           <span className="flex items-center gap-1.5 text-[12px]" style={{ color: ACCENTS.green }}>
             <Check className="h-3.5 w-3.5" />
