@@ -79,27 +79,3 @@ export function safeNext(next: string | null | undefined, fallback = "/admin"): 
   if (next.startsWith("/\\")) return fallback
   return next
 }
-
-/**
- * Who is allowed into the admin panel.
- *
- * The session check only ever asked whether *a* Supabase user was signed in —
- * and /auth/sign-up is a public page that mints exactly such a user. Anyone who
- * found it could sign up and walk in. A subdomain does not change that; the
- * panel is guarded by this, not by its address.
- *
- * ADMIN_EMAILS is a comma-separated allowlist. Leaving it unset keeps the old
- * behaviour — any signed-in user gets in — so setting it is what closes the
- * door, and an empty value can never lock you out of your own panel by
- * accident.
- */
-export function isAllowedAdmin(email: string | null | undefined, allowlist: string | undefined): boolean {
-  const allowed = (allowlist ?? "")
-    .split(",")
-    .map((entry) => entry.trim().toLowerCase())
-    .filter(Boolean)
-
-  if (allowed.length === 0) return true
-  if (!email) return false
-  return allowed.includes(email.trim().toLowerCase())
-}

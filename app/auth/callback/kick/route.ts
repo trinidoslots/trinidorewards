@@ -1,6 +1,19 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { endSupabaseSession, isAdminKickId, mintAdminSession } from "@/lib/admin-auth"
+import { isAdminPath, safeNext } from "@/lib/admin-host"
+
+/** A cookie value as written by lib/kick-login.ts, which URI-encodes it. */
+function readCookie(request: NextRequest, name: string): string | undefined {
+  const raw = request.cookies.get(name)?.value
+  if (raw === undefined) return undefined
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return raw
+  }
+}
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -14,8 +27,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/?error=no_code", request.url))
   }
 
+  // The state Kick hands back must be the one this browser sent. Without the
+  // check, a callback URL built from someone else's login could be dropped on
+  // a visitor and sign them in as that someone. It matters more now that a
+  // login can carry admin rights.
+  const expectedState = readCookie(request, "kick_oauth_state")
+  if (!state || !expectedState || state !== expectedState) {
+    console.error("[v0] Kick OAuth state mismatch")
+    return NextResponse.redirect(new URL("/?error=state_mismatch", request.url))
+  }
+
+  // Where the login was started from. Only a path on this site survives.
+  const next = safeNext(readCookie(request, "kick_login_next"), "/")
+
   try {
-    const codeVerifier = request.cookies.get("kick_code_verifier")?.value
+    const codeVerifier = readCookie(request, "kick_code_verifier")
     console.log("[v0] Code verifier from cookie:", codeVerifier ? "Found" : "Missing")
 
     if (!codeVerifier) {
@@ -226,8 +252,25 @@ export async function GET(request: NextRequest) {
     }
 
     // Store session info
-    console.log("[v0] Login successful, redirecting to home")
-    const response = NextResponse.redirect(new URL("/", request.url))
+    console.log("[v0] Login successful, redirecting to", next)
+    const response = NextResponse.redirect(new URL(next, request.url))
+
+    // The admin panel runs on a Supabase session, not on the cookies below
+    // (they are not signed). A tagged account gets one here; anyone else has
+    // any previous one ended, so signing in as a different Kick account can
+    // never leave the last admin's session behind. See lib/admin-auth.ts.
+    if (await isAdminKickId(kickUserIdStr)) {
+      const minted = await mintAdminSession(request, response, {
+        kickId: kickUserIdStr,
+        username: kickUsername,
+        avatarUrl: kickAvatarUrl || null,
+      })
+      if (!minted && isAdminPath(next)) {
+        response.headers.set("location", new URL("/auth/login?error=admin_session", request.url).toString())
+      }
+    } else {
+      await endSupabaseSession(request, response)
+    }
 
     response.cookies.set("kick_user_id", kickUserIdStr, {
       httpOnly: true,
@@ -255,6 +298,8 @@ export async function GET(request: NextRequest) {
     })
 
     response.cookies.delete("kick_code_verifier")
+    response.cookies.delete("kick_oauth_state")
+    response.cookies.delete("kick_login_next")
 
     return response
   } catch (error) {

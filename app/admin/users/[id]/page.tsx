@@ -49,6 +49,8 @@ type Payload = {
     points_balance: number
     created_at: string
   }
+  /** Absent from an older route, which is read as "not an admin". */
+  admin?: { is_admin: boolean; is_self: boolean }
   accounts: Account[]
   payments: Payment[]
   redemptions: Redemption[]
@@ -167,6 +169,13 @@ export default function AdminUserDetailPage() {
           </div>
           <p className="mt-1.5 text-[12px] text-white/30">Joined {when(user.created_at)}</p>
         </div>
+
+        <AdminTag
+          userId={user.id}
+          hasKick={!!user.kick_id}
+          admin={data.admin ?? { is_admin: false, is_self: false }}
+          onChange={(admin) => setData((current) => (current ? { ...current, admin } : current))}
+        />
       </Panel>
 
       <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -477,5 +486,87 @@ function WinsPanel({ wins }: { wins: WinLog[] }) {
         </ul>
       )}
     </Panel>
+  )
+}
+
+/**
+ * The admin tag: whether this Kick account can open the panel.
+ *
+ * Confirms before either change, because both matter — granting hands over
+ * everything in the panel, and there is no undo for someone you lock out
+ * mid-stream other than tagging them again.
+ */
+function AdminTag({
+  userId,
+  hasKick,
+  admin,
+  onChange,
+}: {
+  userId: string
+  hasKick: boolean
+  admin: { is_admin: boolean; is_self: boolean }
+  onChange: (admin: { is_admin: boolean; is_self: boolean }) => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+
+  const locked = !hasKick || (admin.is_admin && admin.is_self)
+  const title = !hasKick
+    ? "Never signed in with Kick, so there is no account to tag."
+    : admin.is_self && admin.is_admin
+      ? "You cannot remove your own admin access."
+      : undefined
+
+  const toggle = async () => {
+    const next = !admin.is_admin
+    const question = next
+      ? "Give this Kick account full access to the admin panel?"
+      : "Remove this account's admin access? It takes effect on their next click."
+    if (!window.confirm(question)) return
+
+    setBusy(true)
+    setProblem(null)
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_admin: next }),
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload?.error ?? "Could not save.")
+      onChange(payload.admin)
+    } catch (cause) {
+      setProblem(cause instanceof Error ? cause.message : "Could not save.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="ml-auto flex flex-col items-end gap-1.5">
+      <button
+        type="button"
+        onClick={() => void toggle()}
+        disabled={busy || locked}
+        title={title}
+        className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-[12px] font-medium transition disabled:cursor-not-allowed disabled:opacity-50"
+        style={
+          admin.is_admin
+            ? { borderColor: `${ACCENTS.amber}66`, backgroundColor: `${ACCENTS.amber}1a`, color: ACCENTS.amber }
+            : { borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)" }
+        }
+      >
+        <span
+          className="h-1.5 w-1.5 rounded-full"
+          style={{ backgroundColor: admin.is_admin ? ACCENTS.amber : "rgba(255,255,255,0.25)" }}
+        />
+        {busy ? "Saving…" : admin.is_admin ? "Admin" : "Make admin"}
+      </button>
+      {problem && (
+        <span className="max-w-[240px] text-right text-[11px]" style={{ color: ACCENTS.red }}>
+          {problem}
+        </span>
+      )}
+    </div>
   )
 }

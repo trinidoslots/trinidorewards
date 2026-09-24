@@ -1,54 +1,18 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
-import { cookies } from "next/headers"
+import { requireAdmin } from "@/lib/admin-guard"
 
 export async function DELETE(request: Request) {
   try {
     const supabase = await createServerClient()
     const { raffleId } = await request.json()
 
-    const cookieStore = await cookies()
+    // Deleting a raffle is an admin action. This used to accept any signed-in
+    // visitor: the user_db_id cookie alone was enough, and it is not signed.
+    const auth = await requireAdmin()
+    if (!auth.ok) return auth.response
 
-    let userDbId = cookieStore.get("user_db_id")?.value
-
-    // If no Kick OAuth cookie, check Supabase Auth
-    if (!userDbId) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (user) {
-        console.log("[v0] Supabase auth user found:", user.id)
-
-        // Look up user in database by Supabase auth ID - use maybeSingle() to avoid error if user doesn't exist
-        const { data: userData, error: userError } = await supabase
-          .from("users")
-          .select("id")
-          .eq("id", user.id)
-          .maybeSingle()
-
-        if (userError) {
-          console.error("[v0] Error looking up user:", userError)
-        }
-
-        if (userData) {
-          userDbId = userData.id
-          console.log("[v0] Found user in database:", userDbId)
-        } else {
-          // User is authenticated via Supabase but not in users table
-          // For admin operations, we'll allow this since they have access to admin panel
-          console.log("[v0] User authenticated via Supabase but not in users table - allowing admin operation")
-          userDbId = user.id
-        }
-      }
-    }
-
-    if (!userDbId) {
-      console.error("[v0] No authentication found - user not logged in")
-      return NextResponse.json({ error: "Unauthorized - Please log in" }, { status: 401 })
-    }
-
-    console.log("[v0] Deleting raffle:", raffleId, "by user:", userDbId)
+    console.log("[v0] Deleting raffle:", raffleId, "by", auth.email)
 
     // Delete raffle entries first (foreign key constraint)
     const { error: entriesError } = await supabase.from("raffle_entries").delete().eq("raffle_id", raffleId)

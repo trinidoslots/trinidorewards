@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import crypto from "node:crypto"
 import { createServerClient } from "@/lib/supabase/server"
 import { serviceClient } from "@/lib/supabase/service"
-import { isAllowedAdmin } from "@/lib/admin-host"
+import { adminFromUser } from "@/lib/admin-auth"
 import { collapseChatters, readChatter, type Chatter } from "@/lib/points-activity"
 
 /**
@@ -52,7 +52,7 @@ async function authorise(request: Request, provided: unknown): Promise<{ ok: tru
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (user && isAllowedAdmin(user.email, process.env.ADMIN_EMAILS)) return { ok: true }
+  if (await adminFromUser(user)) return { ok: true }
 
   return { ok: false, status: 401, error: "Not authorised to record chat activity" }
 }

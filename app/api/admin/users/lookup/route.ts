@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { requireAdmin } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
 
 /**
@@ -14,11 +14,8 @@ import { serviceClient } from "@/lib/supabase/service"
  * against the bare username.
  */
 export async function GET(request: Request) {
-  const supabase = await createServerClient()
-  const {
-    data: { user: admin },
-  } = await supabase.auth.getUser()
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
 
   const params = new URL(request.url).searchParams
   const id = params.get("id")?.trim()

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
-import { isAdminPath, isAllowedAdmin, resolvePath, safeNext } from "@/lib/admin-host"
+import { isAdminPath, resolvePath, safeNext } from "@/lib/admin-host"
+import { adminFromUser } from "@/lib/admin-auth"
 
 export async function updateSession(request: NextRequest) {
   // Where this request actually lands, once ADMIN_HOST has had its say. Every
@@ -39,10 +40,11 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Signed in is not the same as allowed. See isAllowedAdmin: without
-  // ADMIN_EMAILS set this is the old behaviour, and with it set a stray
-  // sign-up is just a stray account.
-  if (!user || !isAllowedAdmin(user.email, process.env.ADMIN_EMAILS)) {
+  // Signed in is not the same as allowed. The session has to have been minted
+  // for a Kick account, and that account has to be tagged as an admin right
+  // now — see lib/admin-auth.ts. A Supabase user from anywhere else (the old
+  // email logins, a stray sign-up) has no Kick id and gets nothing.
+  if (!(await adminFromUser(user))) {
     const url = request.nextUrl.clone()
     url.pathname = "/auth/login"
     url.search = ""

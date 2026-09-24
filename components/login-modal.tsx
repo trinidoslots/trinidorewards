@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Gift, Loader2, ShoppingBag, Swords } from "lucide-react"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
+import { startKickLogin } from "@/lib/kick-login"
 
 interface LoginModalProps {
   open: boolean
@@ -13,27 +14,8 @@ interface LoginModalProps {
 /** Kick's green. The one thing on this dialog that is not the board palette. */
 const KICK_GREEN = "#53FC18"
 
-function generateRandomString(length: number): string {
-  const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-  let text = ""
-  for (let i = 0; i < length; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length))
-  }
-  return text
-}
-
-async function generateCodeChallenge(codeVerifier: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(codeVerifier)
-  const digest = await crypto.subtle.digest("SHA-256", data)
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "")
-}
-
 /** Kick's blocky K, drawn rather than loaded so the dialog has no dependency. */
-function KickMark({ className }: { className?: string }) {
+export function KickMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
       <path d="M2 3h6v5h3V5.5h3V3h6v6h-3v3h-3v3h3v3h3v6h-6v-2.5h-3V19H8v5H2V3z" />
@@ -52,27 +34,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 
   const handleKickLogin = async () => {
     setIsLoading(true)
-
-    const clientId = process.env.NEXT_PUBLIC_KICK_CLIENT_ID
-    const redirectUri = `${window.location.origin}/auth/callback/kick`
-    const state = generateRandomString(16)
-
-    const codeVerifier = generateRandomString(128)
-    const codeChallenge = await generateCodeChallenge(codeVerifier)
-
-    sessionStorage.setItem("kick_oauth_state", state)
-    document.cookie = `kick_code_verifier=${codeVerifier}; path=/; max-age=600; SameSite=Lax`
-
-    const authUrl = new URL("https://id.kick.com/oauth/authorize")
-    authUrl.searchParams.set("client_id", clientId!)
-    authUrl.searchParams.set("redirect_uri", redirectUri)
-    authUrl.searchParams.set("response_type", "code")
-    authUrl.searchParams.set("state", state)
-    authUrl.searchParams.set("scope", "user:read")
-    authUrl.searchParams.set("code_challenge", codeChallenge)
-    authUrl.searchParams.set("code_challenge_method", "S256")
-
-    window.location.href = authUrl.toString()
+    await startKickLogin(window.location.pathname + window.location.search)
   }
 
   return (

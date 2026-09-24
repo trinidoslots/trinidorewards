@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { requireAdmin } from "@/lib/admin-guard"
+import { isAdminKickId } from "@/lib/admin-auth"
 import { serviceClient } from "@/lib/supabase/service"
 
 /**
@@ -11,11 +12,9 @@ import { serviceClient } from "@/lib/supabase/service"
  * the caller is signed in.
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const supabase = await createServerClient()
-  const {
-    data: { user: admin },
-  } = await supabase.auth.getUser()
-  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  // Was "is anyone signed in to Supabase", which a public sign-up satisfied.
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
 
   const { id } = await params
   const client = serviceClient()
@@ -88,8 +87,18 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     .reduce((sum, row) => sum + (Number(row.cost) || 0), 0)
   const spentOnRaffles = raffleRows.reduce((sum, row) => sum + (Number(row.points_spent) || 0), 0)
 
+  // The admin tag lives on the Kick account (admin_accounts, scripts/070).
+  const kickId = typeof user.kick_id === "string" ? user.kick_id : null
+  const admin = {
+    is_admin: await isAdminKickId(kickId),
+    // Shown so the page can refuse, before the route does, to let you take
+    // away your own access.
+    is_self: !!kickId && kickId === auth.kickId,
+  }
+
   return NextResponse.json({
     user,
+    admin,
     accounts: accounts.data ?? [],
     payments: payments.data ?? [],
     redemptions: redemptionRows,
@@ -107,4 +116,50 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       wonCash: (wins.data ?? []).reduce((sum, row) => sum + (Number(row.amount) || 0), 0),
     },
   })
+}
+
+/**
+ * Tags or untags this user's Kick account as an admin.
+ *
+ * Takes effect on their next request: every admin check looks the tag up
+ * afresh (lib/admin-auth.ts). You cannot untag yourself from here, so the
+ * panel can never be left without the admin who was using it.
+ */
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
+
+  const body = (await request.json().catch(() => null)) as { is_admin?: unknown } | null
+  if (typeof body?.is_admin !== "boolean") {
+    return NextResponse.json({ error: "Expected { is_admin: true | false }" }, { status: 400 })
+  }
+
+  const { id } = await params
+  const client = serviceClient()
+  const { data: user, error } = await client.from("users").select("id, username, kick_id").eq("id", id).maybeSingle()
+  if (error) return NextResponse.json({ error: "Could not load that user" }, { status: 500 })
+  if (!user) return NextResponse.json({ error: "No such user" }, { status: 404 })
+
+  const kickId = typeof user.kick_id === "string" && user.kick_id ? user.kick_id : null
+  if (!kickId) {
+    return NextResponse.json({ error: "This user has never signed in with Kick, so there is no account to tag." }, { status: 400 })
+  }
+
+  if (!body.is_admin && kickId === auth.kickId) {
+    return NextResponse.json({ error: "You cannot remove your own admin access." }, { status: 400 })
+  }
+
+  const write = body.is_admin
+    ? await client
+        .from("admin_accounts")
+        .upsert({ kick_id: kickId, username: user.username, added_by: auth.email }, { onConflict: "kick_id" })
+    : await client.from("admin_accounts").delete().eq("kick_id", kickId)
+
+  if (write.error) {
+    console.error("[admin] Could not change the admin tag:", write.error)
+    return NextResponse.json({ error: "Could not save. Has scripts/070_admin_accounts.sql been run?" }, { status: 500 })
+  }
+
+  console.log(`[admin] ${auth.email} ${body.is_admin ? "tagged" : "untagged"} ${user.username} (${kickId})`)
+  return NextResponse.json({ admin: { is_admin: body.is_admin, is_self: kickId === auth.kickId } })
 }

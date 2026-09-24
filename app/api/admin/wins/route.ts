@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServerClient } from "@/lib/supabase/server"
+import { requireAdmin } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
 
 /**
@@ -14,16 +14,9 @@ const COLUMNS =
 
 const SOURCES = ["giveaway", "prediction", "tournament", "raffle", "manual"]
 
-async function requireAdmin() {
-  const supabase = await createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  return user
-}
-
 export async function GET() {
-  if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
 
   const { data, error } = await serviceClient()
     .from("win_logs")
@@ -39,7 +32,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
 
   const body = await request.json().catch(() => null)
   const username = String(body?.username ?? "").trim()
@@ -90,7 +84,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
 
   const body = await request.json().catch(() => null)
   const id = String(body?.id ?? "")
@@ -112,7 +107,8 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
 
   const id = new URL(request.url).searchParams.get("id")
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
