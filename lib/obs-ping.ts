@@ -1,24 +1,19 @@
 /**
  * The sounds an overlay makes when something happens.
  *
- * Three of them now, not one:
+ * Two of them:
  *
- *   - points    the streamer's coin sample, for a payout to chat
- *   - deposit   a falling pair, low
- *   - withdrawal / event   the same pair rising, an octave up
+ *   - deposit   a falling pair of sines, low
+ *   - everything else — points, withdrawal, giveaway, prediction, tournament —
+ *     the streamer's alert sample
  *
- * The transaction pair is deliberately one idea heard twice: the withdrawal
- * rises E6 → B6 and the deposit is those two notes backwards an octave below,
- * so the two read as a family rather than as two unrelated beeps. The deposit's
- * notes each carry a quiet octave *above* them, because a sine at E5 is almost
- * nothing but its fundamental — the range a stream encoder spends least on and
- * music fills most — and without it the low half vanishes on stream.
+ * The deposit's notes each carry a quiet octave *above* them, because a sine at
+ * E5 is almost nothing but its fundamental — the range a stream encoder spends
+ * least on and music fills most — and without it the low half vanishes on
+ * stream.
  *
- * Everything but the coin is synthesised. The coin is a recording of many
- * coins falling — broadband noise with no steady pitch in it — which is the
- * one kind of sound a handful of sines cannot imitate, so it ships as a file.
- * The costs of a file are handled below: it is fetched and decoded once when
- * the overlay loads, and if that fails the payout falls back to POINTS rather
+ * The alert ships as a file. It is fetched and decoded once when the overlay
+ * loads, and if that fails each kind falls back to a synthesised figure rather
  * than to silence.
  *
  * Autoplay is the catch. OBS's browser source runs CEF with autoplay allowed,
@@ -56,20 +51,20 @@ type Tone = {
   above?: number
 }
 
-/** Rising a fifth. Doubles as the sound for every announcement that is not money. */
+/** Rising a fifth. Fallback for every announcement but points when the alert file is missing. */
 const WITHDRAWAL: Tone[] = [
   { frequency: 1318.51, at: 0, duration: 0.373 }, // E6
   { frequency: 1975.53, at: 0.085, duration: 0.46 }, // B6
 ]
 
-/** The same two notes backwards, an octave below, propped up so they carry. */
+/** The withdrawal fallback backwards, an octave below, propped up so they carry. */
 const DEPOSIT: Tone[] = [
   { frequency: 987.77, at: 0, duration: 0.373, above: 0.16 }, // B5
   { frequency: 659.26, at: 0.085, duration: 0.46, above: 0.16 }, // E5
 ]
 
 /**
- * The payout, synthesised. Only heard when the coin file could not be loaded.
+ * The payout, synthesised. Only heard when the alert file could not be loaded.
  *
  * The pitches and the timing are measured from a reference recording rather
  * than chosen: four notes 65 ms apart climbing D6 · A6 · D7 · G7 — a fifth then
@@ -90,25 +85,20 @@ const POINTS: Tone[] = [
   { frequency: 3135.96, at: 0.195, duration: 0.55, gain: 0.52 }, // G7
 ]
 
-/** The coin. A new name rather than the old obs-coin.mp3, so no cache can serve the previous sample. */
-const COIN_SRC = "/obs-points.mp3"
+/** The alert. Its own name, so no cache can serve one of the earlier samples. */
+const ALERT_SRC = "/obs-alert.mp3"
 
 /**
- * The file's first 150 ms are near silence (under -60 dB); played from zero,
- * every payout would lag the card that announces it. The swell that follows is
- * part of the sound and is kept.
+ * The file's first 74 ms are silent; played from zero, every announcement
+ * would lag its card. Starts a few ms early so the attack is not clipped.
  */
-const COIN_OFFSET = 0.15
+const ALERT_OFFSET = 0.07
 
-/**
- * Measured peak of the file across both channels. It is mastered very quiet —
- * about -23 dB — so it is brought up to COIN_PEAK rather than played as is,
- * where it would sit far below the other pings.
- */
-const COIN_FILE_PEAK = 0.0695
+/** Measured peak of the file across both channels, to normalise against. */
+const ALERT_FILE_PEAK = 0.7361
 
-/** What the coin peaks at, at volume 1. */
-const COIN_PEAK = 0.4
+/** What the alert peaks at, at volume 1. */
+const ALERT_PEAK = 0.4
 
 export function clampVolume(value: number): number {
   if (!Number.isFinite(value)) return 0
@@ -178,57 +168,57 @@ export function unlockOnInteraction(): () => void {
   return remove
 }
 
-let coinBuffer: AudioBuffer | null = null
-let coinPending: Promise<void> | null = null
-let coinFailed = false
+let alertBuffer: AudioBuffer | null = null
+let alertPending: Promise<void> | null = null
+let alertFailed = false
 
 /**
- * Fetches and decodes the coin once.
+ * Fetches and decodes the alert once.
  *
- * Call it when an overlay mounts. Left to the first payout, that payout would
+ * Call it when an overlay mounts. Left to the first announcement, it would
  * pay for the round trip and the decode — the one moment it must not be late.
  */
 export function preloadPing(): void {
   const ctx = audioContext()
-  if (!ctx || coinBuffer || coinPending || coinFailed) return
+  if (!ctx || alertBuffer || alertPending || alertFailed) return
 
-  coinPending = fetch(COIN_SRC)
+  alertPending = fetch(ALERT_SRC)
     .then((response) => {
-      if (!response.ok) throw new Error(`${COIN_SRC}: ${response.status}`)
+      if (!response.ok) throw new Error(`${ALERT_SRC}: ${response.status}`)
       return response.arrayBuffer()
     })
     .then((bytes) => ctx.decodeAudioData(bytes))
     .then((decoded) => {
-      coinBuffer = decoded
+      alertBuffer = decoded
     })
     .catch((problem) => {
-      // Not retried: POINTS covers it, and a broken path should not turn into
-      // a request per payout.
-      coinFailed = true
-      console.error("[obs] Could not load the coin sound, falling back to the synth:", problem)
+      // Not retried: the synth covers it, and a broken path should not turn
+      // into a request per announcement.
+      alertFailed = true
+      console.error("[obs] Could not load the alert sound, falling back to the synth:", problem)
     })
     .finally(() => {
-      coinPending = null
+      alertPending = null
     })
 }
 
-function playCoin(ctx: AudioContext, level: number): void {
-  if (!coinBuffer) {
+function playAlert(ctx: AudioContext, level: number, fallback: Tone[]): void {
+  if (!alertBuffer) {
     preloadPing()
-    playTones(ctx, POINTS, level)
+    playTones(ctx, fallback, level)
     return
   }
 
   const source = ctx.createBufferSource()
   const gain = ctx.createGain()
 
-  source.buffer = coinBuffer
-  gain.gain.value = (level * COIN_PEAK) / COIN_FILE_PEAK
+  source.buffer = alertBuffer
+  gain.gain.value = (level * ALERT_PEAK) / ALERT_FILE_PEAK
 
   source.connect(gain)
   gain.connect(ctx.destination)
   // The second argument is an offset into the buffer, not a delay.
-  source.start(ctx.currentTime, COIN_OFFSET)
+  source.start(ctx.currentTime, ALERT_OFFSET)
 }
 
 /**
@@ -289,8 +279,8 @@ export function playPing(volume: number, kind: PingKind = "event"): void {
   if (ctx.state === "suspended") void ctx.resume().catch(() => {})
 
   try {
-    if (kind === "points") playCoin(ctx, level)
-    else playTones(ctx, kind === "deposit" ? DEPOSIT : WITHDRAWAL, level)
+    if (kind === "deposit") playTones(ctx, DEPOSIT, level)
+    else playAlert(ctx, level, kind === "points" ? POINTS : WITHDRAWAL)
     lastPlayed = now
   } catch {
     // A context that was closed under us, or a browser refusing to schedule.

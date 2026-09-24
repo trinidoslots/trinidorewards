@@ -105,8 +105,8 @@ function StreamWidget() {
   // browser keeps the audio context suspended until the page has been clicked.
   useEffect(() => unlockOnInteraction(), [])
 
-  // Fetch and decode the coin now rather than on the first payout, which would
-  // otherwise be the one paying for the round trip.
+  // Fetch and decode the alert now rather than on the first announcement,
+  // which would otherwise be the one paying for the round trip.
   useEffect(() => {
     if (pingVolume > 0) preloadPing()
   }, [pingVolume])
@@ -143,9 +143,7 @@ function StreamWidget() {
    * a row: "Start giveaway", "Open for 5 minutes" and "Start tournament".
    *
    * Each is hung off the same flag that puts its card on screen, so the sound
-   * and the picture cannot disagree. They share the cashout signal — the one
-   * assigned to everything that is not a points payout — so the coin stays
-   * reserved for chat actually being paid.
+   * and the picture cannot disagree.
    */
   usePingOnStart(giveawayVisible, "event", pingVolume)
   usePingOnStart(predictionSeconds > 0, "event", pingVolume)
