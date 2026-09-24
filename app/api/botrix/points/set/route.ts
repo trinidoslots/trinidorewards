@@ -1,9 +1,28 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { serviceClient } from "@/lib/supabase/service"
 import { NextResponse } from "next/server"
 
+/**
+ * Sets a user's points, for the Botrix integration.
+ *
+ * This had no check at all: anyone could POST a name and a number and set that
+ * user's balance. It now needs BOTRIX_API_KEY as a bearer token, and is off
+ * (503) until that variable is set.
+ */
+function authorised(request: Request): boolean | null {
+  const expected = process.env.BOTRIX_API_KEY
+  if (!expected) return null
+  const header = request.headers.get("authorization") || ""
+  const token = header.startsWith("Bearer ") ? header.slice(7) : ""
+  return token.length === expected.length && token === expected
+}
+
 export async function POST(request: Request) {
+  const allowed = authorised(request)
+  if (allowed === null) return NextResponse.json({ error: "Not configured" }, { status: 503 })
+  if (!allowed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
   try {
-    const supabase = await createServerClient()
+    const supabase = serviceClient()
     const { username, points } = await request.json()
 
     if (!username || points === undefined || points === null) {

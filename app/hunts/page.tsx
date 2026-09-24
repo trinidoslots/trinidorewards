@@ -7,6 +7,7 @@ import { NewHuntDialog } from "@/components/new-hunt-dialog"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import type { Metadata } from "next"
+import { getSiteSession } from "@/lib/site-session"
 
 export const metadata: Metadata = {
   title: "Hunts",
@@ -34,7 +35,7 @@ export default async function HuntsPage() {
   const supabase = await createClient()
   const cookieStore = await cookies()
 
-  const username = cookieStore.get("kick_username")?.value
+  const username = (await getSiteSession())?.username
 
   if (!username) {
     redirect("/")

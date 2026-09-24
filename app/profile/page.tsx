@@ -5,7 +5,6 @@ import { Suspense, useEffect, useState } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { Activity, Gift, Package, Settings, Swords, Target, Ticket, Trophy } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag, type Accent } from "@/components/ui/panel"
-import { createClient } from "@/lib/supabase/client"
 import { ConnectedAccountsPanel, MyWinsPanel, PaymentMethodsPanel } from "@/components/profile-panels"
 import { Swap } from "@/components/swap"
 import type { ActivityItem } from "@/app/api/profile/overview/route"
@@ -35,6 +34,7 @@ type Overview = {
   counts: { predictions: number; tournaments: number; raffles: number; tickets: number; wins: number; redemptions: number }
   spent: { store: number; raffles: number; total: number }
   activity: ActivityItem[]
+  redemptions?: Redemption[]
 }
 
 const TABS = [
@@ -95,14 +95,8 @@ function ProfileView() {
         const overview = (await response.json()) as Overview
         if (cancelled || !overview?.user) return
         setData(overview)
-
-        const { data: rows, error } = await createClient()
-          .from("redemptions")
-          .select("id, item_name, cost, status, created_at")
-          .eq("user_id", overview.user.id)
-          .order("created_at", { ascending: false })
-        if (error) console.error("[v0] Could not load redemptions:", error)
-        if (!cancelled) setRedemptions((rows ?? []) as Redemption[])
+        // From the server route: redemptions are not publicly readable (072).
+        setRedemptions(overview.redemptions ?? [])
       } finally {
         if (!cancelled) setLoading(false)
       }

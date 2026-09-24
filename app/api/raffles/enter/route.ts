@@ -2,6 +2,7 @@ import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { serviceClient } from "@/lib/supabase/service"
 import { calculateRaffleStatus } from "@/lib/raffle-utils"
+import { getSiteSession } from "@/lib/site-session"
 
 /**
  * Buying tickets for a raffle.
@@ -18,7 +19,7 @@ import { calculateRaffleStatus } from "@/lib/raffle-utils"
 export async function POST(request: Request) {
   try {
     const cookieStore = await cookies()
-    const userId = cookieStore.get("user_db_id")?.value
+    const userId = (await getSiteSession())?.userId
     if (!userId) return NextResponse.json({ error: "Sign in to enter" }, { status: 401 })
 
     const body = await request.json().catch(() => null)

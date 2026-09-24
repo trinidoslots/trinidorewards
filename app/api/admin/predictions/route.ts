@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
+import { requireAdmin } from "@/lib/admin-guard"
 import { getActiveHunt } from "@/lib/active-hunt"
 
 function serviceClient() {
@@ -48,6 +49,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  // Opening, closing and resetting predictions. Anyone could, before.
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
+
   const body = await request.json()
   const client = serviceClient()
   const huntId = await currentHuntId(client, body.hunt_id)

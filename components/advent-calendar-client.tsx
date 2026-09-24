@@ -98,19 +98,6 @@ export function AdventCalendarClient({ rewardsByDay, claims, userId, username }:
     setSelectedDay(dayNumber)
   }
 
-  const selectRandomReward = (rewards: AdventReward[]): AdventReward => {
-    const totalProbability = rewards.reduce((sum, r) => sum + r.probability, 0)
-    let random = Math.random() * totalProbability
-
-    for (const reward of rewards) {
-      random -= reward.probability
-      if (random <= 0) {
-        return reward
-      }
-    }
-
-    return rewards[0] // Fallback
-  }
 
   const handleClaimReward = async () => {
     if (!userId || !username || selectedDay === null) {
@@ -136,33 +123,37 @@ export function AdventCalendarClient({ rewardsByDay, claims, userId, username }:
     const dayRewards = rewardsByDay[selectedDay] || []
     if (dayRewards.length === 0) return
 
-    // Select random reward based on probabilities
-    const selectedReward = selectRandomReward(dayRewards)
+    // The server rolls the reward and records the claim (/api/advent/claim);
+    // this only plays the animation for what it decided. Rolling here and
+    // writing the result from the browser let anyone pick their own prize.
+    try {
+      const response = await fetch("/api/advent/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ day_number: selectedDay }),
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload?.error || "Failed to claim reward")
 
-    // Show roll animation
-    setRollingRewards(dayRewards)
-    setWonReward(selectedReward)
-    setIsRolling(true)
-    setSelectedDay(null)
+      const won = dayRewards.find((reward) => reward.id === payload.reward?.id) ?? (payload.reward as AdventReward)
+      setRollingRewards(dayRewards)
+      setWonReward(won)
+      setIsRolling(true)
+      setSelectedDay(null)
+    } catch (error: any) {
+      toast({
+        title: "Cannot Claim",
+        description: error.message || "Failed to claim reward",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleRollComplete = async () => {
     if (!wonReward || !userId || !username) return
 
+    // Already recorded by the server before the animation started.
     try {
-      const { error } = await supabase.from("advent_calendar_claims").insert({
-        user_id: userId,
-        username: username,
-        day_number: wonReward.day_number,
-        reward_id: wonReward.id,
-        reward_title: wonReward.title,
-        reward_description: wonReward.description,
-        reward_icon: wonReward.icon,
-        reward_value: wonReward.reward_value,
-      })
-
-      if (error) throw error
-
       setClaimedDays(
         (prev) =>
           new Map([

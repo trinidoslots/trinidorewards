@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { serviceClient } from "@/lib/supabase/service"
+import { getSiteSession } from "@/lib/site-session"
 
 /**
  * Everything the profile's header, Overview and Stats tabs show, in one call.
@@ -27,7 +28,7 @@ const text = (value: unknown) => (typeof value === "string" ? value : value == n
 
 export async function GET() {
   const cookieStore = await cookies()
-  const userId = cookieStore.get("user_db_id")?.value
+  const userId = (await getSiteSession())?.userId
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   let client: ReturnType<typeof serviceClient>
@@ -183,5 +184,7 @@ export async function GET() {
     },
     spent: { store: spentOnStore, raffles: spentOnRaffles, total: spentOnStore + spentOnRaffles },
     activity,
+    // The Redemptions tab reads these from here: the table is private (072).
+    redemptions: redemptionRows,
   })
 }

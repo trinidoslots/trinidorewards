@@ -3,10 +3,12 @@ import { Coins, Package, ShoppingBag } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, StatTile } from "@/components/ui/panel"
 import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
+import { serviceClient } from "@/lib/supabase/service"
 import { StoreItemCard } from "@/components/store-item-card"
 import { inStock, isAvailable, type StoreItem } from "@/lib/store"
 import { PageBody, PageHero } from "@/components/page-hero"
 import type { Metadata } from "next"
+import { getSiteSession } from "@/lib/site-session"
 
 export const metadata: Metadata = {
   title: "Store",
@@ -22,12 +24,15 @@ export const metadata: Metadata = {
 export default async function StorePage() {
   const supabase = await createClient()
   const cookieStore = await cookies()
-  const kickUserId = cookieStore.get("kick_user_id")
+  const session = await getSiteSession()
+  const kickUserId = session ? { value: session.kickId } : undefined
   const isLoggedIn = !!kickUserId
 
   let userPoints = 0
   if (kickUserId) {
-    const { data } = await supabase
+    // users is not publicly readable (scripts/072); this is the signed-in
+    // user's own balance, by the Kick id in their signed session.
+    const { data } = await serviceClient()
       .from("users")
       .select("points_balance")
       .eq("kick_id", kickUserId.value)

@@ -1,10 +1,10 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { serviceClient } from "@/lib/supabase/service"
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin-guard"
 
 export async function DELETE(request: Request) {
   try {
-    const supabase = await createServerClient()
+    const supabase = serviceClient()
     const { raffleId } = await request.json()
 
     // Deleting a raffle is an admin action. This used to accept any signed-in

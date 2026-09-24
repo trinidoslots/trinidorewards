@@ -9,6 +9,7 @@ import { RaffleLiveDraw } from "@/components/raffle-live-draw"
 import RaffleEntryButton from "@/components/raffle-entry-button"
 import { calculateRaffleStatus, formatDrawDate } from "@/lib/raffle-utils"
 import { PageBody, PageHero } from "@/components/page-hero"
+import { getSiteSession } from "@/lib/site-session"
 
 // No static `metadata` here: generateMetadata below names the page after the
 // raffle itself, and a route may declare one or the other, never both.
@@ -66,7 +67,7 @@ export default async function RaffleDetailPage({ params }: Params) {
   if (!raffle) notFound()
 
   const [entries, cookieStore] = await Promise.all([getEntries(id), cookies()])
-  const userId = cookieStore.get("user_db_id")?.value ?? null
+  const userId = (await getSiteSession())?.userId ?? null
 
   const totalTickets = entries.reduce((sum, entry) => sum + (Number(entry.tickets_purchased) || 0), 0)
   const mine = userId ? entries.find((entry) => entry.user_id === userId) : null

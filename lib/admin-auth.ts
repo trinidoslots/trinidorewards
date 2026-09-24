@@ -37,35 +37,63 @@ export function kickIdOf(user: Pick<User, "app_metadata"> | null | undefined): s
   return typeof value === "string" && value.trim() ? value.trim() : null
 }
 
-/** Whether this Kick account is tagged as an admin. Any failure reads as "no". */
-export async function isAdminKickId(kickId: string | null | undefined): Promise<boolean> {
-  if (!kickId) return false
+/** The on-site account (users.id) a verified Supabase user was minted for, if any. */
+export function siteUserIdOf(user: Pick<User, "app_metadata"> | null | undefined): string | null {
+  const value = user?.app_metadata?.site_user_id
+  return typeof value === "string" && value.trim() ? value.trim() : null
+}
+
+/**
+ * The admin tag for an account, or null. Any failure reads as "no".
+ *
+ * The tag lives on the on-site account (admin_accounts.user_id), and names the
+ * Kick account it belongs to as well. Both have to match. The Kick id is the
+ * one Kick itself reported at login; the on-site id is the account the
+ * callback resolved it to. Neither can be supplied by the browser, and a row
+ * in users being edited cannot move a tag onto another Kick account, because
+ * the tag carries its own copy of the Kick id and only the server writes it.
+ */
+export async function adminTag(
+  account: { siteUserId: string | null | undefined; kickId: string | null | undefined },
+): Promise<{ isOwner: boolean } | null> {
+  if (!account.siteUserId || !account.kickId) return null
   try {
     const { data, error } = await serviceClient()
       .from("admin_accounts")
-      .select("kick_id")
-      .eq("kick_id", kickId)
+      .select("*")
+      .eq("user_id", account.siteUserId)
+      .eq("kick_id", account.kickId)
       .maybeSingle()
     if (error) {
-      console.error("[admin] admin_accounts lookup failed. Has scripts/070 been run?", error)
-      return false
+      console.error("[admin] admin_accounts lookup failed. Have scripts/070 and 071 been run?", error)
+      return null
     }
-    return !!data
+    return data ? { isOwner: data.is_owner === true } : null
   } catch (error) {
     console.error("[admin] admin_accounts lookup failed:", error)
-    return false
+    return null
   }
 }
 
-export type AdminIdentity = { kickId: string; username: string | null; avatarUrl: string | null }
+export type AdminIdentity = {
+  kickId: string
+  siteUserId: string
+  isOwner: boolean
+  username: string | null
+  avatarUrl: string | null
+}
 
 /** The admin behind a verified Supabase user, or null. */
 export async function adminFromUser(user: User | null | undefined): Promise<AdminIdentity | null> {
   const kickId = kickIdOf(user)
-  if (!kickId || !(await isAdminKickId(kickId))) return null
+  const siteUserId = siteUserIdOf(user)
+  const tag = await adminTag({ siteUserId, kickId })
+  if (!tag || !kickId || !siteUserId) return null
   const meta = user?.user_metadata ?? {}
   return {
     kickId,
+    siteUserId,
+    isOwner: tag.isOwner,
     username: typeof meta.kick_username === "string" ? meta.kick_username : null,
     avatarUrl: typeof meta.avatar_url === "string" ? meta.avatar_url : null,
   }
@@ -103,17 +131,20 @@ export function supabaseForResponse(request: NextRequest, response: NextResponse
 export async function mintAdminSession(
   request: NextRequest,
   response: NextResponse,
-  kick: { kickId: string; username: string; avatarUrl: string | null },
+  kick: { kickId: string; siteUserId: string; username: string; avatarUrl: string | null },
 ): Promise<boolean> {
   try {
     const admin = serviceClient().auth.admin
     const email = adminAuthEmail(kick.kickId)
     const metadata = { kick_username: kick.username, avatar_url: kick.avatarUrl }
+    // Only the service role can write app_metadata, and it is signed into the
+    // session's JWT, so the database's is_admin() can read it (scripts/072).
+    const identity = { kick_id: kick.kickId, site_user_id: kick.siteUserId }
 
     const created = await admin.createUser({
       email,
       email_confirm: true,
-      app_metadata: { kick_id: kick.kickId },
+      app_metadata: identity,
       user_metadata: metadata,
     })
 
@@ -135,8 +166,14 @@ export async function mintAdminSession(
       console.error("[admin] The auth user for this address is not bound to this Kick id; refusing.")
       return false
     }
-    // Keeps the name and picture in the admin bar current.
-    await admin.updateUserById(link.data.user.id, { user_metadata: metadata })
+    // Before redeeming the token, so the session it produces already carries
+    // the on-site id (an auth user from before it was recorded gets it here),
+    // and the name and picture in the admin bar are current.
+    const updated = await admin.updateUserById(link.data.user.id, { app_metadata: identity, user_metadata: metadata })
+    if (updated.error) {
+      console.error("[admin] Could not update the admin auth user:", updated.error)
+      return false
+    }
 
     const verified = await supabaseForResponse(request, response).auth.verifyOtp({
       type: "magiclink",

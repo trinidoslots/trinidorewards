@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { requireAdmin } from "@/lib/admin-guard"
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 
 function createServiceClient() {
@@ -6,7 +6,10 @@ function createServiceClient() {
 }
 
 export async function DELETE(request: Request) {
-  const supabase = await createClient()
+  // Deleting a prediction had no check at all.
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
+
   const serviceSupabase = createServiceClient()
   const { searchParams } = new URL(request.url)
   const id = searchParams.get("id")

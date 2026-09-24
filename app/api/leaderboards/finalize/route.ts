@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server"
+import { serviceClient } from "@/lib/supabase/service"
+import { requireAdmin } from "@/lib/admin-guard"
 import { finalizeDueLeaderboards, finalizeLeaderboard } from "@/lib/leaderboard-finalize"
 
 export const dynamic = "force-dynamic"
@@ -24,19 +25,23 @@ export async function GET(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const supabase = await createClient()
+  const supabase = serviceClient()
   const finalized = await finalizeDueLeaderboards(supabase)
   return Response.json({ finalized: finalized.length, leaderboards: finalized })
 }
 
 export async function POST(request: Request) {
+  // Closing a board by hand is the admin's call. This had no check at all.
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
+
   const { leaderboardId, force, due } = await request.json().catch(() => ({}) as Record<string, unknown>)
 
   // { due: true } sweeps every board whose window has closed. The nightly cron
   // does the same thing; this is so the admin is never looking at stale ranks
   // just because the run has not come round yet.
   if (due === true) {
-    const supabase = await createClient()
+    const supabase = serviceClient()
     const finalized = await finalizeDueLeaderboards(supabase)
     return Response.json({ finalized: finalized.length, leaderboards: finalized })
   }
@@ -45,7 +50,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "leaderboardId is required" }, { status: 400 })
   }
 
-  const supabase = await createClient()
+  const supabase = serviceClient()
   const result = await finalizeLeaderboard(supabase, leaderboardId, { force: force === true })
 
   if (!result) {

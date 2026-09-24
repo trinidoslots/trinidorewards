@@ -1,11 +1,12 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
+import { getSiteSession } from "@/lib/site-session"
 
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const username = cookieStore.get("kick_username")?.value
+    const username = (await getSiteSession())?.username
 
     if (!username) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })

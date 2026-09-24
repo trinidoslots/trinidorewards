@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin-guard"
-import { isAdminKickId } from "@/lib/admin-auth"
+import { adminTag } from "@/lib/admin-auth"
 import { serviceClient } from "@/lib/supabase/service"
 
 /**
@@ -87,13 +87,17 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     .reduce((sum, row) => sum + (Number(row.cost) || 0), 0)
   const spentOnRaffles = raffleRows.reduce((sum, row) => sum + (Number(row.points_spent) || 0), 0)
 
-  // The admin tag lives on the Kick account (admin_accounts, scripts/070).
+  // The admin tag lives on the on-site account and names its Kick account
+  // (admin_accounts, scripts/071).
   const kickId = typeof user.kick_id === "string" ? user.kick_id : null
+  const tag = await adminTag({ siteUserId: user.id, kickId })
   const admin = {
-    is_admin: await isAdminKickId(kickId),
+    is_admin: !!tag,
     // Shown so the page can refuse, before the route does, to let you take
     // away your own access.
-    is_self: !!kickId && kickId === auth.kickId,
+    is_self: user.id === auth.siteUserId,
+    // The main admin cannot be untagged by anyone.
+    is_owner: tag?.isOwner === true,
   }
 
   return NextResponse.json({
@@ -123,7 +127,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
  *
  * Takes effect on their next request: every admin check looks the tag up
  * afresh (lib/admin-auth.ts). You cannot untag yourself from here, so the
- * panel can never be left without the admin who was using it.
+ * panel can never be left without the admin who was using it, and nobody can
+ * untag the main admin (scripts/071).
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin()
@@ -145,21 +150,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "This user has never signed in with Kick, so there is no account to tag." }, { status: 400 })
   }
 
-  if (!body.is_admin && kickId === auth.kickId) {
+  if (!body.is_admin && user.id === auth.siteUserId) {
     return NextResponse.json({ error: "You cannot remove your own admin access." }, { status: 400 })
+  }
+
+  const isOwner = (await adminTag({ siteUserId: user.id, kickId }))?.isOwner === true
+  if (!body.is_admin && isOwner) {
+    return NextResponse.json({ error: "This is the main admin, whose access cannot be removed here." }, { status: 400 })
   }
 
   const write = body.is_admin
     ? await client
         .from("admin_accounts")
-        .upsert({ kick_id: kickId, username: user.username, added_by: auth.email }, { onConflict: "kick_id" })
-    : await client.from("admin_accounts").delete().eq("kick_id", kickId)
+        // Keyed on the on-site account. The Kick id is copied in so the tag
+        // cannot follow a users row that is later pointed at someone else.
+        .upsert({ user_id: user.id, kick_id: kickId, username: user.username, added_by: auth.email }, { onConflict: "user_id" })
+    : await client.from("admin_accounts").delete().eq("user_id", user.id)
 
   if (write.error) {
     console.error("[admin] Could not change the admin tag:", write.error)
-    return NextResponse.json({ error: "Could not save. Has scripts/070_admin_accounts.sql been run?" }, { status: 500 })
+    return NextResponse.json({ error: "Could not save. Have scripts/070 and 071 been run?" }, { status: 500 })
   }
 
   console.log(`[admin] ${auth.email} ${body.is_admin ? "tagged" : "untagged"} ${user.username} (${kickId})`)
-  return NextResponse.json({ admin: { is_admin: body.is_admin, is_self: kickId === auth.kickId } })
+  return NextResponse.json({ admin: { is_admin: body.is_admin, is_self: user.id === auth.siteUserId, is_owner: isOwner } })
 }

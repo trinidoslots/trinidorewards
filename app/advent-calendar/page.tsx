@@ -1,4 +1,6 @@
 import { createServerClient } from "@/lib/supabase/server"
+import { serviceClient } from "@/lib/supabase/service"
+import { getSiteSession } from "@/lib/site-session"
 import { AdventCalendarClient } from "@/components/advent-calendar-client"
 import { PageBody, PageHero } from "@/components/page-hero"
 import type { Metadata } from "next"
@@ -52,7 +54,8 @@ async function getAdventData(userId: string | null) {
 
   let claims: AdventClaim[] = []
   if (userId) {
-    const { data: claimsData, error: claimsError } = await supabase
+    // Claims are private (scripts/072): this user's own, by their session id.
+    const { data: claimsData, error: claimsError } = await serviceClient()
       .from("advent_calendar_claims")
       .select("day_number, claimed_at, reward_title, reward_icon")
       .eq("user_id", userId)
@@ -65,18 +68,14 @@ async function getAdventData(userId: string | null) {
   return { rewardsByDay, claims }
 }
 
+/**
+ * The signed-in user, from the signed site session. This asked Supabase auth
+ * before, which only admins have, so for everyone else the calendar never
+ * knew who they were.
+ */
 async function getCurrentUser() {
-  const supabase = await createServerClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) return null
-
-  const { data: userData } = await supabase.from("users").select("id, username").eq("id", user.id).single()
-
-  return userData
+  const session = await getSiteSession()
+  return session ? { id: session.userId, username: session.username } : null
 }
 
 export default async function AdventCalendarPage() {

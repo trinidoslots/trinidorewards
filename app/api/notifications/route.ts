@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { serviceClient } from "@/lib/supabase/service"
+import { getSiteSession } from "@/lib/site-session"
 
 /**
  * The signed-in user's notifications for the bell in the top bar.
@@ -29,7 +30,7 @@ const LIMIT = 20
 
 export async function GET() {
   const cookieStore = await cookies()
-  const userId = cookieStore.get("user_db_id")?.value
+  const userId = (await getSiteSession())?.userId
   if (!userId) return NextResponse.json({ notifications: [] })
 
   let client: ReturnType<typeof serviceClient>

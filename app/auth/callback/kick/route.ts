@@ -1,7 +1,8 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { serviceClient } from "@/lib/supabase/service"
+import { LEGACY_SESSION_COOKIES, SESSION_COOKIE, SESSION_COOKIE_OPTIONS, encodeSession } from "@/lib/site-session"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { endSupabaseSession, isAdminKickId, mintAdminSession } from "@/lib/admin-auth"
+import { adminTag, endSupabaseSession, mintAdminSession } from "@/lib/admin-auth"
 import { isAdminPath, safeNext } from "@/lib/admin-host"
 
 /** A cookie value as written by lib/kick-login.ts, which URI-encodes it. */
@@ -184,7 +185,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const supabase = await createServerClient()
+    // The service role, not the visitor's anon key: users holds everyone's
+    // points, and the database no longer lets the anon key write it (072).
+    // This row is only ever touched here for the Kick account Kick just named.
+    const supabase = serviceClient()
 
     const kickUserIdStr = String(kickUserId)
 
@@ -259,9 +263,11 @@ export async function GET(request: NextRequest) {
     // (they are not signed). A tagged account gets one here; anyone else has
     // any previous one ended, so signing in as a different Kick account can
     // never leave the last admin's session behind. See lib/admin-auth.ts.
-    if (await isAdminKickId(kickUserIdStr)) {
+    // The tag is on the on-site account and must name this Kick account too.
+    if (await adminTag({ siteUserId: dbUserId, kickId: kickUserIdStr })) {
       const minted = await mintAdminSession(request, response, {
         kickId: kickUserIdStr,
+        siteUserId: dbUserId,
         username: kickUsername,
         avatarUrl: kickAvatarUrl || null,
       })
@@ -272,30 +278,13 @@ export async function GET(request: NextRequest) {
       await endSupabaseSession(request, response)
     }
 
-    response.cookies.set("kick_user_id", kickUserIdStr, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    })
-    response.cookies.set("user_db_id", dbUserId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    })
-    response.cookies.set("kick_username", kickUsername, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    })
-    response.cookies.set("kick_avatar_url", kickAvatarUrl || "", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    })
+    // One signed cookie instead of four plain ones: see lib/site-session.ts.
+    response.cookies.set(
+      SESSION_COOKIE,
+      encodeSession({ userId: dbUserId, kickId: kickUserIdStr, username: kickUsername, avatarUrl: kickAvatarUrl || null }),
+      SESSION_COOKIE_OPTIONS,
+    )
+    for (const name of LEGACY_SESSION_COOKIES) response.cookies.delete(name)
 
     response.cookies.delete("kick_code_verifier")
     response.cookies.delete("kick_oauth_state")

@@ -1,14 +1,15 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { serviceClient } from "@/lib/supabase/service"
 import { revalidatePath } from "next/cache"
 import { cookies } from "next/headers"
+import { getSiteSession } from "@/lib/site-session"
 
 export async function createHunt(formData: FormData) {
   try {
-    const supabase = await createClient()
+    const supabase = serviceClient()
     const cookieStore = await cookies()
-    const username = cookieStore.get("kick_username")?.value
+    const username = (await getSiteSession())?.username
 
     if (!username) {
       return { success: false, error: "Not authenticated" }
@@ -48,7 +49,11 @@ export async function createHunt(formData: FormData) {
 
 export async function updateBalance(formData: FormData) {
   try {
-    const supabase = await createClient()
+    const supabase = serviceClient()
+    // Signed in, and only your own hunt: these ran unchecked before, so any
+    // visitor could change anyone's hunt by id.
+    const owner = (await getSiteSession())?.username
+    if (!owner) return { success: false, error: "Not authenticated" }
     const huntId = formData.get("huntId") as string
     const newBalance = Number.parseFloat(formData.get("new_balance") as string)
 
@@ -59,6 +64,7 @@ export async function updateBalance(formData: FormData) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", huntId)
+      .eq("user_id", owner)
 
     if (error) {
       console.error("[v0] Error updating balance:", error)
@@ -75,7 +81,11 @@ export async function updateBalance(formData: FormData) {
 
 export async function recordBonus(formData: FormData) {
   try {
-    const supabase = await createClient()
+    const supabase = serviceClient()
+    // Signed in, and only your own hunt: these ran unchecked before, so any
+    // visitor could change anyone's hunt by id.
+    const owner = (await getSiteSession())?.username
+    if (!owner) return { success: false, error: "Not authenticated" }
     const huntId = formData.get("huntId") as string
     const bonusDetails = formData.get("bonus_details") as string
 
@@ -87,6 +97,7 @@ export async function recordBonus(formData: FormData) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", huntId)
+      .eq("user_id", owner)
 
     if (error) {
       console.error("[v0] Error recording bonus:", error)
@@ -103,7 +114,11 @@ export async function recordBonus(formData: FormData) {
 
 export async function completeHunt(huntId: string) {
   try {
-    const supabase = await createClient()
+    const supabase = serviceClient()
+    // Signed in, and only your own hunt: these ran unchecked before, so any
+    // visitor could change anyone's hunt by id.
+    const owner = (await getSiteSession())?.username
+    if (!owner) return { success: false, error: "Not authenticated" }
 
     const { error } = await supabase
       .from("hunts")
@@ -113,6 +128,7 @@ export async function completeHunt(huntId: string) {
         updated_at: new Date().toISOString(),
       })
       .eq("id", huntId)
+      .eq("user_id", owner)
 
     if (error) {
       console.error("[v0] Error completing hunt:", error)

@@ -113,16 +113,8 @@ export default function RandomSlotOBS() {
 
         setTimer(async () => {
           try {
-            await supabase
-              .from("random_slot_state")
-              .update({
-                final_slot_name: null,
-                final_slot_provider: null,
-                current_slot_name: null,
-                current_slot_provider: null,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", 1)
+            // Through the server: the anon key can no longer write this row.
+            await fetch("/api/random-slot/reset", { method: "POST" })
           } catch (e) {
             console.error("error resetting random_slot_state", e)
           } finally {

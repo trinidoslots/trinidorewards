@@ -2,10 +2,15 @@ import { readFile, readdir } from "node:fs/promises"
 import path from "node:path"
 import JSZip from "jszip"
 import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/admin-guard"
 
 const EXTENSION_DIR = path.join(process.cwd(), "extension")
 
 export async function GET() {
+  // The extension is the admin's tool; only an admin downloads it.
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
+
   const zip = new JSZip()
   const files = await readdir(EXTENSION_DIR)
 

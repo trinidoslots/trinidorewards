@@ -28,12 +28,27 @@ ALTER TABLE admin_accounts ENABLE ROW LEVEL SECURITY;
 -- different; add more names to the list for more admins. After this, admins
 -- are tagged and untagged from /admin/users.
 
-INSERT INTO admin_accounts (kick_id, username, added_by)
-SELECT kick_id, username, 'scripts/070'
-  FROM users
- WHERE lower(username) IN ('trinidoslots')
-   AND kick_id IS NOT NULL
-ON CONFLICT (kick_id) DO NOTHING;
+-- Written to survive being re-run after 071, which re-keys the table on the
+-- on-site account (user_id) and then needs that column filled in.
+DO $boot$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'admin_accounts' AND column_name = 'user_id') THEN
+    INSERT INTO admin_accounts (user_id, kick_id, username, added_by)
+    SELECT id, kick_id::text, username, 'scripts/070'
+      FROM users
+     WHERE lower(username) IN ('trinidoslots')
+       AND kick_id IS NOT NULL
+    ON CONFLICT DO NOTHING;
+  ELSE
+    INSERT INTO admin_accounts (kick_id, username, added_by)
+    SELECT kick_id, username, 'scripts/070'
+      FROM users
+     WHERE lower(username) IN ('trinidoslots')
+       AND kick_id IS NOT NULL
+    ON CONFLICT DO NOTHING;
+  END IF;
+END
+$boot$;
 
 -- --- verify -----------------------------------------------------------------------
 

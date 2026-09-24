@@ -8,6 +8,7 @@ import { PreviousHuntsPanel } from "@/components/previous-hunts-panel"
 import { BonusHuntTabs } from "@/components/bonus-hunt-tabs"
 import { PageBody, PageHero } from "@/components/page-hero"
 import type { Metadata } from "next"
+import { getSiteSession } from "@/lib/site-session"
 
 export const metadata: Metadata = {
   title: "Bonus hunt",
@@ -37,7 +38,7 @@ export default async function BonusHuntPage({ searchParams }: PageProps) {
   const supabase = await createClient()
   const cookieStore = await cookies()
 
-  const username = cookieStore.get("kick_username")?.value
+  const username = (await getSiteSession())?.username
   const isLoggedIn = !!username
 
   const { data: huntSourceData } = await supabase

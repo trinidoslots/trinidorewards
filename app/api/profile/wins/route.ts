@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { serviceClient } from "@/lib/supabase/service"
+import { getSiteSession } from "@/lib/site-session"
 
 /**
  * The signed-in user's own wins.
@@ -10,7 +11,7 @@ import { serviceClient } from "@/lib/supabase/service"
  */
 export async function GET() {
   const cookieStore = await cookies()
-  const userId = cookieStore.get("user_db_id")?.value
+  const userId = (await getSiteSession())?.userId
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const client = serviceClient()

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { serviceClient } from "@/lib/supabase/service"
+import { getSiteSession } from "@/lib/site-session"
 
 /**
  * A user's usernames on the casinos they play.
@@ -15,7 +16,7 @@ import { serviceClient } from "@/lib/supabase/service"
 
 async function currentUserId(): Promise<string | null> {
   const cookieStore = await cookies()
-  return cookieStore.get("user_db_id")?.value ?? null
+  return (await getSiteSession())?.userId ?? null
 }
 
 export async function GET() {

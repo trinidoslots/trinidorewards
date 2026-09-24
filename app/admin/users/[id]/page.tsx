@@ -50,7 +50,7 @@ type Payload = {
     created_at: string
   }
   /** Absent from an older route, which is read as "not an admin". */
-  admin?: { is_admin: boolean; is_self: boolean }
+  admin?: { is_admin: boolean; is_self: boolean; is_owner?: boolean }
   accounts: Account[]
   payments: Payment[]
   redemptions: Redemption[]
@@ -173,7 +173,7 @@ export default function AdminUserDetailPage() {
         <AdminTag
           userId={user.id}
           hasKick={!!user.kick_id}
-          admin={data.admin ?? { is_admin: false, is_self: false }}
+          admin={data.admin ?? { is_admin: false, is_self: false, is_owner: false }}
           onChange={(admin) => setData((current) => (current ? { ...current, admin } : current))}
         />
       </Panel>
@@ -504,16 +504,19 @@ function AdminTag({
 }: {
   userId: string
   hasKick: boolean
-  admin: { is_admin: boolean; is_self: boolean }
-  onChange: (admin: { is_admin: boolean; is_self: boolean }) => void
+  admin: { is_admin: boolean; is_self: boolean; is_owner?: boolean }
+  onChange: (admin: { is_admin: boolean; is_self: boolean; is_owner?: boolean }) => void
 }) {
   const [busy, setBusy] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
 
-  const locked = !hasKick || (admin.is_admin && admin.is_self)
+  const owner = admin.is_admin && admin.is_owner === true
+  const locked = !hasKick || owner || (admin.is_admin && admin.is_self)
   const title = !hasKick
     ? "Never signed in with Kick, so there is no account to tag."
-    : admin.is_self && admin.is_admin
+    : owner
+      ? "The main admin. Their access cannot be removed here."
+      : admin.is_self && admin.is_admin
       ? "You cannot remove your own admin access."
       : undefined
 
@@ -560,7 +563,7 @@ function AdminTag({
           className="h-1.5 w-1.5 rounded-full"
           style={{ backgroundColor: admin.is_admin ? ACCENTS.amber : "rgba(255,255,255,0.25)" }}
         />
-        {busy ? "Saving…" : admin.is_admin ? "Admin" : "Make admin"}
+        {busy ? "Saving…" : owner ? "Main admin" : admin.is_admin ? "Admin" : "Make admin"}
       </button>
       {problem && (
         <span className="max-w-[240px] text-right text-[11px]" style={{ color: ACCENTS.red }}>

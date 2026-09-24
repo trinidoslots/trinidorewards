@@ -2,6 +2,7 @@ import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { serviceClient } from "@/lib/supabase/service"
 import { findChain, findCrypto } from "@/lib/payout"
+import { getSiteSession } from "@/lib/site-session"
 
 /**
  * A user's own payout details.
@@ -22,7 +23,7 @@ import { findChain, findCrypto } from "@/lib/payout"
 
 async function currentUserId(): Promise<string | null> {
   const cookieStore = await cookies()
-  return cookieStore.get("user_db_id")?.value ?? null
+  return (await getSiteSession())?.userId ?? null
 }
 
 export async function GET() {

@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { serviceClient } from "@/lib/supabase/service"
 import { inStock, isAvailable, isUnlimited } from "@/lib/store"
 import { readPayoutDetails, readPayoutMethod } from "@/lib/payout"
+import { getSiteSession } from "@/lib/site-session"
 
 /**
  * Buying an item with points.
@@ -22,8 +23,8 @@ import { readPayoutDetails, readPayoutMethod } from "@/lib/payout"
 export async function POST(request: Request) {
   try {
     const cookieStore = await cookies()
-    const userId = cookieStore.get("user_db_id")?.value
-    const kickUserId = cookieStore.get("kick_user_id")?.value
+    const userId = (await getSiteSession())?.userId
+    const kickUserId = (await getSiteSession())?.kickId
     if (!userId && !kickUserId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
 
     const { itemId, payout } = await request.json().catch(() => ({ itemId: null, payout: null }))
