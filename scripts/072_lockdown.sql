@@ -28,6 +28,22 @@
 -- write this could not see coming; the fix is a policy for that one table,
 -- not reverting the whole script.
 
+-- --- 071 first ----------------------------------------------------------------------
+--
+-- is_admin() below reads admin_accounts.user_id, which 071 creates. Without it
+-- this stops here, before changing anything, and says which script is missing.
+
+DO $pre$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'admin_accounts' AND column_name = 'user_id'
+  ) THEN
+    RAISE EXCEPTION 'Run scripts/070_admin_accounts.sql and scripts/071_main_admin.sql first, then this one. Nothing was changed.';
+  END IF;
+END
+$pre$;
+
 -- --- who is an admin, inside the database -----------------------------------------
 --
 -- The session's JWT carries app_metadata.kick_id and app_metadata.site_user_id
@@ -63,7 +79,10 @@ DECLARE
   private_tables text[] := ARRAY[
     'users', 'redemptions', 'redemption_payouts', 'user_payment_methods',
     'user_site_usernames', 'chat_activity', 'points_grants',
-    'points_grant_entries', 'advent_calendar_claims'
+    'points_grant_entries', 'advent_calendar_claims',
+    -- In the live database but read by nothing in the site (see 073).
+    'user_messages', 'chat_messages', 'kick_chat_messages', 'kick_channel_monitor_status',
+    'giveaway_entries', 'giveaway_sessions', 'giveaway_winners_log', 'obs_banners'
   ];
 BEGIN
   FOR t IN
