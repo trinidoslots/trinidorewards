@@ -86,16 +86,16 @@ const POINTS: Tone[] = [
 ]
 
 /** The alert. Its own name, so no cache can serve one of the earlier samples. */
-const ALERT_SRC = "/obs-alert.mp3"
+const ALERT_SRC = "/obs-alert.wav"
 
 /**
- * The file's first 74 ms are silent; played from zero, every announcement
- * would lag its card. Starts a few ms early so the attack is not clipped.
+ * The file's first 12 ms are silent. Skipped so the sound lands with its card;
+ * starts a hair early so the attack is not clipped.
  */
-const ALERT_OFFSET = 0.07
+const ALERT_OFFSET = 0.01
 
 /** Measured peak of the file across both channels, to normalise against. */
-const ALERT_FILE_PEAK = 0.7361
+const ALERT_FILE_PEAK = 0.7943
 
 /** What the alert peaks at, at volume 1. */
 const ALERT_PEAK = 0.4
