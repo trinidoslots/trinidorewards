@@ -3,7 +3,7 @@
  *
  * Three of them now, not one:
  *
- *   - points    a rising four-note figure, for a payout to chat
+ *   - points    the streamer's coin sample, for a payout to chat
  *   - deposit   a falling pair, low
  *   - withdrawal / event   the same pair rising, an octave up
  *
@@ -14,9 +14,12 @@
  * nothing but its fundamental — the range a stream encoder spends least on and
  * music fills most — and without it the low half vanishes on stream.
  *
- * Everything is synthesised. A file would mean an asset to licence, a request
- * that can 404 mid-stream, and a decode that takes longer than the sound
- * itself; a handful of numbers has none of those problems.
+ * Everything but the coin is synthesised. The coin is a recording of many
+ * coins falling — broadband noise with no steady pitch in it — which is the
+ * one kind of sound a handful of sines cannot imitate, so it ships as a file.
+ * The costs of a file are handled below: it is fetched and decoded once when
+ * the overlay loads, and if that fails the payout falls back to POINTS rather
+ * than to silence.
  *
  * Autoplay is the catch. OBS's browser source runs CEF with autoplay allowed,
  * so this works there. A normal browser suspends a new AudioContext until the
@@ -66,7 +69,7 @@ const DEPOSIT: Tone[] = [
 ]
 
 /**
- * The payout.
+ * The payout, synthesised. Only heard when the coin file could not be loaded.
  *
  * The pitches and the timing are measured from a reference recording rather
  * than chosen: four notes 65 ms apart climbing D6 · A6 · D7 · G7 — a fifth then
@@ -86,6 +89,26 @@ const POINTS: Tone[] = [
   { frequency: 2349.32, at: 0.13, duration: 0.45, gain: 0.5 }, // D7
   { frequency: 3135.96, at: 0.195, duration: 0.55, gain: 0.52 }, // G7
 ]
+
+/** The coin. A new name rather than the old obs-coin.mp3, so no cache can serve the previous sample. */
+const COIN_SRC = "/obs-points.mp3"
+
+/**
+ * The file's first 150 ms are near silence (under -60 dB); played from zero,
+ * every payout would lag the card that announces it. The swell that follows is
+ * part of the sound and is kept.
+ */
+const COIN_OFFSET = 0.15
+
+/**
+ * Measured peak of the file across both channels. It is mastered very quiet —
+ * about -23 dB — so it is brought up to COIN_PEAK rather than played as is,
+ * where it would sit far below the other pings.
+ */
+const COIN_FILE_PEAK = 0.0695
+
+/** What the coin peaks at, at volume 1. */
+const COIN_PEAK = 0.4
 
 export function clampVolume(value: number): number {
   if (!Number.isFinite(value)) return 0
@@ -155,6 +178,59 @@ export function unlockOnInteraction(): () => void {
   return remove
 }
 
+let coinBuffer: AudioBuffer | null = null
+let coinPending: Promise<void> | null = null
+let coinFailed = false
+
+/**
+ * Fetches and decodes the coin once.
+ *
+ * Call it when an overlay mounts. Left to the first payout, that payout would
+ * pay for the round trip and the decode — the one moment it must not be late.
+ */
+export function preloadPing(): void {
+  const ctx = audioContext()
+  if (!ctx || coinBuffer || coinPending || coinFailed) return
+
+  coinPending = fetch(COIN_SRC)
+    .then((response) => {
+      if (!response.ok) throw new Error(`${COIN_SRC}: ${response.status}`)
+      return response.arrayBuffer()
+    })
+    .then((bytes) => ctx.decodeAudioData(bytes))
+    .then((decoded) => {
+      coinBuffer = decoded
+    })
+    .catch((problem) => {
+      // Not retried: POINTS covers it, and a broken path should not turn into
+      // a request per payout.
+      coinFailed = true
+      console.error("[obs] Could not load the coin sound, falling back to the synth:", problem)
+    })
+    .finally(() => {
+      coinPending = null
+    })
+}
+
+function playCoin(ctx: AudioContext, level: number): void {
+  if (!coinBuffer) {
+    preloadPing()
+    playTones(ctx, POINTS, level)
+    return
+  }
+
+  const source = ctx.createBufferSource()
+  const gain = ctx.createGain()
+
+  source.buffer = coinBuffer
+  gain.gain.value = (level * COIN_PEAK) / COIN_FILE_PEAK
+
+  source.connect(gain)
+  gain.connect(ctx.destination)
+  // The second argument is an offset into the buffer, not a delay.
+  source.start(ctx.currentTime, COIN_OFFSET)
+}
+
 /**
  * One sine with its envelope.
  *
@@ -193,11 +269,6 @@ function playTones(ctx: AudioContext, tones: Tone[], level: number): void {
   }
 }
 
-function tonesFor(kind: PingKind): Tone[] {
-  if (kind === "points") return POINTS
-  if (kind === "deposit") return DEPOSIT
-  return WITHDRAWAL
-}
 
 /**
  * Plays the sound for an event. Never throws, never blocks — a failed sound
@@ -218,7 +289,8 @@ export function playPing(volume: number, kind: PingKind = "event"): void {
   if (ctx.state === "suspended") void ctx.resume().catch(() => {})
 
   try {
-    playTones(ctx, tonesFor(kind), level)
+    if (kind === "points") playCoin(ctx, level)
+    else playTones(ctx, kind === "deposit" ? DEPOSIT : WITHDRAWAL, level)
     lastPlayed = now
   } catch {
     // A context that was closed under us, or a browser refusing to schedule.
