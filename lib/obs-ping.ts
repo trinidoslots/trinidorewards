@@ -97,8 +97,8 @@ const ALERT_OFFSET = 0.01
 /** Measured peak of the file across both channels, to normalise against. */
 const ALERT_FILE_PEAK = 0.7943
 
-/** What the alert peaks at, at volume 1. */
-const ALERT_PEAK = 0.4
+/** What the alert peaks at, at volume 1. Halved from 0.4 after it played too loud on stream. */
+const ALERT_PEAK = 0.2
 
 export function clampVolume(value: number): number {
   if (!Number.isFinite(value)) return 0
