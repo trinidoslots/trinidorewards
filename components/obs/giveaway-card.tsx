@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Gift, Trophy, Users, User, Timer } from "lucide-react"
 import { formatElapsed, formatKeywordForDisplay } from "@/lib/kick-chat"
 import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
+import { GiveawayReel } from "@/components/giveaway-reel"
 
 export type GiveawayStatus = "idle" | "open" | "closed" | "rolling" | "finished"
 
@@ -21,9 +22,6 @@ export type GiveawayState = {
   updated_at: string
 }
 
-const CELL_WIDTH = 44
-const STRIP_LENGTH = 60
-const WINNER_INDEX = 48
 
 // The wheel holds still (showing the strip, not scrolling) for this long after the admin
 // clicks Roll winner before it actually starts scrolling — gives a visual "halt, then go"
@@ -120,10 +118,7 @@ export function GiveawayCard({
   fullWidth?: boolean
   className?: string
 }) {
-  const [strip, setStrip] = useState<string[]>([])
-  const [translateX, setTranslateX] = useState(0)
   const [rollComplete, setRollComplete] = useState(false)
-  const rollKeyRef = useRef<string | null>(null)
   const elapsed = useGiveawayElapsed(showElapsed ? state?.started_at : null)
 
   // Avatars are fetched pre-roll by the admin panel as entrants join (and cached on
@@ -131,64 +126,16 @@ export function GiveawayCard({
   // it here at roll time was flaky mid-animation and caused avatars to pop in late.
   const avatars = state?.entrant_avatars ?? {}
 
-  // Build the scrolling strip once per roll (keyed by winner + updated_at so a
-  // parent re-render never regenerates it mid-animation) and kick off the
-  // translateX animation, adjusting for any time already elapsed so a widget
-  // that (re)loads mid-roll still lands on the winner at the right moment.
+  // The roll is timed from the row, not from when this source loaded: the
+  // admin writes updated_at as the roll starts, the strip holds still for
+  // ROLL_START_DELAY_MS, then runs for roll_duration_seconds. GiveawayReel
+  // joins a roll already under way, so a reload mid-roll still lands on time.
+  const rolling = state?.status === "rolling" && !!state.winner
+  const rollStartAt = rolling ? Date.parse(state!.updated_at) + ROLL_START_DELAY_MS : 0
+  const rollKey = rolling ? `${state!.winner}|${state!.updated_at}` : null
   useEffect(() => {
-    if (!state || state.status !== "rolling" || !state.winner) {
-      if (!state || state.status !== "finished") setRollComplete(false)
-      return
-    }
-
-    const rollKey = `${state.winner}-${state.updated_at}`
-    if (rollKeyRef.current === rollKey) return
-    rollKeyRef.current = rollKey
-    setRollComplete(false)
-
-    const pool = state.entrants.length > 0 ? state.entrants : [state.winner]
-    const built: string[] = []
-    for (let i = 0; i < STRIP_LENGTH; i++) {
-      built.push(i === WINNER_INDEX ? state.winner : pool[Math.floor(Math.random() * pool.length)])
-    }
-    setStrip(built)
-    setTranslateX(0)
-
-    const elapsedMs = Date.now() - new Date(state.updated_at).getTime()
-    const totalScrollMs = state.roll_duration_seconds * 1000
-    const finalOffset = -(WINNER_INDEX * CELL_WIDTH - CELL_WIDTH / 2)
-
-    // Phase 1: the wheel holds still on the stationary strip for ROLL_START_DELAY_MS —
-    // it's already visible (status "rolling"), it just hasn't started moving yet.
-    if (elapsedMs < ROLL_START_DELAY_MS) {
-      const remainingHaltMs = ROLL_START_DELAY_MS - elapsedMs
-      const startTimer = setTimeout(() => {
-        requestAnimationFrame(() => setTranslateX(finalOffset))
-      }, remainingHaltMs)
-      const completeTimer = setTimeout(() => setRollComplete(true), remainingHaltMs + totalScrollMs)
-      return () => {
-        clearTimeout(startTimer)
-        clearTimeout(completeTimer)
-      }
-    }
-
-    // Phase 2: already past the halt — resume (or catch up on) the scroll itself.
-    const elapsedScrollMs = elapsedMs - ROLL_START_DELAY_MS
-    const remainingScrollMs = Math.max(totalScrollMs - elapsedScrollMs, 0)
-
-    if (remainingScrollMs <= 0) {
-      setTranslateX(finalOffset)
-      setRollComplete(true)
-      return
-    }
-
-    const raf = requestAnimationFrame(() => setTranslateX(finalOffset))
-    const timer = setTimeout(() => setRollComplete(true), remainingScrollMs)
-    return () => {
-      cancelAnimationFrame(raf)
-      clearTimeout(timer)
-    }
-  }, [state?.status, state?.winner, state?.updated_at, state?.entrants, state?.roll_duration_seconds])
+    if (state?.status !== "finished") setRollComplete(false)
+  }, [rollKey, state?.status])
 
   const status = state?.status ?? "idle"
 
@@ -317,35 +264,28 @@ export function GiveawayCard({
             </motion.div>
           )}
 
-          {status === "rolling" && (
+          {status === "rolling" && rolling && (
             <motion.div
               key="rolling"
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ duration: 0.25, ease: "easeInOut" }}
-              className="flex w-full flex-col gap-1"
+              className="flex w-full flex-col"
             >
               <div className="text-center text-[9px] font-semibold uppercase tracking-wide text-[color:var(--obs-giveaway)]">
                 {rollComplete ? "We have a winner!" : "Rolling"}
               </div>
-              <div className="relative mx-auto h-10 w-full overflow-hidden rounded-[9px] border border-white/10 bg-black/30">
-                <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-[2px] -translate-x-1/2 bg-[color:var(--obs-giveaway)] shadow-[0_0_8px_2px_color-mix(in_srgb,var(--obs-giveaway)_60%,transparent)]" />
-                <motion.div
-                  className="absolute inset-y-0 left-1/2 flex items-center gap-1 py-1"
-                  animate={{ x: translateX }}
-                  transition={{ duration: state?.roll_duration_seconds ?? 6, ease: [0.12, 0, 0.15, 1] }}
-                >
-                  {strip.map((username, index) => (
-                    <AvatarChip
-                      key={`${username}-${index}`}
-                      username={username}
-                      avatar={avatars[username]}
-                      highlight={rollComplete && index === WINNER_INDEX}
-                    />
-                  ))}
-                </motion.div>
-              </div>
+              <GiveawayReel
+                key={rollKey ?? "idle"}
+                entrants={state!.entrants}
+                winner={state!.winner!}
+                avatars={avatars}
+                startAt={rollStartAt}
+                durationMs={(state!.roll_duration_seconds || 6) * 1000}
+                size="compact"
+                onLanded={() => setRollComplete(true)}
+              />
             </motion.div>
           )}
 
@@ -369,28 +309,6 @@ export function GiveawayCard({
           )}
         </AnimatePresence>
       </div>
-    </div>
-  )
-}
-
-function AvatarChip({
-  username,
-  avatar,
-  highlight,
-}: {
-  username: string
-  avatar: string | null | undefined
-  highlight: boolean
-}) {
-  return (
-    <div
-      className={`flex shrink-0 flex-col items-center gap-0 rounded-lg px-0.5 py-0.5 transition-colors ${
-        highlight ? "bg-[color:var(--obs-giveaway)]/20 ring-2 ring-[color:var(--obs-giveaway)]" : ""
-      }`}
-      style={{ width: CELL_WIDTH - 4 }}
-    >
-      <AvatarImage username={username} avatar={avatar ?? null} size={18} />
-      <span className="max-w-full truncate text-[7px] font-semibold text-gray-300">{username}</span>
     </div>
   )
 }

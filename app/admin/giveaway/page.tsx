@@ -24,6 +24,7 @@ import { createClient } from "@/lib/supabase/client"
 import { restoreRound } from "@/lib/giveaway-restore"
 import { RecordWinDialog, WinnerName } from "@/components/admin/record-win-dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { GiveawayRollDialog, type RollView } from "@/components/admin/giveaway-roll-dialog"
 import { ACCENTS } from "@/components/ui/panel"
 
 const PUSHER_URL = "wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false"
@@ -175,6 +176,10 @@ export default function GiveawayAdminPage() {
   const [pastWinners, setPastWinners] = useState<string[]>([])
   // Clicking a winner opens the win log against their name.
   const [logWinner, setLogWinner] = useState<string | null>(null)
+  // The site account behind logWinner, when the roll dialog found one.
+  const [logUserId, setLogUserId] = useState<string | null>(null)
+  // The roll dialog: open from Roll winner until Done.
+  const [rollView, setRollView] = useState<RollView | null>(null)
   // Entrants who have already won during the CURRENT round (since Start, cleared only
   // by Start or End) — kept out of the draw pool so nobody wins twice in one round.
   const [roundWinners, setRoundWinners] = useState<Set<string>>(new Set())
@@ -227,6 +232,13 @@ export default function GiveawayAdminPage() {
 
   // Pushes the widget-facing state to Supabase so the OBS overlay (a separate
   // browser source) stays in sync with what the admin panel is doing.
+  // The status the widget was last told. A roll is timed from updated_at, so
+  // anything written while it runs must neither change the status nor move
+  // that clock: an entry or an avatar landing mid-roll used to write "open"
+  // and a fresh updated_at, which threw the widget out of the roll or started
+  // it over. See liveStatus below.
+  const widgetStatusRef = useRef<"idle" | "open" | "closed" | "rolling" | "finished">("idle")
+
   const syncWidgetState = useCallback(
     (patch: {
       status: "idle" | "open" | "closed" | "rolling" | "finished"
@@ -237,10 +249,18 @@ export default function GiveawayAdminPage() {
       roll_duration_seconds?: number
       channel_slug?: string
       started_at?: string | null
+      /** Set by a roll, so the dialog and the widget share one start time. */
+      updated_at?: string
     }) => {
+      const statusChanged = patch.status !== widgetStatusRef.current
+      widgetStatusRef.current = patch.status
+      const row: Record<string, unknown> = { ...patch }
+      // Only a change of status (or an explicit time) moves updated_at.
+      if (statusChanged || patch.updated_at) row.updated_at = patch.updated_at ?? new Date().toISOString()
+      else delete row.updated_at
       supabaseRef.current
         .from("giveaway_state")
-        .update({ ...patch, updated_at: new Date().toISOString() })
+        .update(row)
         .eq("id", 1)
         .then(({ error }: { error: unknown }) => {
           if (error) console.error("[v0] Failed to sync giveaway widget state:", error)
@@ -248,6 +268,12 @@ export default function GiveawayAdminPage() {
     },
     [],
   )
+
+  /** The status to keep while a roll or its winner is on screen; otherwise `fallback`. */
+  const liveStatus = useCallback((fallback: "open" | "closed") => {
+    const current = widgetStatusRef.current
+    return current === "rolling" || current === "finished" ? current : fallback
+  }, [])
 
   useEffect(() => {
     keywordRef.current = keyword
@@ -297,6 +323,10 @@ export default function GiveawayAdminPage() {
 
       if (data) {
         const round = restoreRound(data)
+        const stored = String((data as { status?: unknown }).status ?? "idle")
+        if (["idle", "open", "closed", "rolling", "finished"].includes(stored)) {
+          widgetStatusRef.current = stored as typeof widgetStatusRef.current
+        }
         const restored = new Set(round.entrants)
 
         if (round.keyword) setKeyword(round.keyword)
@@ -364,7 +394,7 @@ export default function GiveawayAdminPage() {
           const avatar = typeof data.avatar === "string" ? data.avatar : null
           setAvatars((latest) => {
             const next = { ...latest, [key]: avatar }
-            syncWidgetState({ status: isOpenRef.current ? "open" : "closed", entrant_avatars: next })
+            syncWidgetState({ status: liveStatus(isOpenRef.current ? "open" : "closed"), entrant_avatars: next })
             return next
           })
         })
@@ -375,7 +405,7 @@ export default function GiveawayAdminPage() {
       avatarPromisesRef.current.set(key, promise)
       return promise
     },
-    [syncWidgetState],
+    [syncWidgetState, liveStatus],
   )
 
   // The ONLY effect chat has on state: counting entries while the giveaway is open.
@@ -406,7 +436,7 @@ export default function GiveawayAdminPage() {
           // Fetch the entrant's avatar now, pre-roll, instead of at draw time.
           fetchAvatarFor(username)
           // Keep the OBS widget's entrant count live as people enter, not just at start/draw.
-          syncWidgetState({ status: "open", entrants: Array.from(next) })
+          syncWidgetState({ status: liveStatus("open"), entrants: Array.from(next) })
           return next
         })
       }
@@ -460,7 +490,7 @@ export default function GiveawayAdminPage() {
               setIsEditingChannel(false)
               // Persist the connected channel so the combined OBS overlay widget knows
               // which chatroom to render its own live chat feed from.
-              syncWidgetState({ status: isOpenRef.current ? "open" : "closed", channel_slug: trimmedSlug })
+              syncWidgetState({ status: liveStatus(isOpenRef.current ? "open" : "closed"), channel_slug: trimmedSlug })
               return
             }
 
@@ -566,6 +596,26 @@ export default function GiveawayAdminPage() {
     return () => clearInterval(interval)
   }, [startedAt])
 
+  /** Takes one name out of the round, e.g. a winner who cannot take the prize. */
+  const removeEntrant = useCallback(
+    (name: string) => {
+      const key = name.toLowerCase()
+      setEntrants((current) => {
+        if (!current.has(key)) return current
+        const next = new Set(current)
+        next.delete(key)
+        entrantsRef.current = next
+        syncWidgetState({ status: liveStatus(isOpenRef.current ? "open" : "closed"), entrants: Array.from(next) })
+        return next
+      })
+      setEntrantMeta((meta) => {
+        const { [key]: _gone, ...rest } = meta
+        return rest
+      })
+    },
+    [syncWidgetState, liveStatus],
+  )
+
   const drawWinner = useCallback(async () => {
     // Re-entrancy guard: checked synchronously, not via React state, so a burst of
     // clicks fired before the next render can't slip through and start a second roll
@@ -617,12 +667,23 @@ export default function GiveawayAdminPage() {
     // ROLL_START_DELAY_SECONDS before it starts scrolling. The reel only shows
     // entrants still eligible this round — anyone who's already won is excluded so
     // they never appear spinning by (or being landed on) a second time.
+    // One start time for both: written to the widget as updated_at, and the
+    // dialog's reel starts from it, so the two land together.
+    const rolledAt = Date.now()
     syncWidgetState({
       status: "rolling",
       keyword,
       entrants: eligible,
       winner: pickedWinner,
       roll_duration_seconds: rollDuration,
+      updated_at: new Date(rolledAt).toISOString(),
+    })
+    setRollView({
+      pool: eligible,
+      winner: pickedWinner,
+      startAt: rolledAt + ROLL_START_DELAY_SECONDS * 1000,
+      durationMs: rollDuration * 1000,
+      total: pool.length,
     })
 
     // Total sequence the widget plays out: start halt -> scroll -> land-on-winner halt.
@@ -1127,12 +1188,29 @@ export default function GiveawayAdminPage() {
         </div>
       </div>
 
+      {rollView && (
+        <GiveawayRollDialog
+          view={rollView}
+          avatars={avatars}
+          onLog={(name, userId) => {
+            setLogUserId(userId)
+            setLogWinner(name)
+          }}
+          onRemove={removeEntrant}
+          onDone={() => setRollView(null)}
+        />
+      )}
+
       {logWinner && (
         <RecordWinDialog
           username={logWinner}
+          userId={logUserId ?? undefined}
           source="giveaway"
           sourceRef={keyword || undefined}
-          onClose={() => setLogWinner(null)}
+          onClose={() => {
+            setLogWinner(null)
+            setLogUserId(null)
+          }}
         />
       )}
     </main>
