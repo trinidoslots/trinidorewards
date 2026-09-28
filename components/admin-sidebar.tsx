@@ -20,6 +20,7 @@ import {
   ShoppingBag,
   Swords,
   Ticket,
+  TicketCheck,
   Trophy,
   Tv,
   Users,
@@ -79,6 +80,7 @@ export const NAV: Item[] = [
       { href: "/admin/store/redemptions", label: "Redemptions" },
     ],
   },
+  { kind: "link", href: "/admin/promo-codes", label: "Promo Codes", icon: TicketCheck },
   {
     kind: "group",
     id: "raffles",

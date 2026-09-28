@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Coins, Target, Trophy } from "lucide-react"
+import { Coins, Target, TicketCheck, Trophy } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import {
   BANNER_ASPECT_RATIO,
@@ -674,6 +674,104 @@ export function RecordEventCard({ event }: { event: RecordEvent }) {
           {event.slot_name}
         </div>
       )}
+    </EventCard>
+  )
+}
+
+// --- promo codes ------------------------------------------------------------
+
+export type StreamPromoCode = {
+  id: string
+  code: string
+  points: number
+  max_uses: number | null
+  uses_count: number
+  shown_at: string | null
+}
+
+/**
+ * The promo codes switched on for the stream in /admin/promo-codes.
+ *
+ * Unlike the events above these are not rows that arrive and age out: a code
+ * stays in the column for as long as the admin leaves it switched on, because
+ * viewers need time to type it. RLS (scripts/075) only lets this read codes
+ * that are active and on stream, so the list IS what should be shown.
+ *
+ * Realtime makes one appear at once. Switching one off is not delivered to
+ * this subscriber (the row is no longer visible to it), so the poll is what
+ * takes it down — within a few seconds.
+ */
+export function usePromoCodes(pingVolume = 0) {
+  const [codes, setCodes] = useState<StreamPromoCode[]>([])
+  const supabaseRef = useRef(createClient())
+
+  const volumeRef = useRef(pingVolume)
+  volumeRef.current = pingVolume
+  const seenRef = useRef<Set<string> | null>(null)
+
+  useEffect(() => {
+    const supabase = supabaseRef.current
+    let cancelled = false
+
+    const fetchCodes = async () => {
+      const { data, error } = await supabase
+        .from("promo_codes")
+        .select("id, code, points, max_uses, uses_count, shown_at")
+        .eq("is_active", true)
+        .eq("show_on_stream", true)
+      if (cancelled) return
+      if (error) {
+        // Most likely 075 has not been run. The rest of the column works without it.
+        console.error("[promo] Error fetching promo codes:", error)
+        return
+      }
+      const next = (data ?? []) as StreamPromoCode[]
+
+      // Ping for a code that newly went up, but not for what was already on
+      // screen when the source loaded — an OBS restart should not beep.
+      const key = (entry: StreamPromoCode) => `${entry.id}:${entry.shown_at ?? ""}`
+      const seen = seenRef.current
+      if (seen && next.some((entry) => !seen.has(key(entry)))) playPing(volumeRef.current, "event")
+      seenRef.current = new Set(next.map(key))
+      setCodes(next)
+    }
+
+    fetchCodes()
+
+    const channel = supabase
+      .channel("promo_codes_realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "promo_codes" }, () => void fetchCodes())
+      .subscribe()
+
+    const poll = setInterval(fetchCodes, 4_000)
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+      clearInterval(poll)
+    }
+  }, [])
+
+  // A fully claimed code has nothing left to offer, so it leaves the column by itself.
+  return codes.filter((entry) => entry.max_uses === null || entry.uses_count < entry.max_uses)
+}
+
+export function PromoCodeCard({ promo }: { promo: StreamPromoCode }) {
+  const left = promo.max_uses === null ? null : Math.max(0, promo.max_uses - promo.uses_count)
+
+  return (
+    <EventCard
+      icon={<TicketCheck className="h-5 w-5" style={{ color: OBS.promo }} />}
+      label="PROMO CODE"
+      labelColor={OBS.promo}
+      timestamp={left === null ? undefined : `${left.toLocaleString("en-US")} left`}
+    >
+      <div className="font-mono text-[20px] font-extrabold leading-tight tracking-[0.06em]" style={{ color: OBS.value }}>
+        {promo.code}
+      </div>
+      <div className="text-[11px] leading-snug" style={{ color: OBS.muted }}>
+        {`${Number(promo.points).toLocaleString("en-US")} points · trinidorewards.com/redeem`}
+      </div>
     </EventCard>
   )
 }

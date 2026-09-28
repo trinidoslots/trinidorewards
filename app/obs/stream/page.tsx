@@ -9,14 +9,17 @@ import {
   EventDivider,
   PointsEventCard,
   PredictionEventCard,
+  PromoCodeCard,
   RecordEventCard,
   TransactionEventCard,
   usePointsEvents,
   usePredictionWindow,
+  usePromoCodes,
   useRecordEvents,
   useTransactionEvents,
   type PointsEvent,
   type RecordEvent,
+  type StreamPromoCode,
   type TransactionEvent,
 } from "@/components/obs/stream-event-feed"
 import { TournamentEventCard, useTournamentEvent } from "@/components/obs/tournament-event-card"
@@ -54,6 +57,10 @@ const PREVIEW_RECORDS: RecordEvent[] = [
     source: "opening",
     created_at: new Date().toISOString(),
   },
+]
+
+const PREVIEW_PROMOS: StreamPromoCode[] = [
+  { id: "preview-promo", code: "TRINIDO500", points: 500, max_uses: 50, uses_count: 12, shown_at: new Date().toISOString() },
 ]
 
 const PREVIEW_MESSAGES: KickMessage[] = [
@@ -133,6 +140,7 @@ function StreamWidget() {
   const liveTransactions = useTransactionEvents(pingVolume)
   const livePointsEvents = usePointsEvents(pingVolume)
   const liveRecords = useRecordEvents(pingVolume)
+  const livePromos = usePromoCodes(pingVolume)
   const liveTournament = useTournamentEvent({ enabled: !isPreview })
 
   // Add ?recorder=<RECORDER_TOKEN> to this source's URL in OBS and it also
@@ -146,6 +154,7 @@ function StreamWidget() {
   const transactions = isPreview ? PREVIEW_EVENTS : liveTransactions
   const pointsEvents = isPreview ? PREVIEW_POINTS : livePointsEvents
   const records = isPreview ? PREVIEW_RECORDS : liveRecords
+  const promos = isPreview ? PREVIEW_PROMOS : livePromos
   // In preview the countdown is faked so the card can be positioned off-stream.
   const predictionSeconds = prediction?.secondsLeft ?? (isPreview ? 287 : 0)
   const chatMessages = isPreview && messages.length === 0 ? PREVIEW_MESSAGES : messages
@@ -229,6 +238,15 @@ function StreamWidget() {
       key: record.id,
       startedAt: startedAtOr(record.created_at, Date.now()),
       node: <RecordEventCard event={record} />,
+    })
+  }
+
+  // Ordered by when the admin put it on stream, so a freshly shown code lands on top.
+  for (const promo of promos) {
+    events.push({
+      key: `promo-${promo.id}`,
+      startedAt: startedAtOr(promo.shown_at, Date.now()),
+      node: <PromoCodeCard promo={promo} />,
     })
   }
 

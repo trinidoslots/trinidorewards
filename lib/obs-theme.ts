@@ -99,6 +99,9 @@ export const OBS = {
   // Every ACCENT is taken, so a record gets gold of its own — yellower than the
   // prediction amber, and the colour a record is expected to be.
   record: "#F5C84C",
+  // A promo code is something to copy down, not a result, so it gets a cool
+  // cyan that none of the result cards use.
+  promo: "#3CCFE0",
 } as const
 
 /**

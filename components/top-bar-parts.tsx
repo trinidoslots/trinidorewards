@@ -2,7 +2,19 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
-import { Bell, ChevronDown, Coins, LayoutDashboard, LogOut, Package, PackageCheck, Settings, Trophy, User } from "lucide-react"
+import {
+  Bell,
+  ChevronDown,
+  Coins,
+  LayoutDashboard,
+  LogOut,
+  Package,
+  PackageCheck,
+  Settings,
+  TicketCheck,
+  Trophy,
+  User,
+} from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -123,6 +135,11 @@ export function UserMenu({
             <DropdownMenuItem asChild className={MENU_ITEM_CLASS}>
               <Link href="/profile?tab=settings">
                 <Settings className="h-4 w-4" /> Settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className={MENU_ITEM_CLASS}>
+              <Link href="/redeem">
+                <TicketCheck className="h-4 w-4" /> Redeem Code
               </Link>
             </DropdownMenuItem>
             {isAdmin && (
