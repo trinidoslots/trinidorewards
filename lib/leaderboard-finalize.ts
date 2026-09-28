@@ -1,4 +1,5 @@
 import { rankEntries } from "@/lib/leaderboard-payouts"
+import { announceLeaderboardWinners } from "@/lib/discord/site"
 import { entryAmounts, readMetric } from "@/lib/leaderboard-metric"
 
 /**
@@ -83,6 +84,10 @@ export async function finalizeLeaderboard(
     .update({ status: "ended", finalized_at: new Date().toISOString() })
     .eq("id", leaderboardId)
   if (stampError) console.error("[v0] finalize: could not stamp board", leaderboardId, stampError)
+
+  // The winners go to Discord the first time a board closes, not on a forced
+  // re-freeze. Never throws, and posts each board once.
+  if (!board.finalized_at && !stampError && ranked.length > 0) await announceLeaderboardWinners(leaderboardId)
 
   return { leaderboardId, title: board.title, entries: ranked.length, totalPrize }
 }

@@ -242,6 +242,16 @@ export default function LeaderboardsManagePage() {
       setNotice({ tone: "error", text: error.message || "Could not save that leaderboard" })
       return
     }
+    // A new board goes out to Discord. Fire-and-forget: the server posts each
+    // board once, and a Discord hiccup is not a reason to call the save failed.
+    if (creating && data?.id) {
+      fetch("/api/admin/discord", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "announce", kind: "leaderboard", id: data.id }),
+        keepalive: true,
+      }).catch(() => {})
+    }
     setNotice({ tone: "info", text: creating ? "Leaderboard created." : "Saved." })
     setCreating(false)
     await load()

@@ -152,9 +152,9 @@ export function RaffleForm({ raffleId, initial }: { raffleId?: string; initial?:
     }
 
     const supabase = createBrowserClient()
-    const { error: problem } = raffleId
-      ? await supabase.from("raffles").update(payload).eq("id", raffleId)
-      : await supabase.from("raffles").insert([{ ...payload, status: "active" }])
+    const { data: saved, error: problem } = raffleId
+      ? await supabase.from("raffles").update(payload).eq("id", raffleId).select("id").single()
+      : await supabase.from("raffles").insert([{ ...payload, status: "active" }]).select("id").single()
 
     setBusy(false)
 
@@ -162,6 +162,17 @@ export function RaffleForm({ raffleId, initial }: { raffleId?: string; initial?:
       console.error("[v0] Could not save raffle:", problem)
       setError(problem.message || "Could not save that raffle")
       return
+    }
+
+    // A new raffle goes out to Discord. Not awaited and never an error here: the
+    // raffle exists either way, and the server posts each one only once.
+    if (!raffleId && saved?.id) {
+      fetch("/api/admin/discord", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "announce", kind: "raffle", id: saved.id }),
+        keepalive: true,
+      }).catch(() => {})
     }
     router.push("/admin/raffles/active")
     router.refresh()

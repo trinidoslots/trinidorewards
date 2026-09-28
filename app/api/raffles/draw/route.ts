@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server"
+import { NextResponse, after } from "next/server"
+import { announceRaffleWinner } from "@/lib/discord/site"
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
@@ -136,6 +137,10 @@ async function drawOne(client: Client, raffleId: string, award = true) {
       .maybeSingle()
 
     if (raffle) await awardPrize(client, raffle, result.username)
+
+    // Winner to Discord once the response is out. A redraw is not announced:
+    // it corrects a draw rather than being a second one.
+    after(() => announceRaffleWinner(raffleId))
   }
 
   return { result }
@@ -180,6 +185,17 @@ async function sweepDue(client: Client) {
     revalidatePath("/raffles")
     for (const raffle of drawn) revalidatePath(`/raffles/${raffle.id}`)
   }
+
+  // Catches winners drawn anywhere but drawOne (the database's own draw
+  // function, if it still runs) so they reach Discord too. Each raffle is
+  // announced once however many sweeps see it.
+  const { data: recent } = await client
+    .from("raffles")
+    .select("id")
+    .not("winner_username", "is", null)
+    .gt("draw_date", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+    .limit(5)
+  for (const raffle of recent ?? []) after(() => announceRaffleWinner(raffle.id))
 
   return drawn
 }
