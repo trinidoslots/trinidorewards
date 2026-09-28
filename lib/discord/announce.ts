@@ -14,7 +14,7 @@ export const messageUrl = (guildId: string, msg: Message) =>
 
 export async function channelId(key: string, ids?: Ids): Promise<string> {
   const id = (ids ?? (await getIds())).channels[key]
-  if (!id) throw new E.UserError(`Kanal "${key}" ist nicht eingerichtet – bitte zuerst /setup ausführen.`)
+  if (!id) throw new E.UserError(`Channel "${key}" is not set up – run /setup first.`)
   return id
 }
 
@@ -70,7 +70,7 @@ export type SiteEvent = { type: string; data?: Record<string, any> }
 export async function handleEvent(event: SiteEvent): Promise<Message> {
   const route = ROUTES[event?.type]
   if (!route) {
-    throw new E.UserError(`Unbekannter Event-Typ: "${event?.type}". Erlaubt: ${Object.keys(ROUTES).join(", ")}`)
+    throw new E.UserError(`Unknown event type: "${event?.type}". Allowed: ${Object.keys(ROUTES).join(", ")}`)
   }
   const data = event.data ?? {}
   // data.ping: true forces a ping, false suppresses it, otherwise the route decides.

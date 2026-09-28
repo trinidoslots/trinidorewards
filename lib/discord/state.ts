@@ -36,7 +36,7 @@ const emptyLive = (): LiveState => ({
 
 async function read<T>(key: string): Promise<T | null> {
   const { data, error } = await serviceClient().from("discord_state").select("value").eq("key", key).maybeSingle()
-  if (error) throw new Error(`discord_state lesen fehlgeschlagen (${error.message}) – ist scripts/074 gelaufen?`)
+  if (error) throw new Error(`Reading discord_state failed (${error.message}) – has scripts/074 been run?`)
   return (data?.value as T) ?? null
 }
 
@@ -44,7 +44,7 @@ async function write(key: string, value: unknown): Promise<void> {
   const { error } = await serviceClient()
     .from("discord_state")
     .upsert({ key, value, updated_at: new Date().toISOString() })
-  if (error) throw new Error(`discord_state schreiben fehlgeschlagen (${error.message})`)
+  if (error) throw new Error(`Writing discord_state failed (${error.message})`)
 }
 
 export async function getIds(): Promise<Ids> {

@@ -35,5 +35,5 @@ export function formatDuration(ms: number): string {
   const minutes = Math.max(0, Math.round(ms / 60000))
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
-  return h ? `${h} Std. ${m} Min.` : `${m} Min.`
+  return h ? `${h}h ${m}m` : `${m}m`
 }

@@ -36,11 +36,11 @@ export type PingRole = { key: string; name: string; emoji: string; label: string
 
 // Roles members can give themselves with a button.
 export const PING_ROLES: PingRole[] = [
-  { key: "pingLive", name: "🔴 Live-Ping", emoji: "🔴", label: "Live", hint: "wenn der Stream startet" },
-  { key: "pingLeaderboard", name: "🏆 Leaderboard-Ping", emoji: "🏆", label: "Leaderboards", hint: "bei neuen Leaderboards" },
-  { key: "pingRaffle", name: "🎟️ Raffle-Ping", emoji: "🎟️", label: "Raffles", hint: "bei neuen Raffles" },
-  { key: "pingHunt", name: "🎰 Bonus-Hunt-Ping", emoji: "🎰", label: "Bonus Hunts", hint: "wenn ein Bonus Hunt startet" },
-  { key: "pingNews", name: "📰 News-Ping", emoji: "📰", label: "News", hint: "bei wichtigen Ankündigungen" },
+  { key: "pingLive", name: "🔴 Live Ping", emoji: "🔴", label: "Live", hint: "when the stream starts" },
+  { key: "pingLeaderboard", name: "🏆 Leaderboard Ping", emoji: "🏆", label: "Leaderboards", hint: "for new leaderboards" },
+  { key: "pingRaffle", name: "🎟️ Raffle Ping", emoji: "🎟️", label: "Raffles", hint: "for new raffles" },
+  { key: "pingHunt", name: "🎰 Bonus Hunt Ping", emoji: "🎰", label: "Bonus Hunts", hint: "when a bonus hunt starts" },
+  { key: "pingNews", name: "📰 News Ping", emoji: "📰", label: "News", hint: "for important announcements" },
 ]
 
 export type RoleDef = { key: string; name: string; color: number; hoist?: boolean; permissions?: string }
@@ -53,7 +53,7 @@ export const ROLES: RoleDef[] = [
     hoist: true,
     permissions: perms(P.ManageMessages, P.ModerateMembers, P.KickMembers, P.MuteMembers, P.MoveMembers, P.ManageThreads),
   },
-  { key: "verified", name: "✅ Verifiziert", color: 0x99aab5 },
+  { key: "verified", name: "✅ Verified", color: 0x99aab5 },
   ...PING_ROLES.map((r) => ({ key: r.key, name: r.name, color: 0x5865f2 })),
 ]
 
@@ -74,10 +74,10 @@ export const CATEGORIES: CategoryDef[] = [
     name: "📌 START",
     access: "info",
     channels: [
-      { key: "welcome", name: "👋│willkommen", access: "info", topic: "Willkommen in der TrinidoRewards-Community!" },
-      { key: "rules", name: "📜│regeln", access: "info", topic: "Bitte lesen – gilt für alle." },
-      { key: "verify", name: "✅│verifizieren", access: "info", topic: "Bestätige hier, dass du 18+ bist, um den Server freizuschalten." },
-      { key: "responsible", name: "🛟│verantwortungsvoll-spielen", access: "info", topic: "Hilfe, Limits und Beratungsstellen." },
+      { key: "welcome", name: "👋│welcome", access: "info", topic: "Welcome to the TrinidoRewards community!" },
+      { key: "rules", name: "📜│rules", access: "info", topic: "Please read – applies to everyone." },
+      { key: "verify", name: "✅│verify", access: "info", topic: "Confirm here that you are 18+ to unlock the server." },
+      { key: "responsible", name: "🛟│responsible-gambling", access: "info", topic: "Help, limits and support services." },
     ],
   },
   {
@@ -85,12 +85,12 @@ export const CATEGORIES: CategoryDef[] = [
     name: "📢 TRINIDO NEWS",
     access: "news",
     channels: [
-      { key: "live", name: "🔴│live", access: "news", topic: "Automatische Benachrichtigung, sobald der Stream auf Kick startet." },
-      { key: "leaderboard", name: "🏆│leaderboards", access: "news", topic: "Neue Leaderboards und Gewinner – trinidorewards.com/leaderboard" },
-      { key: "raffle", name: "🎟️│raffles", access: "news", topic: "Neue Raffles und Gewinner." },
-      { key: "bonushunt", name: "🎰│bonus-hunts", access: "news", topic: "Bonus Hunts – Balance tippen auf trinidorewards.com/bonushunt" },
-      { key: "news", name: "📰│ankündigungen", access: "news", topic: "Wichtige Neuigkeiten." },
-      { key: "roles", name: "🔔│benachrichtigungen", access: "news", topic: "Wähle, wofür du gepingt werden willst." },
+      { key: "live", name: "🔴│live", access: "news", topic: "Automatic notification as soon as the stream starts on Kick." },
+      { key: "leaderboard", name: "🏆│leaderboards", access: "news", topic: "New leaderboards and winners – trinidorewards.com/leaderboard" },
+      { key: "raffle", name: "🎟️│raffles", access: "news", topic: "New raffles and winners." },
+      { key: "bonushunt", name: "🎰│bonus-hunts", access: "news", topic: "Bonus hunts – guess the balance at trinidorewards.com/bonushunt" },
+      { key: "news", name: "📰│announcements", access: "news", topic: "Important news." },
+      { key: "roles", name: "🔔│notifications", access: "news", topic: "Choose what you want to be pinged for." },
     ],
   },
   {
@@ -98,11 +98,11 @@ export const CATEGORIES: CategoryDef[] = [
     name: "💬 COMMUNITY",
     access: "chat",
     channels: [
-      { key: "chat", name: "💬│chat", access: "chat", topic: "Allgemeiner Chat." },
-      { key: "wins", name: "🏅│big-wins", access: "chat", topic: "Zeig deine Gewinne – Screenshots erwünscht." },
-      { key: "clips", name: "🎬│clips", access: "chat", topic: "Die besten Stream-Momente." },
-      { key: "ideas", name: "💡│vorschläge", access: "chat", topic: "Ideen für Stream, Seite und Server." },
-      { key: "help", name: "❓│hilfe", access: "chat", topic: "Fragen zu Raffles, Leaderboards oder Auszahlungen." },
+      { key: "chat", name: "💬│chat", access: "chat", topic: "General chat." },
+      { key: "wins", name: "🏅│big-wins", access: "chat", topic: "Show off your wins – screenshots welcome." },
+      { key: "clips", name: "🎬│clips", access: "chat", topic: "The best stream moments." },
+      { key: "ideas", name: "💡│suggestions", access: "chat", topic: "Ideas for the stream, the site and the server." },
+      { key: "help", name: "❓│help", access: "chat", topic: "Questions about raffles, leaderboards or payouts." },
     ],
   },
   {
@@ -119,8 +119,8 @@ export const CATEGORIES: CategoryDef[] = [
     name: "🛡️ TEAM",
     access: "team",
     channels: [
-      { key: "modchat", name: "🛡️│mod-chat", access: "team", topic: "Nur für das Team." },
-      { key: "logs", name: "🤖│bot-logs", access: "team", topic: "Protokoll des Bots (Setup, Live-Status, Website-Events)." },
+      { key: "modchat", name: "🛡️│mod-chat", access: "team", topic: "Team only." },
+      { key: "logs", name: "🤖│bot-logs", access: "team", topic: "Bot log (setup, live status, site events)." },
     ],
   },
 ]

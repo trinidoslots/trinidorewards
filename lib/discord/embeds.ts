@@ -15,7 +15,7 @@ export const COLORS = {
   ended: 0x4b5563,
 }
 
-export const FOOTER = { text: "TrinidoRewards · 18+ · Spiel verantwortungsvoll" }
+export const FOOTER = { text: "TrinidoRewards · 18+ · Play responsibly" }
 
 /** A mistake by whoever asked (bad input), as opposed to something breaking. Shown to them as-is. */
 export class UserError extends Error {}
@@ -40,7 +40,7 @@ function safeUrl(url: unknown, fallback: string | null): string | null {
 }
 
 function requireTitle(data: any): string {
-  if (!data?.title || !String(data.title).trim()) throw new UserError('Feld "title" fehlt.')
+  if (!data?.title || !String(data.title).trim()) throw new UserError('The "title" field is missing.')
   return clip(String(data.title).trim(), 200)!
 }
 
@@ -93,7 +93,7 @@ function winnersText(winners: Winner[] | undefined): string | null {
     .map((w, i) => {
       const rank = w.rank ?? i + 1
       const icon = medals[rank - 1] ?? `**${rank}.**`
-      return `${icon} ${w.name ?? "Unbekannt"}${w.prize ? ` — ${w.prize}` : ""}`
+      return `${icon} ${w.name ?? "Unknown"}${w.prize ? ` — ${w.prize}` : ""}`
     })
     .join("\n")
 }
@@ -106,16 +106,16 @@ export function liveMessage(stream: StreamInfo, startedAt: string | null): Paylo
   const url = kickUrl()
   const embed: Embed = {
     color: COLORS.kick,
-    author: { name: `${KICK_SLUG} ist jetzt LIVE auf Kick`, url },
-    title: clip(stream.title || "Der Stream läuft!", 256),
+    author: { name: `${KICK_SLUG} is LIVE on Kick`, url },
+    title: clip(stream.title || "The stream is on!", 256),
     url,
     footer: FOOTER,
     timestamp: new Date().toISOString(),
   }
   withFields(embed, [
-    field("Kategorie", stream.category),
-    field("Zuschauer", typeof stream.viewers === "number" ? String(stream.viewers) : null),
-    field("Live seit", discordTime(startedAt, "R")),
+    field("Category", stream.category),
+    field("Viewers", typeof stream.viewers === "number" ? String(stream.viewers) : null),
+    field("Live since", discordTime(startedAt, "R")),
   ])
   if (stream.thumbnail?.startsWith("http")) {
     embed.image = { url: `${stream.thumbnail}${stream.thumbnail.includes("?") ? "&" : "?"}t=${Date.now()}` }
@@ -124,7 +124,7 @@ export function liveMessage(stream: StreamInfo, startedAt: string | null): Paylo
     embeds: [embed],
     components: [
       linkRow([
-        { label: "Jetzt zuschauen", url, emoji: "🔴" },
+        { label: "Watch now", url, emoji: "🔴" },
         { label: "TrinidoRewards", url: SITE_URL, emoji: "🎁" },
       ]),
     ],
@@ -133,19 +133,19 @@ export function liveMessage(stream: StreamInfo, startedAt: string | null): Paylo
 
 export function liveEndedMessage(stream: StreamInfo, startedAt: string | null, endedAt: string | null): Payload {
   const end = endedAt ? new Date(endedAt) : new Date()
-  const embed = base(COLORS.ended, stream.title || "Stream beendet", kickUrl(), [
-    `Stream beendet ${discordTime(end, "R")}.`,
-    startedAt ? `Dauer: **${formatDuration(end.getTime() - new Date(startedAt).getTime())}**` : null,
-    "Danke fürs Zuschauen! 💚",
+  const embed = base(COLORS.ended, stream.title || "Stream ended", kickUrl(), [
+    `Stream ended ${discordTime(end, "R")}.`,
+    startedAt ? `Duration: **${formatDuration(end.getTime() - new Date(startedAt).getTime())}**` : null,
+    "Thanks for watching! 💚",
   ]
     .filter(Boolean)
     .join("\n"))
-  embed.author = { name: `${KICK_SLUG} war live`, url: kickUrl() }
+  embed.author = { name: `${KICK_SLUG} was live`, url: kickUrl() }
   return {
     embeds: [embed],
     components: [
       linkRow([
-        { label: "Kick-Kanal", url: kickUrl(), emoji: "📺" },
+        { label: "Kick channel", url: kickUrl(), emoji: "📺" },
         { label: "Leaderboard", url: `${SITE_URL}/leaderboard`, emoji: "🏆" },
       ]),
     ],
@@ -157,68 +157,68 @@ export function liveEndedMessage(stream: StreamInfo, startedAt: string | null, e
 export function leaderboardCreated(d: any): Payload {
   const title = requireTitle(d)
   const url = safeUrl(d.url, `${SITE_URL}/leaderboard`)
-  const embed = base(COLORS.gold, `🏆 Neues Leaderboard: ${title}`, url, d.description)
+  const embed = base(COLORS.gold, `🏆 New leaderboard: ${title}`, url, d.description)
   withFields(embed, [
-    field("Preispool", d.prizePool),
+    field("Prize pool", d.prizePool),
     field("Start", discordTime(d.startsAt)),
-    field("Ende", discordTime(d.endsAt) && `${discordTime(d.endsAt)}\n(${discordTime(d.endsAt, "R")})`),
+    field("Ends", discordTime(d.endsAt) && `${discordTime(d.endsAt)}\n(${discordTime(d.endsAt, "R")})`),
   ])
   withImage(embed, d.imageUrl)
-  return { embeds: [embed], components: [linkRow([{ label: "Zum Leaderboard", url, emoji: "🏆" }])] }
+  return { embeds: [embed], components: [linkRow([{ label: "View leaderboard", url, emoji: "🏆" }])] }
 }
 
 export function leaderboardEnded(d: any): Payload {
   const title = requireTitle(d)
   const url = safeUrl(d.url, `${SITE_URL}/leaderboard`)
-  const embed = base(COLORS.gold, `🏁 Leaderboard beendet: ${title}`, url, d.description)
+  const embed = base(COLORS.gold, `🏁 Leaderboard ended: ${title}`, url, d.description)
   const w = winnersText(d.winners)
-  if (w) embed.fields = [{ name: "Gewinner", value: clip(w, 1024) }]
+  if (w) embed.fields = [{ name: "Winners", value: clip(w, 1024) }]
   withImage(embed, d.imageUrl)
-  return { embeds: [embed], components: [linkRow([{ label: "Ergebnisse ansehen", url, emoji: "📊" }])] }
+  return { embeds: [embed], components: [linkRow([{ label: "View results", url, emoji: "📊" }])] }
 }
 
 export function raffleCreated(d: any): Payload {
   const title = requireTitle(d)
   const url = safeUrl(d.url, `${SITE_URL}/raffles`)
-  const embed = base(COLORS.raffle, `🎟️ Neues Raffle: ${title}`, url, d.description)
+  const embed = base(COLORS.raffle, `🎟️ New raffle: ${title}`, url, d.description)
   withFields(embed, [
-    field("Preis", d.prize),
-    field("Endet", discordTime(d.endsAt) && `${discordTime(d.endsAt)}\n(${discordTime(d.endsAt, "R")})`),
-    field("So machst du mit", d.howToEnter, false),
+    field("Prize", d.prize),
+    field("Ends", discordTime(d.endsAt) && `${discordTime(d.endsAt)}\n(${discordTime(d.endsAt, "R")})`),
+    field("How to enter", d.howToEnter, false),
   ])
   withImage(embed, d.imageUrl)
-  return { embeds: [embed], components: [linkRow([{ label: "Mitmachen", url, emoji: "🎟️" }])] }
+  return { embeds: [embed], components: [linkRow([{ label: "Enter now", url, emoji: "🎟️" }])] }
 }
 
 export function raffleEnded(d: any): Payload {
   const title = requireTitle(d)
   const url = safeUrl(d.url, `${SITE_URL}/raffles`)
-  const embed = base(COLORS.raffle, `🎉 Raffle-Gewinner: ${title}`, url, d.description)
+  const embed = base(COLORS.raffle, `🎉 Raffle winner: ${title}`, url, d.description)
   const w = winnersText(d.winners)
-  if (w) embed.fields = [{ name: "Gewinner", value: clip(w, 1024) }]
+  if (w) embed.fields = [{ name: "Winners", value: clip(w, 1024) }]
   return { embeds: [embed], components: [linkRow([{ label: "TrinidoRewards", url, emoji: "🎁" }])] }
 }
 
 export function bonushuntStarted(d: any): Payload {
   const title = requireTitle(d)
   const url = safeUrl(d.url, `${SITE_URL}/bonushunt`)
-  const embed = base(COLORS.hunt, `🎰 Bonus Hunt gestartet: ${title}`, url, d.description ?? "Tippe jetzt die End-Balance auf der Seite!")
-  withFields(embed, [field("Start-Balance", d.startBalance), field("Anzahl Boni", d.bonusCount)])
+  const embed = base(COLORS.hunt, `🎰 Bonus hunt started: ${title}`, url, d.description ?? "Guess the final balance on the site now!")
+  withFields(embed, [field("Start balance", d.startBalance), field("Bonuses", d.bonusCount)])
   withImage(embed, d.imageUrl)
-  return { embeds: [embed], components: [linkRow([{ label: "Balance tippen", url, emoji: "🎯" }])] }
+  return { embeds: [embed], components: [linkRow([{ label: "Guess the balance", url, emoji: "🎯" }])] }
 }
 
 export function bonushuntEnded(d: any): Payload {
   const title = requireTitle(d)
   const url = safeUrl(d.url, `${SITE_URL}/bonushunt`)
-  const embed = base(COLORS.hunt, `🏁 Bonus Hunt beendet: ${title}`, url, d.description)
+  const embed = base(COLORS.hunt, `🏁 Bonus hunt ended: ${title}`, url, d.description)
   withFields(embed, [
-    field("Start-Balance", d.startBalance),
-    field("End-Balance", d.result),
-    field("Bester Bonus", d.bestWin),
-    field("Gewinner (Tipp)", d.winner),
+    field("Start balance", d.startBalance),
+    field("Final balance", d.result),
+    field("Best bonus", d.bestWin),
+    field("Winner (guess)", d.winner),
   ])
-  return { embeds: [embed], components: [linkRow([{ label: "Ergebnis ansehen", url, emoji: "📊" }])] }
+  return { embeds: [embed], components: [linkRow([{ label: "View result", url, emoji: "📊" }])] }
 }
 
 export function announcement(d: any): Payload {
@@ -226,5 +226,5 @@ export function announcement(d: any): Payload {
   const url = safeUrl(d.url, null)
   const embed = base(COLORS.news, `📰 ${title}`, url, d.text ?? d.description)
   withImage(embed, d.imageUrl)
-  return { embeds: [embed], components: url ? [linkRow([{ label: "Mehr erfahren", url, emoji: "🔗" }])] : [] }
+  return { embeds: [embed], components: url ? [linkRow([{ label: "Learn more", url, emoji: "🔗" }])] : [] }
 }

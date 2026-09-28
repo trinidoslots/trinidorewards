@@ -76,7 +76,7 @@ export async function POST(request: Request) {
         return Response.json({ error: "Unknown action" }, { status: 400 })
     }
   } catch (problem) {
-    const message = problem instanceof Error ? problem.message : "Fehlgeschlagen"
+    const message = problem instanceof Error ? problem.message : "Failed"
     console.error("[admin/discord]", body.action, problem)
     return Response.json({ ok: false, error: message }, { status: 500 })
   }

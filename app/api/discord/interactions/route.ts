@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
   // The commands are registered on one server only; anything else is not ours to answer.
   if (interaction.guild_id !== config.guildId) {
-    return json({ type: 4, data: { content: "Dieser Bot ist nur für den TrinidoRewards-Server.", flags: EPHEMERAL } })
+    return json({ type: 4, data: { content: "This bot only works on the TrinidoRewards server.", flags: EPHEMERAL } })
   }
 
   if (interaction.type === COMPONENT && interaction.data?.custom_id?.startsWith("trinido:")) {
@@ -66,5 +66,5 @@ export async function POST(request: Request) {
     return json({ type: 5, data: isPublic(interaction) ? {} : { flags: EPHEMERAL } })
   }
 
-  return json({ type: 4, data: { content: "Unbekannte Aktion.", flags: EPHEMERAL } })
+  return json({ type: 4, data: { content: "Unknown action.", flags: EPHEMERAL } })
 }

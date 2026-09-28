@@ -27,102 +27,110 @@ export const EPHEMERAL = 64
 
 const str = (name: string, description: string, required = false) => ({ type: STRING, name, description, required })
 
+// Dates are typed as Berlin time; Discord then shows them in each reader's own zone.
+const DATE_HINT = "DD.MM.YYYY HH:MM (Berlin time)"
+
+/**
+ * Registering replaces the whole set, so a command that is renamed here (the
+ * German /ankuendigen became /announce) disappears from Discord the next time
+ * "Register slash commands" is clicked.
+ */
 export const COMMANDS = [
   {
     name: "setup",
-    description: "Erstellt/aktualisiert Rollen, Kanäle und Panels des TrinidoRewards-Servers",
+    description: "Creates or updates the TrinidoRewards server's roles, channels and panels",
     default_member_permissions: ADMIN,
   },
   {
-    name: "ankuendigen",
-    description: "Manuelle Ankündigung posten (falls die Website nichts automatisch schickt)",
+    name: "announce",
+    description: "Post an announcement by hand (when the site doesn't send one automatically)",
     default_member_permissions: MODS,
     options: [
       {
         type: SUB,
         name: "leaderboard",
-        description: "Neues Leaderboard ankündigen",
+        description: "Announce a new leaderboard",
         options: [
-          str("titel", "z. B. Oktober Leaderboard", true),
-          str("preispool", "z. B. 1.000 €"),
-          str("start", "TT.MM.JJJJ HH:MM"),
-          str("ende", "TT.MM.JJJJ HH:MM"),
-          str("beschreibung", "Zusätzlicher Text"),
-          str("link", "Standard: /leaderboard"),
-          str("bild", "Bild-URL (optional)"),
+          str("title", "e.g. October Leaderboard", true),
+          str("prizepool", "e.g. $1,000"),
+          str("start", DATE_HINT),
+          str("end", DATE_HINT),
+          str("description", "Extra text"),
+          str("link", "Default: /leaderboard"),
+          str("image", "Image URL (optional)"),
         ],
       },
       {
         type: SUB,
         name: "raffle",
-        description: "Neues Raffle ankündigen",
+        description: "Announce a new raffle",
         options: [
-          str("titel", "z. B. 100 € Weekend Raffle", true),
-          str("preis", "Was gibt es zu gewinnen?"),
-          str("ende", "TT.MM.JJJJ HH:MM"),
-          str("teilnahme", "Wie macht man mit?"),
-          str("beschreibung", "Zusätzlicher Text"),
-          str("link", "Link zum Raffle"),
-          str("bild", "Bild-URL (optional)"),
+          str("title", "e.g. $100 Weekend Raffle", true),
+          str("prize", "What can be won?"),
+          str("end", DATE_HINT),
+          str("howtoenter", "How do people enter?"),
+          str("description", "Extra text"),
+          str("link", "Link to the raffle"),
+          str("image", "Image URL (optional)"),
         ],
       },
       {
         type: SUB,
         name: "bonushunt",
-        description: "Bonus Hunt starten",
+        description: "Announce a bonus hunt starting",
         options: [
-          str("titel", "z. B. Bonus Hunt #42", true),
-          str("startbalance", "z. B. 2.500 €"),
-          str("boni", "Anzahl Boni"),
-          str("beschreibung", "Zusätzlicher Text"),
-          str("link", "Standard: /bonushunt"),
+          str("title", "e.g. Bonus Hunt #42", true),
+          str("startbalance", "e.g. $2,500"),
+          str("bonuses", "Number of bonuses"),
+          str("description", "Extra text"),
+          str("link", "Default: /bonushunt"),
         ],
       },
       {
         type: SUB,
-        name: "gewinner",
-        description: "Gewinner eines Raffles oder Leaderboards posten",
+        name: "winners",
+        description: "Post the winners of a raffle or leaderboard",
         options: [
           {
             type: STRING,
-            name: "typ",
-            description: "Wofür?",
+            name: "type",
+            description: "For what?",
             required: true,
             choices: [
               { name: "Raffle", value: "raffle" },
               { name: "Leaderboard", value: "leaderboard" },
             ],
           },
-          str("titel", "Name des Raffles/Leaderboards", true),
-          str("gewinner", "Format: Name – Preis; Name2 – Preis2", true),
+          str("title", "Name of the raffle/leaderboard", true),
+          str("winners", "Format: Name – Prize; Name2 – Prize2", true),
           str("link", "Link (optional)"),
         ],
       },
       {
         type: SUB,
         name: "news",
-        description: "Allgemeine Ankündigung",
+        description: "General announcement",
         options: [
-          str("titel", "Überschrift", true),
-          str("text", "Inhalt", true),
+          str("title", "Headline", true),
+          str("text", "Content", true),
           str("link", "Link (optional)"),
-          str("bild", "Bild-URL (optional)"),
-          { type: BOOLEAN, name: "ping", description: "News-Ping-Rolle pingen? (Standard: ja)" },
+          str("image", "Image URL (optional)"),
+          { type: BOOLEAN, name: "ping", description: "Ping the News role? (default: yes)" },
         ],
       },
     ],
   },
   {
     name: "live",
-    description: "Kick-Live-Benachrichtigung prüfen",
+    description: "Check the Kick live notifications",
     default_member_permissions: MODS,
     options: [
-      { type: SUB, name: "status", description: "Zeigt, was der Bot gerade über den Kick-Kanal weiß" },
-      { type: SUB, name: "test", description: "Postet eine Vorschau der Live-Nachricht in #bot-logs (ohne Ping)" },
+      { type: SUB, name: "status", description: "Shows what the bot currently knows about the Kick channel" },
+      { type: SUB, name: "test", description: "Posts a preview of the live post in #bot-logs (no ping)" },
     ],
   },
-  { name: "links", description: "Alle wichtigen TrinidoRewards-Links" },
-  { name: "leaderboard", description: "Der aktuelle Stand des laufenden Leaderboards" },
+  { name: "links", description: "All the important TrinidoRewards links" },
+  { name: "leaderboard", description: "Current standings of the running leaderboard" },
 ]
 
 export async function registerCommands(): Promise<string[]> {
@@ -162,7 +170,7 @@ function subcommand(interaction: Interaction): { name: string | null; get: (key:
   return { name: sub?.name ?? null, get: (key) => opts.find((o) => o.name === key)?.value ?? undefined }
 }
 
-// "Name – Preis; Name2 – Preis2" → [{ name, prize }]
+// "Name – Prize; Name2 – Prize2" → [{ name, prize }]
 function parseWinners(input: string) {
   return String(input)
     .split(/[;\n]/)
@@ -178,14 +186,14 @@ function parseWinners(input: string) {
 export function quickReply(interaction: Interaction): Payload | null {
   if (interaction.data?.name === "links") {
     return {
-      content: "🎁 **TrinidoRewards** – alles an einem Ort:",
+      content: "🎁 **TrinidoRewards** – everything in one place:",
       components: [
         linkRow([
           { label: "Website", url: SITE_URL, emoji: "🎁" },
           { label: "Kick", url: kickUrl(), emoji: "📺" },
           { label: "Leaderboard", url: `${SITE_URL}/leaderboard`, emoji: "🏆" },
           { label: "Bonus Hunt", url: `${SITE_URL}/bonushunt`, emoji: "🎰" },
-          { label: "Boni", url: `${SITE_URL}/bonuses`, emoji: "💎" },
+          { label: "Bonuses", url: `${SITE_URL}/bonuses`, emoji: "💎" },
         ]),
       ],
     }
@@ -204,7 +212,7 @@ export async function runCommand(interaction: Interaction): Promise<void> {
     await editReply(interaction, reply)
   } catch (problem) {
     if (!(problem instanceof UserError)) console.error("[discord] command failed:", problem)
-    const message = problem instanceof Error ? problem.message : "Unbekannter Fehler"
+    const message = problem instanceof Error ? problem.message : "Unknown error"
     await editReply(interaction, `⚠️ ${message}`).catch(() => {})
   }
 }
@@ -219,27 +227,27 @@ async function execute(interaction: Interaction, guildId: string): Promise<Paylo
     await saveIds(ids)
     await postPanels(ids)
     await saveIds(ids)
-    await logToDiscord(`🛠️ /setup ausgeführt von ${interaction.member?.user.username ?? "?"}`)
+    await logToDiscord(`🛠️ /setup run by ${interaction.member?.user.username ?? "?"}`)
     return [
-      "✅ **Server ist eingerichtet.**",
+      "✅ **Server is set up.**",
       report.created.length
-        ? `Neu erstellt: ${report.created.length} (${report.created.slice(0, 10).join(", ")}${report.created.length > 10 ? ", …" : ""})`
-        : "Nichts neu erstellt.",
-      `Aktualisiert: ${report.updated.length}`,
+        ? `Created: ${report.created.length} (${report.created.slice(0, 10).join(", ")}${report.created.length > 10 ? ", …" : ""})`
+        : "Nothing new created.",
+      `Updated: ${report.updated.length}`,
       "",
-      "Alte Kanäle, die nicht zum Bauplan gehören, werden **nicht** gelöscht – die kannst du selbst aufräumen.",
+      "Old channels that aren't part of the blueprint are **not** deleted – you can clean those up yourself.",
     ].join("\n")
   }
 
-  if (name === "ankuendigen") {
+  if (name === "announce") {
     let event: SiteEvent
     switch (sub) {
       case "leaderboard":
         event = {
           type: "leaderboard.created",
           data: {
-            title: get("titel"), prizePool: get("preispool"), startsAt: get("start"), endsAt: get("ende"),
-            description: get("beschreibung"), url: get("link"), imageUrl: get("bild"),
+            title: get("title"), prizePool: get("prizepool"), startsAt: get("start"), endsAt: get("end"),
+            description: get("description"), url: get("link"), imageUrl: get("image"),
           },
         }
         break
@@ -247,8 +255,8 @@ async function execute(interaction: Interaction, guildId: string): Promise<Paylo
         event = {
           type: "raffle.created",
           data: {
-            title: get("titel"), prize: get("preis"), endsAt: get("ende"), howToEnter: get("teilnahme"),
-            description: get("beschreibung"), url: get("link"), imageUrl: get("bild"),
+            title: get("title"), prize: get("prize"), endsAt: get("end"), howToEnter: get("howtoenter"),
+            description: get("description"), url: get("link"), imageUrl: get("image"),
           },
         }
         break
@@ -256,25 +264,25 @@ async function execute(interaction: Interaction, guildId: string): Promise<Paylo
         event = {
           type: "bonushunt.started",
           data: {
-            title: get("titel"), startBalance: get("startbalance"), bonusCount: get("boni"),
-            description: get("beschreibung"), url: get("link"),
+            title: get("title"), startBalance: get("startbalance"), bonusCount: get("bonuses"),
+            description: get("description"), url: get("link"),
           },
         }
         break
-      case "gewinner":
-        event = { type: `${get("typ")}.ended`, data: { title: get("titel"), winners: parseWinners(get("gewinner")), url: get("link") } }
+      case "winners":
+        event = { type: `${get("type")}.ended`, data: { title: get("title"), winners: parseWinners(get("winners")), url: get("link") } }
         break
       case "news":
         event = {
           type: "announcement",
-          data: { title: get("titel"), text: get("text"), url: get("link"), imageUrl: get("bild"), ping: get("ping") ?? true },
+          data: { title: get("title"), text: get("text"), url: get("link"), imageUrl: get("image"), ping: get("ping") ?? true },
         }
         break
       default:
-        throw new UserError("Unbekannter Unterbefehl.")
+        throw new UserError("Unknown subcommand.")
     }
     const msg = await handleEvent(event)
-    return `✅ Gepostet: ${messageUrl(guildId, msg)}`
+    return `✅ Posted: ${messageUrl(guildId, msg)}`
   }
 
   if (name === "live") {
@@ -288,15 +296,15 @@ async function execute(interaction: Interaction, guildId: string): Promise<Paylo
         subs instanceof Error
           ? `❌ ${subs.message}`
           : subs.some((s) => s.event === "livestream.status.updated")
-            ? "✅ aktiv (Kick meldet Start/Ende per Webhook)"
-            : "❌ nicht abonniert – im Admin unter Discord einrichten"
+            ? "✅ active (Kick reports start/end via webhook)"
+            : "❌ not subscribed – set it up under Discord in the admin"
       return [
-        `**Kanal:** kick.com/${KICK_SLUG}`,
+        `**Channel:** kick.com/${KICK_SLUG}`,
         `**Webhook:** ${subscribed}`,
-        `**Kick sagt gerade:** ${channel instanceof Error ? `❌ ${channel.message}` : channel?.stream?.is_live ? "🔴 live" : "⚫ offline"}`,
-        `**Status laut Bot:** ${live.isLive ? "🔴 live" : "⚫ offline"}`,
-        live.isLive && live.startedAt ? `**Live seit:** ${discordTime(live.startedAt, "R")}` : null,
-        !live.isLive && live.endedAt ? `**Zuletzt beendet:** ${discordTime(live.endedAt, "R")}` : null,
+        `**Kick says right now:** ${channel instanceof Error ? `❌ ${channel.message}` : channel?.stream?.is_live ? "🔴 live" : "⚫ offline"}`,
+        `**Bot's status:** ${live.isLive ? "🔴 live" : "⚫ offline"}`,
+        live.isLive && live.startedAt ? `**Live since:** ${discordTime(live.startedAt, "R")}` : null,
+        !live.isLive && live.endedAt ? `**Last ended:** ${discordTime(live.endedAt, "R")}` : null,
       ]
         .filter(Boolean)
         .join("\n")
@@ -305,19 +313,19 @@ async function execute(interaction: Interaction, guildId: string): Promise<Paylo
     const channel = await fetchKickChannel().catch(() => null)
     const stream = channel?.stream?.is_live
       ? streamInfo(channel)
-      : { title: "Testlauf – so sieht die Live-Nachricht aus", category: "Slots & Casino", viewers: 123 }
+      : { title: "Test run – this is what the live post looks like", category: "Slots & Casino", viewers: 123 }
     const logs = await channelId("logs")
     const msg = await discord<{ id: string; channel_id: string }>("POST", `/channels/${logs}/messages`, {
       ...liveMessage(stream, new Date().toISOString()),
-      content: "🧪 **Vorschau** (kein Ping):",
+      content: "🧪 **Preview** (no ping):",
       allowed_mentions: { parse: [] },
     })
-    return `Vorschau gepostet: ${messageUrl(guildId, msg)}`
+    return `Preview posted: ${messageUrl(guildId, msg)}`
   }
 
   if (name === "leaderboard") {
     const standings = await currentStandings()
-    if (!standings) return "Gerade läuft kein Leaderboard. 🏆"
+    if (!standings) return "No leaderboard is running right now. 🏆"
     return {
       embeds: [
         {
@@ -325,19 +333,19 @@ async function execute(interaction: Interaction, guildId: string): Promise<Paylo
           title: `🏆 ${standings.title}`,
           url: `${SITE_URL}/leaderboard`,
           description: [
-            `Endet ${discordTime(standings.endsAt, "R")} · Wertung: ${standings.metric}`,
+            `Ends ${discordTime(standings.endsAt, "R")} · Ranked by: ${standings.metric}`,
             "",
-            ...(standings.lines.length ? standings.lines : ["Noch keine Einträge."]),
+            ...(standings.lines.length ? standings.lines : ["No entries yet."]),
           ].join("\n"),
           footer: FOOTER,
           timestamp: new Date().toISOString(),
         },
       ],
-      components: [linkRow([{ label: "Ganzes Leaderboard", url: `${SITE_URL}/leaderboard`, emoji: "🏆" }])],
+      components: [linkRow([{ label: "Full leaderboard", url: `${SITE_URL}/leaderboard`, emoji: "🏆" }])],
     }
   }
 
-  throw new UserError("Unbekannter Befehl.")
+  throw new UserError("Unknown command.")
 }
 
 // ─── Buttons ─────────────────────────────────────────────────
@@ -349,30 +357,29 @@ export async function handleButton(interaction: Interaction): Promise<string> {
   const { guildId } = discordConfig()
   const userId = interaction.member?.user.id
   const memberRoles = interaction.member?.roles ?? []
-  if (!userId) return "Das geht nur auf dem Server."
+  if (!userId) return "This only works on the server."
   const ids = await getIds()
   const memberRole = (roleId: string) => `/guilds/${guildId}/members/${userId}/roles/${roleId}`
 
   if (action === "verify") {
     const roleId = ids.roles.verified
-    if (!roleId) return "⚠️ Der Server ist noch nicht eingerichtet."
-    if (memberRoles.includes(roleId)) return "Du bist bereits freigeschaltet. 👍"
-    await discord("PUT", memberRole(roleId), undefined, { reason: "Selbst-Verifizierung (18+ & Regeln)" })
-    return "✅ Willkommen! Der Server ist jetzt für dich freigeschaltet. Tipp: Hol dir unter 🔔│benachrichtigungen deine Pings."
+    if (!roleId) return "⚠️ The server isn't set up yet."
+    if (memberRoles.includes(roleId)) return "You're already verified. 👍"
+    await discord("PUT", memberRole(roleId), undefined, { reason: "Self-verification (18+ & rules)" })
+    return "✅ Welcome! The server is now unlocked for you. Tip: pick your pings in 🔔│notifications."
   }
 
   if (action === "role" && PING_KEYS.has(key)) {
     const roleId = ids.roles[key]
-    if (!roleId) return "⚠️ Diese Rolle existiert nicht mehr – bitte einem Mod Bescheid geben."
+    if (!roleId) return "⚠️ This role no longer exists – please let a mod know."
     const label = PING_ROLES.find((r) => r.key === key)!.name
     if (memberRoles.includes(roleId)) {
-      await discord("DELETE", memberRole(roleId), undefined, { reason: "Ping-Rolle abgewählt" })
-      return `🔕 **${label}** entfernt.`
+      await discord("DELETE", memberRole(roleId), undefined, { reason: "Ping role removed" })
+      return `🔕 **${label}** removed.`
     }
-    await discord("PUT", memberRole(roleId), undefined, { reason: "Ping-Rolle gewählt" })
-    return `🔔 **${label}** hinzugefügt.`
+    await discord("PUT", memberRole(roleId), undefined, { reason: "Ping role added" })
+    return `🔔 **${label}** added.`
   }
 
-  return "Unbekannter Button."
+  return "Unknown button."
 }
-

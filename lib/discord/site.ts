@@ -26,7 +26,7 @@ async function once(key: string, build: () => Promise<SiteEvent | null>): Promis
       const event = await build()
       if (event) {
         await handleEvent(event)
-        await logToDiscord(`🌐 Website-Event \`${event.type}\` gepostet.`)
+        await logToDiscord(`🌐 Site event \`${event.type}\` posted.`)
       }
     } catch (problem) {
       // Give the claim back so the next attempt (a re-save, the next cron) can post it.
@@ -40,7 +40,7 @@ async function once(key: string, build: () => Promise<SiteEvent | null>): Promis
 
 function rafflePrize(raffle: { prize_name?: string | null; prize_value?: number | null; prize_type?: string | null }) {
   const value = Number(raffle.prize_value) || 0
-  if (raffle.prize_type === "points" && value > 0) return `${value.toLocaleString("de-DE")} Punkte`
+  if (raffle.prize_type === "points" && value > 0) return `${value.toLocaleString("en-US")} points`
   if (raffle.prize_type === "cash" && value > 0) return raffle.prize_name ? `${raffle.prize_name} (${money(value)})` : money(value)
   return raffle.prize_name || undefined
 }
@@ -53,7 +53,7 @@ export function announceRaffleCreated(raffleId: string) {
       .eq("id", raffleId)
       .maybeSingle()
     if (!raffle) return null
-    const cost = raffle.entry_type === "points" && Number(raffle.ticket_price) > 0 ? `${raffle.ticket_price} Punkte pro Ticket` : "kostenlos"
+    const cost = raffle.entry_type === "points" && Number(raffle.ticket_price) > 0 ? `${raffle.ticket_price} points per ticket` : "free"
     return {
       type: "raffle.created",
       data: {
@@ -61,7 +61,7 @@ export function announceRaffleCreated(raffleId: string) {
         description: raffle.description,
         prize: rafflePrize(raffle),
         endsAt: raffle.end_date,
-        howToEnter: `Auf trinidorewards.com mit deinem Kick-Account einloggen und Ticket holen (${cost}).`,
+        howToEnter: `Log in on trinidorewards.com with your Kick account and grab a ticket (${cost}).`,
         url: `${SITE_URL}/raffles/${raffle.id}`,
         imageUrl: raffle.prize_image_url,
       },

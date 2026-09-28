@@ -24,7 +24,7 @@ async function appToken(): Promise<string> {
   if (cachedToken && Date.now() < cachedToken.expires - 60_000) return cachedToken.value
   const clientId = process.env.NEXT_PUBLIC_KICK_CLIENT_ID
   const clientSecret = process.env.KICK_CLIENT_SECRET
-  if (!clientId || !clientSecret) throw new Error("NEXT_PUBLIC_KICK_CLIENT_ID / KICK_CLIENT_SECRET fehlen.")
+  if (!clientId || !clientSecret) throw new Error("NEXT_PUBLIC_KICK_CLIENT_ID / KICK_CLIENT_SECRET are missing.")
 
   const res = await fetch("https://id.kick.com/oauth/token", {
     method: "POST",
@@ -32,7 +32,7 @@ async function appToken(): Promise<string> {
     body: new URLSearchParams({ grant_type: "client_credentials", client_id: clientId, client_secret: clientSecret }),
     cache: "no-store",
   })
-  if (!res.ok) throw new Error(`Kick-Token fehlgeschlagen (HTTP ${res.status}) – Client-ID/Secret prüfen.`)
+  if (!res.ok) throw new Error(`Kick token request failed (HTTP ${res.status}) – check the client ID/secret.`)
   const json = await res.json()
   cachedToken = { value: json.access_token, expires: Date.now() + (Number(json.expires_in) || 3600) * 1000 }
   return cachedToken.value
@@ -51,7 +51,7 @@ async function kick<T = any>(method: string, path: string, body?: unknown): Prom
   })
   if (res.status === 401) cachedToken = null
   const json = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(`Kick-API ${path}: HTTP ${res.status}${json?.message ? ` – ${json.message}` : ""}`)
+  if (!res.ok) throw new Error(`Kick API ${path}: HTTP ${res.status}${json?.message ? ` – ${json.message}` : ""}`)
   return json as T
 }
 
@@ -91,18 +91,18 @@ export async function listSubscriptions(): Promise<{ id: string; event: string; 
 /** Subscribes the site's Kick app to the channel's live events. Safe to repeat. */
 export async function subscribeLiveEvents(): Promise<string> {
   const channel = await fetchKickChannel()
-  if (!channel) throw new Error(`Kick-Kanal "${KICK_SLUG}" nicht gefunden.`)
+  if (!channel) throw new Error(`Kick channel "${KICK_SLUG}" not found.`)
   const existing = await listSubscriptions()
   const missing = EVENTS.filter(
     (e) => !existing.some((s) => s.event === e.name && Number(s.broadcaster_user_id) === Number(channel.broadcaster_user_id)),
   )
-  if (missing.length === 0) return "Bereits abonniert."
+  if (missing.length === 0) return "Already subscribed."
   await kick("POST", "/events/subscriptions", {
     broadcaster_user_id: channel.broadcaster_user_id,
     events: missing,
     method: "webhook",
   })
-  return `Abonniert: ${missing.map((e) => e.name).join(", ")}`
+  return `Subscribed: ${missing.map((e) => e.name).join(", ")}`
 }
 
 // ─── Webhook signature ───────────────────────────────────────
@@ -178,7 +178,7 @@ export async function handleStatus(event: StatusEvent): Promise<void> {
       try {
         await editMessage(live.channelId, live.messageId, liveMessage(stream, live.startedAt))
         await saveLive({ ...live, isLive: true, endedAt: null, title: stream.title ?? live.title, category: stream.category ?? live.category })
-        await logToDiscord("🔁 Stream nach kurzer Unterbrechung wieder live – kein erneuter Ping.")
+        await logToDiscord("🔁 Stream back live after a short drop – no second ping.")
         return
       } catch {
         /* the old post is gone – announce afresh below */
@@ -196,7 +196,7 @@ export async function handleStatus(event: StatusEvent): Promise<void> {
       title: stream.title ?? null,
       category: stream.category ?? null,
     })
-    await logToDiscord(`🔴 Live erkannt: "${stream.title ?? ""}" – Ankündigung gepostet.`)
+    await logToDiscord(`🔴 Went live: "${stream.title ?? ""}" – announcement posted.`)
     return
   }
 
@@ -210,7 +210,7 @@ export async function handleStatus(event: StatusEvent): Promise<void> {
     ).catch(() => {})
   }
   await saveLive({ ...live, isLive: false, endedAt })
-  await logToDiscord("⚫ Stream beendet – Live-Nachricht aktualisiert.")
+  await logToDiscord("⚫ Stream ended – live post updated.")
 }
 
 export async function handleMetadata(event: MetadataEvent): Promise<void> {

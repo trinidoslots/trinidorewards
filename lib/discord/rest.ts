@@ -64,8 +64,8 @@ export async function discord<T = any>(
 
 // The two failures anyone setting this up will actually meet, in words they can act on.
 function describe(status: number, code: number | undefined, message: string | undefined): string {
-  if (code === 50013) return "Dem Bot fehlen Rechte (Rollen/Kanäle verwalten) oder seine Rolle steht zu weit unten."
-  if (code === 50001) return "Der Bot hat keinen Zugriff auf diesen Kanal."
-  if (status === 401) return "Discord hat den Bot-Token abgelehnt – DISCORD_BOT_TOKEN prüfen."
-  return `Discord-API: ${message ?? "Fehler"} (HTTP ${status}${code ? `, Code ${code}` : ""})`
+  if (code === 50013) return "The bot is missing permissions (Manage Roles/Channels) or its role is too low."
+  if (code === 50001) return "The bot has no access to this channel."
+  if (status === 401) return "Discord rejected the bot token – check DISCORD_BOT_TOKEN."
+  return `Discord API: ${message ?? "error"} (HTTP ${status}${code ? `, code ${code}` : ""})`
 }
