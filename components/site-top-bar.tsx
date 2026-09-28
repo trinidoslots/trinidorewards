@@ -1,11 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Menu } from "lucide-react"
 import { BrandMark } from "@/components/brand-mark"
 import { BrandWordmark } from "@/components/brand-wordmark"
 import { LoginModal } from "@/components/login-modal"
+import { OPEN_REDEEM_EVENT, REDEEM_PARAM, RedeemModal } from "@/components/redeem-modal"
 import { NotificationBell, PointsPill, UserMenu } from "@/components/top-bar-parts"
 import { useSiteSession } from "@/hooks/use-site-session"
 
@@ -23,8 +24,31 @@ export const OPEN_MAIN_NAV_EVENT = "main-nav:open"
  * top; both moved here, so the nav is only navigation.
  */
 export function SiteTopBar() {
-  const { user, loading } = useSiteSession()
+  const { user, loading, refresh } = useSiteSession()
   const [loginOpen, setLoginOpen] = useState(false)
+  const [redeem, setRedeem] = useState<{ open: boolean; code: string }>({ open: false, code: "" })
+
+  // The redeem dialog lives here because this bar is on every page. The
+  // account menu opens it with openRedeem(); a link opens it with ?redeem=CODE.
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      const code = (event as CustomEvent<string | null>).detail
+      setRedeem({ open: true, code: code ?? "" })
+    }
+    window.addEventListener(OPEN_REDEEM_EVENT, onOpen)
+
+    // Read from window rather than useSearchParams: this bar sits in the root
+    // layout, where useSearchParams would force every page into a Suspense boundary.
+    const url = new URL(window.location.href)
+    const fromLink = url.searchParams.get(REDEEM_PARAM)
+    if (fromLink !== null) {
+      setRedeem({ open: true, code: fromLink === "1" ? "" : fromLink })
+      url.searchParams.delete(REDEEM_PARAM)
+      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash)
+    }
+
+    return () => window.removeEventListener(OPEN_REDEEM_EVENT, onOpen)
+  }, [])
 
   return (
     <>
@@ -90,6 +114,13 @@ export function SiteTopBar() {
       </header>
 
       <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
+      <RedeemModal
+        open={redeem.open}
+        onOpenChange={(open) => setRedeem((current) => ({ ...current, open }))}
+        initialCode={redeem.code}
+        loggedIn={!!user}
+        onRedeemed={() => void refresh()}
+      />
     </>
   )
 }

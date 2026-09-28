@@ -6,7 +6,7 @@ import { isValidCode, MAX_POINTS, normalizeCode, randomCode } from "@/lib/promo-
  * Promo codes, for /admin/promo-codes.
  *
  * GET    — every code, newest first.
- * POST   — { code?, points, max_uses? } creates one; no code means a random one.
+ * POST   — { code?, points, max_uses? } creates one, disabled; no code means a random one.
  * PATCH  — { id, is_active?, show_on_stream? } flips the two switches.
  * DELETE — ?id= removes a code. Points already credited stay credited.
  *
@@ -59,7 +59,9 @@ export async function POST(request: Request) {
     const code = typed || randomCode()
     const { data, error } = await serviceClient()
       .from("promo_codes")
-      .insert({ code, points, max_uses: maxUses, created_by: auth.email })
+      // Created switched off: a code goes live when the admin activates it,
+      // not the moment it is typed in.
+      .insert({ code, points, max_uses: maxUses, created_by: auth.email, is_active: false })
       .select(COLUMNS)
       .single()
 

@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { signOut } from "@/hooks/use-site-session"
+import { openRedeem } from "@/components/redeem-modal"
 import type { SiteNotification } from "@/app/api/notifications/route"
 
 /**
@@ -137,10 +138,10 @@ export function UserMenu({
                 <Settings className="h-4 w-4" /> Settings
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className={MENU_ITEM_CLASS}>
-              <Link href="/redeem">
-                <TicketCheck className="h-4 w-4" /> Redeem Code
-              </Link>
+            {/* A frame later, so the menu has finished closing (and handing focus
+                back to its trigger) before the dialog takes focus. */}
+            <DropdownMenuItem className={MENU_ITEM_CLASS} onSelect={() => requestAnimationFrame(() => openRedeem())}>
+              <TicketCheck className="h-4 w-4" /> Redeem Code
             </DropdownMenuItem>
             {isAdmin && (
               <DropdownMenuItem asChild className={MENU_ITEM_CLASS}>

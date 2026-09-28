@@ -45,18 +45,8 @@ export function useSiteSession() {
     void refresh()
   }, [refresh, pathname])
 
-  // For a balance that changed without a navigation, e.g. redeeming a code.
-  useEffect(() => {
-    const onRefresh = () => void refresh()
-    window.addEventListener(SESSION_REFRESH_EVENT, onRefresh)
-    return () => window.removeEventListener(SESSION_REFRESH_EVENT, onRefresh)
-  }, [refresh])
-
   return { user, loading, refresh }
 }
-
-/** Dispatch on window to make every useSiteSession re-read the session (and the balance). */
-export const SESSION_REFRESH_EVENT = "site-session:refresh"
 
 /** Ends both sessions (see /api/auth/logout) and starts the page over. */
 export async function signOut(): Promise<void> {

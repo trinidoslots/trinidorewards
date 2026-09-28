@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS public.promo_codes (
   -- NULL: as many accounts as want it (each still only once).
   max_uses       INTEGER CHECK (max_uses IS NULL OR max_uses > 0),
   uses_count     INTEGER NOT NULL DEFAULT 0,
-  is_active      BOOLEAN NOT NULL DEFAULT true,
+  -- New codes start switched off; the admin activates them when it is time.
+  is_active      BOOLEAN NOT NULL DEFAULT false,
   show_on_stream BOOLEAN NOT NULL DEFAULT false,
   -- When it last went on stream; orders it among the other event cards.
   shown_at       TIMESTAMPTZ,
@@ -41,6 +42,10 @@ CREATE TABLE IF NOT EXISTS public.promo_code_redemptions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (code_id, user_id)
 );
+
+-- For a database where an earlier copy of this script created the table with
+-- codes active by default.
+ALTER TABLE public.promo_codes ALTER COLUMN is_active SET DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_promo_code_redemptions_code ON public.promo_code_redemptions (code_id, created_at DESC);
 

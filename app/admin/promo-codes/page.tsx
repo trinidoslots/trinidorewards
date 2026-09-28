@@ -147,7 +147,7 @@ export default function PromoCodesPage() {
         <div>
           <h1 className="text-2xl font-semibold text-white">Promo codes</h1>
           <p className="text-[13px] text-white/40">
-            Codes viewers redeem for points on <span className="font-mono text-white/60">/redeem</span> – once per account.
+            Codes viewers redeem for points under Redeem Code in the account menu – once per account.
           </p>
         </div>
         <button
@@ -216,6 +216,9 @@ export default function PromoCodesPage() {
           >
             {creating ? "Creating…" : "Create code"}
           </button>
+          <p className="text-[12px] text-white/35 sm:col-span-4">
+            New codes start <b className="text-white/55">disabled</b> – switch one to Active when it should work.
+          </p>
           {formError && (
             <p className="text-[12.5px] sm:col-span-4" style={{ color: ACCENTS.red }}>
               {formError}
