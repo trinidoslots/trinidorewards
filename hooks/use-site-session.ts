@@ -19,8 +19,11 @@ export type SiteUser = {
   points_balance: number
   created_at: string | null
   updated_at: string | null
-  /** From the verified admin session, not from the Kick cookies. */
+  /** From the verified admin session, not from the Kick cookies. True for moderators too. */
   is_admin: boolean
+  staff_role?: "admin" | "moderator" | null
+  /** The Code User rank: Code-User-only store items, raffles and promo codes. */
+  is_code_user?: boolean
 }
 
 export function useSiteSession() {
