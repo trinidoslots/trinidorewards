@@ -52,7 +52,11 @@ export default function EditStoreItemPage({ params }: { params: Promise<{ id: st
     // be set at creation, and there was nowhere to change it afterwards.
     icon: "",
     payout_method: "",
+    code_user_only: false,
   })
+  // Whether the row came back with the column at all (scripts/076). If not,
+  // the flag is left out of the save rather than failing it.
+  const [hasCodeUserColumn, setHasCodeUserColumn] = useState(false)
   const { toast } = useToast()
   const supabase = createClient()
   const router = useRouter()
@@ -82,7 +86,9 @@ export default function EditStoreItemPage({ params }: { params: Promise<{ id: st
         is_available: data.is_available,
         icon: data.icon || "",
         payout_method: data.payout_method || "",
+        code_user_only: data.code_user_only === true,
       })
+      setHasCodeUserColumn("code_user_only" in data)
     }
     setLoading(false)
   }
@@ -100,6 +106,7 @@ export default function EditStoreItemPage({ params }: { params: Promise<{ id: st
       icon: formData.icon || null,
       // NULL, not "", so the column's CHECK accepts it.
       payout_method: formData.payout_method || null,
+      ...(hasCodeUserColumn || formData.code_user_only ? { code_user_only: formData.code_user_only } : {}),
       updated_at: new Date().toISOString(),
     }
 
@@ -253,6 +260,19 @@ export default function EditStoreItemPage({ params }: { params: Promise<{ id: st
               value={formData.payout_method}
               onChange={(value) => setFormData({ ...formData, payout_method: value })}
             />
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="code_user_only"
+                checked={formData.code_user_only}
+                onChange={(e) => setFormData({ ...formData, code_user_only: e.target.checked })}
+                className="rounded border-white/[0.12]"
+              />
+              <Label htmlFor="code_user_only" className="text-white/60 cursor-pointer">
+                Code Users only <span className="text-white/30">– everyone else sees it locked</span>
+              </Label>
+            </div>
 
             <StoreImageField
               value={formData.icon}

@@ -87,16 +87,18 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     .reduce((sum, row) => sum + (Number(row.cost) || 0), 0)
   const spentOnRaffles = raffleRows.reduce((sum, row) => sum + (Number(row.points_spent) || 0), 0)
 
-  // The admin tag lives on the on-site account and names its Kick account
-  // (admin_accounts, scripts/071).
-  const kickId = typeof user.kick_id === "string" ? user.kick_id : null
+  // The staff tag lives on the on-site account and names its Kick account
+  // (admin_accounts, scripts/071); Code User is a flag on users (scripts/076).
+  const kickId = user.kick_id ? String(user.kick_id) : null
   const tag = await adminTag({ siteUserId: user.id, kickId })
+  const rank: Rank = tag ? tag.role : user.is_code_user === true ? "code_user" : "user"
   const admin = {
     is_admin: !!tag,
-    // Shown so the page can refuse, before the route does, to let you take
-    // away your own access.
+    rank,
+    // Shown so the page can refuse, before the route does, to let you change
+    // your own rank.
     is_self: user.id === auth.siteUserId,
-    // The main admin cannot be untagged by anyone.
+    // The main admin's rank cannot be changed by anyone.
     is_owner: tag?.isOwner === true,
   }
 
@@ -122,56 +124,89 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   })
 }
 
+type Rank = "user" | "code_user" | "moderator" | "admin"
+const RANKS: Rank[] = ["user", "code_user", "moderator", "admin"]
+
 /**
- * Tags or untags this user's Kick account as an admin.
+ * Sets this user's rank: User, Code User, Moderator or Admin.
  *
- * Takes effect on their next request: every admin check looks the tag up
- * afresh (lib/admin-auth.ts). You cannot untag yourself from here, so the
- * panel can never be left without the admin who was using it, and nobody can
- * untag the main admin (scripts/071).
+ * Moderator and Admin are a staff tag in admin_accounts (with its role);
+ * User and Code User have no tag, and differ by users.is_code_user. One rank
+ * at a time, so a staff rank clears the Code User flag.
+ *
+ * Takes effect on their next request: every staff check looks the tag up
+ * afresh (lib/admin-auth.ts). You cannot change your own rank from here, so
+ * the panel can never be left without the admin who was using it, and nobody
+ * can change the main admin's (scripts/071).
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdmin()
   if (!auth.ok) return auth.response
 
-  const body = (await request.json().catch(() => null)) as { is_admin?: unknown } | null
-  if (typeof body?.is_admin !== "boolean") {
-    return NextResponse.json({ error: "Expected { is_admin: true | false }" }, { status: 400 })
+  const body = (await request.json().catch(() => null)) as { role?: unknown } | null
+  const role = body?.role as Rank
+  if (!RANKS.includes(role)) {
+    return NextResponse.json({ error: `Expected { role: ${RANKS.join(" | ")} }` }, { status: 400 })
   }
 
   const { id } = await params
   const client = serviceClient()
-  const { data: user, error } = await client.from("users").select("id, username, kick_id").eq("id", id).maybeSingle()
+  // "*" so it shows whether is_code_user exists yet (scripts/076).
+  const { data: user, error } = await client.from("users").select("*").eq("id", id).maybeSingle()
   if (error) return NextResponse.json({ error: "Could not load that user" }, { status: 500 })
   if (!user) return NextResponse.json({ error: "No such user" }, { status: 404 })
 
-  const kickId = typeof user.kick_id === "string" && user.kick_id ? user.kick_id : null
-  if (!kickId) {
-    return NextResponse.json({ error: "This user has never signed in with Kick, so there is no account to tag." }, { status: 400 })
+  if (user.id === auth.siteUserId) {
+    return NextResponse.json({ error: "You cannot change your own rank." }, { status: 400 })
   }
 
-  if (!body.is_admin && user.id === auth.siteUserId) {
-    return NextResponse.json({ error: "You cannot remove your own admin access." }, { status: 400 })
+  const kickId = user.kick_id ? String(user.kick_id) : null
+  const staff = role === "admin" || role === "moderator"
+  if (staff && !kickId) {
+    return NextResponse.json(
+      { error: "This user has never signed in with Kick, so they cannot be given panel access." },
+      { status: 400 },
+    )
   }
 
   const isOwner = (await adminTag({ siteUserId: user.id, kickId }))?.isOwner === true
-  if (!body.is_admin && isOwner) {
-    return NextResponse.json({ error: "This is the main admin, whose access cannot be removed here." }, { status: 400 })
+  if (isOwner) {
+    return NextResponse.json({ error: "This is the main admin, whose rank cannot be changed here." }, { status: 400 })
   }
 
-  const write = body.is_admin
-    ? await client
-        .from("admin_accounts")
+  const missing076 = (problem: { code?: string; message?: string }) =>
+    problem.code === "42703" || problem.code === "PGRST204" || /role|is_code_user/.test(problem.message ?? "")
+
+  // Staff tag first: it is the part that grants or removes access.
+  const tagWrite = staff
+    ? await client.from("admin_accounts").upsert(
         // Keyed on the on-site account. The Kick id is copied in so the tag
         // cannot follow a users row that is later pointed at someone else.
-        .upsert({ user_id: user.id, kick_id: kickId, username: user.username, added_by: auth.email }, { onConflict: "user_id" })
+        { user_id: user.id, kick_id: kickId, username: user.username, added_by: auth.email, role },
+        { onConflict: "user_id" },
+      )
     : await client.from("admin_accounts").delete().eq("user_id", user.id)
 
-  if (write.error) {
-    console.error("[admin] Could not change the admin tag:", write.error)
-    return NextResponse.json({ error: "Could not save. Have scripts/070 and 071 been run?" }, { status: 500 })
+  if (tagWrite.error) {
+    console.error("[admin] Could not change the staff tag:", tagWrite.error)
+    const hint = missing076(tagWrite.error) ? "Run scripts/076_ranks.sql in Supabase first." : "Have scripts/070 and 071 been run?"
+    return NextResponse.json({ error: `Could not save. ${hint}` }, { status: 500 })
   }
 
-  console.log(`[admin] ${auth.email} ${body.is_admin ? "tagged" : "untagged"} ${user.username} (${kickId})`)
-  return NextResponse.json({ admin: { is_admin: body.is_admin, is_self: user.id === auth.siteUserId, is_owner: isOwner } })
+  // Before 076 the column does not exist: there is no flag to clear, and only
+  // asking for Code User needs it.
+  const flagWrite =
+    role === "code_user" || "is_code_user" in user
+      ? await client.from("users").update({ is_code_user: role === "code_user" }).eq("id", user.id)
+      : { error: null }
+  if (flagWrite.error) {
+    console.error("[admin] Could not change the Code User flag:", flagWrite.error)
+    const hint = missing076(flagWrite.error) ? "Run scripts/076_ranks.sql in Supabase first." : ""
+    return NextResponse.json({ error: `Could not save the Code User rank. ${hint}`.trim() }, { status: 500 })
+  }
+
+  console.log(`[admin] ${auth.email} set ${user.username} (${kickId ?? "no kick"}) to ${role}`)
+  return NextResponse.json({
+    admin: { is_admin: staff, rank: role, is_self: false, is_owner: false },
+  })
 }

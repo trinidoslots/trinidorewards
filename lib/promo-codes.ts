@@ -15,6 +15,8 @@ export type PromoCode = {
   show_on_stream: boolean
   shown_at: string | null
   created_at: string
+  /** Only Code Users may redeem it (scripts/076). Absent before that ran. */
+  code_user_only?: boolean | null
 }
 
 export const MAX_POINTS = 10_000_000

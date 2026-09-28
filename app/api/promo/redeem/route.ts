@@ -16,6 +16,7 @@ const REASONS: Record<string, { status: number; error: string }> = {
   invalid: { status: 404, error: "That code doesn't exist or isn't active." },
   used_up: { status: 410, error: "That code has been fully claimed." },
   already: { status: 409, error: "You've already redeemed this code." },
+  code_users_only: { status: 403, error: "This code is for Code Users only." },
 }
 
 export async function POST(request: Request) {

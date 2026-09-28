@@ -32,9 +32,11 @@ export async function POST(request: Request) {
 
     const client = serviceClient()
 
+    // "*" rather than naming is_code_user: before scripts/076 the column does
+    // not exist, and naming it would fail every purchase.
     const { data: user } = userId
-      ? await client.from("users").select("id, points_balance").eq("id", userId).maybeSingle()
-      : await client.from("users").select("id, points_balance").eq("kick_id", kickUserId!).maybeSingle()
+      ? await client.from("users").select("*").eq("id", userId).maybeSingle()
+      : await client.from("users").select("*").eq("kick_id", kickUserId!).maybeSingle()
 
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 })
 
@@ -43,6 +45,9 @@ export async function POST(request: Request) {
 
     if (!isAvailable(item)) return NextResponse.json({ error: "That item is not available" }, { status: 400 })
     if (!inStock(item)) return NextResponse.json({ error: "That item is out of stock" }, { status: 400 })
+    if (item.code_user_only === true && user.is_code_user !== true) {
+      return NextResponse.json({ error: "This item is for Code Users only" }, { status: 403 })
+    }
 
     // Checked before any points move. The dialog asks for these, but the dialog
     // is client-side and this route is reachable without it — a redemption with

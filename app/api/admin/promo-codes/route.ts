@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/admin-guard"
+import { requireAdmin, requireStaff } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
 import { isValidCode, MAX_POINTS, normalizeCode, randomCode } from "@/lib/promo-codes"
 
@@ -6,7 +6,7 @@ import { isValidCode, MAX_POINTS, normalizeCode, randomCode } from "@/lib/promo-
  * Promo codes, for /admin/promo-codes.
  *
  * GET    — every code, newest first.
- * POST   — { code?, points, max_uses? } creates one, disabled; no code means a random one.
+ * POST   — { code?, points, max_uses?, code_user_only? } creates one, disabled; no code means a random one.
  * PATCH  — { id, is_active?, show_on_stream? } flips the two switches.
  * DELETE — ?id= removes a code. Points already credited stay credited.
  *
@@ -16,10 +16,13 @@ import { isValidCode, MAX_POINTS, normalizeCode, randomCode } from "@/lib/promo-
 
 export const dynamic = "force-dynamic"
 
-const COLUMNS = "id, code, points, max_uses, uses_count, is_active, show_on_stream, shown_at, created_at"
+// "*" rather than a list: code_user_only arrives with scripts/076, and naming a
+// column that is not there yet fails the whole request.
+const COLUMNS = "*"
 
 export async function GET() {
-  const auth = await requireAdmin()
+  // Moderators may look at the codes; creating and switching them stays admin-only.
+  const auth = await requireStaff()
   if (!auth.ok) return auth.response
 
   const { data, error } = await serviceClient().from("promo_codes").select(COLUMNS).order("created_at", { ascending: false })
@@ -61,7 +64,15 @@ export async function POST(request: Request) {
       .from("promo_codes")
       // Created switched off: a code goes live when the admin activates it,
       // not the moment it is typed in.
-      .insert({ code, points, max_uses: maxUses, created_by: auth.email, is_active: false })
+      .insert({
+        code,
+        points,
+        max_uses: maxUses,
+        created_by: auth.email,
+        is_active: false,
+        // Only sent when set, so creating a normal code works before scripts/076.
+        ...(body.code_user_only === true ? { code_user_only: true } : {}),
+      })
       .select(COLUMNS)
       .single()
 

@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { isAdminPath, resolvePath, safeNext } from "@/lib/admin-host"
 import { adminFromUser } from "@/lib/admin-auth"
+import { MODERATOR_HOME, accessFor } from "@/lib/admin-permissions"
 
 export async function updateSession(request: NextRequest) {
   // Where this request actually lands, once ADMIN_HOST has had its say. Every
@@ -44,13 +45,25 @@ export async function updateSession(request: NextRequest) {
   // for a Kick account, and that account has to be tagged as an admin right
   // now — see lib/admin-auth.ts. A Supabase user from anywhere else (the old
   // email logins, a stray sign-up) has no Kick id and gets nothing.
-  if (!(await adminFromUser(user))) {
+  const staff = await adminFromUser(user)
+  if (!staff) {
     const url = request.nextUrl.clone()
     url.pathname = "/auth/login"
     url.search = ""
     // Come back to the page that was asked for, rather than dropping everyone
     // on the dashboard.
     url.searchParams.set("next", safeNext(pathname))
+    return NextResponse.redirect(url)
+  }
+
+  // A moderator only gets the pages lib/admin-permissions.ts lists. Anything
+  // else (including the overview at /admin) sends them to their first page.
+  // This is navigation, not the lock: the database and the API routes refuse
+  // a moderator's writes on their own.
+  if (accessFor(staff.role, pathname) === null) {
+    const url = request.nextUrl.clone()
+    url.pathname = MODERATOR_HOME
+    url.search = ""
     return NextResponse.redirect(url)
   }
 

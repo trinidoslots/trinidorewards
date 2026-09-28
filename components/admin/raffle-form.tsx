@@ -38,6 +38,8 @@ export type RaffleDraft = {
   durationUnit: DurationUnit
   auto_draw: boolean
   featured: boolean
+  /** Only Code Users may enter; everyone else sees it locked. */
+  code_user_only: boolean
   /** Only set when editing: the raffle keeps the time it actually opened. */
   startedAt?: string
 }
@@ -59,6 +61,7 @@ export const emptyDraft: RaffleDraft = {
   // not what you want mid-stream.
   auto_draw: false,
   featured: false,
+  code_user_only: false,
 }
 
 /** Turns a stored raffle back into something this form can edit. */
@@ -83,6 +86,7 @@ export function draftFrom(row: Record<string, any>): RaffleDraft {
     durationUnit: duration.unit,
     auto_draw: !!row.auto_draw,
     featured: !!row.featured,
+    code_user_only: row.code_user_only === true,
     startedAt: row.start_date ?? undefined,
   }
 }
@@ -149,6 +153,10 @@ export function RaffleForm({ raffleId, initial }: { raffleId?: string; initial?:
       end_date: new Date(start.getTime() + span).toISOString(),
       auto_draw: draft.auto_draw,
       featured: draft.featured,
+      // Only sent when it matters: the column arrives with scripts/076, and an
+      // unset flag must not break saving raffles before that has run. An edit
+      // that switches it off does send false.
+      ...(draft.code_user_only || initial?.code_user_only ? { code_user_only: draft.code_user_only } : {}),
     }
 
     const supabase = createBrowserClient()
@@ -406,6 +414,15 @@ export function RaffleForm({ raffleId, initial }: { raffleId?: string; initial?:
             className="h-3.5 w-3.5 accent-[#E8A33D]"
           />
           Feature this raffle
+        </label>
+        <label className="flex w-fit cursor-pointer items-center gap-2 px-3.5 pb-3.5 text-[13px] text-white/60">
+          <input
+            type="checkbox"
+            checked={draft.code_user_only}
+            onChange={(e) => set({ code_user_only: e.target.checked })}
+            className="h-3.5 w-3.5 accent-[#A78BFA]"
+          />
+          Code Users only <span className="text-white/30">– everyone else sees it locked</span>
         </label>
       </Panel>
 

@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Crosshair,
   Database,
+  Eye,
   Gift,
   Home,
   MessageCircle,
@@ -26,6 +27,7 @@ import {
   Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { accessFor, type StaffRole } from "@/lib/admin-permissions"
 import { MonoLabel } from "@/components/ui/panel"
 
 export type Leaf = { href: string; label: string }
@@ -45,6 +47,7 @@ export const NAV: Item[] = [
     match: "/admin/bonushunt|/admin/slots|/admin/history|/admin/hunt-source",
     children: [
       { href: "/admin/bonushunt", label: "Bonushunt" },
+      { href: "/admin/bonushunt/opening", label: "Opening Mode" },
       { href: "/admin/slots", label: "Edit Slots" },
       { href: "/admin/history", label: "History" },
       { href: "/admin/hunt-source", label: "Hunt Source" },
@@ -124,12 +127,33 @@ export const NAV: Item[] = [
   { kind: "link", href: "/admin/settings", label: "Settings", icon: Settings },
 ]
 
-export default function AdminSidebar({ onCollapse }: { onCollapse?: (collapsed: boolean) => void }) {
+/**
+ * The nav a role gets: items it cannot open are dropped, and a group keeps
+ * only the children it can open (or goes, if none are left).
+ */
+export function navFor(role: StaffRole): Item[] {
+  if (role === "admin") return NAV
+  return NAV.flatMap((item): Item[] => {
+    if (item.kind === "link") return accessFor(role, item.href) ? [item] : []
+    const children = item.children.filter((child) => accessFor(role, child.href))
+    return children.length ? [{ ...item, children }] : []
+  })
+}
+
+export default function AdminSidebar({
+  onCollapse,
+  role = "admin",
+}: {
+  onCollapse?: (collapsed: boolean) => void
+  role?: StaffRole
+}) {
   const pathname = usePathname()
+  const nav = navFor(role)
+  const viewOnly = (href: string) => accessFor(role, href) === "view"
   const [collapsed, setCollapsed] = useState(false)
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(
-      NAV.filter((item): item is Extract<Item, { kind: "group" }> => item.kind === "group").map((group) => [
+      nav.filter((item): item is Extract<Item, { kind: "group" }> => item.kind === "group").map((group) => [
         group.id,
         new RegExp(`^(${group.match})`).test(pathname),
       ]),
@@ -153,7 +177,7 @@ export default function AdminSidebar({ onCollapse }: { onCollapse?: (collapsed: 
         {!collapsed && (
           <>
             <span className="h-1.5 w-1.5 rounded-full bg-[#5B8DEF]" />
-            <MonoLabel className="text-white/70">Admin</MonoLabel>
+            <MonoLabel className="text-white/70">{role === "moderator" ? "Moderator" : "Admin"}</MonoLabel>
           </>
         )}
         <button
@@ -166,7 +190,7 @@ export default function AdminSidebar({ onCollapse }: { onCollapse?: (collapsed: 
       </div>
 
       <nav className="absolute inset-x-0 bottom-14 top-14 space-y-0.5 overflow-y-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {NAV.map((item) => {
+        {nav.map((item) => {
           const Icon = item.icon
 
           if (item.kind === "link") {
@@ -187,6 +211,7 @@ export default function AdminSidebar({ onCollapse }: { onCollapse?: (collapsed: 
                 />
                 <Icon className="h-4 w-4 shrink-0" />
                 {!collapsed && <span className="truncate">{item.label}</span>}
+                {!collapsed && viewOnly(item.href) && <Eye className="ml-auto h-3 w-3 shrink-0 text-white/25" />}
               </Link>
             )
           }
@@ -231,11 +256,12 @@ export default function AdminSidebar({ onCollapse }: { onCollapse?: (collapsed: 
                         key={child.href}
                         href={child.href}
                         className={cn(
-                          "block rounded-md px-2.5 py-1.5 text-[12px] transition",
+                          "flex items-center rounded-md px-2.5 py-1.5 text-[12px] transition",
                           active ? "bg-white/[0.07] text-white" : "text-white/40 hover:bg-white/[0.04] hover:text-white/75",
                         )}
                       >
                         {child.label}
+                        {viewOnly(child.href) && <Eye className="ml-auto h-3 w-3 shrink-0 text-white/25" />}
                       </Link>
                     )
                   })}

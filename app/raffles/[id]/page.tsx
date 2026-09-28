@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeft, Gift, Users } from "lucide-react"
+import { ArrowLeft, Gift, Lock, Users } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile } from "@/components/ui/panel"
 import { notFound } from "next/navigation"
 import { cookies } from "next/headers"
@@ -10,6 +10,7 @@ import RaffleEntryButton from "@/components/raffle-entry-button"
 import { calculateRaffleStatus, formatDrawDate } from "@/lib/raffle-utils"
 import { PageBody, PageHero } from "@/components/page-hero"
 import { getSiteSession } from "@/lib/site-session"
+import { serviceClient } from "@/lib/supabase/service"
 
 // No static `metadata` here: generateMetadata below names the page after the
 // raffle itself, and a route may declare one or the other, never both.
@@ -69,6 +70,15 @@ export default async function RaffleDetailPage({ params }: Params) {
   const [entries, cookieStore] = await Promise.all([getEntries(id), cookies()])
   const userId = (await getSiteSession())?.userId ?? null
 
+  // Only asked for on a Code-User-only raffle. users is private, so through the
+  // service role, for the signed-in user's own row. "*": the column arrives with 076.
+  const codeUserOnly = raffle.code_user_only === true
+  let isCodeUser = false
+  if (codeUserOnly && userId) {
+    const { data } = await serviceClient().from("users").select("*").eq("id", userId).maybeSingle()
+    isCodeUser = data?.is_code_user === true
+  }
+
   const totalTickets = entries.reduce((sum, entry) => sum + (Number(entry.tickets_purchased) || 0), 0)
   const mine = userId ? entries.find((entry) => entry.user_id === userId) : null
   const myTickets = Number(mine?.tickets_purchased) || 0
@@ -96,7 +106,7 @@ export default async function RaffleDetailPage({ params }: Params) {
         accent={drawn ? "slate" : status === "active" ? "green" : status === "upcoming" ? "blue" : "amber"}
         title={raffle.title}
         subtitle={raffle.description}
-        note={drawn ? "Drawn" : status}
+        note={codeUserOnly ? `${drawn ? "Drawn" : status} · Code Users only` : drawn ? "Drawn" : status}
         actions={
           <Link
             href="/raffles"
@@ -230,6 +240,13 @@ export default async function RaffleDetailPage({ params }: Params) {
               ) : atMyCap ? (
                 <p className="text-center text-[13px]" style={{ color: ACCENTS.amber }}>
                   You hold the maximum of {perUserCap} tickets.
+                </p>
+              ) : codeUserOnly && !isCodeUser ? (
+                <p
+                  className="flex items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-center text-[13px]"
+                  style={{ borderColor: `${ACCENTS.purple}44`, color: ACCENTS.purple }}
+                >
+                  <Lock className="h-3.5 w-3.5" /> Code Users only
                 </p>
               ) : !userId ? (
                 <p className="text-center text-[13px] text-white/30">Sign in to enter.</p>

@@ -6,6 +6,7 @@ import { Eye, EyeOff, Package, Pencil, Plus, RefreshCw, Search, Trash2 } from "l
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
 import { inStock, isAvailable, isUnlimited, stockLabel, type StoreItem } from "@/lib/store"
+import { useAdminAccess } from "@/components/admin-access"
 
 /**
  * The store, from the admin side.
@@ -16,6 +17,8 @@ import { inStock, isAvailable, isUnlimited, stockLabel, type StoreItem } from "@
  */
 export default function AdminStorePage() {
   const supabaseRef = useRef(createClient())
+  // Moderators see the items read-only, and not the redemptions at all.
+  const { canEdit } = useAdminAccess()
 
   const [items, setItems] = useState<StoreItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -106,12 +109,14 @@ export default function AdminStorePage() {
           <p className="mt-1 text-[13px] text-white/40">What players can spend their points on.</p>
         </div>
         <div className="flex gap-2">
+          {canEdit && (
           <Link
             href="/admin/store/redemptions"
             className="inline-flex h-9 items-center rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
           >
             Redemptions
           </Link>
+          )}
           <button
             type="button"
             onClick={load}
@@ -120,6 +125,7 @@ export default function AdminStorePage() {
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
+          {canEdit && (
           <Link
             href="/admin/store/add"
             className="inline-flex h-9 items-center gap-2 rounded-md px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-black transition"
@@ -128,6 +134,7 @@ export default function AdminStorePage() {
             <Plus className="h-3.5 w-3.5" />
             Add item
           </Link>
+          )}
         </div>
       </header>
 
@@ -190,7 +197,10 @@ export default function AdminStorePage() {
                   )}
 
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium text-white">{item.name}</p>
+                    <p className="flex items-center gap-2 truncate text-[13px] font-medium text-white">
+                      {item.name}
+                      {item.code_user_only && <Tag accent="purple">Code Users</Tag>}
+                    </p>
                     <p className="truncate text-[11px] text-white/30">
                       {[item.category, item.description].filter(Boolean).join(" · ") || "No description"}
                     </p>
@@ -210,7 +220,8 @@ export default function AdminStorePage() {
                   <button
                     type="button"
                     onClick={() => toggleAvailable(item)}
-                    className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border px-2.5 font-mono text-[10px] uppercase tracking-[0.1em] transition"
+                    disabled={!canEdit}
+                    className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border px-2.5 font-mono text-[10px] uppercase tracking-[0.1em] transition disabled:cursor-default"
                     style={
                       live
                         ? { borderColor: `${ACCENTS.green}55`, color: ACCENTS.green }
@@ -221,6 +232,8 @@ export default function AdminStorePage() {
                     {live ? "Live" : "Hidden"}
                   </button>
 
+                  {canEdit && (
+                  <>
                   <Link
                     href={`/admin/store/edit/${item.id}`}
                     aria-label={`Edit ${item.name}`}
@@ -237,6 +250,8 @@ export default function AdminStorePage() {
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
+                  </>
+                  )}
                 </li>
               )
             })}

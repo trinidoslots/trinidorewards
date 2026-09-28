@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { Download, Plus, RefreshCw, Trash2, Trophy, Upload, Users } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { useAdminAccess } from "@/components/admin-access"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
 import { CopyableId } from "@/components/ui/copyable-id"
 import { LeaderboardEntriesDialog } from "@/components/admin/leaderboard-entries-dialog"
@@ -84,6 +85,8 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 export default function LeaderboardsManagePage() {
   const supabaseRef = useRef(createClient())
+  // Moderators get this page read-only (lib/admin-permissions.ts).
+  const { canEdit } = useAdminAccess()
 
   const [boards, setBoards] = useState<Leaderboard[]>([])
   const [selected, setSelected] = useState<string | null>(null)
@@ -387,6 +390,7 @@ export default function LeaderboardsManagePage() {
             Refresh
           </button>
           <button
+            data-admin-edit
             type="button"
             onClick={() => {
               setCreating(true)
@@ -470,7 +474,8 @@ export default function LeaderboardsManagePage() {
                   accent={creating ? "green" : "blue"}
                   right={board ? <CopyableId value={board.id} chars={5} /> : null}
                 />
-                <div className="grid gap-3 p-3.5 sm:grid-cols-2">
+                {/* A fieldset so a moderator's view locks every field in one go. */}
+                <fieldset disabled={!canEdit} className="grid gap-3 p-3.5 sm:grid-cols-2">
                   <Field label="Title">
                     <input value={draft.title} onChange={(e) => set({ title: e.target.value })} className={field} />
                   </Field>
@@ -607,9 +612,9 @@ export default function LeaderboardsManagePage() {
                       />
                     </Field>
                   )}
-                </div>
+                </fieldset>
 
-                <div className="flex flex-wrap justify-end gap-2 border-t border-white/[0.08] p-3">
+                <div data-admin-edit className="flex flex-wrap justify-end gap-2 border-t border-white/[0.08] p-3">
                   {board && (
                     <button
                       type="button"
@@ -656,7 +661,7 @@ export default function LeaderboardsManagePage() {
                   }
                 />
 
-                <form onSubmit={addEntry} className="flex flex-wrap items-end gap-2 border-b border-white/[0.05] p-3.5">
+                <form data-admin-edit onSubmit={addEntry} className="flex flex-wrap items-end gap-2 border-b border-white/[0.05] p-3.5">
                   <div className="min-w-40 flex-1">
                     <MonoLabel className="mb-1.5 block text-white/30">Username</MonoLabel>
                     <input value={entryName} onChange={(e) => setEntryName(e.target.value)} className={field} />
@@ -685,7 +690,7 @@ export default function LeaderboardsManagePage() {
                   </button>
                 </form>
 
-                <div className="space-y-3 p-3.5">
+                <div data-admin-edit className="space-y-3 p-3.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white">
                       <Upload className="h-3.5 w-3.5" />

@@ -436,3 +436,13 @@
     animation: none;
   }
 }
+
+/*
+ * Admin pages a moderator may only look at (lib/admin-permissions.ts). The
+ * shell sets this class on <body> — not on the page wrapper, so dialogs that
+ * portal out of it are covered too — and every control that changes something
+ * carries data-admin-edit. Only the display: the database refuses the write.
+ */
+body.admin-view-only [data-admin-edit] {
+  display: none !important;
+}

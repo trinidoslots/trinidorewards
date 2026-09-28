@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Check, Copy, Dices, Loader2, Power, RefreshCw, Trash2, Tv } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
 import type { PromoCode } from "@/lib/promo-codes"
+import { useAdminAccess } from "@/components/admin-access"
 
 /**
  * Promo codes: make a code worth N points, switch it on or off, and put it in
@@ -58,6 +59,8 @@ function Toggle({
 }
 
 export default function PromoCodesPage() {
+  // Moderators get this page read-only (lib/admin-permissions.ts).
+  const { canEdit } = useAdminAccess()
   const [codes, setCodes] = useState<PromoCode[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -67,6 +70,7 @@ export default function PromoCodesPage() {
   const [code, setCode] = useState("")
   const [points, setPoints] = useState("")
   const [maxUses, setMaxUses] = useState("")
+  const [codeUsersOnly, setCodeUsersOnly] = useState(false)
   const [creating, setCreating] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -92,7 +96,12 @@ export default function PromoCodesPage() {
     const res = await fetch("/api/admin/promo-codes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: code.trim() || undefined, points: Number(points), max_uses: maxUses || null }),
+      body: JSON.stringify({
+        code: code.trim() || undefined,
+        points: Number(points),
+        max_uses: maxUses || null,
+        code_user_only: codeUsersOnly,
+      }),
     })
     const json = await res.json().catch(() => ({}))
     setCreating(false)
@@ -164,6 +173,7 @@ export default function PromoCodesPage() {
         <StatTile label="Times redeemed" value={redeemed.toLocaleString("en-US")} accent="amber" />
       </div>
 
+      {canEdit && (
       <Panel accent="blue">
         <PanelHeader title="New code" />
         <form onSubmit={create} className="grid gap-3 p-3.5 sm:grid-cols-[1.4fr_1fr_1fr_auto] sm:items-end">
@@ -216,6 +226,15 @@ export default function PromoCodesPage() {
           >
             {creating ? "Creating…" : "Create code"}
           </button>
+          <label className="flex w-fit cursor-pointer items-center gap-2 text-[13px] text-white/60 sm:col-span-4">
+            <input
+              type="checkbox"
+              checked={codeUsersOnly}
+              onChange={(e) => setCodeUsersOnly(e.target.checked)}
+              className="h-3.5 w-3.5 accent-[#A78BFA]"
+            />
+            Code Users only <span className="text-white/30">– only accounts with the Code User rank can redeem it</span>
+          </label>
           <p className="text-[12px] text-white/35 sm:col-span-4">
             New codes start <b className="text-white/55">disabled</b> – switch one to Active when it should work.
           </p>
@@ -226,6 +245,7 @@ export default function PromoCodesPage() {
           )}
         </form>
       </Panel>
+      )}
 
       {error && (
         <Panel accent="red" className="px-3.5 py-2.5 text-[13px]" style={{ color: ACCENTS.red }}>
@@ -270,6 +290,7 @@ export default function PromoCodesPage() {
                         <Tag accent="green">Active</Tag>
                       )}
                       {entry.is_active && entry.show_on_stream && <Tag accent="purple">On stream</Tag>}
+                      {entry.code_user_only && <Tag accent="pink">Code Users</Tag>}
                     </div>
                     <p className="mt-1 text-[12px] text-white/40">
                       <span style={{ color: ACCENTS.amber }}>{entry.points.toLocaleString("en-US")} points</span>
@@ -281,6 +302,7 @@ export default function PromoCodesPage() {
                     </p>
                   </div>
 
+                  {canEdit && (
                   <div className="flex items-center gap-1.5">
                     <Toggle
                       on={entry.is_active}
@@ -319,6 +341,7 @@ export default function PromoCodesPage() {
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
+                  )}
                 </li>
               )
             })}

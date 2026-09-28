@@ -31,7 +31,10 @@ export async function GET() {
 
   // Only admins' requests pay for this: no sb- cookie means no Supabase
   // session, so no auth round-trip.
+  // `is_admin` means "may open the panel", which moderators may too; `staff_role`
+  // says which kind of staff.
   let isAdmin = false
+  let staffRole: "admin" | "moderator" | null = null
   const cookieStore = await cookies()
   if (cookieStore.getAll().some((cookie) => cookie.name.startsWith("sb-"))) {
     const supabase = await createClient()
@@ -42,6 +45,7 @@ export async function GET() {
     // The admin session has to belong to the same account as the site login,
     // or the bar would offer the panel to whoever signed in last.
     isAdmin = !!admin && admin.kickId === session.kickId && admin.siteUserId === session.userId
+    staffRole = isAdmin && admin ? admin.role : null
   }
 
   const points = Number(userData?.points_balance) || 0
@@ -55,6 +59,8 @@ export async function GET() {
       created_at: (userData?.created_at as string | undefined) ?? null,
       updated_at: (userData?.updated_at as string | undefined) ?? null,
       is_admin: isAdmin,
+      staff_role: staffRole,
+      is_code_user: userData?.is_code_user === true,
     },
     username: session.username,
     points,

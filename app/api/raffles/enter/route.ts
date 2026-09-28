@@ -33,7 +33,8 @@ export async function POST(request: Request) {
     const client = serviceClient()
 
     const [{ data: user }, { data: raffle }] = await Promise.all([
-      client.from("users").select("id, username, points_balance").eq("id", userId).maybeSingle(),
+      // "*": is_code_user only exists once scripts/076 has run.
+      client.from("users").select("*").eq("id", userId).maybeSingle(),
       client.from("raffles").select("*").eq("id", raffleId).maybeSingle(),
     ])
 
@@ -50,6 +51,9 @@ export async function POST(request: Request) {
       )
     }
     if (raffle.winner_username) return NextResponse.json({ error: "This raffle has been drawn" }, { status: 400 })
+    if (raffle.code_user_only === true && user.is_code_user !== true) {
+      return NextResponse.json({ error: "This raffle is for Code Users only" }, { status: 403 })
+    }
 
     const ticketPrice = Number(raffle.ticket_price) || 0
     const isFree = ticketPrice === 0 || raffle.entry_type === "free"

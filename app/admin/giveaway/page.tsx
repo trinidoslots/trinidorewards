@@ -900,6 +900,7 @@ export default function GiveawayAdminPage() {
               className="min-w-0 flex-1 bg-transparent text-[28px] font-bold tracking-tight text-white outline-none placeholder:text-white/20"
             />
             <button
+              data-admin-edit
               type="button"
               onClick={drawWinner}
               disabled={eligibleCount === 0 || revealPhase === "rolling"}
@@ -911,6 +912,7 @@ export default function GiveawayAdminPage() {
             </button>
             {isOpen ? (
               <button
+                data-admin-edit
                 type="button"
                 onClick={stopEntries}
                 className="flex h-11 items-center gap-2 rounded-lg px-4 text-[14px] font-medium text-white/60 transition hover:bg-white/[0.05] hover:text-white"
@@ -919,6 +921,7 @@ export default function GiveawayAdminPage() {
               </button>
             ) : (
               <button
+                data-admin-edit
                 type="button"
                 onClick={startGiveaway}
                 className="flex h-11 items-center gap-2 rounded-lg px-4 text-[14px] font-semibold text-[#0B0B0D] transition hover:brightness-110"
@@ -952,6 +955,7 @@ export default function GiveawayAdminPage() {
               )}
             </span>
             <button
+              data-admin-edit
               type="button"
               onClick={() => {
                 if (entrants.size === 0 || window.confirm("End the giveaway and clear every entry?")) endGiveaway()
@@ -985,7 +989,7 @@ export default function GiveawayAdminPage() {
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
           {/* Left: who can enter, and the round's winners */}
           <div className="flex flex-col gap-4">
-            <section className="rounded-xl border border-white/[0.08] bg-white/[0.022] p-4">
+            <section data-admin-edit className="rounded-xl border border-white/[0.08] bg-white/[0.022] p-4">
               <p className="mb-3 text-[13px] text-white/45">Who can enter</p>
               <p className="mb-2 text-[13px] font-semibold text-white/85">Badges</p>
               <div className="flex flex-wrap gap-1.5">

@@ -2,6 +2,7 @@ import { createServerClient as createSupabaseServerClient } from "@supabase/ssr"
 import type { User } from "@supabase/supabase-js"
 import type { NextRequest, NextResponse } from "next/server"
 import { serviceClient } from "@/lib/supabase/service"
+import type { StaffRole } from "@/lib/admin-permissions"
 
 /**
  * Who is an admin, and how an admin gets a session.
@@ -55,7 +56,7 @@ export function siteUserIdOf(user: Pick<User, "app_metadata"> | null | undefined
  */
 export async function adminTag(
   account: { siteUserId: string | null | undefined; kickId: string | null | undefined },
-): Promise<{ isOwner: boolean } | null> {
+): Promise<{ isOwner: boolean; role: StaffRole } | null> {
   if (!account.siteUserId || !account.kickId) return null
   try {
     const { data, error } = await serviceClient()
@@ -68,7 +69,11 @@ export async function adminTag(
       console.error("[admin] admin_accounts lookup failed. Have scripts/070 and 071 been run?", error)
       return null
     }
-    return data ? { isOwner: data.is_owner === true } : null
+    if (!data) return null
+    // A row from before scripts/076 has no role column and was always an admin.
+    // The main admin is an admin whatever the column says.
+    const role: StaffRole = data.is_owner === true || data.role !== "moderator" ? "admin" : "moderator"
+    return { isOwner: data.is_owner === true, role }
   } catch (error) {
     console.error("[admin] admin_accounts lookup failed:", error)
     return null
@@ -79,6 +84,8 @@ export type AdminIdentity = {
   kickId: string
   siteUserId: string
   isOwner: boolean
+  /** "moderator" is a restricted admin; see lib/admin-permissions.ts. */
+  role: StaffRole
   username: string | null
   avatarUrl: string | null
 }
@@ -94,6 +101,7 @@ export async function adminFromUser(user: User | null | undefined): Promise<Admi
     kickId,
     siteUserId,
     isOwner: tag.isOwner,
+    role: tag.role,
     username: typeof meta.kick_username === "string" ? meta.kick_username : null,
     avatarUrl: typeof meta.avatar_url === "string" ? meta.avatar_url : null,
   }

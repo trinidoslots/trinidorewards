@@ -21,6 +21,8 @@ export type StoreItem = {
    * "crypto", or null for nothing. See lib/payout.
    */
   payout_method?: string | null
+  /** Only Code Users may buy it (scripts/076). Absent before that ran. */
+  code_user_only?: boolean | null
   created_at?: string
 }
 

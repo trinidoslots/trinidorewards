@@ -687,6 +687,7 @@ export type StreamPromoCode = {
   max_uses: number | null
   uses_count: number
   shown_at: string | null
+  code_user_only?: boolean | null
 }
 
 /**
@@ -716,7 +717,9 @@ export function usePromoCodes(pingVolume = 0) {
     const fetchCodes = async () => {
       const { data, error } = await supabase
         .from("promo_codes")
-        .select("id, code, points, max_uses, uses_count, shown_at")
+        // "*": code_user_only only exists once scripts/076 has run. The policy
+        // limits the rows to the ones on stream either way.
+        .select("*")
         .eq("is_active", true)
         .eq("show_on_stream", true)
       if (cancelled) return
@@ -762,7 +765,7 @@ export function PromoCodeCard({ promo }: { promo: StreamPromoCode }) {
   return (
     <EventCard
       icon={<TicketCheck className="h-5 w-5" style={{ color: OBS.promo }} />}
-      label="PROMO CODE"
+      label={promo.code_user_only ? "CODE USERS ONLY" : "PROMO CODE"}
       labelColor={OBS.promo}
       timestamp={left === null ? undefined : `${left.toLocaleString("en-US")} left`}
     >

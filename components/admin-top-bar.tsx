@@ -12,7 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
-import { NAV } from "@/components/admin-sidebar"
+import { NAV, navFor } from "@/components/admin-sidebar"
+import { useAdminAccess } from "@/components/admin-access"
 import { MENU_CLASS, MENU_ITEM_CLASS, UserMenu } from "@/components/top-bar-parts"
 import { createClient } from "@/lib/supabase/client"
 
@@ -27,11 +28,14 @@ const KICK_GREEN = "#53FC18"
 type Page = { href: string; label: string; section: string | null }
 
 /** Every page the sidebar links to, flattened, with the group it sits in. */
-const PAGES: Page[] = NAV.flatMap<Page>((item) =>
-  item.kind === "link"
-    ? [{ href: item.href, label: item.label, section: null }]
-    : item.children.map((child) => ({ href: child.href, label: child.label, section: item.label })),
-)
+const pagesOf = (nav: typeof NAV): Page[] =>
+  nav.flatMap<Page>((item) =>
+    item.kind === "link"
+      ? [{ href: item.href, label: item.label, section: null }]
+      : item.children.map((child) => ({ href: child.href, label: child.label, section: item.label })),
+  )
+
+const PAGES = pagesOf(NAV)
 
 /** The page for a path: an exact match, else the longest one it sits under. */
 function pageFor(pathname: string): Page | null {
@@ -73,6 +77,7 @@ function Breadcrumb() {
 function PageSearch() {
   const [open, setOpen] = useState(false)
   const router = useRouter()
+  const { role } = useAdminAccess()
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -87,12 +92,13 @@ function PageSearch() {
 
   const sections = useMemo(() => {
     const grouped = new Map<string, Page[]>()
-    for (const page of PAGES) {
+    // Only the pages this role can open, as in the sidebar.
+    for (const page of pagesOf(navFor(role))) {
       const key = page.section ?? "Pages"
       grouped.set(key, [...(grouped.get(key) ?? []), page])
     }
     return Array.from(grouped.entries())
-  }, [])
+  }, [role])
 
   return (
     <>
@@ -283,6 +289,8 @@ function useAdminIdentity() {
 
 export function AdminTopBar() {
   const identity = useAdminIdentity()
+  // The bell lists store redemptions, which only admins can see.
+  const { role } = useAdminAccess()
 
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-white/[0.08] bg-[#0B0B0D]/95 px-5 backdrop-blur">
@@ -294,7 +302,7 @@ export function AdminTopBar() {
       </div>
       <div className="flex flex-1 items-center justify-end gap-2">
         <LiveStatus />
-        <AdminBell />
+        {role === "admin" && <AdminBell />}
         {identity && <UserMenu variant="admin" username={identity.username} avatarUrl={identity.avatarUrl} />}
       </div>
     </header>

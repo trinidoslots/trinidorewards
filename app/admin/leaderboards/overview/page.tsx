@@ -245,6 +245,7 @@ export default function LeaderboardsOverviewPage() {
             />
           </div>
           <button
+            data-admin-edit
             onClick={deleteSelected}
             disabled={selected.size === 0}
             className="inline-flex h-9 items-center gap-2 rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-[#E5484D]/40 hover:text-[#E5484D] disabled:opacity-35 disabled:hover:border-white/[0.10] disabled:hover:text-white/50"
@@ -264,6 +265,7 @@ export default function LeaderboardsOverviewPage() {
                 <th className="w-8 px-2 py-2.5" />
                 <th className="w-10 px-2 py-2.5">
                   <input
+                    data-admin-edit
                     type="checkbox"
                     aria-label="Select all"
                     checked={rows.length > 0 && rows.every((row) => selected.has(row.id))}
@@ -333,6 +335,7 @@ export default function LeaderboardsOverviewPage() {
                         </td>
                         <td className="px-2 py-2">
                           <input
+                            data-admin-edit
                             type="checkbox"
                             aria-label={`Select ${board.title}`}
                             checked={selected.has(board.id)}
@@ -383,6 +386,7 @@ export default function LeaderboardsOverviewPage() {
                             </button>
                             {needsFinalising && (
                               <button
+                                data-admin-edit
                                 onClick={() => finalize(board)}
                                 disabled={busy === board.id}
                                 aria-label="Finalise"
@@ -424,6 +428,7 @@ export default function LeaderboardsOverviewPage() {
                                 View entries
                               </button>
                               <button
+                                data-admin-edit
                                 onClick={() => finalize(board)}
                                 disabled={busy === board.id || !!board.finalized_at}
                                 className="rounded-md border border-white/[0.10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white disabled:opacity-35"
@@ -431,6 +436,7 @@ export default function LeaderboardsOverviewPage() {
                                 {board.finalized_at ? "Finalised" : "Finalise now"}
                               </button>
                               <button
+                                data-admin-edit
                                 onClick={() => setCredit(board, !board.credited)}
                                 disabled={busy === board.id}
                                 className="rounded-md border border-white/[0.10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white disabled:opacity-35"
@@ -438,6 +444,7 @@ export default function LeaderboardsOverviewPage() {
                                 {board.credited ? "Mark not credited" : "Mark credited"}
                               </button>
                               <button
+                                data-admin-edit
                                 onClick={() => router.push("/admin/leaderboards/manage")}
                                 className="rounded-md border border-white/[0.10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
                               >

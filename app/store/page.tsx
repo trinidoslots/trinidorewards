@@ -29,15 +29,18 @@ export default async function StorePage() {
   const isLoggedIn = !!kickUserId
 
   let userPoints = 0
+  let isCodeUser = false
   if (kickUserId) {
     // users is not publicly readable (scripts/072); this is the signed-in
-    // user's own balance, by the Kick id in their signed session.
+    // user's own balance, by the Kick id in their signed session. "*" because
+    // is_code_user only exists once scripts/076 has run.
     const { data } = await serviceClient()
       .from("users")
-      .select("points_balance")
+      .select("*")
       .eq("kick_id", kickUserId.value)
       .maybeSingle()
     userPoints = Number(data?.points_balance) || 0
+    isCodeUser = data?.is_code_user === true
   }
 
   const { data, error } = await supabase.from("store_items").select("*").order("created_at", { ascending: false })
@@ -60,7 +63,9 @@ export default async function StorePage() {
 
   const items = ((data ?? []) as StoreItem[]).filter(isAvailable)
   const categories = Array.from(new Set(items.map((item) => item.category || "Uncategorised")))
-  const affordable = items.filter((item) => inStock(item) && userPoints >= (Number(item.cost) || 0)).length
+  const affordable = items.filter(
+    (item) => inStock(item) && userPoints >= (Number(item.cost) || 0) && (!item.code_user_only || isCodeUser),
+  ).length
 
   return (
     <div>
@@ -107,7 +112,13 @@ export default async function StorePage() {
               <MonoLabel className="text-white/30">{category}</MonoLabel>
               <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {inCategory.map((item) => (
-                  <StoreItemCard key={item.id} item={item} userPoints={userPoints} isLoggedIn={isLoggedIn} />
+                  <StoreItemCard
+                    key={item.id}
+                    item={item}
+                    userPoints={userPoints}
+                    isLoggedIn={isLoggedIn}
+                    isCodeUser={isCodeUser}
+                  />
                 ))}
               </div>
             </section>

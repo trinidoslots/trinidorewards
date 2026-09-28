@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { requireAdmin } from "@/lib/admin-guard"
+import { requireAdmin, requireStaff } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
 
 /**
@@ -32,7 +32,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireAdmin()
+  // Recording a win is part of running predictions and tournaments, which
+  // moderators do. Reading, changing and deleting the log stay admin-only.
+  const auth = await requireStaff()
   if (!auth.ok) return auth.response
 
   const body = await request.json().catch(() => null)

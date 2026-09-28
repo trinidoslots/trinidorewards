@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { requireAdmin } from "@/lib/admin-guard"
+import { requireStaff } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
 
 /**
@@ -14,7 +14,8 @@ import { serviceClient } from "@/lib/supabase/service"
  * against the bare username.
  */
 export async function GET(request: Request) {
-  const auth = await requireAdmin()
+  // Moderators record prediction and tournament winners too (lib/admin-permissions.ts).
+  const auth = await requireStaff()
   if (!auth.ok) return auth.response
 
   const params = new URL(request.url).searchParams
@@ -52,5 +53,12 @@ export async function GET(request: Request) {
     ? await query.or(`user_id.eq.${match.id}` + (name ? `,username.ilike.${name}` : ""))
     : await query.ilike("username", name!)
 
-  return NextResponse.json({ user: match ?? null, recentWins: wins ?? [] })
+  // The dialog needs to know who it is; a moderator gets that and no more of
+  // the row (balance, rank and whatever else users holds stay admin-only).
+  const user =
+    match && auth.role !== "admin"
+      ? { id: match.id, username: match.username, avatar_url: match.avatar_url ?? null, kick_id: match.kick_id ?? null }
+      : match
+
+  return NextResponse.json({ user: user ?? null, recentWins: wins ?? [] })
 }

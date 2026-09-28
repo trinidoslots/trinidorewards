@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { requireAdmin } from "@/lib/admin-guard"
+import { requireStaff } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
 import { explainDbError, readMoney, readMultiplier, readNowPlaying, type NowPlayingRow } from "@/lib/now-playing"
 import { announceRecord, currentBestWin, resolveNowPlaying } from "@/lib/slot-meta"
@@ -30,7 +30,7 @@ function withService<T>(run: (client: ReturnType<typeof serviceClient>) => T) {
 }
 
 export async function GET() {
-  const auth = await requireAdmin()
+  const auth = await requireStaff()
   if (!auth.ok) return auth.response
 
   const client = withService((c) => c)
@@ -46,7 +46,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const auth = await requireAdmin()
+  const auth = await requireStaff()
   if (!auth.ok) return auth.response
 
   let body: Record<string, unknown>
@@ -111,7 +111,7 @@ export async function PUT(request: Request) {
 
 /** Takes the bar off the stream. The row stays; every field is emptied. */
 export async function DELETE() {
-  const auth = await requireAdmin()
+  const auth = await requireStaff()
   if (!auth.ok) return auth.response
 
   const client = withService((c) => c)

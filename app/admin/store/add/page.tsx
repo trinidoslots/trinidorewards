@@ -26,6 +26,7 @@ export default function AddStoreItemPage() {
     type: "Digital",
     payout_method: "onsite_tip",
     one_purchase_per_user: false,
+    code_user_only: false,
   })
   const [submitting, setSubmitting] = useState(false)
   const { toast } = useToast()
@@ -49,6 +50,9 @@ export default function AddStoreItemPage() {
       // dialog reads it as "nothing to ask for".
       payout_method: formData.payout_method || null,
       one_purchase_per_user: formData.one_purchase_per_user,
+      // Only sent when set: the column arrives with scripts/076, and an unset
+      // flag must not break creating items before that has run.
+      ...(formData.code_user_only ? { code_user_only: true } : {}),
     }
 
     let { error } = await supabase.from("store_items").insert([itemData])
@@ -232,6 +236,18 @@ export default function AddStoreItemPage() {
                 />
                 <Label htmlFor="one_purchase" className="text-white/60 cursor-pointer">
                   One purchase per user
+                </Label>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="code_user_only"
+                  checked={formData.code_user_only}
+                  onChange={(e) => setFormData({ ...formData, code_user_only: e.target.checked })}
+                  className="rounded border-white/[0.12]"
+                />
+                <Label htmlFor="code_user_only" className="text-white/60 cursor-pointer">
+                  Code Users only <span className="text-white/30">– everyone else sees it locked</span>
                 </Label>
               </div>
             </div>

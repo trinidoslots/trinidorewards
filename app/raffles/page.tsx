@@ -48,6 +48,7 @@ type Raffle = {
   winner_username: string | null
   featured: boolean
   entry_type: string | null
+  code_user_only?: boolean | null
 }
 
 type Counts = { tickets: number; entrants: number }
@@ -181,6 +182,7 @@ function RaffleCard({ raffle, counts, status }: { raffle: Raffle; counts: Counts
           <div className="absolute left-2 top-2 flex gap-1.5">
             <Tag accent={accent}>{status}</Tag>
             {endingSoon && <Tag accent="red">Ending soon</Tag>}
+            {raffle.code_user_only && <Tag accent="purple">Code Users</Tag>}
           </div>
         </div>
 

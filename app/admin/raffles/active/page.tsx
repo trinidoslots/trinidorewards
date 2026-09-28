@@ -11,6 +11,7 @@ import {
   type RaffleRow,
 } from "@/components/admin/raffle-list"
 import { useState } from "react"
+import { useAdminAccess } from "@/components/admin-access"
 
 /**
  * Raffles that are open, plus the ones about to be.
@@ -21,6 +22,7 @@ import { useState } from "react"
 export default function ActiveRafflesPage() {
   const { rows, loading, error, reload, supabase, setRows } = useAdminRaffles()
   const [problem, setProblem] = useState<string | null>(null)
+  const { canEdit } = useAdminAccess()
 
   const live = rows.filter((row) => row.phase === "active" || row.phase === "upcoming")
 
@@ -57,6 +59,7 @@ export default function ActiveRafflesPage() {
   return (
     <div className="space-y-4">
       <RaffleHeader title="Active raffles" hint="Open now, and opening soon." loading={loading} onReload={reload}>
+        {canEdit && (
         <Link
           href="/admin/raffles/create"
           className="inline-flex h-9 items-center gap-2 rounded-md px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-black transition"
@@ -65,6 +68,7 @@ export default function ActiveRafflesPage() {
           <Plus className="h-3.5 w-3.5" />
           New raffle
         </Link>
+        )}
       </RaffleHeader>
 
       {(problem || error) && (

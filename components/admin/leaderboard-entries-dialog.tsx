@@ -156,6 +156,7 @@ export function LeaderboardEntriesDialog({ leaderboard, onClose }: Props) {
           </div>
 
           <button
+            data-admin-edit
             type="button"
             onClick={deleteSelected}
             disabled={selected.size === 0}
@@ -191,6 +192,7 @@ export function LeaderboardEntriesDialog({ leaderboard, onClose }: Props) {
               <tr className="border-b border-white/[0.08] text-left">
                 <th className="w-10 px-3 py-2.5">
                   <input
+                    data-admin-edit
                     type="checkbox"
                     aria-label="Select all"
                     checked={allSelected}
@@ -227,6 +229,7 @@ export function LeaderboardEntriesDialog({ leaderboard, onClose }: Props) {
                     <tr key={row.id} className="border-b border-white/[0.05] text-[13px] hover:bg-white/[0.03]">
                       <td className="px-3 py-2">
                         <input
+                          data-admin-edit
                           type="checkbox"
                           aria-label={`Select ${row.username}`}
                           checked={selected.has(row.id)}
@@ -301,6 +304,7 @@ export function LeaderboardEntriesDialog({ leaderboard, onClose }: Props) {
                           </div>
                         ) : (
                           <button
+                            data-admin-edit
                             type="button"
                             aria-label={`Edit ${row.username}`}
                             onClick={() => {

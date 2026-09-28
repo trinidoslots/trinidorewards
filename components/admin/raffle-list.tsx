@@ -6,6 +6,7 @@ import { Eye, EyeOff, Gift, Pencil, RefreshCw, Ticket, Trash2, Trophy, Users } f
 import { createBrowserClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
 import { calculateRaffleStatus, formatDrawDate } from "@/lib/raffle-utils"
+import { useAdminAccess } from "@/components/admin-access"
 
 /**
  * Shared loader and list for the admin raffle pages.
@@ -39,6 +40,8 @@ export type AdminRaffle = {
   winner_ticket_number: number | null
   featured: boolean
   entry_type: string | null
+  /** Only Code Users may enter (scripts/076). Absent before that ran. */
+  code_user_only?: boolean | null
 }
 
 export type Phase = "upcoming" | "active" | "ended" | "drawn"
@@ -157,6 +160,9 @@ export function RaffleRows({
   /** Hiding takes it off the public page but keeps the record of who won. */
   onToggleHidden?: (row: RaffleRow, hidden: boolean) => void
 }) {
+  // Moderators see the list read-only (lib/admin-permissions.ts).
+  const { canEdit } = useAdminAccess()
+
   if (loading) {
     return (
       <Panel className="py-16 text-center">
@@ -208,6 +214,7 @@ export function RaffleRows({
                     {raffle.title}
                   </Link>
                   {raffle.featured && <MonoLabel style={{ color: ACCENTS.amber }}>Featured</MonoLabel>}
+                  {raffle.code_user_only && <Tag accent="purple">Code Users</Tag>}
                 </div>
                 <p className="truncate text-[11px] text-white/30">
                   {raffle.prize_name}
@@ -237,6 +244,7 @@ export function RaffleRows({
                 {row.phase === "upcoming" ? formatDrawDate(raffle.start_date) : formatDrawDate(raffle.end_date)}
               </MonoLabel>
 
+              {canEdit && (
               <div className="flex shrink-0 gap-1">
                 {onToggleHidden && (
                   <button
@@ -271,6 +279,7 @@ export function RaffleRows({
                   </button>
                 )}
               </div>
+              )}
             </li>
           )
         })}

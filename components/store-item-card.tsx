@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Package, ShoppingCart } from "lucide-react"
+import { Lock, Package, ShoppingCart } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, Tag } from "@/components/ui/panel"
 import { inStock, isUnlimited, stockLabel, type StoreItem } from "@/lib/store"
 import { StoreBuyDialog } from "@/components/store-buy-dialog"
@@ -19,10 +19,13 @@ export function StoreItemCard({
   item,
   userPoints,
   isLoggedIn,
+  isCodeUser = false,
 }: {
   item: StoreItem
   userPoints: number
   isLoggedIn: boolean
+  /** The Code User rank. A Code-User-only item is shown to everyone, locked for the rest. */
+  isCodeUser?: boolean
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
@@ -33,6 +36,9 @@ export function StoreItemCard({
   const canAfford = userPoints >= cost
   const available = inStock(item)
   const short = cost - userPoints
+  // Shown rather than hidden, as a reason to use the code. The purchase route
+  // refuses it regardless of what this says.
+  const locked = item.code_user_only === true && !isCodeUser
 
   async function buy(payout: PayoutDetails | null) {
     setBusy(true)
@@ -82,6 +88,7 @@ export function StoreItemCard({
             <h3 className="truncate text-[14px] font-semibold text-white">{item.name}</h3>
             {item.category && <MonoLabel className="text-white/25">{item.category}</MonoLabel>}
           </div>
+          {item.code_user_only && <Tag accent="purple">Code Users</Tag>}
           <Tag accent={isUnlimited(item.quantity) ? "blue" : available ? "green" : "red"}>
             {stockLabel(Number(item.quantity))}
           </Tag>
@@ -100,18 +107,22 @@ export function StoreItemCard({
           <button
             type="button"
             onClick={() => setPreviewing(true)}
-            disabled={busy || !isLoggedIn || !available || !canAfford}
+            disabled={busy || !isLoggedIn || locked || !available || !canAfford}
             className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md font-mono text-[11px] uppercase tracking-[0.1em] transition disabled:cursor-not-allowed"
             style={
-              isLoggedIn && available && canAfford
-                ? { backgroundColor: ACCENTS.blue, color: "#0B0B0D" }
-                : { border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.3)" }
+              locked
+                ? { border: `1px solid ${ACCENTS.purple}44`, color: ACCENTS.purple }
+                : isLoggedIn && available && canAfford
+                  ? { backgroundColor: ACCENTS.blue, color: "#0B0B0D" }
+                  : { border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.3)" }
             }
           >
-            <ShoppingCart className="h-3.5 w-3.5" />
+            {locked ? <Lock className="h-3.5 w-3.5" /> : <ShoppingCart className="h-3.5 w-3.5" />}
             {busy
               ? "Buying…"
-              : !isLoggedIn
+              : locked
+                ? "Code Users only"
+                : !isLoggedIn
                 ? "Sign in to buy"
                 : !available
                   ? "Out of stock"

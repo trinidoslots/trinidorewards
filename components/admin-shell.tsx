@@ -6,14 +6,25 @@ import { AdminTopBar } from "@/components/admin-top-bar"
 import { useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
+import { AdminAccessProvider, ViewOnlyBanner } from "@/components/admin-access"
+import { accessFor, type StaffRole } from "@/lib/admin-permissions"
 
 export function AdminShell({
+  role,
   children,
 }: {
+  role: StaffRole
   children: React.ReactNode
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
+  const viewOnly = accessFor(role, pathname) === "view"
+
+  // On <body>, so it reaches dialogs portalled out of the page too. See globals.css.
+  useEffect(() => {
+    document.body.classList.toggle("admin-view-only", viewOnly)
+    return () => document.body.classList.remove("admin-view-only")
+  }, [viewOnly])
 
   // Listen for sidebar collapse events
   useEffect(() => {
@@ -26,8 +37,9 @@ export function AdminShell({
   }, [])
 
   return (
+    <AdminAccessProvider role={role}>
     <div className="min-h-screen bg-[#0B0B0D]">
-      <AdminSidebar onCollapse={setCollapsed} />
+      <AdminSidebar onCollapse={setCollapsed} role={role} />
       <div className={`transition-all duration-300 ${collapsed ? "ml-14" : "ml-56"}`}>
         {/* Beside the sidebar, never over it, and level with its header row. */}
         <AdminTopBar />
@@ -50,10 +62,12 @@ export function AdminShell({
           transition={{ duration: 0.2, ease: [0.2, 0.7, 0.2, 1] }}
           className="container mx-auto max-w-7xl"
         >
+          {viewOnly && <ViewOnlyBanner />}
           {children}
         </motion.div>
         </div>
       </div>
     </div>
+    </AdminAccessProvider>
   )
 }

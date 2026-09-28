@@ -52,7 +52,9 @@ async function authorise(request: Request, provided: unknown): Promise<{ ok: tru
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (await adminFromUser(user)) return { ok: true }
+  // Admins only: what is recorded here decides who a points payout reaches, so
+  // a moderator must not be able to write chatters into it.
+  if ((await adminFromUser(user))?.role === "admin") return { ok: true }
 
   return { ok: false, status: 401, error: "Not authorised to record chat activity" }
 }
