@@ -231,7 +231,9 @@ function TrackTicker({ track }: { track: string }) {
   return (
     <div className="flex h-full min-w-0 flex-1 items-center justify-start whitespace-nowrap text-base">
       {track && (
-        <div className="ml-3 flex min-w-0 items-center gap-1 text-white">
+        {/* Upper case like everything else on the strip; Spotify sends titles
+            in whatever case the label chose. */}
+        <div className="ml-3 flex min-w-0 items-center gap-1 text-white uppercase">
           <Music className={ICON_CLASS} />
           <div
             ref={viewportRef}
