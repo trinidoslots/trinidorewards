@@ -23,11 +23,13 @@ import {
  * bottom only its bottom, and the two would drift apart the first time one was
  * touched.
  *
- * Default 1410x850. Set the OBS source to exactly that and place it over the
- * capture; do not resize the box, or the text is drawn at one size and
- * stretched to another.
+ * The frame fills its browser source. Set the source in OBS to the size the
+ * frame should have on the canvas (Properties: Width, Height) and leave its
+ * transform at 100% (right-click, Transform, Reset Transform). Dragging the
+ * box bigger instead makes OBS stretch 1410 pixels of text over 1498 and the
+ * strips go soft; that is what the old fixed 1410x850 default invited.
  *
- *   ?w ?h        the frame, default 1410x850
+ *   ?w ?h        pin the frame to a size inside the source (default: all of it)
  *   ?top ?bottom strip heights, default 50 and 40
  *   ?rail        side rail width, default 4
  *   ?radius      corner radius, default 12
@@ -36,8 +38,6 @@ import {
  */
 
 const DEFAULTS = {
-  width: 1410,
-  height: 850,
   /**
    * The top strip is the taller of the two because it carries more: a logo,
    * the wallet group and four icons, against a single line of text below.
@@ -66,8 +66,8 @@ function CasinoFrame() {
   const live = useNowPlaying(!isPreview)
   const row = isPreview ? PREVIEW_ROW : live
 
-  const width = readPx(params.get("w")) ?? DEFAULTS.width
-  const height = readPx(params.get("h")) ?? DEFAULTS.height
+  const width = readPx(params.get("w")) ?? "100vw"
+  const height = readPx(params.get("h")) ?? "100vh"
   const top = readPx(params.get("top")) ?? DEFAULTS.top
   const bottom = readPx(params.get("bottom")) ?? DEFAULTS.bottom
   const rail = readPx(params.get("rail")) ?? DEFAULTS.rail
