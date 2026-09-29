@@ -101,7 +101,8 @@ const PREVIEW_MESSAGES: KickMessage[] = [
     badges: [{ type: "moderator" }, { type: "subscriber", count: 43 }],
   },
   { username: "1suta65hz", content: "[emote:1730752:pepeJAM]", color: "#4C8BF5", badges: [{ type: "subscriber", count: 30 }] },
-  { username: "Bonna89", content: "YUCK", color: "#E8437D", badges: [] },
+  { username: "Bonna89", content: "YUCK", color: "#E8437D", badges: [{ type: "vip" }] },
+  { username: "trinidoslots", content: "next one pays", color: "#53FC18", badges: [{ type: "broadcaster" }] },
 ].map((message, index) => ({
   ...message,
   id: `preview-${index}`,

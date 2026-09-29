@@ -4,50 +4,54 @@ import { useEffect, useRef } from "react"
 import { CHAT_EMOTE_PX, CHAT_FONT_PX, OBS, OBS_RADIUS } from "@/lib/obs-theme"
 import { emoteImageUrl, parseMessageContent, type KickBadge, type KickMessage } from "@/lib/kick-chat"
 
-// Kick's own badge palette, so the feed reads as Kick rather than as our theme.
-const BADGE_COLORS: Record<string, string> = {
-  broadcaster: "#E8437D",
-  moderator: "#00C7FF",
-  verified: "#53FC18",
-  vip: "#E8B43C",
-  og: "#1ED3A3",
+/**
+ * Badges Kick draws as artwork, by the type it sends.
+ *
+ * These used to be approximated: a coloured tile with the badge's first letter
+ * in it, and the month count for a sub. On stream that read as a row of
+ * random letters, nothing like the icons people see in Kick's own chat. The
+ * files in public/kick-badges are Kick's real ones, taken from the icon set
+ * in its web client, 20x20 viewBox and gradients as they are there.
+ *
+ * Served as files rather than inlined: every icon names its gradients by id
+ * (ModeratorBadge__a and so on), and fifty inlined copies in one feed would be
+ * fifty elements sharing each id.
+ *
+ * Subscribers get Kick's default star because the channel has no custom sub
+ * badges. If it ever uploads some, Kick will draw those instead and this will
+ * not.
+ */
+const BADGE_ICONS = new Set(["broadcaster", "moderator", "vip", "subscriber", "og", "verified", "staff"])
+
+// A badge type with no icon above still gets a tile, in Kick's colour for it
+// where known, so something new from Kick shows up as something.
+const FALLBACK_COLORS: Record<string, string> = {
   founder: "#F5A623",
-  staff: "#6B5BFF",
   sub_gifter: "#9147FF",
-  subscriber: "#4C8BF5",
 }
 
-// Subscriber badges are tinted by tenure on Kick, so a long-standing sub reads
-// differently from a new one at a glance.
-const SUB_TIERS: { months: number; color: string }[] = [
-  { months: 24, color: "#E8437D" },
-  { months: 12, color: "#F5A623" },
-  { months: 6, color: "#1ED3A3" },
-  { months: 3, color: "#9147FF" },
-  { months: 0, color: "#4C8BF5" },
-]
-
-function badgeColor(badge: KickBadge) {
-  if (badge.type === "subscriber") {
-    const months = badge.count ?? 1
-    return SUB_TIERS.find((tier) => months >= tier.months)!.color
-  }
-  return BADGE_COLORS[badge.type] ?? "#8B8B8B"
-}
-
-// Kick renders the subscriber badge as the month count in a coloured tile and
-// every other badge as a glyph. Approximating the glyphs with the badge's first
-// letter keeps the row height and rhythm identical without shipping Kick's SVGs.
 function BadgeTile({ badge }: { badge: KickBadge }) {
-  const label = badge.type === "subscriber" ? String(badge.count ?? 1) : badge.type.charAt(0).toUpperCase()
+  const title = badge.text ?? badge.type
+
+  if (BADGE_ICONS.has(badge.type)) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- a static SVG, nothing to optimise
+      <img
+        src={`/kick-badges/${badge.type}.svg`}
+        alt={title}
+        title={title}
+        className="inline-block h-[18px] w-[18px] shrink-0"
+      />
+    )
+  }
 
   return (
     <span
-      title={badge.text ?? badge.type}
+      title={title}
       className="inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center px-[4px] text-[11px] font-extrabold leading-none text-white"
-      style={{ backgroundColor: badgeColor(badge), borderRadius: OBS_RADIUS.badge }}
+      style={{ backgroundColor: FALLBACK_COLORS[badge.type] ?? "#8B8B8B", borderRadius: OBS_RADIUS.badge }}
     >
-      {label}
+      {badge.type.charAt(0).toUpperCase()}
     </span>
   )
 }

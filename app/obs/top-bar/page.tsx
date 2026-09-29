@@ -166,6 +166,102 @@ function KickIcon({ className }: { className?: string }) {
  * files.
  */
 
+/**
+ * How often the song is asked for. Pausing Spotify takes the line off within
+ * about this long, plus the few seconds the server reuses an answer for.
+ */
+const TRACK_POLL_MS = 4_000
+
+/** Scroll speed of a song that does not fit, and the gap before it repeats. */
+const TICKER_PX_PER_SECOND = 40
+const TICKER_GAP_PX = 48
+
+/**
+ * The song, in whatever width the strip has left between the widgets and the
+ * Kick followers.
+ *
+ * Shown whole when it fits, sitting against the followers. When it does not,
+ * it scrolls: two copies back to back, moved left by exactly one copy and a
+ * gap, which lands the second where the first began — so the loop has no
+ * visible jump. Whether it fits is measured, not guessed from a character
+ * count, and measured again whenever either width changes (a timer appearing
+ * on the left takes space from it).
+ */
+function TrackTicker({ track }: { track: string }) {
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const stripRef = useRef<HTMLDivElement>(null)
+  const textRef = useRef<HTMLSpanElement>(null)
+  // 0 while the song fits; otherwise how far one loop moves.
+  const [distance, setDistance] = useState(0)
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    const text = textRef.current
+    if (!viewport || !text) {
+      setDistance(0)
+      return
+    }
+
+    const measure = () => {
+      const width = text.offsetWidth
+      setDistance(width > viewport.clientWidth + 1 ? width + TICKER_GAP_PX : 0)
+    }
+
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(viewport)
+    observer.observe(text)
+    return () => observer.disconnect()
+  }, [track])
+
+  useEffect(() => {
+    const strip = stripRef.current
+    if (!strip || distance === 0) return
+    const animation = strip.animate([{ transform: "translateX(0)" }, { transform: `translateX(-${distance}px)` }], {
+      duration: (distance / TICKER_PX_PER_SECOND) * 1000,
+      iterations: Infinity,
+      easing: "linear",
+    })
+    return () => animation.cancel()
+  }, [distance, track])
+
+  const scrolling = distance > 0
+
+  return (
+    <div className="flex h-full min-w-0 flex-1 items-center justify-end whitespace-nowrap text-base">
+      {track && (
+        <div className="ml-3 flex min-w-0 items-center gap-1 text-[#7FB3FF]">
+          <Music className={ICON_CLASS} />
+          <div
+            ref={viewportRef}
+            className="min-w-0 overflow-hidden"
+            style={
+              scrolling
+                ? {
+                    // Soft edges, so the text slides in and out rather than
+                    // being cut at a hard line.
+                    maskImage: "linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)",
+                    WebkitMaskImage:
+                      "linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)",
+                  }
+                : undefined
+            }
+          >
+            <div ref={stripRef} className="flex w-max">
+              <span ref={textRef}>{track}</span>
+              {scrolling && (
+                <span aria-hidden style={{ paddingLeft: TICKER_GAP_PX }}>
+                  {track}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function TopBarWidget() {
   // Set by /obs/complete: a column continues directly below this strip.
   const embedded = useSearchParams().get("embedded") === "1"
@@ -239,6 +335,43 @@ function TopBarWidget() {
 
     readFollowers()
     const interval = setInterval(readFollowers, 60_000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [])
+
+  /**
+   * The Spotify song, every few seconds.
+   *
+   * The server answers { playing: false } for paused, closed, not connected
+   * and any error alike, and each of those clears the line: the song is only
+   * on the strip while it is actually playing. Only a failed request here —
+   * the OBS machine's own network — keeps the last one.
+   */
+  useEffect(() => {
+    let cancelled = false
+
+    const readTrack = async () => {
+      try {
+        const response = await fetch("/api/spotify/now-playing", { cache: "no-store" })
+        if (!response.ok) return
+        const payload = await response.json()
+        if (cancelled) return
+        setCurrentTrack(
+          payload?.playing && payload.title
+            ? payload.artists
+              ? `${payload.artists} – ${payload.title}`
+              : payload.title
+            : "",
+        )
+      } catch {
+        // Keep whatever was last known.
+      }
+    }
+
+    readTrack()
+    const interval = setInterval(readTrack, TRACK_POLL_MS)
     return () => {
       cancelled = true
       clearInterval(interval)
@@ -558,8 +691,9 @@ function TopBarWidget() {
         borderBottomColor: embedded ? "transparent" : COLUMN_EDGE,
       }}
     >
-      {/* Left Content - Gamble Aware, Timers, Track */}
-      <div className="flex items-center gap-3 flex-1 h-full overflow-x-auto whitespace-nowrap text-base">
+      {/* Left Content - Gamble Aware, Timers, Info lines. Its own width and no
+          more, so the song line gets whatever the strip has left. */}
+      <div className="flex items-center gap-3 min-w-0 h-full overflow-hidden whitespace-nowrap text-base">
         {/* The brand mark, then 18+ Gamble Aware. It carries its own tile, so
             it needs no frame, and it is not held to the icon height — at 32px
             it nearly fills the 34px the strip's padding leaves, which is the
@@ -573,17 +707,6 @@ function TopBarWidget() {
 
         {/* Separator */}
         <span className="text-[#4D84FF]/50">|</span>
-
-        {/* Current Track */}
-        {currentTrack && (
-          <>
-            <div className="flex items-center gap-1 text-[#7FB3FF]">
-              <Music className={ICON_CLASS} />
-              <span>{currentTrack}</span>
-            </div>
-            <span className="text-[#4D84FF]/50">|</span>
-          </>
-        )}
 
         {/* Active Timers */}
         {shownTimers.length > 0 && (
@@ -651,6 +774,10 @@ function TopBarWidget() {
           </>
         )}
       </div>
+
+      {/* The Spotify song, between the widgets and the Kick followers. Takes the
+          space left over, so it also pushes the right side to the edge. */}
+      <TrackTicker track={currentTrack} />
 
       {/* Right Content - Crypto, Wallet & Time */}
       <div className="flex items-center gap-3 text-white ml-4 flex-shrink-0 text-base">

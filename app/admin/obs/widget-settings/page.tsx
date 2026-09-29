@@ -701,15 +701,166 @@ export default function WidgetSettingsPage() {
         )}
       </Panel>
 
-      <Panel accent="slate">
-        <PanelHeader title="Spotify" accent="slate" />
-        <p className="px-3.5 py-3 text-[13px] leading-relaxed text-white/45">
-          The credentials form that used to be here saved to this browser&apos;s local storage, which the OBS source —
-          a different browser — could never read. Nothing set the track, so the music line never appeared. It has been
-          taken out rather than left looking like it works. Say the word and it can be built properly: credentials on
-          the server, the now-playing track polled into the strip.
-        </p>
-      </Panel>
+      <SpotifyPanel />
     </div>
+  )
+}
+
+/* -------------------------------------------------------------- spotify */
+
+type SpotifyStatus = {
+  configured: boolean
+  connected: boolean
+  redirectUri: string
+  nowPlaying: { playing: false } | { playing: true; title: string; artists: string } | null
+  problem: string | null
+}
+
+/**
+ * Connecting the streamer's Spotify, for the song line on the top bar.
+ *
+ * The app's id and secret are env vars; this panel only runs the sign-in and
+ * shows what the strip currently sees. The account's token is stored on the
+ * server (lib/spotify.ts), so the OBS source — a different browser from this
+ * one — reads the same connection.
+ */
+function SpotifyPanel() {
+  const [status, setStatus] = useState<SpotifyStatus | null>(null)
+  const [message, setMessage] = useState<{ tone: "green" | "red"; text: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    try {
+      setStatus(await call<SpotifyStatus>("/api/admin/spotify"))
+    } catch (cause) {
+      setMessage({ tone: "red", text: cause instanceof Error ? cause.message : "Could not read Spotify." })
+    }
+  }, [])
+
+  useEffect(() => {
+    // The callback comes back here with ?spotify=connected|error|unconfigured.
+    // Read once, then taken off the URL so a reload does not repeat it.
+    const params = new URLSearchParams(window.location.search)
+    const outcome = params.get("spotify")
+    if (outcome === "connected") setMessage({ tone: "green", text: "Spotify connected." })
+    if (outcome === "error") setMessage({ tone: "red", text: params.get("detail") ?? "Could not connect Spotify." })
+    if (outcome === "unconfigured") setMessage({ tone: "red", text: "Set the Spotify env vars first." })
+    if (outcome) window.history.replaceState(null, "", window.location.pathname)
+
+    void load()
+    const interval = setInterval(() => void load(), 10_000)
+    return () => clearInterval(interval)
+  }, [load])
+
+  const disconnect = async () => {
+    setBusy(true)
+    try {
+      await call("/api/admin/spotify", { method: "DELETE" })
+      setMessage({ tone: "green", text: "Spotify disconnected." })
+      await load()
+    } catch (cause) {
+      setMessage({ tone: "red", text: cause instanceof Error ? cause.message : "Could not disconnect." })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const tag = !status ? null : !status.configured ? (
+    <Tag accent="amber">Not set up</Tag>
+  ) : status.connected ? (
+    <Tag accent="green">Connected</Tag>
+  ) : (
+    <Tag accent="slate">Not connected</Tag>
+  )
+
+  return (
+    <Panel accent="green">
+      <PanelHeader title="Spotify" accent="green" right={tag} />
+      <div className="space-y-3 p-3.5 text-[13px] leading-relaxed text-white/60">
+        {message && <p style={{ color: ACCENTS[message.tone] }}>{message.text}</p>}
+
+        {!status ? (
+          <p className="text-white/35">Loading…</p>
+        ) : !status.configured ? (
+          <ol className="list-decimal space-y-1.5 pl-5">
+            <li>
+              Create an app at{" "}
+              <a
+                href="https://developer.spotify.com/dashboard"
+                target="_blank"
+                rel="noreferrer"
+                className="text-white underline"
+              >
+                developer.spotify.com/dashboard
+              </a>{" "}
+              (Web API) and add this Redirect URI:
+              <RedirectUri value={status.redirectUri} />
+            </li>
+            <li>
+              Put its Client ID and Client secret into Vercel as <code className="text-white">SPOTIFY_CLIENT_ID</code>{" "}
+              and <code className="text-white">SPOTIFY_CLIENT_SECRET</code>, and redeploy.
+            </li>
+            <li>Come back here and connect the account.</li>
+          </ol>
+        ) : !status.connected ? (
+          <>
+            <p>
+              Sign in with the Spotify account the music plays on. The Redirect URI registered in the Spotify app has
+              to be exactly:
+            </p>
+            <RedirectUri value={status.redirectUri} />
+            <a
+              href="/api/admin/spotify/connect"
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-medium text-black"
+              style={{ backgroundColor: ACCENTS.green }}
+            >
+              <Play className="h-3.5 w-3.5" />
+              Connect Spotify
+            </a>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <MonoLabel className="text-white/40">On the strip</MonoLabel>
+              {status.problem ? (
+                <span style={{ color: ACCENTS.red }}>{status.problem}</span>
+              ) : status.nowPlaying?.playing ? (
+                <span className="truncate text-white">
+                  {status.nowPlaying.artists
+                    ? `${status.nowPlaying.artists} – ${status.nowPlaying.title}`
+                    : status.nowPlaying.title}
+                </span>
+              ) : (
+                <span className="text-white/35">Nothing playing — the song line is hidden.</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <a
+                href="/api/admin/spotify/connect"
+                className="rounded-md border border-white/[0.10] px-2.5 py-1.5 text-[12px] text-white/60 transition hover:border-white/20 hover:text-white"
+              >
+                Reconnect
+              </a>
+              <button
+                type="button"
+                onClick={() => void disconnect()}
+                disabled={busy}
+                className="rounded-md border border-white/[0.10] px-2.5 py-1.5 text-[12px] text-white/60 transition hover:border-white/20 hover:text-white disabled:opacity-40"
+              >
+                Disconnect
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </Panel>
+  )
+}
+
+function RedirectUri({ value }: { value: string }) {
+  return (
+    <code className="mt-1 block select-all break-all rounded border border-white/[0.08] bg-black/30 px-2 py-1.5 text-[12px] text-white">
+      {value}
+    </code>
   )
 }
