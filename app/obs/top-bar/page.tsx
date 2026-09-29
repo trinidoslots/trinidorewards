@@ -228,12 +228,13 @@ function TrackTicker({ track }: { track: string }) {
 
   const scrolling = distance > 0
 
+  // Bold and upper case like the rest of the strip: at normal weight it read
+  // as a size smaller than its neighbours, and Spotify sends titles in
+  // whatever case the label chose.
   return (
     <div className="flex h-full min-w-0 flex-1 items-center justify-start whitespace-nowrap text-base">
       {track && (
-        {/* Upper case like everything else on the strip; Spotify sends titles
-            in whatever case the label chose. */}
-        <div className="ml-3 flex min-w-0 items-center gap-1 text-white uppercase">
+        <div className="ml-3 flex min-w-0 items-center gap-1 font-bold text-white uppercase">
           <Music className={ICON_CLASS} />
           <div
             ref={viewportRef}
