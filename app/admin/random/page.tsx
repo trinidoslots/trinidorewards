@@ -28,6 +28,7 @@ export default function RandomSlotPage() {
   const [spin, setSpin] = useState<RandomSpin | null>(null)
   const [provider, setProvider] = useState(ALL)
   const [withImage, setWithImage] = useState(false)
+  const [onlyOnStake, setOnlyOnStake] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
@@ -61,7 +62,7 @@ export default function RandomSlotPage() {
     const res = await fetch("/api/admin/random-slot", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider: provider === ALL ? undefined : provider, withImage }),
+      body: JSON.stringify({ provider: provider === ALL ? undefined : provider, withImage, onlyOnStake }),
     })
     const json = await res.json().catch(() => ({}))
     setBusy(false)
@@ -131,6 +132,15 @@ export default function RandomSlotPage() {
               />
               Only slots with artwork
             </label>
+            <label className="flex w-fit cursor-pointer items-center gap-2 text-[13px] text-white/60">
+              <input
+                type="checkbox"
+                checked={onlyOnStake}
+                onChange={(e) => setOnlyOnStake(e.target.checked)}
+                className="h-3.5 w-3.5 accent-[#E8A33D]"
+              />
+              Only on Stake <span className="text-white/30">– the exclusives only</span>
+            </label>
 
             <button
               type="button"
@@ -144,7 +154,9 @@ export default function RandomSlotPage() {
             </button>
             <p className="flex items-center gap-1.5 text-[12px] text-white/35">
               <Tv className="h-3.5 w-3.5" />
-              {providerCount !== undefined ? `${providerCount.toLocaleString()} slots in the draw. ` : ""}
+              {providerCount !== undefined && !withImage && !onlyOnStake
+                ? `${providerCount.toLocaleString()} slots in the draw. `
+                : ""}
               Shown in <span className="font-mono text-white/55">/obs/stream</span> and{" "}
               <span className="font-mono text-white/55">/random-slot</span>.
             </p>

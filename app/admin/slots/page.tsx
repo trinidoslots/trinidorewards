@@ -19,7 +19,8 @@ import {
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
-import { STAKE_EXPORT_SCRIPT, type Slot } from "@/lib/slots"
+import { ONLY_ON_STAKE_BADGE, STAKE_EXCLUSIVES_SCRIPT, STAKE_EXPORT_SCRIPT, type Slot } from "@/lib/slots"
+import { BADGE_GRADIENT, BADGE_TEXT } from "@/lib/now-playing"
 
 /**
  * The slot catalogue: what the hunt form, the tournament form and the random
@@ -37,7 +38,19 @@ const PAGE_SIZE = 50
 const field =
   "h-9 w-full rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
 
-type Counts = { total: number | null; withArt: number | null; fromStake: number | null }
+type Counts = { total: number | null; withArt: number | null; fromStake: number | null; exclusive: number | null }
+
+/** The "Only on Stake" chip, in the colours the now-playing bar uses for it. */
+function OnlyOnStake() {
+  return (
+    <span
+      className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
+      style={{ backgroundImage: BADGE_GRADIENT, color: BADGE_TEXT }}
+    >
+      {ONLY_ON_STAKE_BADGE}
+    </span>
+  )
+}
 
 function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
@@ -60,13 +73,14 @@ export default function SlotsPage() {
   const [supabase] = useState(() => createClient())
   const [rows, setRows] = useState<Slot[]>([])
   const [matchCount, setMatchCount] = useState(0)
-  const [counts, setCounts] = useState<Counts>({ total: null, withArt: null, fromStake: null })
+  const [counts, setCounts] = useState<Counts>({ total: null, withArt: null, fromStake: null, exclusive: null })
   const [query, setQuery] = useState("")
+  const [exclusiveOnly, setExclusiveOnly] = useState(false)
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<"all" | "exclusive" | null>(null)
   const [importing, setImporting] = useState(false)
   const [importNotice, setImportNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -76,16 +90,18 @@ export default function SlotsPage() {
 
   const loadCounts = useCallback(async () => {
     const head = { count: "exact" as const, head: true }
-    const [total, withArt, fromStake] = await Promise.all([
+    const [total, withArt, fromStake, exclusive] = await Promise.all([
       supabase.from("slots").select("id", head),
       supabase.from("slots").select("id", head).not("image_url", "is", null),
       supabase.from("slots").select("id", head).eq("source", "stake"),
+      supabase.from("slots").select("id", head).eq("only_on_stake", true),
     ])
-    // The last two need scripts/077; before that they fail and read as "—".
+    // These need scripts/077 and 078; before that they fail and read as "—".
     setCounts({
       total: total.error ? null : total.count ?? 0,
       withArt: withArt.error ? null : withArt.count ?? 0,
       fromStake: fromStake.error ? null : fromStake.count ?? 0,
+      exclusive: exclusive.error ? null : exclusive.count ?? 0,
     })
   }, [supabase])
 
@@ -97,6 +113,7 @@ export default function SlotsPage() {
       const pattern = `"%${needle.replace(/[%_\\]/g, (c) => `\\${c}`).replace(/"/g, '\\"')}%"`
       request = request.or(`game_name.ilike.${pattern},provider.ilike.${pattern}`)
     }
+    if (exclusiveOnly) request = request.eq("only_on_stake", true)
     const { data, count, error: problem } = await request
       .order("game_name")
       .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1)
@@ -109,7 +126,7 @@ export default function SlotsPage() {
       setError(null)
     }
     setLoading(false)
-  }, [supabase, query, page])
+  }, [supabase, query, page, exclusiveOnly])
 
   useEffect(() => {
     loadCounts()
@@ -121,10 +138,10 @@ export default function SlotsPage() {
     return () => clearTimeout(timer)
   }, [loadPage, query])
 
-  function copyScript() {
-    navigator.clipboard.writeText(STAKE_EXPORT_SCRIPT).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+  function copyScript(which: "all" | "exclusive") {
+    navigator.clipboard.writeText(which === "all" ? STAKE_EXPORT_SCRIPT : STAKE_EXCLUSIVES_SCRIPT).then(() => {
+      setCopied(which)
+      setTimeout(() => setCopied((current) => (current === which ? null : current)), 2000)
     })
   }
 
@@ -148,7 +165,10 @@ export default function SlotsPage() {
       if (!res.ok) throw new Error(json.error ?? "The import failed.")
       setImportNotice({
         ok: true,
-        text: `Imported ${Number(json.written).toLocaleString()} slots from Stake${json.skipped ? ` (${json.skipped} entries skipped)` : ""}.`,
+        text:
+          json.kind === "only-on-stake"
+            ? `Tagged ${Number(json.written).toLocaleString()} slots as Only on Stake${json.untagged ? `; ${json.untagged} are no longer exclusive and lost the tag` : ""}.`
+            : `Imported ${Number(json.written).toLocaleString()} slots from Stake${json.skipped ? ` (${json.skipped} entries skipped)` : ""}.`,
       })
       setPage(0)
       loadCounts()
@@ -207,10 +227,11 @@ export default function SlotsPage() {
         </p>
       </header>
 
-      <div className="grid gap-2.5 sm:grid-cols-3">
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile label="Slots in the catalogue" value={shown(counts.total)} accent="blue" />
         <StatTile label="With artwork" value={shown(counts.withArt)} accent="green" />
         <StatTile label="Imported from Stake" value={shown(counts.fromStake)} accent="amber" />
+        <StatTile label="Only on Stake" value={shown(counts.exclusive)} accent="purple" />
       </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
@@ -235,17 +256,45 @@ export default function SlotsPage() {
               open <b className="text-white/70">Console</b>, paste it and press Enter. It reads the slot list page by
               page and downloads <span className="font-mono text-white/70">stake-slots.json</span>. If Chrome asks you
               to type &quot;allow pasting&quot; first, do that.
-              <button
-                type="button"
-                onClick={copyScript}
-                className="mt-2 flex items-center gap-1.5 rounded-md border border-white/[0.12] bg-white/[0.04] px-3 py-1.5 text-[12px] text-white transition hover:bg-white/[0.08]"
-              >
-                {copied ? <Check className="h-3.5 w-3.5" style={{ color: ACCENTS.green }} /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? "Copied" : "Copy the script"}
-              </button>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => copyScript("all")}
+                  className="flex items-center gap-1.5 rounded-md border border-white/[0.12] bg-white/[0.04] px-3 py-1.5 text-[12px] text-white transition hover:bg-white/[0.08]"
+                >
+                  {copied === "all" ? <Check className="h-3.5 w-3.5" style={{ color: ACCENTS.green }} /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied === "all" ? "Copied" : "Copy: all slots"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => copyScript("exclusive")}
+                  className="flex items-center gap-1.5 rounded-md border border-white/[0.12] bg-white/[0.04] px-3 py-1.5 text-[12px] text-white transition hover:bg-white/[0.08]"
+                >
+                  {copied === "exclusive" ? (
+                    <Check className="h-3.5 w-3.5" style={{ color: ACCENTS.green }} />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                  {copied === "exclusive" ? "Copied" : "Copy: Only on Stake"}
+                </button>
+              </div>
+              <p className="mt-2">
+                <b className="text-white/70">All slots</b> fills the catalogue (stake-slots.json).{" "}
+                <b className="text-white/70">Only on Stake</b> reads{" "}
+                <a
+                  href="https://stake.com/casino/group/only-on-stake"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-2 hover:text-white"
+                >
+                  that group
+                </a>{" "}
+                and tags those slots (stake-only-on-stake.json) – the tag also fills the badge on the now-playing bar.
+              </p>
             </Step>
             <Step n={3} title="Upload the file here">
-              New releases come with the next import; slots already here are updated, never doubled.
+              Either file goes in the same button – it knows which is which. New releases come with the next import;
+              slots already here are updated, never doubled.
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <input
                   ref={fileRef}
@@ -265,7 +314,7 @@ export default function SlotsPage() {
                   style={{ backgroundColor: ACCENTS.amber }}
                 >
                   {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                  {importing ? "Importing…" : "Upload stake-slots.json"}
+                  {importing ? "Importing…" : "Upload a Stake file"}
                 </button>
               </div>
               {importNotice && (
@@ -342,6 +391,22 @@ export default function SlotsPage() {
               className={`${field} pl-9`}
             />
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setExclusiveOnly((current) => !current)
+              setPage(0)
+            }}
+            aria-pressed={exclusiveOnly}
+            className="flex h-9 items-center gap-2 rounded-md border px-3 text-[12px] transition"
+            style={
+              exclusiveOnly
+                ? { borderColor: `${ACCENTS.purple}77`, backgroundColor: `${ACCENTS.purple}1a`, color: "#fff" }
+                : { borderColor: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.5)" }
+            }
+          >
+            Only on Stake
+          </button>
           <MonoLabel className="text-white/25">{matchCount.toLocaleString()} slots</MonoLabel>
         </div>
 
@@ -353,7 +418,11 @@ export default function SlotsPage() {
           <div className="flex flex-col items-center gap-2 py-16">
             {query ? <Search className="h-7 w-7 text-white/10" /> : <FileJson className="h-7 w-7 text-white/10" />}
             <p className="text-[13px] text-white/30">
-              {query ? "Nothing matches that search." : "The catalogue is empty – import it from Stake above."}
+              {query || exclusiveOnly
+                ? exclusiveOnly && !query
+                  ? "No slot is tagged Only on Stake yet – run the Only on Stake script above."
+                  : "Nothing matches that search."
+                : "The catalogue is empty – import it from Stake above."}
             </p>
           </div>
         ) : (
@@ -372,6 +441,7 @@ export default function SlotsPage() {
                   <p className="truncate text-[13px] text-white">{slot.game_name}</p>
                   <p className="truncate text-[11px] text-white/30">{slot.provider}</p>
                 </div>
+                {slot.only_on_stake && <OnlyOnStake />}
                 {slot.source === "stake" ? <Tag accent="amber">Stake</Tag> : <Tag accent="slate">Manual</Tag>}
                 <button
                   type="button"

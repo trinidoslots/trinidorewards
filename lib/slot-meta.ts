@@ -1,4 +1,5 @@
 import { LIMITS, cleanText, mergeWithKnown, nameKey, type NowPlayingRow } from "@/lib/now-playing"
+import { ONLY_ON_STAKE_BADGE } from "@/lib/slots"
 
 /**
  * What we remember about each slot, and how a "now playing" is resolved.
@@ -45,6 +46,40 @@ export async function readSlotMeta(db: Db, slotName: string): Promise<SlotMetaRo
     return null
   }
   return (data ?? null) as SlotMetaRow | null
+}
+
+/**
+ * What the imported slot catalogue (the `slots` table) knows about a game:
+ * provider, artwork, and the "Only on Stake" badge (scripts/078).
+ *
+ * Matched on the exact name, ignoring case. Two providers can share a name;
+ * the Stake-imported row, and one with artwork, is preferred. Never throws —
+ * before 077/078 the columns are missing and this just knows nothing.
+ */
+export async function readCatalogue(
+  db: Db,
+  slotName: string,
+): Promise<{ provider: string | null; image_url: string | null; badge: string | null } | null> {
+  const name = (slotName ?? "").replace(/\s+/g, " ").trim()
+  if (!name) return null
+  const { data, error } = await db
+    .from("slots")
+    .select("*")
+    // ILIKE without wildcards is a case-insensitive equality; escape any in the name.
+    .ilike("game_name", name.replace(/[%_\\]/g, (c) => `\\${c}`))
+    .limit(5)
+  if (error || !data?.length) return null
+
+  const rows = data as { provider: string | null; image_url?: string | null; source?: string | null; only_on_stake?: boolean | null }[]
+  const best = [...rows].sort(
+    (a, b) =>
+      Number(b.source === "stake") - Number(a.source === "stake") || Number(!!b.image_url) - Number(!!a.image_url),
+  )[0]
+  return {
+    provider: best.provider ?? null,
+    image_url: best.image_url ?? null,
+    badge: rows.some((row) => row.only_on_stake === true) ? ONLY_ON_STAKE_BADGE : null,
+  }
 }
 
 /**
@@ -138,7 +173,10 @@ export async function resolveNowPlaying(
 ): Promise<Omit<NowPlayingRow, "id" | "updated_at">> {
   const slotName = scraped.slot_name ?? ""
   const known = await readSlotMeta(db, slotName)
-  const merged = authored ? scraped : mergeWithKnown(scraped, known)
+  // A scrape's gaps are filled from memory first, then from the imported
+  // catalogue — which is where "Only on Stake" comes from for a game the
+  // extension could not read the badge off. A typed form is left as typed.
+  const merged = authored ? scraped : mergeWithKnown(mergeWithKnown(scraped, known), await readCatalogue(db, slotName))
 
   // A typed figure wins; otherwise a previously typed one; otherwise the hunts.
   const stored = bestWin !== undefined ? bestWin : (known?.best_win ?? null)

@@ -16,10 +16,21 @@ export type Slot = {
   image_url: string | null
   stake_slug: string | null
   source: string | null
+  /** In Stake's "Only on Stake" group (scripts/078). Absent before that ran. */
+  only_on_stake?: boolean | null
 }
 
 /** One entry of the uploaded file. */
 export type ImportedSlot = { name: string; provider: string; slug: string | null; image: string | null }
+
+/** The group the exclusives script reads, and the tag it becomes. */
+export const ONLY_ON_STAKE_GROUP = "only-on-stake"
+export const ONLY_ON_STAKE_BADGE = "Only on Stake"
+
+/** Which kind of file was uploaded: the whole slot list, or the "Only on Stake" list. */
+export function importKind(raw: unknown): "catalogue" | "only-on-stake" {
+  return (raw as { group?: unknown })?.group === ONLY_ON_STAKE_GROUP ? "only-on-stake" : "catalogue"
+}
 
 export const MAX_IMPORT = 20_000
 
@@ -112,3 +123,17 @@ export const STAKE_EXPORT_SCRIPT = `(async () => {
   document.body.appendChild(link); link.click(); link.remove()
   console.log("Done:", slots.length, "slots saved as stake-slots.json – upload it on /admin/slots")
 })()`
+
+/**
+ * The same script for the "Only on Stake" group
+ * (https://stake.com/casino/group/only-on-stake). Much shorter list, so it
+ * runs in seconds. The file says which group it is, so the import knows to
+ * set the tag rather than treat it as the whole catalogue.
+ */
+export const STAKE_EXCLUSIVES_SCRIPT = STAKE_EXPORT_SCRIPT.replace('const SLUG = "slots"', `const SLUG = "${ONLY_ON_STAKE_GROUP}"`)
+  .replace(
+    'JSON.stringify({ source: "stake", exportedAt',
+    `JSON.stringify({ source: "stake", group: "${ONLY_ON_STAKE_GROUP}", exportedAt`,
+  )
+  .replaceAll("stake-slots.json", "stake-only-on-stake.json")
+  .replace('"Stake slots:"', '"Only on Stake:"')

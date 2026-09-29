@@ -5,7 +5,17 @@ import { Check, Copy, Eraser, RefreshCw } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader } from "@/components/ui/panel"
 import { FIELD_CLASS } from "@/components/ui/select-menu"
 import { createClient } from "@/lib/supabase/client"
-import { cleanMaxWin, formatMoney, nameKey, readMoney, readMultiplier, type NowPlayingRow } from "@/lib/now-playing"
+import {
+  BADGE_GRADIENT,
+  BADGE_TEXT,
+  cleanMaxWin,
+  formatMoney,
+  nameKey,
+  readMoney,
+  readMultiplier,
+  type NowPlayingRow,
+} from "@/lib/now-playing"
+import { ONLY_ON_STAKE_BADGE } from "@/lib/slots"
 
 /**
  * What the /obs/now-playing bar is showing.
@@ -74,7 +84,7 @@ function sameDraft(a: Draft, b: Draft): boolean {
   return (Object.keys(a) as (keyof Draft)[]).every((key) => a[key] === b[key])
 }
 
-type Suggestion = { game_name: string; provider: string }
+type Suggestion = { game_name: string; provider: string; image_url?: string | null; only_on_stake?: boolean | null }
 
 export default function NowPlayingAdmin() {
   const [row, setRow] = useState<NowPlayingRow | null>(null)
@@ -225,9 +235,11 @@ export default function NowPlayingAdmin() {
       const supabase = createClient()
       const { data } = await supabase
         .from("slots")
-        .select("game_name, provider")
-        .ilike("game_name", `%${term}%`)
-        .limit(6)
+        // "*": artwork and the Only on Stake tag come along once 077/078 have run.
+        .select("*")
+        .ilike("game_name", `%${term.replace(/[%_\\]/g, (c) => `\\${c}`)}%`)
+        .order("game_name")
+        .limit(8)
       if (!cancelled) setSuggestions((data ?? []) as Suggestion[])
     }, 250)
     return () => {
@@ -392,13 +404,33 @@ export default function NowPlayingAdmin() {
                     <button
                       type="button"
                       onClick={() => {
-                        setDraft({ ...draft, slotName: suggestion.game_name, provider: suggestion.provider })
+                        // The catalogue brings the artwork and the badge with it;
+                        // anything already typed into those fields is kept.
+                        setDraft({
+                          ...draft,
+                          slotName: suggestion.game_name,
+                          provider: suggestion.provider,
+                          imageUrl: draft.imageUrl || suggestion.image_url || "",
+                          badge: suggestion.only_on_stake ? ONLY_ON_STAKE_BADGE : draft.badge,
+                        })
                         setSuggestions([])
                       }}
-                      className="flex w-full items-baseline gap-2 px-3 py-2 text-left text-[13px] text-white/80 transition hover:bg-white/[0.06]"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-white/80 transition hover:bg-white/[0.06]"
                     >
-                      <span>{suggestion.game_name}</span>
-                      <span className="text-[11px] text-white/35">{suggestion.provider}</span>
+                      {suggestion.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- external slot artwork
+                        <img src={suggestion.image_url} alt="" className="h-7 w-7 shrink-0 rounded object-cover" />
+                      ) : null}
+                      <span className="truncate">{suggestion.game_name}</span>
+                      <span className="shrink-0 text-[11px] text-white/35">{suggestion.provider}</span>
+                      {suggestion.only_on_stake && (
+                        <span
+                          className="ml-auto shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                          style={{ backgroundImage: BADGE_GRADIENT, color: BADGE_TEXT }}
+                        >
+                          {ONLY_ON_STAKE_BADGE}
+                        </span>
+                      )}
                     </button>
                   </li>
                 ))}

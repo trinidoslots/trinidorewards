@@ -7,7 +7,7 @@ import { serviceClient } from "@/lib/supabase/service"
  *
  * GET  — the providers in the catalogue (for the filter), how many slots
  *        there are, and the last spins.
- * POST — { provider?, withImage? } spins: picks one slot, builds the strip the
+ * POST — { provider?, withImage?, onlyOnStake? } spins: picks one slot, builds the strip the
  *        reel runs through, and writes a random_slot_spins row. The stream
  *        column animates from that row, so every screen lands on the same slot.
  *
@@ -24,7 +24,7 @@ const SPIN_MS = 6500
 const REEL_LENGTH = 28
 const PAGE = 1000
 
-type Filter = { provider?: string; withImage?: boolean }
+type Filter = { provider?: string; withImage?: boolean; onlyOnStake?: boolean }
 
 function filtered(filter: Filter, columns: string, count?: "exact") {
   let query = serviceClient()
@@ -32,6 +32,7 @@ function filtered(filter: Filter, columns: string, count?: "exact") {
     .select(columns, count ? { count, head: true } : undefined)
   if (filter.provider) query = query.eq("provider", filter.provider)
   if (filter.withImage) query = query.not("image_url", "is", null)
+  if (filter.onlyOnStake) query = query.eq("only_on_stake", true)
   return query
 }
 
@@ -83,6 +84,7 @@ export async function POST(request: Request) {
   const filter: Filter = {
     provider: typeof body.provider === "string" && body.provider.trim() ? body.provider.trim() : undefined,
     withImage: body.withImage === true,
+    onlyOnStake: body.onlyOnStake === true,
   }
 
   const { count, error: countError } = await filtered(filter, "id", "exact")
