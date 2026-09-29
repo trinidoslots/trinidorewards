@@ -17,8 +17,6 @@ import { Suspense } from "react"
 interface CryptoPrice {
   btc: number
   eth: number
-  btcChange: number
-  ethChange: number
 }
 
 interface WalletStats {
@@ -270,12 +268,7 @@ function TrackTicker({ track }: { track: string }) {
 function TopBarWidget() {
   // Set by /obs/complete: a column continues directly below this strip.
   const embedded = useSearchParams().get("embedded") === "1"
-  const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice>({
-    btc: 0,
-    eth: 0,
-    btcChange: 0,
-    ethChange: 0,
-  })
+  const [cryptoPrices, setCryptoPrices] = useState<CryptoPrice>({ btc: 0, eth: 0 })
   const [walletStats, setWalletStats] = useState<WalletStats>({
     totalDeposits: 0,
     totalWithdraws: 0,
@@ -611,18 +604,21 @@ function TopBarWidget() {
     return () => clearInterval(interval)
   }, [])
 
+  /**
+   * BTC and ETH, through /api/crypto/prices.
+   *
+   * A failed read keeps the last prices rather than zeroing them; until the
+   * first one lands the two are not drawn at all, so the strip never claims
+   * Bitcoin is worth $0.
+   */
   async function fetchCryptoPrices() {
     try {
-      const response = await fetch(
-        "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true"
-      )
+      const response = await fetch("/api/crypto/prices", { cache: "no-store" })
+      if (!response.ok) return
       const data = await response.json()
-      setCryptoPrices({
-        btc: data.bitcoin.usd,
-        eth: data.ethereum.usd,
-        btcChange: data.bitcoin.usd_24h_change,
-        ethChange: data.ethereum.usd_24h_change,
-      })
+      if (typeof data?.btc === "number" && typeof data?.eth === "number") {
+        setCryptoPrices({ btc: data.btc, eth: data.eth })
+      }
     } catch (error) {
       console.error("Error fetching crypto prices:", error)
     }
@@ -813,17 +809,20 @@ function TopBarWidget() {
           <AnimatedAmount value={walletStats.difference} className="font-bold" toneClassName="text-white" />
         </div>
 
-        {/* BTC Price */}
-        <div className="flex items-center gap-1 text-white">
-          <img src="/obs-bitcoin.png" alt="" className={ICON_CLASS} />
-          <span className="font-bold">{formatCrypto(cryptoPrices.btc)}</span>
-        </div>
+        {/* BTC and ETH, each hidden until its first real price. */}
+        {cryptoPrices.btc > 0 && (
+          <div className="flex items-center gap-1 text-white">
+            <img src="/obs-bitcoin.png" alt="" className={ICON_CLASS} />
+            <span className="font-bold">{formatCrypto(cryptoPrices.btc)}</span>
+          </div>
+        )}
 
-        {/* ETH Price */}
-        <div className="flex items-center gap-1 text-white">
-          <img src="/obs-ethereum.png" alt="" className={ICON_CLASS} />
-          <span className="font-bold">{formatCrypto(cryptoPrices.eth)}</span>
-        </div>
+        {cryptoPrices.eth > 0 && (
+          <div className="flex items-center gap-1 text-white">
+            <img src="/obs-ethereum.png" alt="" className={ICON_CLASS} />
+            <span className="font-bold">{formatCrypto(cryptoPrices.eth)}</span>
+          </div>
+        )}
 
         {/* Separator */}
         <span className="text-[#4D84FF]/50">|</span>
