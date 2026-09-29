@@ -1,7 +1,7 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
-import { Suspense, useEffect } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { GiveawayCard, isGiveawayActive, useGiveawayState } from "@/components/obs/giveaway-card"
 import {
@@ -23,6 +23,7 @@ import {
   type TransactionEvent,
 } from "@/components/obs/stream-event-feed"
 import { TournamentEventCard, useTournamentEvent } from "@/components/obs/tournament-event-card"
+import { RandomSlotCard, useRandomSpin, type RandomSpin } from "@/components/obs/random-slot-spinner"
 import { KickChatFeed } from "@/components/kick-chat-feed"
 import { useKickChat } from "@/hooks/use-kick-chat"
 import { pingEnabled, preloadPing, readVolume, unlockOnInteraction } from "@/lib/obs-ping"
@@ -62,6 +63,20 @@ const PREVIEW_RECORDS: RecordEvent[] = [
 const PREVIEW_PROMOS: StreamPromoCode[] = [
   { id: "preview-promo", code: "TRINIDO500", points: 500, max_uses: 50, uses_count: 12, shown_at: new Date().toISOString() },
 ]
+
+// Started when the preview page loads, so the reel can be watched spinning.
+const previewSpin = (): RandomSpin => ({
+  id: "preview-spin",
+  slot_name: "Sweet Bonanza",
+  provider: "Pragmatic Play",
+  image_url: null,
+  reel: [
+    "Gates of Olympus", "Wanted Dead or a Wild", "Big Bass Splash", "Sugar Rush", "Le Bandit", "Mental",
+    "The Dog House", "Fruit Party", "Chaos Crew", "Starlight Princess", "Tombstone RIP", "Sweet Bonanza",
+  ].map((name, index, list) => ({ name, provider: index === list.length - 1 ? "Pragmatic Play" : "Provider", image_url: null })),
+  spin_ms: 6500,
+  started_at: new Date().toISOString(),
+})
 
 const PREVIEW_MESSAGES: KickMessage[] = [
   { username: "Lintai", content: "[emote:1730752:pepeJAM]", color: "#4FD1A5", badges: [] },
@@ -141,6 +156,8 @@ function StreamWidget() {
   const livePointsEvents = usePointsEvents(pingVolume)
   const liveRecords = useRecordEvents(pingVolume)
   const livePromos = usePromoCodes(pingVolume)
+  const liveSpin = useRandomSpin(pingVolume)
+  const [previewSpinState] = useState(previewSpin)
   const liveTournament = useTournamentEvent({ enabled: !isPreview })
 
   // Add ?recorder=<RECORDER_TOKEN> to this source's URL in OBS and it also
@@ -155,6 +172,7 @@ function StreamWidget() {
   const pointsEvents = isPreview ? PREVIEW_POINTS : livePointsEvents
   const records = isPreview ? PREVIEW_RECORDS : liveRecords
   const promos = isPreview ? PREVIEW_PROMOS : livePromos
+  const spin = isPreview ? previewSpinState : liveSpin
   // In preview the countdown is faked so the card can be positioned off-stream.
   const predictionSeconds = prediction?.secondsLeft ?? (isPreview ? 287 : 0)
   const chatMessages = isPreview && messages.length === 0 ? PREVIEW_MESSAGES : messages
@@ -247,6 +265,14 @@ function StreamWidget() {
       key: `promo-${promo.id}`,
       startedAt: startedAtOr(promo.shown_at, Date.now()),
       node: <PromoCodeCard promo={promo} />,
+    })
+  }
+
+  if (spin) {
+    events.push({
+      key: `spin-${spin.id}`,
+      startedAt: startedAtOr(spin.started_at, Date.now()),
+      node: <RandomSlotCard spin={spin} />,
     })
   }
 

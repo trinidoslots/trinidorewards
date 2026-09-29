@@ -25,7 +25,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
    * ConditionalLayout draws the same line for the same pages; a template sits
    * inside it, so opting out there was not enough.
    */
-  const isOBSPage = pathname === "/predictionobs" || pathname.startsWith("/obs/")
+  const isOBSPage = pathname === "/predictionobs" || pathname === "/random-slot" || pathname.startsWith("/obs/")
 
   if (isOBSPage) return <>{children}</>
 

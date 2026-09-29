@@ -5,26 +5,19 @@ import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { MonoLabel } from "@/components/ui/panel"
 import { BrandMark } from "@/components/brand-mark"
+import { createClient } from "@/lib/supabase/client"
+import { MODULE_LINKS, navGroups, type ModuleRow } from "@/lib/site-modules"
 
-const NAV = [
-  {
-    heading: "Site",
-    links: [
-      { label: "Bonuses", href: "/bonuses" },
-      { label: "Bonus hunt", href: "/bonushunt" },
-      { label: "Stream store", href: "/store" },
-      { label: "Leaderboard", href: "/leaderboard" },
-    ],
-  },
-  {
-    heading: "Legal",
+type FooterLink = { label: string; href: string; external?: boolean }
+
+const LEGAL: { heading: string; links: FooterLink[] } = {
+  heading: "Legal",
     links: [
       { label: "Terms of service", href: "/terms" },
       { label: "Privacy policy", href: "/privacy" },
       { label: "Gambling help", href: "https://www.gambleaware.org/", external: true },
     ],
-  },
-]
+}
 
 const SOCIALS = [
   { label: "Discord", href: "https://discord.com", glyph: <DiscordGlyph /> },
@@ -36,10 +29,26 @@ const SOCIALS = [
 export function Footer() {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
+  const [moduleRows, setModuleRows] = useState<ModuleRow[]>([])
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // The same rows and the same rule as the side navigation (navGroups): an
+  // enabled module that is not hidden. The footer used to list four links by
+  // hand, so a switched-off Store or Bonus Hunt still showed up down here.
+  useEffect(() => {
+    createClient()
+      .from("modules")
+      .select("*")
+      .then(({ data }) => setModuleRows((data ?? []) as ModuleRow[]), () => {})
+  }, [])
+
+  const siteLinks: FooterLink[] = navGroups(moduleRows).flatMap((group) =>
+    group.keys.map((key) => ({ label: MODULE_LINKS[key].label, href: MODULE_LINKS[key].href })),
+  )
+  const columns = siteLinks.length ? [{ heading: "Site", links: siteLinks }, LEGAL] : [LEGAL]
 
   // Hide footer on admin and auth routes
   if (pathname.startsWith("/admin") || pathname.startsWith("/auth")) {
@@ -66,7 +75,7 @@ export function Footer() {
           </div>
 
           {/* Link columns */}
-          {NAV.map((column) => (
+          {columns.map((column) => (
             <nav key={column.heading} className="min-w-36">
               <MonoLabel className="block text-white/25">{column.heading}</MonoLabel>
               <ul className="mt-3 space-y-2">

@@ -2,16 +2,27 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { getActiveHunt, type ActiveHunt } from "@/lib/active-hunt"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { getActiveHunt, type ActiveHunt, type HuntKpis } from "@/lib/active-hunt"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Trash2, Search, Play, Flag, RotateCcw, GripVertical, Crown } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Crown,
+  Crosshair,
+  Flag,
+  Gamepad2,
+  GripVertical,
+  History,
+  Loader2,
+  Play,
+  Plus,
+  RotateCcw,
+  Trash2,
+} from "lucide-react"
+import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
+import { SlotCombobox } from "@/components/admin/slot-combobox"
 import {
   DndContext,
   closestCenter,
@@ -30,6 +41,16 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 
+/**
+ * The bonus hunt, from the admin side: start one, fill it, then open it.
+ *
+ * With no hunt running the page is the start form, next to how the last one
+ * went. With one running it is the hunt: the figures, the form that adds a
+ * bonus (picked from the slot catalogue, so the provider and artwork come
+ * along), and the queue, which can be dragged into the order it will be
+ * opened in.
+ */
+
 type HuntBonus = {
   id: string
   hunt_id: string
@@ -43,353 +64,282 @@ type HuntBonus = {
   position: number
 }
 
-type Slot = {
-  id: number
-  game_name: string
-  provider: string
+const field =
+  "h-9 w-full rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
+
+const money = (value: number) =>
+  `$${(Number(value) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <MonoLabel className="mb-1.5 block text-white/35">{label}</MonoLabel>
+      {children}
+      {hint && <p className="mt-1 text-[11px] text-white/25">{hint}</p>}
+    </label>
+  )
 }
 
-function SortableBonusItem({
+function Thumb({ url, size = 40 }: { url?: string | null; size?: number }) {
+  return (
+    <span
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/[0.08] bg-white/[0.03]"
+      style={{ width: size, height: size }}
+    >
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element -- external slot artwork
+        <img src={url} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <Gamepad2 className="h-4 w-4 text-white/15" />
+      )}
+    </span>
+  )
+}
+
+function BonusRow({
   bonus,
+  index,
   onDelete,
   onToggleSuper,
 }: {
   bonus: HuntBonus
+  index: number
   onDelete: (id: string) => void
   onToggleSuper: (id: string, isSuper: boolean) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: bonus.id })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  }
+  const opened = bonus.result !== null
+  const multi = opened && bonus.bet_size ? Number(bonus.result) / Number(bonus.bet_size) : null
 
   return (
-    <div
+    <li
       ref={setNodeRef}
-      style={style}
-      className={`bg-white/[0.04] border rounded-lg p-4 flex items-center justify-between ${bonus.is_super ? "border-amber-500/50 bg-amber-900/10" : "border-white/[0.10]"}`}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        ...(bonus.is_super ? { boxShadow: `inset 2px 0 0 ${ACCENTS.amber}` } : null),
+      }}
+      className="flex items-center gap-3 bg-[#0B0B0D] px-3 py-2.5"
     >
-      <div className="flex items-center gap-3 flex-1">
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label="Drag to reorder"
+        className="cursor-grab text-white/20 transition hover:text-white/60 active:cursor-grabbing"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <span className="w-5 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/25">{index + 1}</span>
+      <Thumb url={bonus.image_url} />
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-1.5 truncate text-[13.5px] font-medium text-white">
+          {bonus.is_super && <Crown className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.amber }} />}
+          <span className="truncate">{bonus.game_name}</span>
+        </p>
+        <p className="truncate text-[11px] text-white/30">{bonus.provider ?? "—"}</p>
+      </div>
+      <div className="w-20 shrink-0 text-right">
+        <MonoLabel className="block text-white/25">Bet</MonoLabel>
+        <p className="text-[13px] tabular-nums text-white/80">{money(bonus.bet_size)}</p>
+      </div>
+      <div className="w-24 shrink-0 text-right">
+        <MonoLabel className="block text-white/25">Result</MonoLabel>
+        <p className="text-[13px] tabular-nums" style={{ color: opened ? ACCENTS.green : "rgba(255,255,255,0.25)" }}>
+          {opened ? money(Number(bonus.result)) : "—"}
+        </p>
+      </div>
+      <div className="hidden w-16 shrink-0 text-right sm:block">
+        <MonoLabel className="block text-white/25">Multi</MonoLabel>
+        <p className="text-[13px] tabular-nums" style={{ color: multi !== null ? ACCENTS.amber : "rgba(255,255,255,0.25)" }}>
+          {multi !== null ? `${multi.toFixed(1)}x` : "—"}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-0.5">
         <button
           type="button"
-          {...attributes}
-          {...listeners}
-          className="text-white/40 hover:text-white/60 cursor-grab active:cursor-grabbing"
-        >
-          <GripVertical className="w-5 h-5" />
-        </button>
-        <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/[0.10] bg-[#0B0B0D]">
-          {bonus.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
-            <img src={bonus.image_url || "/placeholder.svg"} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="size-2 rounded-full bg-white/[0.10]" />
-          )}
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            {bonus.is_super && <Crown className="w-4 h-4 text-amber-400" />}
-            <div className={`w-2 h-2 rounded-full ${bonus.is_super ? "bg-amber-400" : "bg-[#5B8DEF]"}`}></div>
-            <h3 className="text-white font-semibold">{bonus.game_name}</h3>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
-            <div>
-              <span className="text-white/40">Bet</span>
-              <span className="text-red-400 ml-2 font-semibold">${bonus.bet_size.toFixed(2)}</span>
-            </div>
-            <div>
-              <span className="text-white/40">Result</span>
-              <span className="text-white ml-2 font-semibold">
-                {bonus.result !== null ? `$${bonus.result.toFixed(2)}` : "-"}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-1">
-        <Button
           onClick={() => onToggleSuper(bonus.id, !bonus.is_super)}
-          variant="ghost"
-          size="sm"
-          className={`${bonus.is_super ? "text-amber-400 hover:text-amber-300 hover:bg-amber-900/20" : "text-white/30 hover:text-amber-400 hover:bg-amber-900/20"}`}
           title={bonus.is_super ? "Remove Super" : "Mark as Super"}
+          className="rounded p-1.5 transition hover:bg-white/[0.06]"
+          style={{ color: bonus.is_super ? ACCENTS.amber : "rgba(255,255,255,0.25)" }}
         >
-          <Crown className="w-4 h-4" />
-        </Button>
-        <Button
+          <Crown className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
           onClick={() => onDelete(bonus.id)}
-          variant="ghost"
-          size="sm"
-          className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+          title="Delete"
+          className="rounded p-1.5 text-white/25 transition hover:bg-white/[0.06] hover:text-[#E5484D]"
         >
-          <Trash2 className="w-4 h-4" />
-        </Button>
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
-    </div>
+    </li>
   )
 }
 
 export default function AdminBonusHuntPage() {
   const [loading, setLoading] = useState(true)
   const [activeHunt, setActiveHunt] = useState<ActiveHunt | null>(null)
+  const [lastHunt, setLastHunt] = useState<HuntKpis | null>(null)
   const [bonuses, setBonuses] = useState<HuntBonus[]>([])
-  const [slots, setSlots] = useState<Slot[]>([])
-  const [filteredSlots, setFilteredSlots] = useState<Slot[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [streamer, setStreamer] = useState("")
-  const [title, setTitle] = useState("")
-  const [startingBalance, setStartingBalance] = useState("")
-  const [formData, setFormData] = useState({
+  const [creating, setCreating] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [newHunt, setNewHunt] = useState({ streamer: "", title: "", starting_balance: "" })
+  const [draft, setDraft] = useState({
     game_name: "",
+    provider: null as string | null,
+    image_url: null as string | null,
     bet_size: "",
     result: "",
+    is_super: false,
   })
   const router = useRouter()
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
   const { toast } = useToast()
 
-  useEffect(() => {
-    checkUser()
-  }, [])
+  const fail = useCallback(
+    (description: string) => toast({ title: "Error", description, variant: "destructive" }),
+    [toast],
+  )
 
-  useEffect(() => {
-    if (searchQuery) {
-      const filtered = slots.filter(
-        (slot) =>
-          slot.game_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          slot.provider.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-      setFilteredSlots(filtered)
-    } else {
-      setFilteredSlots(slots)
-    }
-  }, [searchQuery, slots])
+  const loadBonuses = useCallback(
+    async (huntId: string) => {
+      const { data, error } = await supabase
+        .from("hunt_bonuses")
+        .select("*")
+        .eq("hunt_id", huntId)
+        .order("position", { ascending: true })
+      if (error) console.error("[v0] Error fetching hunt bonuses:", error)
+      else setBonuses((data || []) as HuntBonus[])
+    },
+    [supabase],
+  )
 
-  async function checkUser() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      router.push("/auth/login")
-    } else {
-      await fetchActiveHuntAndBonuses()
-      await fetchSlots()
-      setLoading(false)
-    }
-  }
-
-  async function fetchActiveHuntAndBonuses() {
+  const load = useCallback(async () => {
     const hunt = await getActiveHunt(supabase)
     setActiveHunt(hunt)
-
-    if (!hunt) {
+    if (hunt) await loadBonuses(hunt.id)
+    else {
       setBonuses([])
-      return
-    }
-
-    const { data, error } = await supabase
-      .from("hunt_bonuses")
-      .select("*")
-      .eq("hunt_id", hunt.id)
-      .order("position", { ascending: true })
-
-    if (error) {
-      console.error("[v0] Error fetching hunt bonuses:", error)
-    } else {
-      setBonuses((data || []) as HuntBonus[])
-    }
-  }
-
-  async function fetchSlots() {
-    let allSlots: Slot[] = []
-    let from = 0
-    const batchSize = 1000
-
-    while (true) {
-      const { data, error } = await supabase
-        .from("slots")
+      // The last finished hunt: shown beside the start form, and its streamer
+      // pre-fills the new one — it is nearly always the same name.
+      const { data } = await supabase
+        .from("bonus_hunt_kpis")
         .select("*")
-        .range(from, from + batchSize - 1)
-        .order("provider", { ascending: true })
-
-      if (error) {
-        console.error("[v0] Error fetching slots:", error)
-        break
-      }
-
-      if (!data || data.length === 0) break
-
-      allSlots = [...allSlots, ...(data as Slot[])]
-
-      if (data.length < batchSize) break
-
-      from += batchSize
+        .eq("status", "ended")
+        .order("ended_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      const last = (data as HuntKpis | null) ?? null
+      setLastHunt(last)
+      if (last) setNewHunt((current) => (current.streamer ? current : { ...current, streamer: last.streamer }))
     }
+    setLoading(false)
+  }, [supabase, loadBonuses])
 
-    setSlots(allSlots)
-    setFilteredSlots(allSlots)
-  }
+  useEffect(() => {
+    load()
+  }, [load])
 
-  async function handleCreateHunt() {
-    if (!streamer.trim() || !startingBalance) {
-      toast({
-        title: "Error",
-        description: "Please fill in streamer and starting balance",
-        variant: "destructive",
-      })
+  async function handleCreateHunt(event: React.FormEvent) {
+    event.preventDefault()
+    if (!newHunt.streamer.trim() || !newHunt.starting_balance) {
+      fail("A streamer and a starting balance are required.")
       return
     }
-
+    setCreating(true)
+    // Only ever one active hunt.
     await supabase.from("bonus_hunts").update({ status: "ended", ended_at: new Date().toISOString() }).eq("status", "active")
 
     const { data: created, error } = await supabase
       .from("bonus_hunts")
       .insert({
-        streamer: streamer.trim(),
-        title: title.trim() || null,
-        starting_balance: Number.parseFloat(startingBalance),
+        streamer: newHunt.streamer.trim(),
+        title: newHunt.title.trim() || null,
+        starting_balance: Number.parseFloat(newHunt.starting_balance),
         status: "active",
       })
       .select("id, status, starting_balance, streamer, title, created_at, ended_at")
       .single()
+    setCreating(false)
 
     if (error) {
       console.error("[v0] Error creating hunt:", error)
-      toast({
-        title: "Error",
-        description: "Failed to create hunt",
-        variant: "destructive",
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Hunt created successfully",
-        className: "bg-green-600 text-white",
-      })
-      setActiveHunt(created as ActiveHunt)
-      setBonuses([])
-      setShowCreateModal(false)
-      setStreamer("")
-      setTitle("")
-      setStartingBalance("")
+      fail("Could not create the hunt.")
+      return
     }
+    toast({ title: "Hunt started", description: "Add the bonuses as you buy them.", className: "bg-green-600 text-white" })
+    setActiveHunt(created as ActiveHunt)
+    setBonuses([])
+    setNewHunt({ streamer: newHunt.streamer, title: "", starting_balance: "" })
   }
 
-  async function handleAddBonus(e: React.FormEvent) {
-    e.preventDefault()
-
-    if (!activeHunt) return
+  async function handleAddBonus(event: React.FormEvent) {
+    event.preventDefault()
+    if (!activeHunt || !draft.game_name.trim() || !draft.bet_size) return
+    setAdding(true)
 
     // New bonuses always join the end of the queue.
     const { error } = await supabase.from("hunt_bonuses").insert({
-      game_name: formData.game_name,
-      provider: null,
-      bet_size: Number.parseFloat(formData.bet_size),
-      result: formData.result ? Number.parseFloat(formData.result) : null,
+      game_name: draft.game_name.trim(),
+      provider: draft.provider,
+      image_url: draft.image_url,
+      bet_size: Number.parseFloat(draft.bet_size),
+      result: draft.result ? Number.parseFloat(draft.result) : null,
+      is_super: draft.is_super,
       hunt_id: activeHunt.id,
       position: bonuses.length,
     })
+    setAdding(false)
 
     if (error) {
       console.error("[v0] Error adding bonus:", error)
-      toast({
-        title: "Error",
-        description: "Failed to add bonus",
-        variant: "destructive",
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Bonus added successfully",
-        className: "bg-green-600 text-white",
-      })
-      setFormData({ game_name: "", bet_size: "", result: "" })
-      fetchActiveHuntAndBonuses()
+      fail("Could not add the bonus.")
+      return
     }
+    // The bet usually stays the same for the next bonus, so it is kept.
+    setDraft((current) => ({ ...current, game_name: "", provider: null, image_url: null, result: "", is_super: false }))
+    loadBonuses(activeHunt.id)
   }
 
   async function handleToggleSuper(id: string, isSuper: boolean) {
     const { error } = await supabase.from("hunt_bonuses").update({ is_super: isSuper }).eq("id", id)
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update super status",
-        variant: "destructive",
-      })
-    } else {
-      setBonuses((prev) => prev.map((b) => (b.id === id ? { ...b, is_super: isSuper } : b)))
-      toast({
-        title: isSuper ? "Super Bonus!" : "Super Removed",
-        description: isSuper ? "Bonus marked as Super" : "Super status removed",
-        className: "bg-green-600 text-white",
-      })
-    }
+    if (error) fail("Could not update the Super mark.")
+    else setBonuses((prev) => prev.map((bonus) => (bonus.id === id ? { ...bonus, is_super: isSuper } : bonus)))
   }
 
   async function handleDeleteBonus(id: string) {
-    if (!confirm("Are you sure you want to delete this bonus?")) return
-
+    if (!confirm("Delete this bonus?")) return
     const { error } = await supabase.from("hunt_bonuses").delete().eq("id", id)
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete bonus",
-        variant: "destructive",
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Bonus deleted successfully",
-        className: "bg-green-600 text-white",
-      })
-      fetchActiveHuntAndBonuses()
-    }
+    if (error) fail("Could not delete the bonus.")
+    else setBonuses((prev) => prev.filter((bonus) => bonus.id !== id))
   }
 
   async function handleEndHunt() {
     if (!activeHunt) return
-    if (!confirm("End this hunt? It will move to Past Hunts and a new hunt can be started.")) return
-
+    if (!confirm("End this hunt? It moves to History and a new hunt can be started.")) return
     const { error } = await supabase
       .from("bonus_hunts")
       .update({ status: "ended", ended_at: new Date().toISOString() })
       .eq("id", activeHunt.id)
-
     if (error) {
       console.error("[v0] Error ending hunt:", error)
-      toast({
-        title: "Error",
-        description: "Failed to end hunt",
-        variant: "destructive",
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Hunt ended and moved to Past Hunts",
-        className: "bg-green-600 text-white",
-      })
-      setActiveHunt(null)
-      setBonuses([])
+      fail("Could not end the hunt.")
+      return
     }
+    toast({ title: "Hunt ended", description: "It is in History now.", className: "bg-green-600 text-white" })
+    setLoading(true)
+    load()
   }
 
   async function handleResetHunt() {
     if (!activeHunt) return
-    if (!confirm("Are you sure you want to reset this hunt? This will delete all bonuses and cannot be undone.")) {
-      return
-    }
+    if (!confirm("Reset this hunt? It deletes the hunt and every bonus in it, and cannot be undone.")) return
 
     const { error: predictionsError } = await supabase.from("hunt_predictions").delete().eq("hunt_id", activeHunt.id)
-    if (predictionsError) {
-      console.error("[v0] Error deleting predictions:", predictionsError)
-    }
-
+    if (predictionsError) console.error("[v0] Error deleting predictions:", predictionsError)
     await supabase.from("prediction_windows").delete().eq("hunt_id", activeHunt.id)
     await supabase.from("opening_state").upsert({ id: 1, is_opening: false })
 
@@ -400,294 +350,330 @@ export default function AdminBonusHuntPage() {
 
     if (deleteError) {
       console.error("[v0] Error deleting hunt:", deleteError)
-      toast({
-        title: "Error",
-        description: "Failed to reset hunt",
-        variant: "destructive",
-      })
+      fail("Could not reset the hunt.")
       return
     }
-
-    toast({
-      title: "Success",
-      description: "Hunt reset successfully",
-      className: "bg-green-600 text-white",
-    })
-
-    setActiveHunt(null)
-    setBonuses([])
+    toast({ title: "Hunt reset", className: "bg-green-600 text-white" })
+    setLoading(true)
+    load()
   }
-
-  function selectSlot(slot: Slot) {
-    setFormData({ ...formData, game_name: slot.game_name })
-    setSearchQuery("")
-  }
-
-  const groupedSlots = filteredSlots.reduce(
-    (acc, slot) => {
-      if (!acc[slot.provider]) {
-        acc[slot.provider] = []
-      }
-      acc[slot.provider].push(slot)
-      return acc
-    },
-    {} as Record<string, Slot[]>,
-  )
 
   const sensors = useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
+    if (!over || active.id === over.id) return
 
-    if (!over || active.id === over.id) {
-      return
-    }
-
-    const oldIndex = bonuses.findIndex((b) => b.id === active.id)
-    const newIndex = bonuses.findIndex((b) => b.id === over.id)
-
-    const reorderedBonuses = arrayMove(bonuses, oldIndex, newIndex)
-    setBonuses(reorderedBonuses)
+    const oldIndex = bonuses.findIndex((bonus) => bonus.id === active.id)
+    const newIndex = bonuses.findIndex((bonus) => bonus.id === over.id)
+    const reordered = arrayMove(bonuses, oldIndex, newIndex)
+    setBonuses(reordered)
 
     // Persist the new order to the stable `position` column (the source of
     // truth the extension reads as `order`). created_at is left untouched so
     // it keeps reflecting true insertion time.
     await Promise.all(
-      reorderedBonuses.map((bonus, i) => supabase.from("hunt_bonuses").update({ position: i }).eq("id", bonus.id)),
+      reordered.map((bonus, i) => supabase.from("hunt_bonuses").update({ position: i }).eq("id", bonus.id)),
     )
-
-    toast({
-      title: "Success",
-      description: "Bonus order updated",
-      className: "bg-green-600 text-white",
-    })
   }
+
+  const figures = useMemo(() => {
+    const totalBet = bonuses.reduce((sum, bonus) => sum + (Number(bonus.bet_size) || 0), 0)
+    const opened = bonuses.filter((bonus) => bonus.result !== null)
+    const won = opened.reduce((sum, bonus) => sum + (Number(bonus.result) || 0), 0)
+    const start = Number(activeHunt?.starting_balance) || 0
+    return {
+      totalBet,
+      opened: opened.length,
+      won,
+      // The average multiplier every bonus has to hit for the hunt to break even.
+      breakEven: totalBet > 0 ? start / totalBet : null,
+    }
+  }, [bonuses, activeHunt])
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-white">Loading...</p>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-white/30" />
       </div>
     )
   }
 
+  // --- no hunt running --------------------------------------------------------
   if (!activeHunt) {
+    const lastProfit = lastHunt ? Number(lastHunt.total_won) - Number(lastHunt.starting_balance) : 0
     return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="bg-white/[0.022] backdrop-blur border border-white/[0.08] rounded-2xl p-8 max-w-md w-full text-center">
-          <h2 className="text-white text-2xl font-bold mb-4">No Active Bonus Hunt</h2>
-          <p className="text-white/40 mb-6">Create a new bonus hunt to get started</p>
-          <Button onClick={() => setShowCreateModal(true)} className="bg-[#5B8DEF] hover:bg-[#4A7AD8]">
-            <Plus className="w-4 h-4 mr-2" />
-            Create Bonus Hunt
-          </Button>
-        </div>
+      <div className="space-y-4">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight text-white">Bonus Hunt</h1>
+            <p className="mt-1 text-[13px] text-white/40">No hunt is running. Start one to add bonuses.</p>
+          </div>
+          <Link
+            href="/admin/history"
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
+          >
+            <History className="h-3.5 w-3.5" /> History
+          </Link>
+        </header>
 
-        <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-          <DialogContent className="bg-[#101014] border-white/[0.10] text-white">
-            <DialogHeader>
-              <DialogTitle>Create New Bonus Hunt</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="streamer" className="text-white/60">
-                  Streamer
-                </Label>
-                <Input
-                  id="streamer"
-                  value={streamer}
-                  onChange={(e) => setStreamer(e.target.value)}
-                  className="bg-white/[0.06] border-white/[0.10] text-white"
-                  placeholder="e.g., Syztmz"
-                />
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+          <Panel accent="green">
+            <PanelHeader title="Start a new hunt" accent="green" />
+            <form onSubmit={handleCreateHunt} className="space-y-3 p-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Streamer">
+                  <input
+                    value={newHunt.streamer}
+                    onChange={(e) => setNewHunt({ ...newHunt, streamer: e.target.value })}
+                    placeholder="e.g. TrinidoSlots"
+                    className={field}
+                    required
+                  />
+                </Field>
+                <Field label="Title" hint="Optional.">
+                  <input
+                    value={newHunt.title}
+                    onChange={(e) => setNewHunt({ ...newHunt, title: e.target.value })}
+                    placeholder="e.g. Friday Night Hunt"
+                    className={field}
+                  />
+                </Field>
               </div>
-              <div>
-                <Label htmlFor="title" className="text-white/60">
-                  Title <span className="text-white/30">(optional)</span>
-                </Label>
-                <Input
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="bg-white/[0.06] border-white/[0.10] text-white"
-                  placeholder="e.g., Friday Night Hunt"
-                />
-              </div>
-              <div>
-                <Label htmlFor="starting_balance" className="text-white/60">
-                  Starting Balance ($)
-                </Label>
-                <Input
-                  id="starting_balance"
+              <Field label="Starting balance ($)" hint="What goes into buying the bonuses.">
+                <input
                   type="number"
                   step="0.01"
-                  value={startingBalance}
-                  onChange={(e) => setStartingBalance(e.target.value)}
-                  className="bg-white/[0.06] border-white/[0.10] text-white"
+                  min="0"
+                  value={newHunt.starting_balance}
+                  onChange={(e) => setNewHunt({ ...newHunt, starting_balance: e.target.value })}
                   placeholder="0.00"
+                  className={`${field} tabular-nums`}
+                  required
                 />
+              </Field>
+              <button
+                type="submit"
+                disabled={creating}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md text-[13px] font-semibold text-black transition hover:brightness-110 disabled:opacity-50"
+                style={{ backgroundColor: ACCENTS.green }}
+              >
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Start hunt
+              </button>
+            </form>
+          </Panel>
+
+          <Panel>
+            <PanelHeader
+              title="Last hunt"
+              accent="slate"
+              right={
+                lastHunt?.ended_at ? (
+                  <MonoLabel className="text-white/25">{new Date(lastHunt.ended_at).toLocaleDateString()}</MonoLabel>
+                ) : null
+              }
+            />
+            {lastHunt ? (
+              <div className="p-4">
+                <p className="text-[14px] font-medium text-white">
+                  {lastHunt.streamer}
+                  {lastHunt.title ? <span className="text-white/40"> · {lastHunt.title}</span> : null}
+                </p>
+                <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
+                  <Figure label="Start" value={money(Number(lastHunt.starting_balance))} />
+                  <Figure label="Won" value={money(Number(lastHunt.total_won))} color={ACCENTS.green} />
+                  <Figure
+                    label="Profit / loss"
+                    value={`${lastProfit >= 0 ? "+" : "-"}${money(Math.abs(lastProfit))}`}
+                    color={lastProfit >= 0 ? ACCENTS.green : ACCENTS.red}
+                  />
+                  <Figure label="Bonuses" value={String(lastHunt.total_bonuses)} />
+                  <Figure label="Best multi" value={`${Number(lastHunt.best_multiplier).toFixed(1)}x`} color={ACCENTS.amber} />
+                  <Figure label="Average multi" value={`${Number(lastHunt.average_multi).toFixed(1)}x`} color={ACCENTS.amber} />
+                </dl>
               </div>
-              <Button onClick={handleCreateHunt} className="w-full bg-[#5B8DEF] hover:bg-[#4A7AD8]">
-                Create Hunt
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            ) : (
+              <p className="px-4 py-10 text-center text-[13px] text-white/30">No finished hunts yet.</p>
+            )}
+          </Panel>
+        </div>
       </div>
     )
   }
 
+  // --- a hunt is running --------------------------------------------------------
   return (
-    <div className="p-4 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white/[0.03] backdrop-blur border border-white/[0.08] rounded-2xl p-6">
-            <h2 className="text-white text-xl font-bold mb-6 flex items-center gap-2">
-              <Plus className="w-5 h-5" />
-              Add to Bonus Hunt
-            </h2>
-
-            <form onSubmit={handleAddBonus} className="space-y-4">
-              <div>
-                <Label htmlFor="game_name" className="text-white/60 text-sm">
-                  Game Name
-                </Label>
-                <Input
-                  id="game_name"
-                  value={formData.game_name}
-                  onChange={(e) => setFormData({ ...formData, game_name: e.target.value })}
-                  className="bg-white/[0.06] border-white/[0.10] text-white"
-                  placeholder="Search or type game name..."
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="bet_size" className="text-white/60 text-sm">
-                  Bet Size ($)
-                </Label>
-                <Input
-                  id="bet_size"
-                  type="number"
-                  step="0.01"
-                  value={formData.bet_size}
-                  onChange={(e) => setFormData({ ...formData, bet_size: e.target.value })}
-                  className="bg-white/[0.06] border-white/[0.10] text-white"
-                  placeholder="0.00"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="result" className="text-white/60 text-sm">
-                  Result Amount ($)
-                </Label>
-                <p className="text-xs text-white/40 mb-2">Optional</p>
-                <Input
-                  id="result"
-                  type="number"
-                  step="0.01"
-                  value={formData.result}
-                  onChange={(e) => setFormData({ ...formData, result: e.target.value })}
-                  className="bg-white/[0.06] border-white/[0.10] text-white"
-                  placeholder="0.00 (optional)"
-                />
-              </div>
-
-              <Button type="submit" className="w-full bg-white/[0.08] hover:bg-white/[0.10]">
-                Add Bonus Hunt
-              </Button>
-            </form>
-
-            <div className="mt-6">
-              <h3 className="text-white font-semibold mb-3">Available Slots</h3>
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-white/[0.06] border-white/[0.10] text-white pl-10"
-                  placeholder="Search slots..."
-                />
-              </div>
-
-              <div className="max-h-[400px] overflow-y-auto space-y-3">
-                {Object.entries(groupedSlots).map(([provider, providerSlots]) => (
-                  <div key={provider}>
-                    <h4 className="text-amber-400 font-semibold text-sm mb-2">{provider}</h4>
-                    <div className="space-y-1 ml-2">
-                      {providerSlots.map((slot) => (
-                        <button
-                          key={slot.id}
-                          type="button"
-                          onClick={() => selectSlot(slot)}
-                          className="text-white/60 hover:text-white text-sm block w-full text-left py-1 px-2 rounded hover:bg-white/[0.06] transition-colors"
-                        >
-                          {slot.game_name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+    <div className="space-y-4">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold tracking-tight text-white">
+              {activeHunt.title || `${activeHunt.streamer}'s hunt`}
+            </h1>
+            <Tag accent="green">Live</Tag>
           </div>
-
-          <div className="bg-white/[0.03] backdrop-blur border border-white/[0.08] rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-white text-xl font-bold">Current Hunt</h2>
-                <p className="text-white/40 text-sm">
-                  {activeHunt.streamer}
-                  {activeHunt.title ? ` · ${activeHunt.title}` : ""} · ${activeHunt.starting_balance.toFixed(2)} start
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button onClick={handleEndHunt} className="bg-green-600 hover:bg-green-700" size="sm">
-                  <Flag className="w-4 h-4 mr-2" />
-                  End Hunt
-                </Button>
-                <Button
-                  onClick={handleResetHunt}
-                  className="bg-red-600 hover:bg-red-700"
-                  size="sm"
-                  variant="destructive"
-                >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Reset
-                </Button>
-                <Button
-                  onClick={() => router.push("/admin/bonushunt/opening")}
-                  className="bg-[#5B8DEF] hover:bg-[#4A7AD8]"
-                  size="sm"
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  Opening Mode
-                </Button>
-              </div>
-            </div>
-
-            {bonuses.length === 0 ? (
-              <p className="text-white/40 text-center py-8">No bonuses added yet</p>
-            ) : (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={bonuses.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                    {bonuses.map((bonus) => (
-                      <SortableBonusItem key={bonus.id} bonus={bonus} onDelete={handleDeleteBonus} onToggleSuper={handleToggleSuper} />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-            )}
-          </div>
+          <p className="mt-1 text-[13px] text-white/40">
+            {activeHunt.streamer} · started {new Date(activeHunt.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+          </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleResetHunt}
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/45 transition hover:border-[#E5484D]/40 hover:text-[#E5484D]"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> Reset
+          </button>
+          <button
+            type="button"
+            onClick={handleEndHunt}
+            className="inline-flex h-9 items-center gap-2 rounded-md border px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] transition hover:brightness-125"
+            style={{ borderColor: `${ACCENTS.green}55`, color: ACCENTS.green }}
+          >
+            <Flag className="h-3.5 w-3.5" /> End hunt
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/admin/bonushunt/opening")}
+            className="inline-flex h-9 items-center gap-2 rounded-md px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-black transition hover:brightness-110"
+            style={{ backgroundColor: ACCENTS.blue }}
+          >
+            <Play className="h-3.5 w-3.5" /> Opening mode
+          </button>
+        </div>
+      </header>
+
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
+        <StatTile label="Starting balance" value={money(Number(activeHunt.starting_balance))} />
+        <StatTile label="Bonuses" value={bonuses.length.toLocaleString()} accent="blue" />
+        <StatTile label="Total bet" value={money(figures.totalBet)} accent="red" />
+        <StatTile
+          label="Opened"
+          value={`${figures.opened}/${bonuses.length}`}
+          accent="green"
+          hint={figures.opened ? `${money(figures.won)} won` : undefined}
+        />
+        <StatTile
+          label="Break-even"
+          value={figures.breakEven !== null ? `${figures.breakEven.toFixed(1)}x` : "—"}
+          accent="amber"
+          hint="Average multi needed"
+        />
       </div>
+
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+        <Panel accent="blue" className="lg:sticky lg:top-20">
+          <PanelHeader title="Add a bonus" />
+          <form onSubmit={handleAddBonus} className="space-y-3 p-4">
+            <Field label="Slot">
+              <SlotCombobox
+                value={draft.game_name}
+                onChange={(game_name, provider, image_url) =>
+                  setDraft((current) => ({ ...current, game_name, provider, image_url: image_url ?? null }))
+                }
+                placeholder="Search the catalogue or type a name"
+              />
+            </Field>
+            {draft.game_name && (
+              <div className="flex items-center gap-2.5 rounded-md border border-white/[0.06] bg-white/[0.02] p-2">
+                <Thumb url={draft.image_url} size={36} />
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] text-white">{draft.game_name}</p>
+                  <p className="truncate text-[11px] text-white/30">{draft.provider ?? "Not in the catalogue"}</p>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Bet ($)">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={draft.bet_size}
+                  onChange={(e) => setDraft({ ...draft, bet_size: e.target.value })}
+                  placeholder="0.00"
+                  className={`${field} tabular-nums`}
+                  required
+                />
+              </Field>
+              <Field label="Result ($)" hint="Optional.">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={draft.result}
+                  onChange={(e) => setDraft({ ...draft, result: e.target.value })}
+                  placeholder="—"
+                  className={`${field} tabular-nums`}
+                />
+              </Field>
+            </div>
+            <label className="flex w-fit cursor-pointer items-center gap-2 text-[13px] text-white/60">
+              <input
+                type="checkbox"
+                checked={draft.is_super}
+                onChange={(e) => setDraft({ ...draft, is_super: e.target.checked })}
+                className="h-3.5 w-3.5 accent-[#E8A33D]"
+              />
+              <Crown className="h-3.5 w-3.5" style={{ color: ACCENTS.amber }} /> Super bonus
+            </label>
+            <button
+              type="submit"
+              disabled={adding || !draft.game_name.trim() || !draft.bet_size}
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md text-[13px] font-semibold text-black transition hover:brightness-110 disabled:opacity-40"
+              style={{ backgroundColor: ACCENTS.blue }}
+            >
+              {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Add to hunt
+            </button>
+          </form>
+        </Panel>
+
+        <Panel>
+          <PanelHeader
+            title="Bonuses"
+            accent="slate"
+            right={<MonoLabel className="text-white/25">Drag to reorder</MonoLabel>}
+          />
+          {bonuses.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-16">
+              <Crosshair className="h-7 w-7 text-white/10" />
+              <p className="text-[13px] text-white/30">No bonuses yet – add the first one on the left.</p>
+            </div>
+          ) : (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={bonuses.map((bonus) => bonus.id)} strategy={verticalListSortingStrategy}>
+                <ul className="divide-y divide-white/[0.05]">
+                  {bonuses.map((bonus, index) => (
+                    <BonusRow
+                      key={bonus.id}
+                      bonus={bonus}
+                      index={index}
+                      onDelete={handleDeleteBonus}
+                      onToggleSuper={handleToggleSuper}
+                    />
+                  ))}
+                </ul>
+              </SortableContext>
+            </DndContext>
+          )}
+        </Panel>
+      </div>
+    </div>
+  )
+}
+
+function Figure({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div>
+      <MonoLabel className="block text-white/30">{label}</MonoLabel>
+      <p className="mt-1 text-[15px] font-semibold tabular-nums" style={{ color: color ?? "#E7E7EA" }}>
+        {value}
+      </p>
     </div>
   )
 }

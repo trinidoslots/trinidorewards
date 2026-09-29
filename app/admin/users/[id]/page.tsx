@@ -196,7 +196,10 @@ export default function AdminUserDetailPage() {
         />
 
         <div className="min-w-0 space-y-4">
-          <nav className="flex gap-1 overflow-x-auto border-b border-white/[0.08]">
+          {/* Scrolls sideways on a narrow screen, without a visible bar: the
+              tabs' -mb-px underline made the box 1px taller than its content,
+              which put a vertical scrollbar with arrows next to the tabs. */}
+          <nav className="hide-scrollbar flex gap-1 overflow-x-auto overflow-y-hidden border-b border-white/[0.08]">
             {TABS.map(({ id, label, icon: Icon }) => {
               const count = id === "redemptions" ? redemptions.length : id === "wins" ? wins.length : id === "raffles" ? raffleEntries.length : 0
               return (

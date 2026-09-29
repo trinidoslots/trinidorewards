@@ -1,156 +1,196 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
-import { Shuffle } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { Dices, Gamepad2, Loader2, Tv } from "lucide-react"
+import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile } from "@/components/ui/panel"
+import { SelectMenu } from "@/components/ui/select-menu"
+import { RandomSlotCard, type RandomSpin } from "@/components/obs/random-slot-spinner"
 
-type Slot = {
-  id: string
-  game_name: string
-  provider: string
-}
+/**
+ * The random slot: spin, and the stream column shows the reel.
+ *
+ * The pick is made on the server (/api/admin/random-slot) from the whole slot
+ * catalogue — the full Stake list once it has been imported on Edit Slots —
+ * and written as a spin that /obs/stream and /random-slot animate. The preview
+ * on the right is the same card, so what is seen here is what the stream sees.
+ *
+ * This page used to spin in the browser only: the result was never written
+ * anywhere, and the OBS widget kept showing "Ready".
+ */
+
+type Provider = { name: string; count: number }
+type Overview = { total: number; providers: Provider[]; spins: RandomSpin[] }
+
+const ALL = "__all__"
 
 export default function RandomSlotPage() {
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [slots, setSlots] = useState<Slot[]>([])
-  const [randomSlot, setRandomSlot] = useState<Slot | null>(null)
-  const [isSpinning, setIsSpinning] = useState(false)
-  const router = useRouter()
-  const supabase = createClient()
-  const { toast } = useToast()
+  const [overview, setOverview] = useState<Overview | null>(null)
+  const [spin, setSpin] = useState<RandomSpin | null>(null)
+  const [provider, setProvider] = useState(ALL)
+  const [withImage, setWithImage] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
 
-  useEffect(() => {
-    checkUser()
-  }, [])
-
-  async function checkUser() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      router.push("/auth/login")
-    } else {
-      setUser(user)
-      await fetchSlots()
-      setLoading(false)
-    }
-  }
-
-  async function fetchAllSlots() {
-    let allSlots: Slot[] = []
-    let from = 0
-    const batchSize = 1000
-    let hasMore = true
-
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from("slots")
-        .select("*")
-        .range(from, from + batchSize - 1)
-
-      if (error) {
-        console.error("[v0] Error fetching slots:", error)
-        break
-      }
-
-      if (data) {
-        allSlots = allSlots.concat(data)
-
-        // If we got fewer rows than the batch size, we've reached the end
-        if (data.length < batchSize) {
-          hasMore = false
-        } else {
-          from += batchSize
-        }
-      } else {
-        hasMore = false
-      }
-    }
-
-    console.log(`[v0] Fetched ${allSlots.length} total slots for random selection`)
-    setSlots(allSlots)
-  }
-
-  async function fetchSlots() {
-    await fetchAllSlots()
-  }
-
-  function handleRandomize() {
-    if (slots.length === 0) {
-      toast({
-        title: "Error",
-        description: "No slots available",
-        variant: "destructive",
-      })
+  const load = useCallback(async () => {
+    const res = await fetch("/api/admin/random-slot", { cache: "no-store" })
+    const json = await res.json().catch(() => null)
+    if (!res.ok || !json) {
+      setError(json?.error ?? "Could not load the slot catalogue.")
       return
     }
+    setOverview(json)
+    setSpin((current) => current ?? json.spins?.[0] ?? null)
+  }, [])
 
-    setIsSpinning(true)
+  useEffect(() => {
+    load()
+  }, [load])
 
-    // Simulate spinning animation
-    let count = 0
-    const interval = setInterval(() => {
-      const randomIndex = Math.floor(Math.random() * slots.length)
-      setRandomSlot(slots[randomIndex])
-      count++
+  // Ticks while a spin is running, to know when the button is free again.
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 250)
+    return () => clearInterval(timer)
+  }, [])
 
-      if (count > 20) {
-        clearInterval(interval)
-        setIsSpinning(false)
-      }
-    }, 100)
+  const spinning = spin ? now < Date.parse(spin.started_at) + (Number(spin.spin_ms) || 6000) : false
+
+  async function doSpin() {
+    setBusy(true)
+    setError(null)
+    const res = await fetch("/api/admin/random-slot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: provider === ALL ? undefined : provider, withImage }),
+    })
+    const json = await res.json().catch(() => ({}))
+    setBusy(false)
+    if (!res.ok) {
+      setError(json.error ?? "The spin failed.")
+      return
+    }
+    setSpin(json.spin)
+    setNow(Date.now())
+    setOverview((current) => (current ? { ...current, spins: [json.spin, ...current.spins].slice(0, 10) } : current))
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-white text-xs">Loading...</p>
-      </div>
-    )
-  }
+  const providerCount = provider === ALL ? overview?.total : overview?.providers.find((entry) => entry.name === provider)?.count
 
   return (
-    <div>
-      <div className="max-w-2xl mx-auto">
-        <Card className="bg-white/[0.022] backdrop-blur border-white/[0.08]">
-          <CardHeader className="p-3">
-            <CardTitle className="text-white flex items-center gap-2 text-sm">
-              <Shuffle className="w-4 h-4" />
-              Random Slot Generator
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 space-y-4">
-            <div className="text-center">
-              <p className="text-white/40 mb-3 text-xs">Generate a random slot from your database</p>
-              <Button
-                onClick={handleRandomize}
-                disabled={isSpinning || slots.length === 0}
-                className="bg-purple-600 hover:bg-purple-700 text-sm px-6 py-4 h-auto"
-              >
-                <Shuffle className="w-4 h-4 mr-2" />
-                {isSpinning ? "Spinning..." : "Generate Random Slot"}
-              </Button>
-            </div>
+    <div className="space-y-4">
+      <header>
+        <h1 className="text-xl font-semibold tracking-tight text-white">Random slot</h1>
+        <p className="mt-1 text-[13px] text-white/40">
+          Spin, and the reel runs on stream in the event column. Picks from the whole slot catalogue.
+        </p>
+      </header>
 
-            {randomSlot && (
-              <div className="mt-6 p-6 bg-gradient-to-br from-purple-900/30 to-amber-900/30 rounded-lg border-2 border-purple-500/50">
-                <div className="text-center">
-                  <p className="text-white/40 text-xs mb-2">Selected Slot</p>
-                  <h2 className="text-2xl font-bold text-white mb-2">{randomSlot.game_name}</h2>
-                  <p className="text-amber-400 text-sm">{randomSlot.provider}</p>
-                </div>
-              </div>
-            )}
-
-            <div className="text-center text-[10px] text-white/40">Total slots in database: {slots.length}</div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-2.5 sm:grid-cols-3">
+        <StatTile label="Slots to pick from" value={overview ? overview.total.toLocaleString() : "—"} accent="blue" />
+        <StatTile label="Providers" value={overview ? overview.providers.length.toLocaleString() : "—"} />
+        <StatTile
+          label="Last pick"
+          value={overview?.spins[0] ? (overview.spins[0].provider ?? "—") : "—"}
+          accent="amber"
+          hint={overview?.spins[0]?.slot_name}
+        />
       </div>
+
+      {error && (
+        <Panel accent="red" className="px-3.5 py-2.5 text-[13px]" style={{ color: ACCENTS.red }}>
+          {error}
+        </Panel>
+      )}
+
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
+        <Panel accent="amber">
+          <PanelHeader title="Spin" accent="amber" />
+          <div className="space-y-4 p-4">
+            <label className="block">
+              <MonoLabel className="mb-1.5 block text-white/35">Provider</MonoLabel>
+              <SelectMenu
+                aria-label="Provider"
+                value={provider}
+                onChange={setProvider}
+                options={[
+                  { value: ALL, label: "All providers", hint: overview ? `${overview.total.toLocaleString()} slots` : undefined },
+                  ...(overview?.providers ?? []).map((entry) => ({
+                    value: entry.name,
+                    label: entry.name,
+                    hint: `${entry.count.toLocaleString()} slots`,
+                  })),
+                ]}
+              />
+            </label>
+            <label className="flex w-fit cursor-pointer items-center gap-2 text-[13px] text-white/60">
+              <input
+                type="checkbox"
+                checked={withImage}
+                onChange={(e) => setWithImage(e.target.checked)}
+                className="h-3.5 w-3.5 accent-[#E8A33D]"
+              />
+              Only slots with artwork
+            </label>
+
+            <button
+              type="button"
+              onClick={doSpin}
+              disabled={busy || spinning || !overview?.total}
+              className="flex h-14 w-full items-center justify-center gap-2.5 rounded-lg text-[16px] font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ backgroundColor: "#FF8A4C" }}
+            >
+              {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Dices className={`h-5 w-5 ${spinning ? "animate-spin" : ""}`} />}
+              {spinning ? "Spinning…" : "Spin"}
+            </button>
+            <p className="flex items-center gap-1.5 text-[12px] text-white/35">
+              <Tv className="h-3.5 w-3.5" />
+              {providerCount !== undefined ? `${providerCount.toLocaleString()} slots in the draw. ` : ""}
+              Shown in <span className="font-mono text-white/55">/obs/stream</span> and{" "}
+              <span className="font-mono text-white/55">/random-slot</span>.
+            </p>
+          </div>
+        </Panel>
+
+        <div className="space-y-2">
+          <MonoLabel className="block text-white/30">What the stream sees</MonoLabel>
+          <div className="rounded-xl bg-[#0E0E12] p-2">
+            {spin ? (
+              <RandomSlotCard key={spin.id} spin={spin} />
+            ) : (
+              <p className="py-10 text-center text-[13px] text-white/30">No spin yet.</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Panel>
+        <PanelHeader title="Recent spins" accent="slate" />
+        {!overview?.spins.length ? (
+          <p className="py-10 text-center text-[13px] text-white/30">Nothing spun yet.</p>
+        ) : (
+          <ul className="divide-y divide-white/[0.05]">
+            {overview.spins.map((entry) => (
+              <li key={entry.id} className="flex items-center gap-3 px-3.5 py-2.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/[0.08] bg-white/[0.03]">
+                  {entry.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- external slot artwork
+                    <img src={entry.image_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Gamepad2 className="h-4 w-4 text-white/15" />
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] text-white">{entry.slot_name}</p>
+                  <p className="truncate text-[11px] text-white/30">{entry.provider ?? "—"}</p>
+                </div>
+                <MonoLabel className="shrink-0 text-white/25">
+                  {new Date(entry.started_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                </MonoLabel>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
     </div>
   )
 }

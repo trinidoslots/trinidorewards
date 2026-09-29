@@ -161,6 +161,16 @@
   }
 }
 
+/*
+ * Every scrolling box gets a thin, dark bar. Without this, Windows draws its
+ * default grey one with arrow buttons at both ends inside dark panels (the
+ * notification list, the admin tabs). `scrollbar-width: thin` has no buttons.
+ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

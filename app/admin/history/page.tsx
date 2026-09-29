@@ -1,14 +1,19 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { ChevronDown, Crown, Gamepad2, History, Loader2, Pencil, Save, Search, Trash2, X } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { HuntKpis } from "@/lib/active-hunt"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Trash2, Edit2, Save, X, ChevronDown, ChevronUp, History, Crown, ImageIcon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { ACCENTS, MonoLabel, Panel, StatTile } from "@/components/ui/panel"
+
+/**
+ * Past bonus hunts: how each went, edit the header of one, or delete it.
+ *
+ * Figures come from the bonus_hunt_kpis view, the same numbers the public
+ * pages show, so this page and the site cannot disagree about a hunt.
+ */
 
 type BonusDetail = {
   id: string
@@ -20,359 +25,365 @@ type BonusDetail = {
   image_url?: string | null
 }
 
+const field =
+  "h-9 w-full rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
+
+const money = (value: number) =>
+  `$${(Number(value) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const signed = (value: number) => `${value >= 0 ? "+" : "-"}${money(Math.abs(value))}`
+
 export default function AdminHistoryPage() {
-  const [pastHunts, setPastHunts] = useState<HuntKpis[]>([])
-  const [loading, setLoading] = useState(true)
-  const [expandedHunt, setExpandedHunt] = useState<string | null>(null)
-  const [expandedBonuses, setExpandedBonuses] = useState<BonusDetail[]>([])
-  const [editingHunt, setEditingHunt] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState({ streamer: "", title: "", starting_balance: "" })
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
   const { toast } = useToast()
+  const [hunts, setHunts] = useState<HuntKpis[]>([])
+  const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState("")
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [bonuses, setBonuses] = useState<BonusDetail[]>([])
+  const [loadingBonuses, setLoadingBonuses] = useState(false)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ streamer: "", title: "", starting_balance: "" })
 
-  useEffect(() => {
-    fetchPastHunts()
-  }, [])
-
-  async function fetchPastHunts() {
+  const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("bonus_hunt_kpis")
       .select("*")
       .eq("status", "ended")
       .order("ended_at", { ascending: false })
-
     if (error) {
       console.error("[v0] Error fetching past hunts:", error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch past hunts",
-        variant: "destructive",
-      })
-    } else {
-      setPastHunts((data || []) as HuntKpis[])
-    }
+      toast({ title: "Error", description: "Could not load the hunt history.", variant: "destructive" })
+    } else setHunts((data || []) as HuntKpis[])
     setLoading(false)
-  }
+  }, [supabase, toast])
 
-  async function handleDelete(huntId: string) {
-    if (!confirm("Permanently delete this hunt and all of its bonuses? This action cannot be undone.")) {
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const rows = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return hunts
+    return hunts.filter((hunt) => `${hunt.streamer} ${hunt.title ?? ""}`.toLowerCase().includes(needle))
+  }, [hunts, query])
+
+  const totals = useMemo(() => {
+    const won = hunts.reduce((sum, hunt) => sum + (Number(hunt.total_won) || 0), 0)
+    const start = hunts.reduce((sum, hunt) => sum + (Number(hunt.starting_balance) || 0), 0)
+    const best = hunts.reduce(
+      (top, hunt) => (Number(hunt.best_multiplier) > top.multi ? { multi: Number(hunt.best_multiplier), game: hunt.best_multiplier_game } : top),
+      { multi: 0, game: null as string | null },
+    )
+    return { won, profit: won - start, best }
+  }, [hunts])
+
+  async function toggle(huntId: string) {
+    if (expanded === huntId) {
+      setExpanded(null)
       return
     }
-
-    const { error } = await supabase.from("bonus_hunts").delete().eq("id", huntId)
-
-    if (error) {
-      console.error("[v0] Error deleting hunt:", error)
-      toast({
-        title: "Error",
-        description: "Failed to delete hunt",
-        variant: "destructive",
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Hunt deleted successfully",
-        className: "bg-green-600 text-white",
-      })
-      if (expandedHunt === huntId) setExpandedHunt(null)
-      setPastHunts((prev) => prev.filter((h) => h.hunt_id !== huntId))
-    }
-  }
-
-  async function toggleHuntExpansion(huntId: string) {
-    if (expandedHunt === huntId) {
-      setExpandedHunt(null)
-      return
-    }
-    setExpandedHunt(huntId)
+    setExpanded(huntId)
+    setLoadingBonuses(true)
     const { data, error } = await supabase
       .from("hunt_bonuses")
       .select("id, game_name, provider, bet_size, result, is_super, image_url, position")
       .eq("hunt_id", huntId)
       .order("position", { ascending: true })
+    setLoadingBonuses(false)
     if (error) {
       console.error("[v0] Error fetching hunt bonuses:", error)
-      setExpandedBonuses([])
-    } else {
-      setExpandedBonuses((data || []) as BonusDetail[])
-    }
+      setBonuses([])
+    } else setBonuses((data || []) as BonusDetail[])
   }
 
   function startEditing(hunt: HuntKpis) {
-    setEditingHunt(hunt.hunt_id)
-    setEditForm({
-      streamer: hunt.streamer,
-      title: hunt.title ?? "",
-      starting_balance: hunt.starting_balance.toString(),
-    })
+    setEditing(hunt.hunt_id)
+    setEditForm({ streamer: hunt.streamer, title: hunt.title ?? "", starting_balance: String(hunt.starting_balance) })
   }
 
   async function saveEdit(huntId: string) {
-    const updates = {
-      streamer: editForm.streamer.trim(),
-      title: editForm.title.trim() || null,
-      starting_balance: Number.parseFloat(editForm.starting_balance),
-    }
-
-    const { error } = await supabase.from("bonus_hunts").update(updates).eq("id", huntId)
-
+    const { error } = await supabase
+      .from("bonus_hunts")
+      .update({
+        streamer: editForm.streamer.trim(),
+        title: editForm.title.trim() || null,
+        starting_balance: Number.parseFloat(editForm.starting_balance),
+      })
+      .eq("id", huntId)
     if (error) {
       console.error("[v0] Error updating hunt:", error)
-      toast({
-        title: "Error",
-        description: "Failed to update hunt",
-        variant: "destructive",
-      })
-    } else {
-      toast({
-        title: "Success",
-        description: "Hunt updated successfully",
-        className: "bg-green-600 text-white",
-      })
-      setEditingHunt(null)
-      fetchPastHunts()
+      toast({ title: "Error", description: "Could not save the hunt.", variant: "destructive" })
+      return
     }
+    setEditing(null)
+    load()
   }
 
-  function cancelEdit() {
-    setEditingHunt(null)
-    setEditForm({ streamer: "", title: "", starting_balance: "" })
-  }
-
-  if (loading) {
-    return <p className="text-white/40 text-xs">Loading hunt history…</p>
+  async function remove(huntId: string) {
+    if (!confirm("Permanently delete this hunt and all of its bonuses? This cannot be undone.")) return
+    const { error } = await supabase.from("bonus_hunts").delete().eq("id", huntId)
+    if (error) {
+      console.error("[v0] Error deleting hunt:", error)
+      toast({ title: "Error", description: "Could not delete the hunt.", variant: "destructive" })
+      return
+    }
+    if (expanded === huntId) setExpanded(null)
+    setHunts((current) => current.filter((hunt) => hunt.hunt_id !== huntId))
   }
 
   return (
-    <div className="space-y-3">
-      <div>
-        <h1 className="text-xl font-bold text-white mb-1">Hunt History</h1>
-        <p className="text-xs text-white/40">View, edit, and permanently delete past bonus hunts</p>
+    <div className="space-y-4">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-white">Hunt history</h1>
+          <p className="mt-1 text-[13px] text-white/40">Every finished hunt – edit its details or delete it.</p>
+        </div>
+        <Link
+          href="/admin/bonushunt"
+          className="inline-flex h-9 items-center rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
+        >
+          Current hunt
+        </Link>
+      </header>
+
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile label="Hunts" value={hunts.length.toLocaleString()} />
+        <StatTile label="Total won" value={money(totals.won)} accent="green" />
+        <StatTile label="Overall profit / loss" value={signed(totals.profit)} accent={totals.profit >= 0 ? "green" : "red"} />
+        <StatTile
+          label="Best multiplier"
+          value={totals.best.multi ? `${totals.best.multi.toFixed(1)}x` : "—"}
+          accent="amber"
+          hint={totals.best.game ?? undefined}
+        />
       </div>
 
-      <Card className="bg-white/[0.022] backdrop-blur border-white/[0.08]">
-        <CardHeader className="p-3">
-          <CardTitle className="text-white flex items-center gap-2 text-sm">
-            <History className="w-4 h-4" />
-            Past Hunts ({pastHunts.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 pt-0">
-          {pastHunts.length === 0 ? (
-            <p className="text-white/40 text-center py-6 text-xs">No past hunts yet</p>
-          ) : (
-            <div className="space-y-2">
-              {pastHunts.map((hunt) => {
-                const isExpanded = expandedHunt === hunt.hunt_id
-                const startingBalance = Number(hunt.starting_balance)
-                const totalWon = Number(hunt.total_won)
-                const profitLoss = totalWon - startingBalance
-                const totalBet = Number(hunt.average_bet) * hunt.total_bonuses
+      <Panel className="overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 border-b border-white/[0.08] p-3">
+          <div className="relative min-w-52 flex-1">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/25" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search streamer or title…"
+              className={`${field} pl-9`}
+            />
+          </div>
+          <MonoLabel className="text-white/25">{rows.length} hunts</MonoLabel>
+        </div>
 
-                return (
-                  <div
-                    key={hunt.hunt_id}
-                    className="bg-white/[0.04] rounded-lg border border-white/[0.10] hover:border-[#5B8DEF]/50 transition-colors overflow-hidden"
-                  >
-                    <div className="p-3">
-                      {editingHunt === hunt.hunt_id ? (
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label className="text-white/60 text-xs">Streamer</Label>
-                              <Input
-                                value={editForm.streamer}
-                                onChange={(e) => setEditForm({ ...editForm, streamer: e.target.value })}
-                                className="bg-[#101014] border-white/[0.10] text-white mt-1 h-8 text-xs"
-                              />
-                            </div>
-                            <div>
-                              <Label className="text-white/60 text-xs">Title</Label>
-                              <Input
-                                value={editForm.title}
-                                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                                className="bg-[#101014] border-white/[0.10] text-white mt-1 h-8 text-xs"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label className="text-white/60 text-xs">Starting Balance</Label>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={editForm.starting_balance}
-                              onChange={(e) => setEditForm({ ...editForm, starting_balance: e.target.value })}
-                              className="bg-[#101014] border-white/[0.10] text-white mt-1 h-8 text-xs"
-                            />
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => saveEdit(hunt.hunt_id)}
-                              className="flex-1 bg-[#5B8DEF] hover:bg-[#4A7AD8] h-7 text-xs"
-                            >
-                              <Save className="w-3 h-3 mr-1" />
-                              Save
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={cancelEdit}
-                              className="flex-1 bg-transparent border-white/[0.12] text-white/60 hover:text-white h-7 text-xs"
-                            >
-                              <X className="w-3 h-3 mr-1" />
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <h3 className="text-white font-semibold text-sm">
-                                  {hunt.streamer}
-                                  {hunt.title ? <span className="text-white/40"> · {hunt.title}</span> : null}
-                                </h3>
-                                <span className="text-white/40 text-[10px]">
-                                  {new Date(hunt.ended_at ?? hunt.created_at).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => startEditing(hunt)}
-                                className="text-amber-400 hover:text-amber-300 hover:bg-amber-950/50 h-7 w-7 p-0"
-                              >
-                                <Edit2 className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleDelete(hunt.hunt_id)}
-                                className="text-red-400 hover:text-red-300 hover:bg-red-950/50 h-7 w-7 p-0"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => toggleHuntExpansion(hunt.hunt_id)}
-                                className="text-[#5B8DEF] hover:text-[#5B8DEF] hover:bg-[#0B0B0D]/50 h-7 w-7 p-0"
-                              >
-                                {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
-                            <div>
-                              <p className="text-white/40">Bonuses</p>
-                              <p className="text-white font-medium">{hunt.total_bonuses}</p>
-                            </div>
-                            <div>
-                              <p className="text-white/40">Total Bet</p>
-                              <p className="text-red-400 font-medium">${totalBet.toFixed(2)}</p>
-                            </div>
-                            <div>
-                              <p className="text-white/40">Total Won</p>
-                              <p className="text-green-400 font-medium">${totalWon.toFixed(2)}</p>
-                            </div>
-                            <div>
-                              <p className="text-white/40">P/L</p>
-                              <p className={`font-medium ${profitLoss >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                {profitLoss >= 0 ? "+" : ""}${profitLoss.toFixed(2)}
-                              </p>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-5 w-5 animate-spin text-white/30" />
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-16">
+            <History className="h-7 w-7 text-white/10" />
+            <p className="text-[13px] text-white/30">{hunts.length ? "No hunt matches that search." : "No finished hunts yet."}</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] border-collapse text-[13px]">
+              <thead className="bg-[#141418]">
+                <tr className="border-b border-white/[0.08] text-left">
+                  {["", "Hunt", "Ended", "Bonuses", "Start", "Won", "Profit / loss", "Best", ""].map((heading, index) => (
+                    <th key={index} className="px-3 py-2.5">
+                      <MonoLabel className="text-white/35">{heading}</MonoLabel>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((hunt) => {
+                  const isOpen = expanded === hunt.hunt_id
+                  const profit = Number(hunt.total_won) - Number(hunt.starting_balance)
+                  const isEditing = editing === hunt.hunt_id
+                  return (
+                    <HuntRows
+                      key={hunt.hunt_id}
+                      hunt={hunt}
+                      profit={profit}
+                      isOpen={isOpen}
+                      isEditing={isEditing}
+                      editForm={editForm}
+                      setEditForm={setEditForm}
+                      bonuses={isOpen ? bonuses : []}
+                      loadingBonuses={isOpen && loadingBonuses}
+                      onToggle={() => toggle(hunt.hunt_id)}
+                      onEdit={() => startEditing(hunt)}
+                      onCancel={() => setEditing(null)}
+                      onSave={() => saveEdit(hunt.hunt_id)}
+                      onDelete={() => remove(hunt.hunt_id)}
+                    />
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
+    </div>
+  )
+}
 
-                    {isExpanded && (
-                      <div className="border-t border-white/[0.10] bg-[#101014]/30 p-3">
-                        <div className="mb-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-[10px]">
-                          <div>
-                            <p className="text-white/40">Starting Balance</p>
-                            <p className="text-white font-medium">${startingBalance.toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <p className="text-white/40">Best Multiplier</p>
-                            <p className="text-amber-400 font-medium">{Number(hunt.best_multiplier).toFixed(2)}x</p>
-                          </div>
-                          <div>
-                            <p className="text-white/40">Best Cash Win</p>
-                            <p className="text-green-400 font-medium">${Number(hunt.best_cash_win).toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <p className="text-white/40">Average Multi</p>
-                            <p className="text-amber-400 font-medium">{Number(hunt.average_multi).toFixed(2)}x</p>
-                          </div>
-                        </div>
-
-                        <h4 className="text-white font-medium mb-2 text-xs">Bonuses ({expandedBonuses.length})</h4>
-                        <div className="space-y-1 max-h-[400px] overflow-y-auto">
-                          {expandedBonuses.map((bonus) => {
-                            const multiplier =
-                              bonus.result && bonus.bet_size ? (bonus.result / bonus.bet_size).toFixed(2) : "0.00"
-                            const profit = (bonus.result || 0) - bonus.bet_size
-
-                            return (
-                              <div key={bonus.id} className="bg-white/[0.04] p-2 rounded border border-white/[0.10]">
-                                <div className="flex items-start justify-between mb-1">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded border border-white/[0.10] bg-[#101014]">
-                                      {bonus.image_url ? (
-                                        // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
-                                        <img
-                                          src={bonus.image_url || "/placeholder.svg"}
-                                          alt=""
-                                          className="h-full w-full object-cover"
-                                        />
-                                      ) : (
-                                        <ImageIcon className="size-3 text-white/20" />
-                                      )}
-                                    </span>
-                                    {bonus.is_super && <Crown className="w-3 h-3 text-amber-400" />}
-                                    <div>
-                                      <p className="text-white font-medium text-xs">{bonus.game_name}</p>
-                                      {bonus.provider && <p className="text-white/40 text-[10px]">{bonus.provider}</p>}
-                                    </div>
-                                  </div>
-                                  <p className="text-amber-400 font-medium text-xs">{multiplier}x</p>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2 text-[10px]">
-                                  <div>
-                                    <p className="text-white/40">Bet</p>
-                                    <p className="text-red-400 font-medium">${bonus.bet_size.toFixed(2)}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-white/40">Result</p>
-                                    <p className="text-green-400 font-medium">
-                                      {bonus.result !== null ? `$${bonus.result.toFixed(2)}` : "-"}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-white/40">P/L</p>
-                                    <p className={`font-medium ${profit >= 0 ? "text-green-400" : "text-red-400"}`}>
-                                      {bonus.result !== null ? `${profit >= 0 ? "+" : ""}$${profit.toFixed(2)}` : "-"}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+function HuntRows({
+  hunt,
+  profit,
+  isOpen,
+  isEditing,
+  editForm,
+  setEditForm,
+  bonuses,
+  loadingBonuses,
+  onToggle,
+  onEdit,
+  onCancel,
+  onSave,
+  onDelete,
+}: {
+  hunt: HuntKpis
+  profit: number
+  isOpen: boolean
+  isEditing: boolean
+  editForm: { streamer: string; title: string; starting_balance: string }
+  setEditForm: (form: { streamer: string; title: string; starting_balance: string }) => void
+  bonuses: BonusDetail[]
+  loadingBonuses: boolean
+  onToggle: () => void
+  onEdit: () => void
+  onCancel: () => void
+  onSave: () => void
+  onDelete: () => void
+}) {
+  return (
+    <>
+      <tr className="border-b border-white/[0.05] hover:bg-white/[0.02]">
+        <td className="w-8 px-2 py-2.5">
+          <button type="button" onClick={onToggle} aria-label={isOpen ? "Collapse" : "Expand"} className="rounded p-1 text-white/25 transition hover:text-white">
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          </button>
+        </td>
+        {isEditing ? (
+          <td colSpan={7} className="px-3 py-2">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <input value={editForm.streamer} onChange={(e) => setEditForm({ ...editForm, streamer: e.target.value })} placeholder="Streamer" className={field} />
+              <input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} placeholder="Title (optional)" className={field} />
+              <input
+                type="number"
+                step="0.01"
+                value={editForm.starting_balance}
+                onChange={(e) => setEditForm({ ...editForm, starting_balance: e.target.value })}
+                placeholder="Starting balance"
+                className={`${field} tabular-nums`}
+              />
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </td>
+        ) : (
+          <>
+            <td className="px-3 py-2.5">
+              <p className="font-medium text-white">{hunt.title || hunt.streamer}</p>
+              {hunt.title && <p className="text-[11px] text-white/30">{hunt.streamer}</p>}
+            </td>
+            <td className="px-3 py-2.5 font-mono text-[11px] tabular-nums text-white/40">
+              {new Date(hunt.ended_at ?? hunt.created_at).toLocaleDateString()}
+            </td>
+            <td className="px-3 py-2.5 tabular-nums text-white/70">{hunt.total_bonuses}</td>
+            <td className="px-3 py-2.5 tabular-nums text-white/70">{money(Number(hunt.starting_balance))}</td>
+            <td className="px-3 py-2.5 tabular-nums" style={{ color: ACCENTS.green }}>
+              {money(Number(hunt.total_won))}
+            </td>
+            <td className="px-3 py-2.5 font-semibold tabular-nums" style={{ color: profit >= 0 ? ACCENTS.green : ACCENTS.red }}>
+              {signed(profit)}
+            </td>
+            <td className="px-3 py-2.5 tabular-nums" style={{ color: ACCENTS.amber }}>
+              {Number(hunt.best_multiplier).toFixed(1)}x
+            </td>
+          </>
+        )}
+        <td className="px-2 py-2.5">
+          <div className="flex justify-end gap-0.5">
+            {isEditing ? (
+              <>
+                <button type="button" onClick={onSave} title="Save" className="rounded p-1.5 transition hover:bg-white/[0.06]" style={{ color: ACCENTS.green }}>
+                  <Save className="h-3.5 w-3.5" />
+                </button>
+                <button type="button" onClick={onCancel} title="Cancel" className="rounded p-1.5 text-white/40 transition hover:bg-white/[0.06] hover:text-white">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={onEdit} title="Edit" className="rounded p-1.5 text-white/25 transition hover:bg-white/[0.06] hover:text-white">
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button type="button" onClick={onDelete} title="Delete" className="rounded p-1.5 text-white/20 transition hover:bg-white/[0.06] hover:text-[#E5484D]">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
+          </div>
+        </td>
+      </tr>
+
+      {isOpen && (
+        <tr className="border-b border-white/[0.05] bg-black/25">
+          <td colSpan={9} className="px-5 py-4">
+            <dl className="mb-4 grid gap-x-8 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
+              <Detail label="Best multiplier" value={`${Number(hunt.best_multiplier).toFixed(2)}x`} hint={hunt.best_multiplier_game} color={ACCENTS.amber} />
+              <Detail label="Best cash win" value={money(Number(hunt.best_cash_win))} hint={hunt.best_cash_win_game} color={ACCENTS.green} />
+              <Detail label="Average multi" value={`${Number(hunt.average_multi).toFixed(2)}x`} color={ACCENTS.amber} />
+              <Detail label="Average bet" value={money(Number(hunt.average_bet))} />
+            </dl>
+            {loadingBonuses ? (
+              <Loader2 className="mx-auto h-4 w-4 animate-spin text-white/30" />
+            ) : bonuses.length === 0 ? (
+              <p className="text-[12.5px] text-white/30">This hunt has no bonuses.</p>
+            ) : (
+              <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+                {bonuses.map((bonus) => {
+                  const multi = bonus.result !== null && bonus.bet_size ? Number(bonus.result) / Number(bonus.bet_size) : null
+                  return (
+                    <div key={bonus.id} className="flex items-center gap-2.5 rounded-md border border-white/[0.06] bg-white/[0.02] p-2">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded border border-white/[0.08] bg-white/[0.03]">
+                        {bonus.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- external slot artwork
+                          <img src={bonus.image_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <Gamepad2 className="h-4 w-4 text-white/15" />
+                        )}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="flex items-center gap-1 truncate text-[12.5px] text-white">
+                          {bonus.is_super && <Crown className="h-3 w-3 shrink-0" style={{ color: ACCENTS.amber }} />}
+                          <span className="truncate">{bonus.game_name}</span>
+                        </p>
+                        <p className="text-[11px] tabular-nums text-white/35">
+                          {money(Number(bonus.bet_size))} → {bonus.result !== null ? money(Number(bonus.result)) : "—"}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[12.5px] font-semibold tabular-nums" style={{ color: ACCENTS.amber }}>
+                        {multi !== null ? `${multi.toFixed(1)}x` : "—"}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
+
+function Detail({ label, value, hint, color }: { label: string; value: string; hint?: string | null; color?: string }) {
+  return (
+    <div>
+      <MonoLabel className="block text-white/30">{label}</MonoLabel>
+      <p className="mt-0.5 text-[14px] font-semibold tabular-nums" style={{ color: color ?? "#E7E7EA" }}>
+        {value}
+      </p>
+      {hint && <p className="truncate text-[11px] text-white/30">{hint}</p>}
     </div>
   )
 }

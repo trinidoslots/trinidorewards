@@ -102,6 +102,8 @@ export const OBS = {
   // A promo code is something to copy down, not a result, so it gets a cool
   // cyan that none of the result cards use.
   promo: "#3CCFE0",
+  // The random slot: a warm orange, since the reel is the one moving card.
+  random: "#FF8A4C",
 } as const
 
 /**

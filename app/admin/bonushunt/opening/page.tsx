@@ -27,7 +27,11 @@ import {
   Scale,
   CheckCircle2,
   ImageIcon,
+  Crosshair,
+  Loader2,
+  Plus,
 } from "lucide-react"
+import { useAdminAccess } from "@/components/admin-access"
 
 type HuntBonus = {
   id: string
@@ -55,6 +59,8 @@ export default function OpeningModePage() {
   const [notes, setNotes] = useState("")
   const [obsViewMode, setObsViewMode] = useState<"opening" | "normal">("opening")
   const router = useRouter()
+  // Starting and filling a hunt is on the Bonushunt page, which is admin-only.
+  const canStartHunts = useAdminAccess().role === "admin"
   const supabase = createClient()
   const { toast } = useToast()
 
@@ -322,22 +328,49 @@ export default function OpeningModePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0B0B0D]">
-        <p className="text-white/60">Loading...</p>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-white/30" />
       </div>
     )
   }
 
   if (openingBonuses.length === 0) {
+    // Two different situations: nothing running at all, or a hunt with nothing
+    // in it yet. Moderators can open a hunt but not start or fill one, so they
+    // are told who can, rather than sent to a page that bounces them.
+    const noHunt = !activeHunt
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0B0B0D] p-4">
-        <div className="w-full max-w-md rounded-2xl border border-white/[0.06] bg-white/[0.022] p-8 text-center">
-          <h2 className="mb-4 text-2xl font-bold text-white">No Bonuses to Open</h2>
-          <p className="mb-6 text-white/40">Add bonuses to your hunt first</p>
-          <Button onClick={() => router.push("/admin/bonushunt")} className="bg-[#5B8DEF] hover:bg-[#4A7AD8]">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Bonus Hunt
-          </Button>
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="w-full max-w-lg rounded-xl border border-white/[0.08] bg-white/[0.022] p-8 text-center">
+          <div
+            className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl"
+            style={{ backgroundColor: `${noHunt ? "#6B7280" : "#5B8DEF"}1f`, border: `1px solid ${noHunt ? "#6B7280" : "#5B8DEF"}40` }}
+          >
+            {noHunt ? <Crosshair className="h-6 w-6 text-white/40" /> : <Layers className="h-6 w-6 text-[#5B8DEF]" />}
+          </div>
+          <h2 className="mt-4 text-xl font-semibold tracking-tight text-white">
+            {noHunt ? "No hunt is running" : "Nothing to open yet"}
+          </h2>
+          <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-white/40">
+            {noHunt
+              ? "Opening mode starts once a bonus hunt is live and has bonuses in it."
+              : `${activeHunt?.title || `${activeHunt?.streamer}'s hunt`} is live, but no bonuses have been added to it.`}
+          </p>
+          {canStartHunts ? (
+            <button
+              type="button"
+              onClick={() => router.push("/admin/bonushunt")}
+              className="mt-5 inline-flex h-10 items-center gap-2 rounded-md px-5 text-[13px] font-semibold text-black transition hover:brightness-110"
+              style={{ backgroundColor: "#5B8DEF" }}
+            >
+              {noHunt ? <Plus className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+              {noHunt ? "Start a hunt" : "Add bonuses"}
+            </button>
+          ) : (
+            <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/30">
+              An admin starts the hunt and adds the bonuses
+            </p>
+          )}
         </div>
       </div>
     )
