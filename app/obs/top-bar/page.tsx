@@ -180,9 +180,10 @@ const TICKER_GAP_PX = 48
  * The song, in whatever width the strip has left between the widgets and the
  * Kick followers.
  *
- * Shown whole when it fits, sitting against the followers. When it does not,
- * it scrolls: two copies back to back, moved left by exactly one copy and a
- * gap, which lands the second where the first began — so the loop has no
+ * Shown whole when it fits, straight after the widgets and drawn like a timer:
+ * white, the same icon height and spacing. When it does not fit, it scrolls:
+ * two copies back to back, moved left by exactly one copy and a gap, which
+ * lands the second where the first began — so the loop has no
  * visible jump. Whether it fits is measured, not guessed from a character
  * count, and measured again whenever either width changes (a timer appearing
  * on the left takes space from it).
@@ -228,9 +229,9 @@ function TrackTicker({ track }: { track: string }) {
   const scrolling = distance > 0
 
   return (
-    <div className="flex h-full min-w-0 flex-1 items-center justify-end whitespace-nowrap text-base">
+    <div className="flex h-full min-w-0 flex-1 items-center justify-start whitespace-nowrap text-base">
       {track && (
-        <div className="ml-3 flex min-w-0 items-center gap-1 text-[#7FB3FF]">
+        <div className="ml-3 flex min-w-0 items-center gap-1 text-white">
           <Music className={ICON_CLASS} />
           <div
             ref={viewportRef}
@@ -775,7 +776,7 @@ function TopBarWidget() {
         )}
       </div>
 
-      {/* The Spotify song, between the widgets and the Kick followers. Takes the
+      {/* The Spotify song, left-aligned after the widgets. Takes the
           space left over, so it also pushes the right side to the edge. */}
       <TrackTicker track={currentTrack} />
 
