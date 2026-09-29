@@ -1,5 +1,6 @@
 import { LIMITS, cleanText, mergeWithKnown, nameKey, type NowPlayingRow } from "@/lib/now-playing"
 import { ONLY_ON_STAKE_BADGE } from "@/lib/slots"
+import { formatProvider } from "@/lib/providers"
 
 /**
  * What we remember about each slot, and how a "now playing" is resolved.
@@ -76,7 +77,7 @@ export async function readCatalogue(
       Number(b.source === "stake") - Number(a.source === "stake") || Number(!!b.image_url) - Number(!!a.image_url),
   )[0]
   return {
-    provider: best.provider ?? null,
+    provider: formatProvider(best.provider),
     image_url: best.image_url ?? null,
     badge: rows.some((row) => row.only_on_stake === true) ? ONLY_ON_STAKE_BADGE : null,
   }

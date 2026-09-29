@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 import { OBS, OBS_RADIUS } from "@/lib/obs-theme"
 import { playPing } from "@/lib/obs-ping"
 import { EventCard } from "@/components/obs/stream-event-feed"
+import { formatProvider } from "@/lib/providers"
 
 /**
  * The random slot on stream: a reel that runs through slot names and slows
@@ -168,7 +169,7 @@ export function SlotReel({ spin }: { spin: RandomSpin }) {
                 {entry.name}
               </p>
               <p className="truncate text-[10.5px] leading-tight" style={{ color: OBS.muted }}>
-                {entry.provider ?? ""}
+                {formatProvider(entry.provider) ?? ""}
               </p>
             </div>
           </div>

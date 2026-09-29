@@ -16,6 +16,7 @@ import {
   type NowPlayingRow,
 } from "@/lib/now-playing"
 import { ONLY_ON_STAKE_BADGE } from "@/lib/slots"
+import { formatProvider } from "@/lib/providers"
 
 /**
  * What the /obs/now-playing bar is showing.
@@ -409,7 +410,7 @@ export default function NowPlayingAdmin() {
                         setDraft({
                           ...draft,
                           slotName: suggestion.game_name,
-                          provider: suggestion.provider,
+                          provider: formatProvider(suggestion.provider) ?? "",
                           imageUrl: draft.imageUrl || suggestion.image_url || "",
                           badge: suggestion.only_on_stake ? ONLY_ON_STAKE_BADGE : draft.badge,
                         })
@@ -422,7 +423,7 @@ export default function NowPlayingAdmin() {
                         <img src={suggestion.image_url} alt="" className="h-7 w-7 shrink-0 rounded object-cover" />
                       ) : null}
                       <span className="truncate">{suggestion.game_name}</span>
-                      <span className="shrink-0 text-[11px] text-white/35">{suggestion.provider}</span>
+                      <span className="shrink-0 text-[11px] text-white/35">{formatProvider(suggestion.provider)}</span>
                       {suggestion.only_on_stake && (
                         <span
                           className="ml-auto shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold"

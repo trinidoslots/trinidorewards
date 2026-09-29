@@ -1,6 +1,7 @@
 import crypto from "node:crypto"
 import { requireAdmin } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
+import { formatProvider } from "@/lib/providers"
 
 /**
  * The random slot, for /admin/random.
@@ -42,7 +43,11 @@ async function rowAt(filter: Filter, offset: number): Promise<Row | null> {
   return ((data ?? [])[0] as unknown as Row | undefined) ?? null
 }
 
-const entry = (row: Row): ReelEntry => ({ name: row.game_name, provider: row.provider ?? null, image_url: row.image_url ?? null })
+const entry = (row: Row): ReelEntry => ({
+  name: row.game_name,
+  provider: formatProvider(row.provider),
+  image_url: row.image_url ?? null,
+})
 
 export async function GET() {
   const auth = await requireAdmin()
@@ -114,7 +119,7 @@ export async function POST(request: Request) {
     .from("random_slot_spins")
     .insert({
       slot_name: result.game_name,
-      provider: result.provider ?? null,
+      provider: formatProvider(result.provider),
       image_url: result.image_url ?? null,
       reel,
       spin_ms: SPIN_MS,

@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
 import { importKind, parseImport } from "@/lib/slots"
+import { tidyProviders } from "@/lib/slots-tidy"
 
 /**
  * Imports a file made by one of the scripts on /admin/slots.
@@ -36,6 +37,14 @@ export async function POST(request: Request) {
 
   const exclusives = importKind(raw) === "only-on-stake"
   const client = serviceClient()
+
+  // The file's providers are clean names now; a catalogue still holding the
+  // slugs from an older import would otherwise get every game a second time.
+  try {
+    await tidyProviders(client)
+  } catch (problem) {
+    console.error("[slots] tidy before import failed:", problem)
+  }
   const now = new Date().toISOString()
   const taggedIds: number[] = []
   let written = 0

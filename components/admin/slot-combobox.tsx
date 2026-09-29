@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Gamepad2, Loader2 } from "lucide-react"
 import { createBrowserClient } from "@/lib/supabase/client"
+import { formatProvider } from "@/lib/providers"
 
 export type SlotPick = { game_name: string; provider: string | null; image_url?: string | null }
 
@@ -91,7 +92,7 @@ export function SlotCombobox({
   }, [open])
 
   function pick(slot: SlotPick) {
-    onChange(slot.game_name, slot.provider, slot.image_url ?? null)
+    onChange(slot.game_name, formatProvider(slot.provider), slot.image_url ?? null)
     setOpen(false)
   }
 
@@ -156,7 +157,7 @@ export function SlotCombobox({
                 <span className="min-w-0 flex-1 truncate">{slot.game_name}</span>
                 {slot.provider && (
                   <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-[0.1em] text-white/25">
-                    {slot.provider}
+                    {formatProvider(slot.provider)}
                   </span>
                 )}
               </button>

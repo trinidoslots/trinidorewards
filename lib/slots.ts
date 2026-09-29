@@ -1,3 +1,5 @@
+import { formatProvider } from "@/lib/providers"
+
 /**
  * The slot catalogue (the `slots` table, scripts/077) and the Stake import.
  *
@@ -70,7 +72,8 @@ export function parseImport(raw: unknown): { slots: ImportedSlot[]; skipped: num
       skipped++
       continue
     }
-    const provider = clean(item?.provider, 100) ?? "Unknown"
+    // Stake sends some providers as their slug ("donut-gaming"); stored as the name.
+    const provider = formatProvider(clean(item?.provider, 100)) ?? "Unknown"
     const key = `${name.toLowerCase()}|${provider.toLowerCase()}`
     if (seen.has(key)) continue
     seen.add(key)

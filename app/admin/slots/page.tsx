@@ -16,11 +16,13 @@ import {
   Search,
   Trash2,
   Upload,
+  Wand2,
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
 import { ONLY_ON_STAKE_BADGE, STAKE_EXCLUSIVES_SCRIPT, STAKE_EXPORT_SCRIPT, type Slot } from "@/lib/slots"
 import { BADGE_GRADIENT, BADGE_TEXT } from "@/lib/now-playing"
+import { formatProvider } from "@/lib/providers"
 
 /**
  * The slot catalogue: what the hunt form, the tournament form and the random
@@ -83,6 +85,7 @@ export default function SlotsPage() {
   const [copied, setCopied] = useState<"all" | "exclusive" | null>(null)
   const [importing, setImporting] = useState(false)
   const [importNotice, setImportNotice] = useState<{ ok: boolean; text: string } | null>(null)
+  const [tidying, setTidying] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [draft, setDraft] = useState({ game_name: "", provider: "", image_url: "" })
@@ -179,6 +182,27 @@ export default function SlotsPage() {
       setImporting(false)
       if (fileRef.current) fileRef.current.value = ""
     }
+  }
+
+  /** One-off: providers the first import stored as slugs ("donut-gaming") become names. */
+  async function tidyProviders() {
+    setTidying(true)
+    setImportNotice(null)
+    const res = await fetch("/api/admin/slots/tidy-providers", { method: "POST" })
+    const json = await res.json().catch(() => ({}))
+    setTidying(false)
+    if (!res.ok) {
+      setImportNotice({ ok: false, text: json.error ?? "Could not tidy the provider names." })
+      return
+    }
+    setImportNotice({
+      ok: true,
+      text: json.providers
+        ? `Tidied ${json.providers} provider names across ${Number(json.renamed).toLocaleString()} slots${json.merged ? ` (${json.merged} duplicates merged)` : ""}.`
+        : "Every provider name is already tidy.",
+    })
+    loadCounts()
+    loadPage()
   }
 
   async function addSlot(event: React.FormEvent) {
@@ -316,6 +340,16 @@ export default function SlotsPage() {
                   {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
                   {importing ? "Importing…" : "Upload a Stake file"}
                 </button>
+                <button
+                  type="button"
+                  onClick={tidyProviders}
+                  disabled={tidying || importing}
+                  title='Rewrites providers Stake sent as slugs, e.g. "donut-gaming" → "Donut Gaming"'
+                  className="flex items-center gap-1.5 rounded-md border border-white/[0.12] bg-white/[0.04] px-3 py-1.5 text-[12px] text-white transition hover:bg-white/[0.08] disabled:opacity-50"
+                >
+                  {tidying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+                  {tidying ? "Tidying…" : "Tidy provider names"}
+                </button>
               </div>
               {importNotice && (
                 <p className="mt-2 text-[12.5px]" style={{ color: importNotice.ok ? ACCENTS.green : ACCENTS.red }}>
@@ -439,7 +473,7 @@ export default function SlotsPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] text-white">{slot.game_name}</p>
-                  <p className="truncate text-[11px] text-white/30">{slot.provider}</p>
+                  <p className="truncate text-[11px] text-white/30">{formatProvider(slot.provider)}</p>
                 </div>
                 {slot.only_on_stake && <OnlyOnStake />}
                 {slot.source === "stake" ? <Tag accent="amber">Stake</Tag> : <Tag accent="slate">Manual</Tag>}

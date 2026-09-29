@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
 import { SlotCombobox } from "@/components/admin/slot-combobox"
+import { formatProvider } from "@/lib/providers"
 import {
   DndContext,
   closestCenter,
@@ -138,7 +139,7 @@ function BonusRow({
           {bonus.is_super && <Crown className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.amber }} />}
           <span className="truncate">{bonus.game_name}</span>
         </p>
-        <p className="truncate text-[11px] text-white/30">{bonus.provider ?? "—"}</p>
+        <p className="truncate text-[11px] text-white/30">{formatProvider(bonus.provider) ?? "—"}</p>
       </div>
       <div className="w-20 shrink-0 text-right">
         <MonoLabel className="block text-white/25">Bet</MonoLabel>

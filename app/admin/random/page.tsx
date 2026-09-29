@@ -5,6 +5,7 @@ import { Dices, Gamepad2, Loader2, Tv } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile } from "@/components/ui/panel"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { RandomSlotCard, type RandomSpin } from "@/components/obs/random-slot-spinner"
+import { formatProvider } from "@/lib/providers"
 
 /**
  * The random slot: spin, and the stream column shows the reel.
@@ -91,7 +92,7 @@ export default function RandomSlotPage() {
         <StatTile label="Providers" value={overview ? overview.providers.length.toLocaleString() : "—"} />
         <StatTile
           label="Last pick"
-          value={overview?.spins[0] ? (overview.spins[0].provider ?? "—") : "—"}
+          value={overview?.spins[0] ? (formatProvider(overview.spins[0].provider) ?? "—") : "—"}
           accent="amber"
           hint={overview?.spins[0]?.slot_name}
         />
@@ -117,7 +118,7 @@ export default function RandomSlotPage() {
                   { value: ALL, label: "All providers", hint: overview ? `${overview.total.toLocaleString()} slots` : undefined },
                   ...(overview?.providers ?? []).map((entry) => ({
                     value: entry.name,
-                    label: entry.name,
+                    label: formatProvider(entry.name) ?? entry.name,
                     hint: `${entry.count.toLocaleString()} slots`,
                   })),
                 ]}
@@ -193,7 +194,7 @@ export default function RandomSlotPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] text-white">{entry.slot_name}</p>
-                  <p className="truncate text-[11px] text-white/30">{entry.provider ?? "—"}</p>
+                  <p className="truncate text-[11px] text-white/30">{formatProvider(entry.provider) ?? "—"}</p>
                 </div>
                 <MonoLabel className="shrink-0 text-white/25">
                   {new Date(entry.started_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
