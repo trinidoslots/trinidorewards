@@ -890,11 +890,20 @@ function HuntWidget() {
                           // Front-most first, so each cover is drawn over the
                           // one after it rather than under it.
                           zIndex: TO_OPEN_SHOWN - index,
-                          // The lead gets its own width; the rest divide up
-                          // what is left, which is what sets the overlap.
+                          // The lead gets its own width; each place behind it
+                          // is a fixed share of what is left — the share it has
+                          // in a full row of five. They used to divide up the
+                          // rest between however many there were, so with two
+                          // left the second took the whole remainder and its
+                          // cover stood alone at the far right. Now the deck
+                          // keeps its stacked shape and just gets shorter.
                           ...(index === 0
                             ? { flex: "none", width: TO_OPEN_WIDTH }
-                            : { flex: "1 1 0", minWidth: 0 }),
+                            : {
+                                flex: "none",
+                                minWidth: 0,
+                                width: `calc((100% - ${TO_OPEN_WIDTH}px) / ${TO_OPEN_SHOWN - 1})`,
+                              }),
                         }}
                         initial={{ opacity: 0, scale: 0.85 }}
                         animate={{ opacity: 1, scale: 1 }}
