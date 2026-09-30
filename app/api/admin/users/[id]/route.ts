@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/admin-guard"
 import { adminTag } from "@/lib/admin-auth"
 import { serviceClient } from "@/lib/supabase/service"
+import { likeExact } from "@/lib/like"
 
 /**
  * Everything the admin user page shows, in one request.
@@ -55,7 +56,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     client
       .from("win_logs")
       .select("id, username, source, source_ref, prize, amount, points, status, created_at")
-      .or(`user_id.eq.${id},username.ilike.${user.username}`)
+      .or(`user_id.eq.${id},username.ilike.${likeExact(user.username)}`)
       .order("created_at", { ascending: false }),
   ])
 

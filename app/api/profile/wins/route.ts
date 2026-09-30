@@ -2,6 +2,7 @@ import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { serviceClient } from "@/lib/supabase/service"
 import { getSiteSession } from "@/lib/site-session"
+import { likeExact } from "@/lib/like"
 
 /**
  * The signed-in user's own wins.
@@ -23,7 +24,7 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(100)
 
-  query = user?.username ? query.or(`user_id.eq.${userId},username.ilike.${user.username}`) : query.eq("user_id", userId)
+  query = user?.username ? query.or(`user_id.eq.${userId},username.ilike.${likeExact(user.username)}`) : query.eq("user_id", userId)
 
   const { data, error } = await query
   if (error) {

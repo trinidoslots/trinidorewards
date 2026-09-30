@@ -1,6 +1,7 @@
 import { serviceClient } from "@/lib/supabase/service"
 import { requireAdmin } from "@/lib/admin-guard"
 import { finalizeDueLeaderboards, finalizeLeaderboard } from "@/lib/leaderboard-finalize"
+import { bearerMatches } from "@/lib/bearer"
 
 export const dynamic = "force-dynamic"
 
@@ -10,14 +11,11 @@ export const dynamic = "force-dynamic"
  * GET  — run by the Vercel cron in vercel.json, hourly. Finalises everything due.
  * POST — { leaderboardId, force? } to close one board by hand from the admin.
  *
- * Vercel signs cron requests with CRON_SECRET when it is set; if it is not set
- * the route stays open, which is the same posture as the rest of this app's
- * routes rather than a decision made here.
+ * Vercel signs cron requests with CRON_SECRET. Without it set the cron is
+ * refused rather than left open to anyone; admins still finalize by POST.
  */
 function cronAuthorised(request: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return true
-  return request.headers.get("authorization") === `Bearer ${secret}`
+  return bearerMatches(request, process.env.CRON_SECRET)
 }
 
 export async function GET(request: Request) {

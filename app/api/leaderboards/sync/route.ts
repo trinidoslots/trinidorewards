@@ -2,6 +2,7 @@ import { serviceClient } from "@/lib/supabase/service"
 import { fetchStandingsWithRef, LeaderboardApiError } from "@/lib/leaderboard-api"
 import { resolveProvider } from "@/lib/leaderboard-provider-store"
 import { prizeFor } from "@/lib/leaderboard-payouts"
+import { bearerMatches } from "@/lib/bearer"
 
 /**
  * Pulls every running API board's standings into leaderboard_entries.
@@ -44,9 +45,7 @@ type BoardRow = {
  * and burn the 2-requests-per-minute budget while they did it.
  */
 function authorised(request: Request): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return false
-  return request.headers.get("authorization") === `Bearer ${secret}`
+  return bearerMatches(request, process.env.CRON_SECRET)
 }
 
 type BoardOutcome = {

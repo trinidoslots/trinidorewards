@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { getActiveHunt } from "@/lib/active-hunt"
+import { bearerMatches } from "@/lib/bearer"
 
 // Service-role client: the Chrome extension authenticates with a static
 // bearer token (EXTENSION_API_KEY), not a Supabase session, so RLS-scoped
@@ -14,11 +15,7 @@ function getServiceRoleClient() {
 }
 
 function isAuthorized(request: NextRequest) {
-  const expected = process.env.EXTENSION_API_KEY
-  if (!expected) return false
-  const header = request.headers.get("authorization") || ""
-  const token = header.startsWith("Bearer ") ? header.slice(7) : null
-  return token === expected
+  return bearerMatches(request, process.env.EXTENSION_API_KEY)
 }
 
 function unauthorized() {

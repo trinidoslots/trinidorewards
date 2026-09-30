@@ -63,6 +63,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `You need ${cost - balance} more points` }, { status: 400 })
     }
 
+    // The unit is taken before any points move, guarded on the count just read.
+    // It used to be decremented last, unguarded: two buyers of the last one
+    // both passed the stock check and both got it. Now the second one's update
+    // matches no row and they are told it sold out, having paid nothing.
+    const limited = !isUnlimited(item.quantity)
+    if (limited) {
+      const { data: taken, error: stockError } = await client
+        .from("store_items")
+        .update({ quantity: Number(item.quantity) - 1 })
+        .eq("id", itemId)
+        .eq("quantity", item.quantity)
+        .select("id")
+      if (stockError || !taken || taken.length === 0) {
+        if (stockError) console.error("[store] Could not reserve stock:", stockError)
+        return NextResponse.json({ error: "That item just sold out or changed — try again" }, { status: 409 })
+      }
+    }
+
+    // Puts the unit back when the purchase does not go through.
+    const releaseStock = async () => {
+      if (!limited) return
+      const { data: fresh } = await client.from("store_items").select("quantity").eq("id", itemId).maybeSingle()
+      const quantity = Number(fresh?.quantity)
+      if (Number.isFinite(quantity) && !isUnlimited(quantity)) {
+        await client.from("store_items").update({ quantity: quantity + 1 }).eq("id", itemId)
+      }
+    }
+
     // Guarded on the balance just read: a concurrent change makes this match no
     // rows, and we stop rather than writing a stale figure over it.
     const { data: deducted, error: deductError } = await client
@@ -74,6 +102,7 @@ export async function POST(request: Request) {
 
     if (deductError || !deducted || deducted.length === 0) {
       console.error("[v0] Could not deduct points:", deductError)
+      await releaseStock()
       return NextResponse.json({ error: "Your balance changed — try again" }, { status: 409 })
     }
 
@@ -103,6 +132,7 @@ export async function POST(request: Request) {
     if (redemptionError || !redemption) {
       console.error("[v0] Could not create redemption:", redemptionError)
       await refund()
+      await releaseStock()
       return NextResponse.json({ error: "Could not complete that purchase" }, { status: 500 })
     }
 
@@ -125,18 +155,9 @@ export async function POST(request: Request) {
         console.error("[v0] Could not store payout details:", payoutError)
         await client.from("redemptions").delete().eq("id", redemption.id)
         await refund()
+        await releaseStock()
         return NextResponse.json({ error: "Could not save your payout details — nothing was charged" }, { status: 500 })
       }
-    }
-
-    if (!isUnlimited(item.quantity)) {
-      const { error: stockError } = await client
-        .from("store_items")
-        .update({ quantity: Number(item.quantity) - 1 })
-        .eq("id", itemId)
-      // Not fatal: the purchase is recorded and paid for. A stock count that is
-      // one too high is an admin correction, not a reason to fail the buyer.
-      if (stockError) console.error("[v0] Could not decrement stock:", stockError)
     }
 
     return NextResponse.json({ success: true, newBalance: balance - cost, message: "Purchase successful" })

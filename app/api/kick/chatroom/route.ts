@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const popoutResponse = await fetch(`https://kick.com/popout/${slug}/chat`, {
+    const popoutResponse = await fetch(`https://kick.com/popout/${encodeURIComponent(slug)}/chat`, {
       headers: { "User-Agent": USER_AGENT },
       cache: "no-store",
     })
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const apiResponse = await fetch(`https://kick.com/api/v2/channels/${slug}`, {
+    const apiResponse = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`, {
       headers: { "User-Agent": USER_AGENT },
       cache: "no-store",
     })

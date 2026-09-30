@@ -29,6 +29,26 @@ const nextConfig = {
       { source: "/bonuses/active", destination: "/bonuses", permanent: true },
     ]
   },
+  // Baseline headers. The site sent none but HSTS, so any page could be put
+  // in an invisible frame on another site and clicked through (buying from
+  // the store, admin buttons). frame-ancestors 'self' stops that. The OBS
+  // pages are left frameable: overlay tools that embed them do it that way.
+  async headers() {
+    const base = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+    ]
+    return [
+      { source: "/:path*", headers: base },
+      {
+        source: "/((?!obs/|obs$|predictionobs|random-slot).*)",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+        ],
+      },
+    ]
+  },
   experimental: {
     staleTimes: {
       dynamic: 30,

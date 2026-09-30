@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { serviceClient } from "@/lib/supabase/service"
 import { clampWindowMinutes } from "@/lib/points-activity"
+import { bearerMatches } from "@/lib/bearer"
 
 /**
  * The same grant as /api/admin/points/grant, for a device with no browser.
@@ -28,11 +29,7 @@ export const dynamic = "force-dynamic"
 const MAX_POINTS_EACH = 10_000
 
 function isAuthorized(request: Request) {
-  const expected = process.env.CONTROL_API_KEY
-  if (!expected) return false
-  const header = request.headers.get("authorization") || ""
-  const token = header.startsWith("Bearer ") ? header.slice(7) : null
-  return token === expected
+  return bearerMatches(request, process.env.CONTROL_API_KEY)
 }
 
 export async function POST(request: Request) {

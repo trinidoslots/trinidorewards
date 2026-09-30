@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
 import { drawWinner } from "@/lib/raffle-utils"
+import { likeExact } from "@/lib/like"
 
 type Client = ReturnType<typeof serviceClient>
 
@@ -32,7 +33,7 @@ async function awardPrize(
 
   // The account behind the name, if there is one. Giveaway-style winners from
   // chat may have none, in which case the win is logged against the name alone.
-  const { data: user } = await client.from("users").select("id, points_balance").ilike("username", username).maybeSingle()
+  const { data: user } = await client.from("users").select("id, points_balance").ilike("username", likeExact(username)).maybeSingle()
 
   let credited = false
   if (prizeType === "points" && value > 0 && user) {

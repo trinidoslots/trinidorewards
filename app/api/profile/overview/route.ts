@@ -2,6 +2,7 @@ import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { serviceClient } from "@/lib/supabase/service"
 import { getSiteSession } from "@/lib/site-session"
+import { likeExact } from "@/lib/like"
 
 /**
  * Everything the profile's header, Overview and Stats tabs show, in one call.
@@ -86,7 +87,7 @@ export async function GET() {
         ? client
             .from("win_logs")
             .select("id, source, prize, amount, created_at", { count: "exact" })
-            .or(`user_id.eq.${userId},username.ilike.${username}`)
+            .or(`user_id.eq.${userId},username.ilike.${likeExact(username)}`)
             .order("created_at", { ascending: false })
             .limit(10)
         : client

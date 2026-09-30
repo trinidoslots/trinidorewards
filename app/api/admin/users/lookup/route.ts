@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireStaff } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
+import { likeExact } from "@/lib/like"
 
 /**
  * Find an account, for the record-a-win dialog.
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
   const base = client.from("users").select("*")
   const { data: match, error } = id
     ? await base.eq("id", id).maybeSingle()
-    : await base.ilike("username", username!).limit(1).maybeSingle()
+    : await base.ilike("username", likeExact(username!)).limit(1).maybeSingle()
 
   if (error) {
     console.error("[v0] Could not look up user:", error)
@@ -50,8 +51,8 @@ export async function GET(request: Request) {
     .order("created_at", { ascending: false })
     .limit(5)
   const { data: wins } = match
-    ? await query.or(`user_id.eq.${match.id}` + (name ? `,username.ilike.${name}` : ""))
-    : await query.ilike("username", name!)
+    ? await query.or(`user_id.eq.${match.id}` + (name ? `,username.ilike.${likeExact(name)}` : ""))
+    : await query.ilike("username", likeExact(name!))
 
   // The dialog needs to know who it is; a moderator gets that and no more of
   // the row (balance, rank and whatever else users holds stay admin-only).

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { requireAdmin, requireStaff } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
+import { likeExact } from "@/lib/like"
 
 /**
  * The winner log.
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
   // come out of Kick chat and may have no account here at all.
   let userId: string | null = body?.user_id ?? null
   if (!userId) {
-    const { data: match } = await client.from("users").select("id").ilike("username", username).limit(1).maybeSingle()
+    const { data: match } = await client.from("users").select("id").ilike("username", likeExact(username)).limit(1).maybeSingle()
     userId = match?.id ?? null
   }
 

@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { explainDbError, readNowPlaying, type NowPlayingRow } from "@/lib/now-playing"
 import { resolveNowPlaying } from "@/lib/slot-meta"
+import { bearerMatches } from "@/lib/bearer"
 
 /**
  * "Set as now playing", from the extension's button on the casino page.
@@ -23,11 +24,7 @@ function getServiceRoleClient() {
 }
 
 function isAuthorized(request: NextRequest) {
-  const expected = process.env.EXTENSION_API_KEY
-  if (!expected) return false
-  const header = request.headers.get("authorization") || ""
-  const token = header.startsWith("Bearer ") ? header.slice(7) : null
-  return token === expected
+  return bearerMatches(request, process.env.EXTENSION_API_KEY)
 }
 
 function unauthorized() {

@@ -1,5 +1,6 @@
 import { serviceClient } from "@/lib/supabase/service"
 import { NextResponse } from "next/server"
+import { bearerMatches } from "@/lib/bearer"
 
 /**
  * Sets a user's points, for the Botrix integration.
@@ -11,9 +12,7 @@ import { NextResponse } from "next/server"
 function authorised(request: Request): boolean | null {
   const expected = process.env.BOTRIX_API_KEY
   if (!expected) return null
-  const header = request.headers.get("authorization") || ""
-  const token = header.startsWith("Bearer ") ? header.slice(7) : ""
-  return token.length === expected.length && token === expected
+  return bearerMatches(request, expected)
 }
 
 export async function POST(request: Request) {
