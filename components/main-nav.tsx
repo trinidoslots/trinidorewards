@@ -38,8 +38,7 @@ import {
 const MODULE_ICONS: Record<ModuleKey, typeof Gift> = {
   stream_store: Landmark,
   schedule: Radio,
-  active_bonuses: Gift,
-  claim_bonuses: WalletCards,
+  bonuses: Gift,
   advent_calendar: Grid2X2,
   bonus_hunt: Gift,
   leaderboard: Trophy,

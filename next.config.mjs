@@ -24,6 +24,9 @@ const nextConfig = {
       { source: "/obs", destination: "/obs/hunt", permanent: true },
       { source: "/obs/bonushunt", destination: "/obs/hunt", permanent: true },
       { source: "/obs-widget", destination: "/obs/top-bar", permanent: true },
+      // The nav's old two bonus links. Neither page ever existed; /bonuses is the one.
+      { source: "/bonuses/claim", destination: "/bonuses", permanent: true },
+      { source: "/bonuses/active", destination: "/bonuses", permanent: true },
     ]
   },
   experimental: {

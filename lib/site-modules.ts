@@ -15,8 +15,7 @@ export const MODULE_KEYS = [
   "schedule",
   "tournaments",
   "leaderboard",
-  "claim_bonuses",
-  "active_bonuses",
+  "bonuses",
   "advent_calendar",
 ] as const
 
@@ -38,6 +37,13 @@ const ALIASES: Record<string, ModuleKey> = {
   advent: "advent_calendar",
   adventcalendar: "advent_calendar",
   leaderboards: "leaderboard",
+  // There were two bonus links, "Claim" (/bonuses/claim) and "Active"
+  // (/bonuses/active), and neither page ever existed; the one page is
+  // /bonuses. Rows from before scripts/079 still carry the old names.
+  claim_bonuses: "bonuses",
+  active_bonuses: "bonuses",
+  claimbonuses: "bonuses",
+  activebonuses: "bonuses",
 }
 
 /** The nav key a module_name controls, or null if it controls nothing. */
@@ -58,8 +64,7 @@ export const MODULE_LINKS: Record<ModuleKey, { label: string; href: string }> = 
   schedule: { label: "Schedule", href: "/schedule" },
   tournaments: { label: "Tournaments", href: "/tournaments" },
   leaderboard: { label: "Leaderboard", href: "/leaderboard" },
-  claim_bonuses: { label: "Claim Bonuses", href: "/bonuses/claim" },
-  active_bonuses: { label: "Active Bonuses", href: "/bonuses/active" },
+  bonuses: { label: "Bonuses", href: "/bonuses" },
   advent_calendar: { label: "Advent Calendar", href: "/advent-calendar" },
 }
 
@@ -67,7 +72,9 @@ export function readModules(rows: { module_name: string; is_enabled: boolean | n
   const next = { ...ALL_OFF }
   for (const row of rows) {
     const key = moduleKey(String(row.module_name ?? ""))
-    if (key) next[key] = row.is_enabled === true
+    // Two rows can name one key (the old claim_bonuses and active_bonuses both
+    // mean bonuses); the link is on if either says so.
+    if (key) next[key] = next[key] || row.is_enabled === true
   }
   return next
 }
@@ -97,8 +104,7 @@ export type NavCategory = (typeof NAV_CATEGORIES)[number]["id"]
 export const DEFAULT_CATEGORY: Record<ModuleKey, NavCategory> = {
   stream_store: "stream",
   schedule: "stream",
-  active_bonuses: "bonuses",
-  claim_bonuses: "bonuses",
+  bonuses: "bonuses",
   advent_calendar: "bonuses",
   bonus_hunt: "community",
   leaderboard: "community",
@@ -117,8 +123,7 @@ export const DEFAULT_CATEGORY: Record<ModuleKey, NavCategory> = {
 const NAV_ORDER: ModuleKey[] = [
   "stream_store",
   "schedule",
-  "active_bonuses",
-  "claim_bonuses",
+  "bonuses",
   "advent_calendar",
   "bonus_hunt",
   "leaderboard",

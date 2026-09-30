@@ -28,7 +28,7 @@ export const MAINTENANCE_PATH = "/maintenance"
 
 export type GateState = {
   maintenance: boolean
-  /** Modules with a row that says off. */
+  /** Modules whose rows all say off. */
   disabled: ReadonlySet<ModuleKey>
 }
 
@@ -36,7 +36,8 @@ export const OPEN: GateState = { maintenance: false, disabled: new Set() }
 
 export function readGate(rows: { module_name: string; is_enabled: boolean | null }[]): GateState {
   let maintenance = false
-  const disabled = new Set<ModuleKey>()
+  const off = new Set<ModuleKey>()
+  const on = new Set<ModuleKey>()
   for (const row of rows) {
     const name = String(row.module_name ?? "").trim().toLowerCase()
     if (name === MAINTENANCE_MODULE) {
@@ -44,17 +45,17 @@ export function readGate(rows: { module_name: string; is_enabled: boolean | null
       continue
     }
     const key = moduleKey(name)
-    if (key && row.is_enabled === false) disabled.add(key)
+    if (!key) continue
+    if (row.is_enabled === false) off.add(key)
+    else if (row.is_enabled === true) on.add(key)
   }
+  // Two rows can name one key (claim_bonuses and active_bonuses are both
+  // bonuses); the page stays open while either is on, as its nav link does.
+  const disabled = new Set([...off].filter((key) => !on.has(key)))
   return { maintenance, disabled }
 }
 
-/**
- * The pages each module owns, by path prefix.
- *
- * /bonuses is one page showing both the claimable and the active bonuses, so
- * it closes only when both are off.
- */
+/** The pages each module owns, by path prefix. */
 const MODULE_PAGES: { path: string; keys: ModuleKey[] }[] = [
   { path: "/store", keys: ["stream_store"] },
   { path: "/bonushunt", keys: ["bonus_hunt"] },
@@ -63,9 +64,7 @@ const MODULE_PAGES: { path: string; keys: ModuleKey[] }[] = [
   { path: "/schedule", keys: ["schedule"] },
   { path: "/tournaments", keys: ["tournaments"] },
   { path: "/leaderboard", keys: ["leaderboard"] },
-  { path: "/bonuses/claim", keys: ["claim_bonuses"] },
-  { path: "/bonuses/active", keys: ["active_bonuses"] },
-  { path: "/bonuses", keys: ["claim_bonuses", "active_bonuses"] },
+  { path: "/bonuses", keys: ["bonuses"] },
   { path: "/advent-calendar", keys: ["advent_calendar"] },
 ]
 
