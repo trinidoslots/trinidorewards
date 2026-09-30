@@ -1,10 +1,15 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { AnimatePresence, motion } from "framer-motion"
 import { ChevronDown, Search } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import type { HuntKpis } from "@/lib/active-hunt"
 import { HuntKpiBoard, type HuntBonusRow } from "@/components/hunt-kpi-board"
+import { Swap } from "@/components/swap"
+
+/** The site's ease-out, as the tabs and page transitions use it. */
+const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1]
 
 const money = (value: number) => `$${value.toFixed(2)}`
 
@@ -17,11 +22,12 @@ export function PreviousHuntsPanel() {
   const [endedHunts, setEndedHunts] = useState<HuntKpis[]>([])
   const [selectedHuntId, setSelectedHuntId] = useState<string | null>(null)
   const [selectedBonuses, setSelectedBonuses] = useState<HuntBonusRow[]>([])
+  /** Which hunt selectedBonuses belong to, so the board never pairs one hunt's numbers with another's bonuses. */
+  const [bonusesFor, setBonusesFor] = useState<string | null>(null)
   const [activeStreamer, setActiveStreamer] = useState("ALL")
   const [listOpen, setListOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [loading, setLoading] = useState(true)
-  const [bonusesLoading, setBonusesLoading] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -47,25 +53,30 @@ export function PreviousHuntsPanel() {
   }, [])
 
   useEffect(() => {
-    async function loadBonuses() {
-      if (!selectedHuntId) {
-        setSelectedBonuses([])
-        return
-      }
-      setBonusesLoading(true)
+    if (!selectedHuntId) {
+      setSelectedBonuses([])
+      setBonusesFor(null)
+      return
+    }
+    // Clicking through the list quickly starts several loads; only the last
+    // one may land, or an earlier hunt's bonuses could arrive after a later
+    // hunt was picked and be shown under its name.
+    let current = true
+    async function loadBonuses(huntId: string) {
       const { data, error } = await supabase
         .from("hunt_bonuses")
         .select("id, game_name, provider, bet_size, result, is_super, image_url, position")
-        .eq("hunt_id", selectedHuntId)
+        .eq("hunt_id", huntId)
         .order("position", { ascending: true })
-      if (error) {
-        console.error("[v0] Error loading hunt bonuses:", error)
-      } else {
-        setSelectedBonuses((data || []) as HuntBonusRow[])
-      }
-      setBonusesLoading(false)
+      if (!current) return
+      if (error) console.error("[v0] Error loading hunt bonuses:", error)
+      setSelectedBonuses(error ? [] : ((data || []) as HuntBonusRow[]))
+      setBonusesFor(huntId)
     }
-    loadBonuses()
+    loadBonuses(selectedHuntId)
+    return () => {
+      current = false
+    }
   }, [selectedHuntId])
 
   const streamers = useMemo(() => {
@@ -112,7 +123,16 @@ export function PreviousHuntsPanel() {
           </button>
         </div>
 
+        <AnimatePresence initial={false}>
         {listOpen && (
+          <motion.div
+            key="hunt-list"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.32, ease: EASE }}
+            style={{ overflow: "hidden" }}
+          >
           <div className="mt-3 border-t border-white/[0.08] pt-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-1 rounded-md border border-white/[0.08] bg-black/30 p-1">
@@ -150,19 +170,34 @@ export function PreviousHuntsPanel() {
               {filteredHunts.length} ended hunt{filteredHunts.length === 1 ? "" : "s"}
             </p>
 
-            <div className="mt-2 max-h-80 space-y-1.5 overflow-y-auto pr-1">
+            <div className="mt-2 max-h-80 overflow-y-auto pr-1">
+              <AnimatePresence initial={false} mode="popLayout">
               {filteredHunts.length === 0 ? (
-                <p className="rounded-md border border-dashed border-white/[0.10] px-4 py-8 text-center text-[12.5px] text-white/30">No hunts match.</p>
+                <motion.p
+                  key="no-match"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2, ease: EASE }}
+                  className="rounded-md border border-dashed border-white/[0.10] px-4 py-8 text-center text-[12.5px] text-white/30"
+                >
+                  No hunts match.
+                </motion.p>
               ) : (
                 filteredHunts.map((hunt) => (
-                  <button
+                  <motion.button
                     key={hunt.hunt_id}
+                    layout="position"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                    transition={{ duration: 0.26, ease: EASE }}
                     type="button"
-                    onClick={() => {
-                      setSelectedHuntId(hunt.hunt_id)
-                      setListOpen(false)
-                    }}
-                    className={`flex w-full items-center justify-between gap-4 rounded-lg border px-4 py-3 text-left text-sm transition ${
+                    // The list stays open: picking a hunt used to close it,
+                    // so comparing two hunts meant reopening it every time.
+                    onClick={() => setSelectedHuntId(hunt.hunt_id)}
+                    aria-pressed={hunt.hunt_id === selectedHuntId}
+                    className={`mb-1.5 flex w-full items-center justify-between gap-4 rounded-lg border px-4 py-3 text-left text-sm transition-colors duration-200 ${
                       hunt.hunt_id === selectedHuntId
                         ? "border-[#5B8DEF]/40 bg-[#5B8DEF]/[0.08]"
                         : "border-white/[0.08] bg-white/[0.022] hover:border-white/20 hover:bg-white/[0.05]"
@@ -179,27 +214,34 @@ export function PreviousHuntsPanel() {
                       {Number(hunt.total_won) - Number(hunt.starting_balance) >= 0 ? "+" : "-"}
                       {money(Math.abs(Number(hunt.total_won) - Number(hunt.starting_balance)))}
                     </p>
-                  </button>
+                  </motion.button>
                 ))
               )}
+              </AnimatePresence>
             </div>
           </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </section>
 
       {!selectedHunt ? (
         <div className="rounded-lg border border-dashed border-white/[0.10] p-12 text-center text-[12.5px] text-white/30">
           No completed hunts yet. Once a hunt ends, it will show up here.
         </div>
-      ) : bonusesLoading ? (
-        <div className="rounded-lg border border-white/[0.08] bg-white/[0.022] p-12 text-center font-mono text-[11px] uppercase tracking-widest text-white/25">Loading hunt…</div>
       ) : (
-        <HuntKpiBoard
-          hunts={selectedBonuses}
-          kpis={selectedHunt}
-          tableEyebrow="Final board"
-          tableTitle={`${selectedHunt.streamer}${selectedHunt.title ? ` · ${selectedHunt.title}` : ""}`}
-        />
+        // The old board fades out on the click and the new one rises in once
+        // its bonuses are here, with the height eased between the two. The
+        // "Loading hunt…" box that used to sit in between made every switch
+        // two jumps.
+        <Swap on={selectedHunt.hunt_id} ready={bonusesFor === selectedHunt.hunt_id}>
+          <HuntKpiBoard
+            hunts={bonusesFor === selectedHunt.hunt_id ? selectedBonuses : []}
+            kpis={selectedHunt}
+            tableEyebrow="Final board"
+            tableTitle={`${selectedHunt.streamer}${selectedHunt.title ? ` · ${selectedHunt.title}` : ""}`}
+          />
+        </Swap>
       )}
     </>
   )
