@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { AlertTriangle, Blocks, Plus, RefreshCw } from "lucide-react"
+import { AlertTriangle, Blocks, Construction, Plus, RefreshCw } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
 import {
@@ -13,6 +13,7 @@ import {
   type ModuleKey,
 } from "@/lib/site-modules"
 import { SelectMenu } from "@/components/ui/select-menu"
+import { MAINTENANCE_MODULE, MAINTENANCE_PATH } from "@/lib/site-gate"
 
 /**
  * Which features the site shows.
@@ -62,6 +63,14 @@ export default function AdminModulesPage() {
     load()
   }, [load])
 
+  // Maintenance is a row in the same table, but a site-wide switch rather than
+  // a nav entry, so it gets its own panel and stays out of the lists below.
+  const maintenance = modules.find((item) => item.module_name.trim().toLowerCase() === MAINTENANCE_MODULE) ?? null
+  const navModules = useMemo(
+    () => modules.filter((item) => item.module_name.trim().toLowerCase() !== MAINTENANCE_MODULE),
+    [modules],
+  )
+
   // The nav's own groups, and only those. The list here used to be its own
   // invention — "main", "bonus_hunt", "seasonal" — none of which the nav had
   // ever heard of, while the nav's "Stream" was not offered at all. Picking one
@@ -73,7 +82,7 @@ export default function AdminModulesPage() {
   // the default it actually resolves to.
   const grouped = useMemo(() => {
     const byCategory = new Map<string, Module[]>()
-    for (const item of modules) {
+    for (const item of navModules) {
       const key = moduleKey(item.module_name)
       const category = key ? readCategory(key, item.category) : "hidden"
       const label = NAV_CATEGORIES.find((entry) => entry.id === category)?.label ?? "Hidden"
@@ -83,7 +92,7 @@ export default function AdminModulesPage() {
     return Array.from(byCategory.entries()).sort(
       ([a], [b]) => order.indexOf(a) - order.indexOf(b),
     )
-  }, [modules])
+  }, [navModules])
 
   // Nav entries with no row at all: switchable only once one exists.
   const missing = useMemo(() => {
@@ -91,7 +100,7 @@ export default function AdminModulesPage() {
     return MODULE_KEYS.filter((key) => !covered.has(key))
   }, [modules])
 
-  const orphans = modules.filter((item) => !moduleKey(item.module_name))
+  const orphans = navModules.filter((item) => !moduleKey(item.module_name))
 
   async function patch(item: Module, changes: Partial<Module>) {
     setBusy(item.id)
@@ -134,7 +143,45 @@ export default function AdminModulesPage() {
     setError(null)
   }
 
-  const enabled = modules.filter((item) => item.is_enabled).length
+  async function toggleMaintenance() {
+    const turningOn = !maintenance?.is_enabled
+    if (
+      turningOn &&
+      !window.confirm("Put the site into maintenance? Every public page will show the maintenance screen until you switch it off.")
+    ) {
+      return
+    }
+    if (maintenance) {
+      await patch(maintenance, { is_enabled: turningOn })
+      return
+    }
+
+    setBusy(MAINTENANCE_MODULE)
+    const { data, error: problem } = await supabaseRef.current
+      .from("modules")
+      .insert({
+        module_name: MAINTENANCE_MODULE,
+        display_name: "Maintenance",
+        description: "Sends every public page to the maintenance screen",
+        category: "hidden",
+        is_enabled: true,
+      })
+      .select("id, module_name, display_name, description, category, is_enabled")
+      .single()
+    setBusy(null)
+
+    if (problem || !data) {
+      setError(problem?.message || "Could not switch maintenance on")
+      return
+    }
+    setModules((current) => [...current, data as Module])
+    setError(null)
+  }
+
+  const maintenanceOn = maintenance?.is_enabled === true
+  const maintenanceBusy = busy === MAINTENANCE_MODULE || (maintenance !== null && busy === maintenance.id)
+
+  const enabled = navModules.filter((item) => item.is_enabled).length
 
   return (
     <div className="space-y-4">
@@ -159,8 +206,37 @@ export default function AdminModulesPage() {
         </Panel>
       )}
 
+      <Panel accent={maintenanceOn ? "amber" : "slate"}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-3">
+          <Construction className="h-5 w-5 shrink-0" style={{ color: maintenanceOn ? ACCENTS.amber : "rgba(255,255,255,0.3)" }} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-medium text-white">Maintenance mode</span>
+              {maintenanceOn && <Tag accent="amber">Site offline</Tag>}
+            </div>
+            <p className="text-[11px] text-white/30">
+              On: every public page goes to {MAINTENANCE_PATH}. The admin panel, sign-in and OBS overlays keep working.
+              Off: {MAINTENANCE_PATH} goes to the home page. Takes a few seconds to reach everyone.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={toggleMaintenance}
+            disabled={loading || maintenanceBusy}
+            className="inline-flex h-8 shrink-0 items-center rounded-md border px-3 font-mono text-[10px] uppercase tracking-[0.1em] transition disabled:opacity-40"
+            style={
+              maintenanceOn
+                ? { borderColor: `${ACCENTS.amber}55`, color: ACCENTS.amber }
+                : { borderColor: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.35)" }
+            }
+          >
+            {maintenanceOn ? "Enabled" : "Disabled"}
+          </button>
+        </div>
+      </Panel>
+
       <div className="grid gap-2.5 sm:grid-cols-3">
-        <StatTile label="Modules" value={modules.length.toLocaleString()} />
+        <StatTile label="Modules" value={navModules.length.toLocaleString()} />
         <StatTile label="Enabled" value={enabled.toLocaleString()} accent="green" />
         <StatTile
           label="Not wired to a link"
@@ -202,7 +278,7 @@ export default function AdminModulesPage() {
         <Panel className="py-16 text-center">
           <MonoLabel className="text-white/25">Loading</MonoLabel>
         </Panel>
-      ) : modules.length === 0 ? (
+      ) : navModules.length === 0 ? (
         <Panel className="flex flex-col items-center gap-2 py-16">
           <Blocks className="h-7 w-7 text-white/10" />
           <p className="text-[13px] text-white/30">No modules configured.</p>
@@ -229,7 +305,11 @@ export default function AdminModulesPage() {
                       )}
                       <div className="mt-1">
                         {key ? (
-                          <MonoLabel style={{ color: ACCENTS.blue }}>Controls {MODULE_LINKS[key].href}</MonoLabel>
+                          <MonoLabel style={{ color: item.is_enabled ? ACCENTS.blue : "rgba(255,255,255,0.3)" }}>
+                            {item.is_enabled
+                              ? `Controls ${MODULE_LINKS[key].href}`
+                              : `Off: ${MODULE_LINKS[key].href} redirects to the home page`}
+                          </MonoLabel>
                         ) : (
                           // The exact failure that hid Tournaments: a switch
                           // wired to nothing looks like it works.

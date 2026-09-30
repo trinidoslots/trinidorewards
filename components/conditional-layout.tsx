@@ -29,7 +29,10 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   //    that padded box instead of the viewport: it jumped 224px inward and
   //    8px down, then snapped back the moment framer dropped the transform.
   //    That snap is what you see on every page switch.
-  const isBarePage = isOBSPage || pathname.startsWith("/admin") || pathname.startsWith("/auth")
+  //
+  // The maintenance screen too: every link in the nav would only lead back to it.
+  const isBarePage =
+    isOBSPage || pathname.startsWith("/admin") || pathname.startsWith("/auth") || pathname === "/maintenance"
 
   // OBS browser sources need a truly transparent page so the stream
   // compositor shows through. The root layout's <body> always carries

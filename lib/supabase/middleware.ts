@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { isAdminPath, resolvePath, safeNext } from "@/lib/admin-host"
 import { adminFromUser } from "@/lib/admin-auth"
 import { MODERATOR_HOME, accessFor } from "@/lib/admin-permissions"
+import { currentGate, gateRedirect } from "@/lib/site-gate"
 
 export async function updateSession(request: NextRequest) {
   // Where this request actually lands, once ADMIN_HOST has had its say. Every
@@ -15,6 +16,15 @@ export async function updateSession(request: NextRequest) {
   // before paying for it — the rest of the site authenticates with a Kick
   // cookie and never had a Supabase session to refresh.
   if (!isAdminPath(pathname)) {
+    // Maintenance mode and switched-off modules (lib/site-gate.ts). The admin
+    // panel never gets here, so staff keep it during maintenance.
+    const target = gateRedirect(pathname, await currentGate())
+    if (target) {
+      const url = request.nextUrl.clone()
+      url.pathname = target
+      url.search = ""
+      return NextResponse.redirect(url)
+    }
     return rewriteIfNeeded(request, pathname)
   }
 
