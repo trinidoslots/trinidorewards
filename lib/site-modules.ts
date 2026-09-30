@@ -17,6 +17,7 @@ export const MODULE_KEYS = [
   "leaderboard",
   "bonuses",
   "advent_calendar",
+  "challenges",
 ] as const
 
 export type ModuleKey = (typeof MODULE_KEYS)[number]
@@ -66,6 +67,7 @@ export const MODULE_LINKS: Record<ModuleKey, { label: string; href: string }> = 
   leaderboard: { label: "Leaderboard", href: "/leaderboard" },
   bonuses: { label: "Bonuses", href: "/bonuses" },
   advent_calendar: { label: "Advent Calendar", href: "/advent-calendar" },
+  challenges: { label: "Challenges", href: "/challenges" },
 }
 
 export function readModules(rows: { module_name: string; is_enabled: boolean | null }[]): ModuleStatus {
@@ -110,6 +112,7 @@ export const DEFAULT_CATEGORY: Record<ModuleKey, NavCategory> = {
   leaderboard: "community",
   raffles: "community",
   tournaments: "community",
+  challenges: "community",
 }
 
 /**
@@ -129,6 +132,7 @@ const NAV_ORDER: ModuleKey[] = [
   "leaderboard",
   "raffles",
   "tournaments",
+  "challenges",
 ]
 
 const CATEGORY_IDS = new Set<string>(NAV_CATEGORIES.map((entry) => entry.id))

@@ -12,6 +12,7 @@ import {
   Landmark,
   Menu,
   Radio,
+  Target,
   Trophy,
   Users,
   WalletCards,
@@ -44,6 +45,7 @@ const MODULE_ICONS: Record<ModuleKey, typeof Gift> = {
   leaderboard: Trophy,
   raffles: WalletCards,
   tournaments: Trophy,
+  challenges: Target,
 }
 
 const GROUP_ICONS: Record<string, typeof Gift> = {

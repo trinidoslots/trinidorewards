@@ -66,6 +66,7 @@ const MODULE_PAGES: { path: string; keys: ModuleKey[] }[] = [
   { path: "/leaderboard", keys: ["leaderboard"] },
   { path: "/bonuses", keys: ["bonuses"] },
   { path: "/advent-calendar", keys: ["advent_calendar"] },
+  { path: "/challenges", keys: ["challenges"] },
 ]
 
 function under(pathname: string, prefix: string) {

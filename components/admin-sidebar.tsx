@@ -21,6 +21,7 @@ import {
   Shuffle,
   ShoppingBag,
   Swords,
+  Target,
   Ticket,
   TicketCheck,
   Trophy,
@@ -73,6 +74,17 @@ export const NAV: Item[] = [
   { kind: "link", href: "/admin/random", label: "Random", icon: Shuffle },
   { kind: "link", href: "/admin/advent-calendar", label: "Advent Calendar", icon: Calendar },
   { kind: "link", href: "/admin/tournaments", label: "Tournaments", icon: Swords },
+  {
+    kind: "group",
+    id: "challenges",
+    label: "Challenges",
+    icon: Target,
+    match: "/admin/challenges",
+    children: [
+      { href: "/admin/challenges", label: "Challenges" },
+      { href: "/admin/challenges/submissions", label: "Submissions" },
+    ],
+  },
   {
     kind: "group",
     id: "store",
