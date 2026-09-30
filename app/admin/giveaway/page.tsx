@@ -22,6 +22,33 @@ import {
 import { motion, AnimatePresence } from "framer-motion"
 import { createClient } from "@/lib/supabase/client"
 import { restoreRound } from "@/lib/giveaway-restore"
+import { MAX_LUCK, MIN_LUCK, clampLuck, isSubscriber, odds, pickWeighted } from "@/lib/giveaway-luck"
+
+/*
+ * Kept in this browser. The subscriber luck is a setting the streamer picks
+ * once; the entrants' badges are what the luck needs to know who subscribed,
+ * and giveaway_state has no column for them, so without this a reload mid-
+ * round would draw everyone as a non-subscriber.
+ */
+const LUCK_KEY = "giveaway-sub-luck"
+const META_KEY = "giveaway-entrant-meta"
+
+function readStored<T>(key: string, fallback: T): T {
+  try {
+    const raw = window.localStorage.getItem(key)
+    return raw === null ? fallback : (JSON.parse(raw) as T)
+  } catch {
+    return fallback
+  }
+}
+
+function writeStored(key: string, value: unknown) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // Private window or storage blocked: the setting lasts for this visit.
+  }
+}
 import { RecordWinDialog, WinnerName } from "@/components/admin/record-win-dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { GiveawayRollDialog, type RollView } from "@/components/admin/giveaway-roll-dialog"
@@ -197,6 +224,10 @@ export default function GiveawayAdminPage() {
   // the OBS widget only needs the names, and a restored round simply has no
   // times for the entries made before the page was reloaded.
   const [entrantMeta, setEntrantMeta] = useState<Record<string, { at: number; badges: string[] }>>({})
+  /** How many times a subscriber counts in the draw; 1 is a fair draw. */
+  const [subLuck, setSubLuck] = useState(MIN_LUCK)
+  const [storageReady, setStorageReady] = useState(false)
+  const [luckLoaded, setLuckLoaded] = useState(false)
   // Empty means everyone. Read through a ref by the chat handler, which is
   // created once per connection.
   const [allowedBadges, setAllowedBadges] = useState<Set<string>>(new Set())
@@ -355,7 +386,15 @@ export default function GiveawayAdminPage() {
         // render — which is after the auto-connect below would have fired.
         entrantsRef.current = restored
         isOpenRef.current = round.isOpen
+
+        // Badges for the entrants still in this round, from this browser.
+        const storedMeta = readStored<Record<string, { at: number; badges: string[] }>>(META_KEY, {})
+        setEntrantMeta(
+          Object.fromEntries(Object.entries(storedMeta).filter(([name]) => restored.has(name))),
+        )
       }
+
+      setStorageReady(true)
 
       setHydrated(true)
     }
@@ -370,6 +409,20 @@ export default function GiveawayAdminPage() {
   useEffect(() => {
     feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight })
   }, [messages])
+
+  // The luck setting does not depend on the round, so it loads on its own.
+  useEffect(() => {
+    setSubLuck(clampLuck(readStored(LUCK_KEY, MIN_LUCK)))
+    setLuckLoaded(true)
+  }, [])
+
+  // Written only after they were read, so the first render cannot wipe them.
+  useEffect(() => {
+    if (luckLoaded) writeStored(LUCK_KEY, subLuck)
+  }, [subLuck, luckLoaded])
+  useEffect(() => {
+    if (storageReady) writeStored(META_KEY, entrantMeta)
+  }, [entrantMeta, storageReady])
 
   useEffect(() => {
     return () => {
@@ -652,7 +705,9 @@ export default function GiveawayAdminPage() {
     rollIdRef.current += 1
     const rollId = rollIdRef.current
 
-    const pickedWinner = eligible[Math.floor(Math.random() * eligible.length)]
+    // Weighted: a subscriber holds subLuck tickets, everyone else one.
+    const pickedWinner =
+      pickWeighted(eligible, (name) => (isSubscriber(entrantMeta[name]?.badges) ? subLuck : 1)) ?? eligible[0]
 
     // Guarantee every entrant's avatar has resolved before the widget rolls — in the
     // common case this is already cached from entry time and resolves instantly, but
@@ -725,7 +780,7 @@ export default function GiveawayAdminPage() {
         })
       }, FINISHED_DISPLAY_SECONDS * 1000)
     }, totalSequenceMs)
-  }, [keyword, rollDuration, syncWidgetState, roundWinners, fetchAvatarFor])
+  }, [keyword, rollDuration, syncWidgetState, roundWinners, fetchAvatarFor, entrantMeta, subLuck])
 
   const statusColor =
     status === "connected"
@@ -738,6 +793,10 @@ export default function GiveawayAdminPage() {
 
   const entrantList = Array.from(entrants)
   const eligibleCount = entrantList.filter((name) => !roundWinners.has(name)).length
+  const eligibleSubs = entrantList.filter(
+    (name) => !roundWinners.has(name) && isSubscriber(entrantMeta[name]?.badges),
+  ).length
+  const chance = odds(eligibleSubs, eligibleCount - eligibleSubs, subLuck)
   const needle = search.trim().toLowerCase()
   const shownEntrants = needle ? entrantList.filter((name) => name.includes(needle)) : entrantList
   const displayKeyword = formatKeywordForDisplay(keyword)
@@ -1028,6 +1087,46 @@ export default function GiveawayAdminPage() {
                 {allowedBadges.size === 0
                   ? "None picked: anyone who types the keyword gets in."
                   : "Only chatters wearing one of these badges get in. Applies to new entries."}
+              </p>
+            </section>
+
+            <section data-admin-edit className="rounded-xl border border-white/[0.08] bg-white/[0.022] p-4">
+              <div className="mb-3 flex items-baseline justify-between">
+                <p className="flex items-center gap-1.5 text-[13px] font-semibold text-white/85">
+                  <Star className="size-3.5" style={{ color: ACCENTS.purple }} />
+                  Subscriber luck
+                </p>
+                <span className="font-mono text-[15px] font-semibold tabular-nums" style={{ color: subLuck > 1 ? ACCENTS.purple : "rgba(255,255,255,0.5)" }}>
+                  {subLuck}×
+                </span>
+              </div>
+              <input
+                type="range"
+                min={MIN_LUCK}
+                max={MAX_LUCK}
+                step={1}
+                value={subLuck}
+                onChange={(event) => setSubLuck(clampLuck(event.target.value))}
+                aria-label="Subscriber luck"
+                className="w-full cursor-pointer"
+                style={{ accentColor: ACCENTS.purple }}
+              />
+              <div className="mt-1 flex justify-between font-mono text-[10px] text-white/25">
+                <span>1× fair</span>
+                <span>10×</span>
+              </div>
+              <p className="mt-2.5 text-[11px] leading-relaxed text-white/30">
+                {subLuck === 1
+                  ? "Everyone has the same chance."
+                  : `Each subscriber is drawn as if they had entered ${subLuck} times.`}
+                {eligibleCount > 0 && (
+                  <>
+                    {" "}
+                    Right now: {eligibleSubs > 0 && <>subscriber <b className="text-white/60">{chance.subscriber.toFixed(1)}%</b> each</>}
+                    {eligibleSubs > 0 && eligibleCount - eligibleSubs > 0 && ", "}
+                    {eligibleCount - eligibleSubs > 0 && <>others <b className="text-white/60">{chance.other.toFixed(1)}%</b> each</>}.
+                  </>
+                )}
               </p>
             </section>
 

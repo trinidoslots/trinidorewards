@@ -50,6 +50,8 @@ async function fetchAll() {
   const { data: tournaments, error } = await supabase
     .from("tournaments")
     .select("*")
+    // A reset that could not delete its row leaves it cancelled; see the admin page.
+    .neq("status", "cancelled")
     .order("featured", { ascending: false })
     .order("start_date", { ascending: false })
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Check, Copy, Crown, Monitor, Play, Plus, RotateCcw, Trash2, Trophy, User, Users } from "lucide-react"
+import { Check, Copy, Crown, Monitor, Play, Plus, RotateCcw, Swords, Trash2, Trophy, User, Users } from "lucide-react"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile } from "@/components/ui/panel"
 import { SlotCombobox } from "@/components/admin/slot-combobox"
@@ -50,6 +50,7 @@ type Tournament = {
   champion_participant_id: string | null
   winner_username: string | null
   created_at: string
+  status?: string | null
 }
 
 const emptyForm = {
@@ -79,13 +80,20 @@ export default function AdminTournamentsPage() {
   const [championSeen, setChampionSeen] = useState(false)
   // Clicking the champion opens the win log against their name.
   const [logWinner, setLogWinner] = useState<string | null>(null)
+  /**
+   * A tournament that was finished in this visit, kept on screen until it is
+   * closed. load() only picks up unfinished ones, so the moment the final was
+   * entered the bracket and the champion dialog vanished and the page fell
+   * back to the setup form.
+   */
+  const keepFinishedRef = useRef<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     const { data: battles, error } = await supabase
       .from("tournaments")
       .select(
-        "id, title, bracket_size, bracket_status, started_at, finished_at, champion_participant_id, winner_username, created_at",
+        "id, title, bracket_size, bracket_status, started_at, finished_at, champion_participant_id, winner_username, created_at, status",
       )
       .eq("tournament_type", BATTLE)
       .order("created_at", { ascending: false })
@@ -98,10 +106,14 @@ export default function AdminTournamentsPage() {
       return
     }
 
-    const rows = (battles ?? []) as Tournament[]
-    const active = rows.find((row) => row.bracket_status !== "finished") ?? null
+    // A cancelled one is a reset whose row could not be deleted; it is gone as
+    // far as anyone is concerned.
+    const rows = ((battles ?? []) as Tournament[]).filter((row) => row.status !== "cancelled")
+    const active =
+      rows.find((row) => row.bracket_status !== "finished") ??
+      (keepFinishedRef.current ? (rows.find((row) => row.id === keepFinishedRef.current) ?? null) : null)
     setTournament(active)
-    setHistory(rows.filter((row) => row.bracket_status === "finished"))
+    setHistory(rows.filter((row) => row.bracket_status === "finished" && row.id !== active?.id))
 
     if (!active) {
       setParticipants([])
@@ -423,6 +435,7 @@ export default function AdminTournamentsPage() {
         })
         .eq("id", tournament.id)
       if (crownError) console.error("[v0] Could not record the champion:", crownError)
+      keepFinishedRef.current = tournament.id
       setChampionSeen(false)
     } else if (winnerChanged && tournament.bracket_status === "finished") {
       // An earlier round was corrected after the final had been played, so the
@@ -445,42 +458,64 @@ export default function AdminTournamentsPage() {
     await load()
   }
 
+  /**
+   * Throws the current tournament away: players, bracket and the tournament
+   * itself.
+   *
+   * This used to put the same row back into registration with nobody in it,
+   * so an empty "Bonus Battle" stayed live: listed on the public Tournaments
+   * page as open, and picked up by the OBS widgets. Now there is nothing left
+   * and the page offers to create a new one.
+   */
   async function resetAll() {
-    if (!tournament) return
-    if (!confirm("Remove every player and clear the bracket? The tournament goes back to registration.")) return
+    if (!tournament || tournament.bracket_status === "finished") return
+    if (!confirm("Delete this tournament with all its players and the bracket? This cannot be undone.")) return
     setBusy("reset")
     await supabase.from("tournament_matches").delete().eq("tournament_id", tournament.id)
     await supabase.from("tournament_participants").delete().eq("tournament_id", tournament.id)
-    await supabase
-      .from("tournaments")
-      .update({
-        current_participants: 0,
-        bracket_status: "registration",
-        started_at: null,
-        finished_at: null,
-        champion_participant_id: null,
-        winner_username: null,
-        status: "active",
-      })
-      .eq("id", tournament.id)
+    const { error } = await supabase.from("tournaments").delete().eq("id", tournament.id)
+    if (error) {
+      // Something else still points at the row. Cancelled is filtered out
+      // everywhere a tournament is shown, which is as good as gone.
+      console.error("[v0] Could not delete the tournament, cancelling it instead:", error)
+      await supabase
+        .from("tournaments")
+        .update({ status: "cancelled", bracket_status: "finished", finished_at: new Date().toISOString() })
+        .eq("id", tournament.id)
+    }
+    keepFinishedRef.current = null
     setBusy(null)
     setNotice(null)
+    setChampionSeen(false)
     await load()
   }
 
-  async function newTournament() {
-    if (tournament && !confirm("Archive the current tournament and start a new one?")) return
-    if (tournament) {
+  /**
+   * Closes the current tournament. A finished one simply leaves the screen
+   * (it is already in the history); a running one is ended without a
+   * champion. Either way the page goes back to "no tournament".
+   */
+  async function closeTournament() {
+    if (!tournament) return
+    const finished = tournament.bracket_status === "finished"
+    if (!finished && !confirm("End this tournament without a champion? It moves to Previous tournaments.")) return
+    if (!finished) {
       await supabase
         .from("tournaments")
-        .update({ bracket_status: "finished", status: "completed" })
+        .update({ bracket_status: "finished", status: "completed", finished_at: new Date().toISOString() })
         .eq("id", tournament.id)
     }
-    setTournament(null)
-    setParticipants([])
-    setMatches([])
-    setChampionSeen(false)
+    keepFinishedRef.current = null
+    setChampionSeen(true)
     await load()
+  }
+
+  /** The explicit start: nothing is created until this is pressed. */
+  async function createTournament() {
+    setBusy("create")
+    setNotice(null)
+    await ensureTournament()
+    setBusy(null)
   }
 
   const dialogP1 = resultMatch ? participants.find((entry) => entry.id === resultMatch.p1_id) ?? null : null
@@ -492,7 +527,7 @@ export default function AdminTournamentsPage() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-white">Tournament</h1>
           <p className="mt-1 text-[13px] text-white/40">
-            {tournament ? tournament.title : "Nothing running — adding the first player starts a new one."}
+            {tournament ? tournament.title : "No tournament running."}
           </p>
         </div>
         <div className="flex gap-2">
@@ -507,7 +542,7 @@ export default function AdminTournamentsPage() {
           <button
             type="button"
             onClick={resetAll}
-            disabled={!tournament || busy === "reset"}
+            disabled={!tournament || tournament.bracket_status === "finished" || busy === "reset"}
             className="inline-flex h-9 items-center gap-2 rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-[#E5484D]/40 hover:text-[#E5484D] disabled:opacity-30"
           >
             <RotateCcw className="h-3.5 w-3.5" />
@@ -532,6 +567,11 @@ export default function AdminTournamentsPage() {
         <Panel className="py-16 text-center">
           <MonoLabel className="text-white/25">Loading</MonoLabel>
         </Panel>
+      ) : !tournament ? (
+        <>
+          <NoTournament size={size} onSize={setSize} busy={busy === "create"} onCreate={createTournament} />
+          <HistoryPanel history={history} />
+        </>
       ) : (
         <>
           <div className="grid gap-3 lg:grid-cols-2">
@@ -675,11 +715,11 @@ export default function AdminTournamentsPage() {
               ) : (
                 <button
                   type="button"
-                  onClick={newTournament}
+                  onClick={closeTournament}
                   className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-white/[0.10] font-mono text-[11px] uppercase tracking-[0.12em] text-white/50 transition hover:border-white/25 hover:text-white"
                 >
-                  <Plus className="h-4 w-4" />
-                  New tournament
+                  {status === "finished" ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                  {status === "finished" ? "Done, close tournament" : "End tournament"}
                 </button>
               )}
             </div>
@@ -791,23 +831,7 @@ export default function AdminTournamentsPage() {
             </>
           )}
 
-          {history.length > 0 && (
-            <Panel>
-              <PanelHeader title="Previous tournaments" accent="slate" />
-              <ul className="divide-y divide-white/[0.05]">
-                {history.map((row) => (
-                  <li key={row.id} className="flex items-center gap-3 px-3.5 py-2.5 text-[13px]">
-                    <Trophy className="h-3.5 w-3.5 shrink-0 text-white/15" />
-                    <span className="truncate text-white/70">{row.title}</span>
-                    <span className="ml-auto shrink-0 text-white/30">{row.winner_username ?? "No champion"}</span>
-                    <MonoLabel className="w-24 shrink-0 text-right text-white/20">
-                      {new Date(row.finished_at ?? row.created_at).toLocaleDateString()}
-                    </MonoLabel>
-                  </li>
-                ))}
-              </ul>
-            </Panel>
-          )}
+          <HistoryPanel history={history} />
         </>
       )}
 
@@ -978,5 +1002,85 @@ function ChampionDialog({
         </div>
       </div>
     </div>
+  )
+}
+
+/** What the page shows when no tournament exists: the offer to create one. */
+function NoTournament({
+  size,
+  onSize,
+  busy,
+  onCreate,
+}: {
+  size: BracketSize
+  onSize: (size: BracketSize) => void
+  busy: boolean
+  onCreate: () => void
+}) {
+  return (
+    <Panel accent="blue" className="flex flex-col items-center gap-4 px-6 py-12 text-center">
+      <Swords className="h-9 w-9 text-white/15" />
+      <div>
+        <p className="text-[15px] font-medium text-white">No tournament created</p>
+        <p className="mt-1 text-[13px] text-white/40">Want to create one? Pick a size, then add the players.</p>
+      </div>
+      <div className="grid w-full max-w-md grid-cols-4 gap-2">
+        {BRACKET_SIZES.map((option) => {
+          const selected = size === option
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => onSize(option)}
+              className="rounded-md border py-2.5 text-center transition"
+              style={
+                selected
+                  ? { borderColor: ACCENTS.blue + "77", backgroundColor: ACCENTS.blue + "1f" }
+                  : { borderColor: "rgba(255,255,255,0.08)" }
+              }
+            >
+              <span
+                className="block text-[17px] font-semibold leading-none tabular-nums"
+                style={{ color: selected ? ACCENTS.blue : "#E7E7EA" }}
+              >
+                {option}
+              </span>
+              <MonoLabel className="mt-1.5 block text-white/30">Players</MonoLabel>
+            </button>
+          )
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={onCreate}
+        disabled={busy}
+        className="inline-flex h-10 items-center justify-center gap-2 rounded-md px-5 font-mono text-[11px] uppercase tracking-[0.12em] text-black transition hover:brightness-110 disabled:opacity-50"
+        style={{ backgroundColor: ACCENTS.green }}
+      >
+        <Plus className="h-4 w-4" />
+        {busy ? "Creating…" : "Create tournament"}
+      </button>
+    </Panel>
+  )
+}
+
+function HistoryPanel({ history }: { history: Tournament[] }) {
+  if (history.length === 0) return null
+  return (
+    <Panel>
+      <PanelHeader title="Previous tournaments" accent="slate" />
+      <ul className="divide-y divide-white/[0.05]">
+        {history.map((row) => (
+          <li key={row.id} className="flex items-center gap-3 px-3.5 py-2.5 text-[13px]">
+            <Trophy className="h-3.5 w-3.5 shrink-0 text-white/15" />
+            <span className="truncate text-white/70">{row.title}</span>
+            <span className="ml-auto shrink-0 text-white/30">{row.winner_username ?? "No champion"}</span>
+            <MonoLabel className="w-24 shrink-0 text-right text-white/20">
+              {new Date(row.finished_at ?? row.created_at).toLocaleDateString()}
+            </MonoLabel>
+          </li>
+        ))}
+      </ul>
+    </Panel>
   )
 }

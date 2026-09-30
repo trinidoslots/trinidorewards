@@ -101,16 +101,15 @@ const TABS = [
 type Tab = (typeof TABS)[number]["id"]
 
 /**
- * The tab panels slide the way the tabs run: moving right (Overview to Wins)
- * the old panel leaves to the left and the new one comes in from the right,
- * and the reverse going back. `custom` carries the direction to the exit too,
- * which has already been rendered with the old one otherwise.
+ * The tab panels slide the same way whichever tab is picked: the old panel
+ * leaves to the left and the new one comes in from the right. Mirroring it for
+ * tabs to the left (new panel from the left) read as backwards.
  */
 const SLIDE_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1]
 const slide = {
-  enter: (direction: number) => ({ x: direction * 48, opacity: 0 }),
+  enter: { x: 48, opacity: 0 },
   center: { x: 0, opacity: 1 },
-  exit: (direction: number) => ({ x: direction * -48, opacity: 0 }),
+  exit: { x: -48, opacity: 0 },
 }
 
 const points = (value: number) => Math.round(Number(value) || 0).toLocaleString()
@@ -133,13 +132,8 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>("overview")
-  /** 1 when the new tab is to the right of the old one, -1 when to the left. */
-  const [direction, setDirection] = useState(1)
   const selectTab = (next: Tab) => {
-    if (next === tab) return
-    const index = (id: Tab) => TABS.findIndex((entry) => entry.id === id)
-    setDirection(index(next) > index(tab) ? 1 : -1)
-    setTab(next)
+    if (next !== tab) setTab(next)
   }
   const [adjusting, setAdjusting] = useState(false)
   // Held locally so the balance updates the moment it is changed, rather than
@@ -253,10 +247,9 @@ export default function AdminUserDetailPage() {
           {/* AutoHeight eases the height between panels of different
               lengths and clips the slide at the column's edges. */}
           <AutoHeight duration={0.3} ease={SLIDE_EASE}>
-          <AnimatePresence mode="wait" initial={false} custom={direction}>
+          <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={tab}
-            custom={direction}
             variants={slide}
             initial="enter"
             animate="center"

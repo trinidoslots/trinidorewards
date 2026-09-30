@@ -63,7 +63,12 @@ export function useTournamentLive({
     const query = supabase.from("tournaments").select(TOURNAMENT_COLUMNS)
     const { data: row, error } = id
       ? await query.eq("id", id).maybeSingle()
-      : await query.eq("tournament_type", "battle").order("created_at", { ascending: false }).limit(1).maybeSingle()
+      : await query
+          .eq("tournament_type", "battle")
+          .neq("status", "cancelled")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
 
     if (error) {
       console.error("[v0] Could not load the tournament:", error)
