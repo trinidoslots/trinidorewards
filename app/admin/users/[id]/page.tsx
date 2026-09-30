@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { AnimatePresence, motion } from "framer-motion"
-import { AutoHeight } from "@/components/auto-height"
+import { motion } from "framer-motion"
+import { TabSlide } from "@/components/tab-slide"
 import {
   ArrowLeft,
   Coins,
@@ -100,17 +100,8 @@ const TABS = [
 ] as const
 type Tab = (typeof TABS)[number]["id"]
 
-/**
- * The tab panels slide the same way whichever tab is picked: the old panel
- * leaves to the left and the new one comes in from the right. Mirroring it for
- * tabs to the left (new panel from the left) read as backwards.
- */
+/** The underline's glide, on the same curve as the panels (components/tab-slide.tsx). */
 const SLIDE_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1]
-const slide = {
-  enter: { x: 48, opacity: 0 },
-  center: { x: 0, opacity: 1 },
-  exit: { x: -48, opacity: 0 },
-}
 
 const points = (value: number) => Math.round(Number(value) || 0).toLocaleString()
 
@@ -244,19 +235,9 @@ export default function AdminUserDetailPage() {
             })}
           </nav>
 
-          {/* AutoHeight eases the height between panels of different
-              lengths and clips the slide at the column's edges. */}
-          <AutoHeight duration={0.3} ease={SLIDE_EASE}>
-          <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={tab}
-            variants={slide}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.22, ease: SLIDE_EASE }}
-            className="space-y-4"
-          >
+          {/* Slides the way the tab bar runs: to a tab on the right, the
+              panel comes in from the right; to one on the left, from the left. */}
+          <TabSlide tab={tab} index={TABS.findIndex((entry) => entry.id === tab)} className="space-y-4">
           {tab === "overview" && (
             <>
               <Panel>
@@ -311,9 +292,7 @@ export default function AdminUserDetailPage() {
           {tab === "wins" && <WinsPanel wins={wins} />}
           {tab === "redemptions" && <RedemptionsPanel redemptions={redemptions} spent={totals.spentOnStore} />}
           {tab === "raffles" && <RafflesPanel entries={raffleEntries} spent={totals.spentOnRaffles} />}
-          </motion.div>
-          </AnimatePresence>
-          </AutoHeight>
+          </TabSlide>
         </div>
       </div>
 

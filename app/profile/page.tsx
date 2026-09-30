@@ -2,11 +2,13 @@
 
 import Link from "next/link"
 import { Suspense, useEffect, useState } from "react"
+import { motion } from "framer-motion"
 import { usePathname, useSearchParams } from "next/navigation"
 import { Activity, Gift, Package, Settings, Swords, Target, Ticket, Trophy } from "lucide-react"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag, type Accent } from "@/components/ui/panel"
 import { ConnectedAccountsPanel, MyWinsPanel, PaymentMethodsPanel } from "@/components/profile-panels"
 import { Swap } from "@/components/swap"
+import { TabSlide } from "@/components/tab-slide"
 import type { ActivityItem } from "@/app/api/profile/overview/route"
 
 /**
@@ -121,24 +123,36 @@ function ProfileView() {
                 type="button"
                 onClick={() => setTab(entry.id)}
                 aria-current={tab === entry.id ? "page" : undefined}
-                className="rounded-full px-4 py-1.5 text-[13px] font-medium transition"
-                style={tab === entry.id ? { backgroundColor: "rgba(255,255,255,0.09)", color: "#fff" } : { color: "rgba(255,255,255,0.45)" }}
+                className="relative rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors duration-300"
+                style={{ color: tab === entry.id ? "#fff" : "rgba(255,255,255,0.45)" }}
               >
-                {entry.label}
+                {/* One highlight that glides to the picked tab. */}
+                {tab === entry.id && (
+                  <motion.span
+                    layoutId="profile-tab"
+                    className="absolute inset-0 rounded-full bg-white/[0.09]"
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                )}
+                <span className="relative">{entry.label}</span>
               </button>
             ))}
           </nav>
 
-          {tab === "overview" && <OverviewTab data={data} />}
-          {tab === "stats" && <StatsTab data={data} />}
-          {tab === "wins" && <MyWinsPanel />}
-          {tab === "redemptions" && <RedemptionsTab redemptions={redemptions} spent={data.spent.store} />}
-          {tab === "settings" && (
-            <div className="grid items-start gap-3 lg:grid-cols-2">
-              <ConnectedAccountsPanel />
-              <PaymentMethodsPanel />
-            </div>
-          )}
+          {/* The same slide as the admin's user page: to a tab on the right,
+              the panel comes in from the right; to one on the left, from the left. */}
+          <TabSlide tab={tab} index={TABS.findIndex((entry) => entry.id === tab)}>
+            {tab === "overview" && <OverviewTab data={data} />}
+            {tab === "stats" && <StatsTab data={data} />}
+            {tab === "wins" && <MyWinsPanel />}
+            {tab === "redemptions" && <RedemptionsTab redemptions={redemptions} spent={data.spent.store} />}
+            {tab === "settings" && (
+              <div className="grid items-start gap-3 lg:grid-cols-2">
+                <ConnectedAccountsPanel />
+                <PaymentMethodsPanel />
+              </div>
+            )}
+          </TabSlide>
         </div>
       )}
     </Swap>
