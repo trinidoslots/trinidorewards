@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { AnimatePresence, motion } from "framer-motion"
 import {
   Calendar,
   CalendarDays,
@@ -151,14 +152,22 @@ export default function AdminSidebar({
   const nav = navFor(role)
   const viewOnly = (href: string) => accessFor(role, href) === "view"
   const [collapsed, setCollapsed] = useState(false)
-  const [open, setOpen] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(
-      nav.filter((item): item is Extract<Item, { kind: "group" }> => item.kind === "group").map((group) => [
-        group.id,
-        new RegExp(`^(${group.match})`).test(pathname),
-      ]),
-    ),
-  )
+  // One group open at a time, like an accordion: opening a group closes the
+  // one that was open. It starts on the group of the current page.
+  const groupFor = (path: string) =>
+    nav.find(
+      (item): item is Extract<Item, { kind: "group" }> =>
+        item.kind === "group" && new RegExp(`^(${item.match})`).test(path),
+    )?.id ?? null
+  const [openGroup, setOpenGroup] = useState<string | null>(() => groupFor(pathname))
+
+  // Arriving on a page in another group (a link inside a page, the back
+  // button) opens that group, so the current page is always visible in the nav.
+  useEffect(() => {
+    const group = groupFor(pathname)
+    if (group) setOpenGroup(group)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- nav only changes with role
+  }, [pathname])
 
   const toggleCollapse = () => {
     const next = !collapsed
@@ -217,12 +226,13 @@ export default function AdminSidebar({
           }
 
           const groupActive = new RegExp(`^(${item.match})`).test(pathname)
-          const expanded = collapsed ? false : (open[item.id] ?? false)
+          const expanded = !collapsed && openGroup === item.id
 
           return (
             <div key={item.id}>
               <button
-                onClick={() => setOpen((current) => ({ ...current, [item.id]: !current[item.id] }))}
+                onClick={() => setOpenGroup((current) => (current === item.id ? null : item.id))}
+                aria-expanded={expanded}
                 title={collapsed ? item.label : undefined}
                 className={cn(
                   "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] transition",
@@ -241,13 +251,24 @@ export default function AdminSidebar({
                   <>
                     <span className="truncate">{item.label}</span>
                     <ChevronDown
-                      className={cn("ml-auto h-3 w-3 transition-transform", expanded && "rotate-180")}
+                      className={cn("ml-auto h-3 w-3 transition-transform duration-300", expanded && "rotate-180")}
                     />
                   </>
                 )}
               </button>
 
+              {/* Height and opacity ease together, so the groups below slide
+                  instead of jumping when one closes and another opens. */}
+              <AnimatePresence initial={false}>
               {expanded && (
+                <motion.div
+                  key="children"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ overflow: "hidden" }}
+                >
                 <div className="ml-[18px] mt-0.5 space-y-0.5 border-l border-white/[0.08] pl-2.5">
                   {item.children.map((child) => {
                     const active = pathname === child.href
@@ -266,7 +287,9 @@ export default function AdminSidebar({
                     )
                   })}
                 </div>
+                </motion.div>
               )}
+              </AnimatePresence>
             </div>
           )
         })}

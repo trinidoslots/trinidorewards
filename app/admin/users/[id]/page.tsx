@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
+import { AnimatePresence, motion } from "framer-motion"
+import { AutoHeight } from "@/components/auto-height"
 import {
   ArrowLeft,
   Coins,
@@ -98,6 +100,19 @@ const TABS = [
 ] as const
 type Tab = (typeof TABS)[number]["id"]
 
+/**
+ * The tab panels slide the way the tabs run: moving right (Overview to Wins)
+ * the old panel leaves to the left and the new one comes in from the right,
+ * and the reverse going back. `custom` carries the direction to the exit too,
+ * which has already been rendered with the old one otherwise.
+ */
+const SLIDE_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1]
+const slide = {
+  enter: (direction: number) => ({ x: direction * 48, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (direction: number) => ({ x: direction * -48, opacity: 0 }),
+}
+
 const points = (value: number) => Math.round(Number(value) || 0).toLocaleString()
 
 const when = (iso: string) =>
@@ -118,6 +133,14 @@ export default function AdminUserDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>("overview")
+  /** 1 when the new tab is to the right of the old one, -1 when to the left. */
+  const [direction, setDirection] = useState(1)
+  const selectTab = (next: Tab) => {
+    if (next === tab) return
+    const index = (id: Tab) => TABS.findIndex((entry) => entry.id === id)
+    setDirection(index(next) > index(tab) ? 1 : -1)
+    setTab(next)
+  }
   const [adjusting, setAdjusting] = useState(false)
   // Held locally so the balance updates the moment it is changed, rather than
   // waiting on a refetch of everything else on the page.
@@ -206,22 +229,41 @@ export default function AdminUserDetailPage() {
                 <button
                   key={id}
                   type="button"
-                  onClick={() => setTab(id)}
-                  className="-mb-px flex shrink-0 items-center gap-2 border-b-2 px-3.5 py-2.5 font-mono text-[11px] uppercase tracking-[0.1em] transition"
-                  style={
-                    tab === id
-                      ? { borderColor: ACCENTS.blue, color: ACCENTS.blue }
-                      : { borderColor: "transparent", color: "rgba(255,255,255,0.4)" }
-                  }
+                  onClick={() => selectTab(id)}
+                  className="relative flex shrink-0 items-center gap-2 px-3.5 py-2.5 font-mono text-[11px] uppercase tracking-[0.1em] transition-colors duration-300"
+                  style={{ color: tab === id ? ACCENTS.blue : "rgba(255,255,255,0.4)" }}
                 >
                   <Icon className="h-3.5 w-3.5" />
                   {label}
                   {count > 0 && <span className="text-white/25">{count}</span>}
+                  {/* One underline that glides to the tab that was picked. */}
+                  {tab === id && (
+                    <motion.span
+                      layoutId="user-tab-underline"
+                      className="absolute inset-x-0 bottom-0 h-0.5"
+                      style={{ backgroundColor: ACCENTS.blue }}
+                      transition={{ duration: 0.3, ease: SLIDE_EASE }}
+                    />
+                  )}
                 </button>
               )
             })}
           </nav>
 
+          {/* AutoHeight eases the height between panels of different
+              lengths and clips the slide at the column's edges. */}
+          <AutoHeight duration={0.3} ease={SLIDE_EASE}>
+          <AnimatePresence mode="wait" initial={false} custom={direction}>
+          <motion.div
+            key={tab}
+            custom={direction}
+            variants={slide}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.22, ease: SLIDE_EASE }}
+            className="space-y-4"
+          >
           {tab === "overview" && (
             <>
               <Panel>
@@ -276,6 +318,9 @@ export default function AdminUserDetailPage() {
           {tab === "wins" && <WinsPanel wins={wins} />}
           {tab === "redemptions" && <RedemptionsPanel redemptions={redemptions} spent={totals.spentOnStore} />}
           {tab === "raffles" && <RafflesPanel entries={raffleEntries} spent={totals.spentOnRaffles} />}
+          </motion.div>
+          </AnimatePresence>
+          </AutoHeight>
         </div>
       </div>
 

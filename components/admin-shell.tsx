@@ -49,17 +49,23 @@ export function AdminShell({
           the sidebar — a transform on a shared ancestor would take the fixed
           sidebar with it.
 
-          Opacity only, no movement. Several admin screens open their overlays
-          as plain `fixed inset-0` children rather than through a portal, and a
+          No transform. Several admin screens open their overlays as plain
+          `fixed inset-0` children rather than through a portal, and a
           transform on this wrapper would re-anchor those to it: a modal opened
           mid-transition would sit inside the content column instead of over
-          the page. Fading has no containing block of its own, so it cannot.
+          the page.
+
+          The rise is done with `top` on a relatively positioned box instead.
+          A position offset is not a containing block for fixed descendants
+          (transform, filter and will-change are), so the page moves while
+          every overlay inside it stays pinned to the viewport.
         */}
         <motion.div
           key={pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.2, ease: [0.2, 0.7, 0.2, 1] }}
+          initial={{ opacity: 0, top: 14 }}
+          animate={{ opacity: 1, top: 0 }}
+          transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+          style={{ position: "relative" }}
           className="container mx-auto max-w-7xl"
         >
           {viewOnly && <ViewOnlyBanner />}

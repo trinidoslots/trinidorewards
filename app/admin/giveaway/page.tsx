@@ -269,10 +269,20 @@ export default function GiveawayAdminPage() {
     [],
   )
 
-  /** The status to keep while a roll or its winner is on screen; otherwise `fallback`. */
+  /**
+   * The status to keep while a roll or its winner is on screen; otherwise `fallback`.
+   *
+   * With no round running, "closed" stays "idle". Opening this page connects
+   * to chat and syncs the status from isOpen, which is false when nothing is
+   * running, so every visit wrote "closed" over "idle" and the overlay flipped
+   * to "Entries stopped / Awaiting roll" before anyone had started anything.
+   * Only Start (open) and Stop entries (closed, written directly) change it.
+   */
   const liveStatus = useCallback((fallback: "open" | "closed") => {
     const current = widgetStatusRef.current
-    return current === "rolling" || current === "finished" ? current : fallback
+    if (current === "rolling" || current === "finished") return current
+    if (fallback === "closed" && current === "idle") return "idle"
+    return fallback
   }, [])
 
   useEffect(() => {
