@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { signOut } from "@/hooks/use-site-session"
+import { siteHref } from "@/lib/site-url"
 import { openRedeem } from "@/components/redeem-modal"
 import type { SiteNotification } from "@/app/api/notifications/route"
 
@@ -153,7 +154,8 @@ export function UserMenu({
           </>
         ) : (
           <DropdownMenuItem asChild className={MENU_ITEM_CLASS}>
-            <Link href="/">
+            {/* The main site by name: on admin.trinidorewards.com "/" is the dashboard. */}
+            <Link href={siteHref("/")}>
               <LayoutDashboard className="h-4 w-4" /> Back to site
             </Link>
           </DropdownMenuItem>
