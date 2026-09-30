@@ -31,6 +31,7 @@ import {
 import { cn } from "@/lib/utils"
 import { accessFor, type StaffRole } from "@/lib/admin-permissions"
 import { MonoLabel } from "@/components/ui/panel"
+import { siteHref } from "@/lib/site-url"
 
 export type Leaf = { href: string; label: string }
 export type Item =
@@ -309,7 +310,7 @@ export default function AdminSidebar({
 
       <div className="absolute inset-x-0 bottom-0 border-t border-white/[0.08] p-2">
         <Link
-          href="/"
+          href={siteHref("/")}
           title={collapsed ? "Back to site" : undefined}
           className={cn(
             "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] text-white/40 transition hover:bg-white/[0.04] hover:text-white/80",

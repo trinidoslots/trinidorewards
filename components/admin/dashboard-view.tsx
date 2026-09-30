@@ -24,6 +24,7 @@ import {
   type HuntSummary,
   type LeaderboardSummary,
 } from "@/lib/admin-dashboard"
+import { siteUrl } from "@/lib/site-url"
 
 /**
  * The four places this panel gets opened for, and two more that earn their
@@ -420,7 +421,7 @@ function ObsSourceRow({ path, label, size }: { path: string; label: string; size
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}${path}`)
+      await navigator.clipboard.writeText(siteUrl(path))
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {

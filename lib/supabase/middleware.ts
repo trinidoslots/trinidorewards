@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
-import { isAdminPath, resolvePath, safeNext } from "@/lib/admin-host"
+import { adminHostRedirect, isAdminPath, mainSiteHosts, resolvePath, safeNext } from "@/lib/admin-host"
 import { adminFromUser } from "@/lib/admin-auth"
 import { MODERATOR_HOME, accessFor } from "@/lib/admin-permissions"
 import { currentGate, gateRedirect } from "@/lib/site-gate"
@@ -10,6 +10,21 @@ export async function updateSession(request: NextRequest) {
   // decision below is made about *this*, not about the URL in the address bar,
   // so admin.trinidorewards.com/users is guarded exactly like /admin/users.
   const pathname = resolvePath(request.nextUrl.pathname, request.headers.get("host"), process.env.ADMIN_HOST)
+
+  // Once the admin host is the only way in, trinidorewards.com/admin/x goes to
+  // admin.trinidorewards.com/x (lib/admin-host.ts; opt-in).
+  const moved = adminHostRedirect(
+    request.nextUrl.pathname,
+    request.headers.get("host"),
+    process.env.ADMIN_HOST,
+    process.env.ADMIN_HOST_REDIRECT === "true",
+    mainSiteHosts(process.env.NEXT_PUBLIC_SITE_URL),
+  )
+  if (moved) {
+    const target = new URL(moved)
+    target.search = request.nextUrl.search
+    return NextResponse.redirect(target)
+  }
 
   // The session lookup is a network round-trip to Supabase's auth server, and
   // only the admin routes ask anything of it. Everything else leaves here

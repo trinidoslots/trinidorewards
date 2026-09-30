@@ -24,6 +24,7 @@ import {
 } from "@/lib/tournament"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { DEFAULT_BATTLE_IMAGE } from "@/lib/card-images"
+import { siteUrl } from "@/lib/site-url"
 
 /**
  * The tournament console.
@@ -884,7 +885,6 @@ function Field({ label, htmlFor, children }: { label: string; htmlFor: string; c
 /** The two browser-source URLs, copyable — OBS needs the absolute address. */
 function ObsLinks({ onClose }: { onClose: () => void }) {
   const [copied, setCopied] = useState<string | null>(null)
-  const origin = typeof window === "undefined" ? "" : window.location.origin
   const widgets = [
     { path: "/obs/tournament/overview", label: "Bracket", hint: "Every round, every result — wide source" },
     { path: "/obs/tournament/round", label: "Current match", hint: "Who is opening right now — small source" },
@@ -906,7 +906,7 @@ function ObsLinks({ onClose }: { onClose: () => void }) {
       />
       <ul className="divide-y divide-white/[0.05]">
         {widgets.map((widget) => {
-          const url = origin + widget.path
+          const url = siteUrl(widget.path)
           const isCopied = copied === widget.path
           return (
             <li key={widget.path} className="flex items-center gap-3 px-3.5 py-2.5">

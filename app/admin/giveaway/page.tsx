@@ -53,6 +53,7 @@ import { RecordWinDialog, WinnerName } from "@/components/admin/record-win-dialo
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { GiveawayRollDialog, type RollView } from "@/components/admin/giveaway-roll-dialog"
 import { ACCENTS } from "@/components/ui/panel"
+import { siteHref } from "@/lib/site-url"
 
 const PUSHER_URL = "wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false"
 const MOD_TYPES = new Set(["moderator", "broadcaster"])
@@ -940,7 +941,7 @@ export default function GiveawayAdminPage() {
                   ].map((widget) => (
                     <a
                       key={widget.href}
-                      href={widget.href}
+                      href={siteHref(widget.href)}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 transition hover:bg-white/[0.04]"

@@ -11,6 +11,7 @@ import {
   STARTING_SOON_DEFAULTS,
   type StartingSoonRow,
 } from "@/lib/starting-soon"
+import { siteUrl } from "@/lib/site-url"
 
 /**
  * The countdown on the "starting soon" screen.
@@ -129,7 +130,7 @@ export default function StartingSoonAdmin() {
   }
 
   const obsUrl =
-    typeof window === "undefined" ? "/obs/starting-soon" : `${window.location.origin}/obs/starting-soon`
+    siteUrl("/obs/starting-soon")
 
   const copyUrl = async () => {
     try {

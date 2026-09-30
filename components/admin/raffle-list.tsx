@@ -7,6 +7,7 @@ import { createBrowserClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
 import { calculateRaffleStatus, formatDrawDate } from "@/lib/raffle-utils"
 import { useAdminAccess } from "@/components/admin-access"
+import { siteHref } from "@/lib/site-url"
 
 /**
  * Shared loader and list for the admin raffle pages.
@@ -208,7 +209,7 @@ export function RaffleRows({
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                   <Link
-                    href={"/raffles/" + raffle.id}
+                    href={siteHref("/raffles/" + raffle.id)}
                     className="truncate text-[13px] font-medium text-white underline-offset-4 hover:underline"
                   >
                     {raffle.title}

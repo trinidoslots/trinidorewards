@@ -69,6 +69,42 @@ export function resolvePath(
 }
 
 /**
+ * Where an /admin request on the main site should go instead, or null.
+ *
+ * Opt-in (ADMIN_HOST_REDIRECT=true), so the admin host can be tried alongside
+ * /admin first. Only the main site's own hosts are redirected: a Vercel
+ * preview URL keeps its /admin, which is how a preview is tested.
+ *
+ * @param mainHosts  the main site's hosts, e.g. trinidorewards.com and www.
+ */
+export function adminHostRedirect(
+  pathname: string,
+  hostHeader: string | null,
+  adminHost: string | undefined,
+  enabled: boolean,
+  mainHosts: string[],
+): string | null {
+  const configured = adminHost?.toLowerCase().trim()
+  if (!enabled || !configured) return null
+  const host = hostOf(hostHeader)
+  if (!host || host === configured || !mainHosts.includes(host)) return null
+  if (!isAdminPath(pathname)) return null
+  const rest = pathname === "/admin" ? "/" : pathname.slice("/admin".length)
+  return `https://${configured}${rest}`
+}
+
+/** The main site's hosts, from NEXT_PUBLIC_SITE_URL: the host and its www twin. */
+export function mainSiteHosts(siteUrl: string | undefined): string[] {
+  try {
+    const host = new URL(siteUrl ?? "").hostname.toLowerCase()
+    const bare = host.replace(/^www\./, "")
+    return [bare, `www.${bare}`]
+  } catch {
+    return []
+  }
+}
+
+/**
  * Only same-site paths survive the sign-in round-trip. "//evil.example" is a
  * protocol-relative URL, not a path, and is what an open redirect looks like.
  */

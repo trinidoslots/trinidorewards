@@ -19,6 +19,7 @@ import {
   type Phase,
   type SubmissionStatus,
 } from "@/lib/challenges"
+import { siteHref } from "@/lib/site-url"
 
 /**
  * Slot challenges: set them up, end them, see how many claims wait.
@@ -241,7 +242,7 @@ export default function AdminChallengesPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <a
-            href="/challenges"
+            href={siteHref("/challenges")}
             target="_blank"
             rel="noreferrer"
             className="inline-flex h-9 items-center gap-2 rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"

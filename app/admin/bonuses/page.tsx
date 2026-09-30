@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
 import { FIELD_CLASS } from "@/components/ui/select-menu"
 import { BonusCard, type Bonus } from "@/components/bonus-card"
+import { siteHref } from "@/lib/site-url"
 
 /**
  * The offers on /bonuses.
@@ -253,7 +254,7 @@ export default function AdminBonusesPage() {
         </div>
         <div className="flex items-center gap-2">
           <a
-            href="/bonuses"
+            href={siteHref("/bonuses")}
             target="_blank"
             rel="noreferrer"
             className="inline-flex h-9 items-center gap-2 rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"

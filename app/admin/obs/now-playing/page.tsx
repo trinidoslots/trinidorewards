@@ -17,6 +17,7 @@ import {
 } from "@/lib/now-playing"
 import { ONLY_ON_STAKE_BADGE } from "@/lib/slots"
 import { formatProvider } from "@/lib/providers"
+import { siteUrl } from "@/lib/site-url"
 
 /**
  * What the /obs/now-playing bar is showing.
@@ -302,8 +303,7 @@ export default function NowPlayingAdmin() {
     }
   }
 
-  const obsUrl =
-    typeof window === "undefined" ? "/obs/now-playing" : `${window.location.origin}/obs/now-playing`
+  const obsUrl = siteUrl("/obs/now-playing")
 
   const copyUrl = async () => {
     try {
