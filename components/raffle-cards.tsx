@@ -114,7 +114,12 @@ export function PrizeImage({
     <div className={`relative aspect-[8/5] w-full overflow-hidden ${shape}`}>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element -- admin-uploaded, any host
-        <img src={src} alt="" className="h-full w-full object-contain" />
+        // scale 1.005: the artwork draws its own 2px border (at 1600px), which
+        // sat just inside the card's border as a second line — doubled where
+        // the two curves run side by side at the top corners. Half a percent
+        // larger puts the artwork's border just outside the frame on every
+        // side, at any size, and leaves most of the blue bar inside it.
+        <img src={src} alt="" className="h-full w-full scale-[1.005] object-contain" />
       ) : (
         <div className="flex h-full w-full items-center justify-center border border-white/[0.06] bg-white/[0.03]">
           <Gift className="h-10 w-10 text-white/15" />
