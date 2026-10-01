@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { Clock, Trophy } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
-import { ACCENTS, MonoLabel, Panel } from "@/components/ui/panel"
+import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { AutoHeight } from "@/components/auto-height"
 import { RaffleDrawReel, weightedNames } from "@/components/raffle-draw-spinner"
 
@@ -25,6 +25,9 @@ type Entry = { username: string; tickets_purchased: number }
 export type DrawStatus = { winner_username: string | null; winner_ticket_number: number | null }
 
 const POLL_MS = 4000
+
+/** The same gold the bonus list uses for a 500x: the colour of a big win. */
+const WIN = "#F5C542"
 
 /** How each stage arrives and leaves. Short enough not to feel like waiting. */
 const ENTER = {
@@ -135,51 +138,62 @@ export function RaffleLiveDraw({
       <AnimatePresence mode="wait" initial={false}>
         {stage === "rolling" && (
           <motion.div key="rolling" {...ENTER}>
-            <Panel accent="blue" className="p-3.5">
+            <div className="rounded-3xl border border-white/[0.10] bg-[#0E0E12] p-4 sm:p-5">
               <RaffleDrawReel
                 pool={names.current}
                 winner={winner!}
                 onDone={() => setTimeout(() => setRolling(false), 3500)}
               />
-            </Panel>
+            </div>
           </motion.div>
         )}
 
         {stage === "winner" && (
           <motion.div key="winner" {...ENTER}>
-            <Panel accent="amber" className="flex items-center gap-3 px-4 py-3">
+            <div
+              className="relative flex items-center gap-5 overflow-hidden rounded-3xl border p-5 sm:p-6"
+              style={{ borderColor: `${WIN}55`, background: `radial-gradient(600px 220px at 0% 0%, ${WIN}24, transparent 70%), #0E0E12` }}
+            >
               <motion.span
                 // A small flourish as the card takes over from the reel.
                 initial={{ scale: 0.6, rotate: -12 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: "spring", stiffness: 320, damping: 16 }}
-                className="shrink-0"
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
+                style={{ backgroundColor: `${WIN}1f`, border: `1px solid ${WIN}55` }}
               >
-                <Trophy className="h-5 w-5" style={{ color: ACCENTS.amber }} />
+                <Trophy className="h-7 w-7" style={{ color: WIN }} />
               </motion.span>
               <div className="min-w-0">
-                <MonoLabel className="block text-white/35">Winner</MonoLabel>
-                <p className="truncate text-[17px] font-semibold text-white">{winner}</p>
+                <MonoLabel className="block" style={{ color: WIN }}>Winner</MonoLabel>
+                <p className="mt-1.5 truncate text-[clamp(22px,3vw,30px)] font-black leading-none text-white">{winner}</p>
               </div>
               {ticketNumber != null && (
-                <MonoLabel className="ml-auto shrink-0 text-white/30">Ticket #{ticketNumber}</MonoLabel>
+                <span className="ml-auto shrink-0 rounded-full border border-white/10 bg-black/30 px-3 py-1.5 font-mono text-[11px] tabular-nums text-white/60">
+                  Ticket #{ticketNumber}
+                </span>
               )}
-            </Panel>
+            </div>
           </motion.div>
         )}
 
         {/* Closed, no winner yet: say so rather than looking stuck. */}
         {stage === "waiting" && (
           <motion.div key="waiting" {...ENTER}>
-            <Panel accent="blue" className="flex items-center gap-3 px-4 py-3">
-              <Clock className="h-4 w-4 shrink-0 animate-pulse" style={{ color: ACCENTS.blue }} />
+            <div className="flex items-center gap-4 rounded-3xl border border-white/[0.10] bg-[#0E0E12] p-5">
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+                style={{ backgroundColor: `${ACCENTS.blue}1a` }}
+              >
+                <Clock className="h-5 w-5 animate-pulse" style={{ color: ACCENTS.blue }} />
+              </span>
               <div>
-                <MonoLabel className="block text-white/35">Entries closed</MonoLabel>
-                <p className="text-[13px] text-white/60">
+                <MonoLabel className="block" style={{ color: ACCENTS.blue }}>Entries closed</MonoLabel>
+                <p className="mt-1 text-[15px] font-semibold text-white/80">
                   {entries.length > 0 ? "Drawing the winner…" : "Nobody entered this one."}
                 </p>
               </div>
-            </Panel>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

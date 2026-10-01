@@ -65,29 +65,30 @@ export default function RaffleEntryButton({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {canPickMore && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-black/30 p-1.5">
           <button
             type="button"
             aria-label="One fewer ticket"
             onClick={() => setTickets((current) => Math.max(1, current - 1))}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/[0.10] text-white/50 transition hover:border-white/25 hover:text-white"
+            disabled={tickets <= 1}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-white/70 transition hover:bg-white/[0.12] hover:text-white disabled:opacity-30"
           >
-            <Minus className="h-3.5 w-3.5" />
+            <Minus className="h-4 w-4" />
           </button>
           <div className="flex-1 text-center">
-            <p className="text-[17px] font-semibold tabular-nums text-white">{tickets}</p>
-            <MonoLabel className="text-white/25">{tickets === 1 ? "ticket" : "tickets"}</MonoLabel>
+            <p className="text-[22px] font-black leading-none tabular-nums text-white">{tickets}</p>
+            <MonoLabel className="text-white/40">{tickets === 1 ? "ticket" : "tickets"}</MonoLabel>
           </div>
           <button
             type="button"
             aria-label="One more ticket"
             onClick={() => setTickets((current) => Math.min(remaining, current + 1))}
             disabled={tickets >= remaining}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/[0.10] text-white/50 transition hover:border-white/25 hover:text-white disabled:opacity-30"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-white/70 transition hover:bg-white/[0.12] hover:text-white disabled:opacity-30"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-4 w-4" />
           </button>
         </div>
       )}
@@ -96,16 +97,16 @@ export default function RaffleEntryButton({
         type="button"
         onClick={enter}
         disabled={loading}
-        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md font-mono text-[11px] uppercase tracking-[0.12em] text-black transition disabled:cursor-not-allowed disabled:opacity-40"
-        style={{ backgroundColor: isFree ? ACCENTS.green : ACCENTS.blue }}
+        className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[15px] font-bold text-black transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
+        style={{ backgroundColor: ACCENTS.green, boxShadow: `0 10px 34px -14px ${ACCENTS.green}` }}
       >
-        <Ticket className="h-4 w-4" />
+        <Ticket className="h-[18px] w-[18px]" />
         {loading ? "Entering…" : isFree ? "Enter free" : `Enter · ${cost.toLocaleString()} pts`}
       </button>
 
       {message && (
         <p
-          className="text-center text-[12px]"
+          className="text-center text-[13px]"
           style={{ color: message.tone === "ok" ? ACCENTS.green : ACCENTS.red }}
         >
           {message.text}

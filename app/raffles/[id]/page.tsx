@@ -1,14 +1,7 @@
-import Link from "next/link"
-import { ArrowLeft, Gift, Lock, Users } from "lucide-react"
-import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile } from "@/components/ui/panel"
 import { notFound } from "next/navigation"
-import { cookies } from "next/headers"
 import { createServerClient } from "@/lib/supabase/server"
-import { RaffleCountdown } from "@/components/raffle-countdown"
-import { RaffleLiveDraw } from "@/components/raffle-live-draw"
-import RaffleEntryButton from "@/components/raffle-entry-button"
-import { calculateRaffleStatus, formatDrawDate } from "@/lib/raffle-utils"
-import { PageBody, PageHero } from "@/components/page-hero"
+import { calculateRaffleStatus } from "@/lib/raffle-utils"
+import { RaffleDetailView } from "@/components/raffle-detail"
 import { getSiteSession } from "@/lib/site-session"
 import { serviceClient } from "@/lib/supabase/service"
 
@@ -60,15 +53,13 @@ export async function generateMetadata({ params }: Params) {
   }
 }
 
-const points = (value: number) => Math.round(Number(value) || 0).toLocaleString()
-
 export default async function RaffleDetailPage({ params }: Params) {
   const { id } = await params
   const raffle = await getRaffle(id)
   if (!raffle) notFound()
 
-  const [entries, cookieStore] = await Promise.all([getEntries(id), cookies()])
-  const userId = (await getSiteSession())?.userId ?? null
+  const [entries, session] = await Promise.all([getEntries(id), getSiteSession()])
+  const userId = session?.userId ?? null
 
   // Only asked for on a Code-User-only raffle. users is private, so through the
   // service role, for the signed-in user's own row. "*": the column arrives with 076.
@@ -101,184 +92,45 @@ export default async function RaffleDetailPage({ params }: Params) {
     .slice(0, 12)
 
   return (
-    <div>
-      <PageHero
-        accent={drawn ? "slate" : status === "active" ? "green" : status === "upcoming" ? "blue" : "amber"}
-        title={raffle.title}
-        subtitle={raffle.description}
-        note={codeUserOnly ? `${drawn ? "Drawn" : status} · Code Users only` : drawn ? "Drawn" : status}
-        actions={
-          <Link
-            href="/raffles"
-            className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.10] px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white/40 transition hover:border-white/25 hover:text-white"
-          >
-            <ArrowLeft className="h-3 w-3" />
-            All raffles
-          </Link>
-        }
-      />
-      <PageBody className="space-y-4">
-
-      <RaffleLiveDraw
-        raffleId={raffle.id}
-        endsAt={raffle.end_date}
-        initialWinner={raffle.winner_username ?? null}
-        initialTicketNumber={raffle.winner_ticket_number ?? null}
-        entries={entries.map((entry) => ({
-          username: entry.username,
-          tickets_purchased: Number(entry.tickets_purchased) || 0,
-        }))}
-      />
-
-      <div className="grid gap-2.5 sm:grid-cols-4">
-        <StatTile
-          label="Prize"
-          value={raffle.prize_name}
-          accent="amber"
-          hint={raffle.prize_value ? `$${points(raffle.prize_value)} value` : undefined}
-        />
-        <StatTile
-          label="Tickets sold"
-          value={points(totalTickets)}
-          accent="blue"
-          hint={totalCap ? `of ${points(totalCap)}` : "No cap"}
-        />
-        <StatTile label="Entrants" value={entries.length.toLocaleString()} />
-        <StatTile
-          label="Your tickets"
-          value={points(myTickets)}
-          accent="green"
-          hint={odds > 0 ? `${odds.toFixed(1)}% of the pot` : undefined}
-        />
-      </div>
-
-      <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
-        <Panel accent="purple">
-          <PanelHeader
-            title="Entrants"
-            accent="purple"
-            right={<MonoLabel className="text-white/25">{entries.length}</MonoLabel>}
-          />
-          {leaderboard.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-12">
-              <Users className="h-7 w-7 text-white/10" />
-              <p className="text-[13px] text-white/30">Nobody has entered yet.</p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-white/[0.05]">
-              {leaderboard.map((entry, index) => {
-                const tickets = Number(entry.tickets_purchased) || 0
-                const share = totalTickets > 0 ? (tickets / totalTickets) * 100 : 0
-                return (
-                  <li key={entry.id} className="flex items-center gap-3 px-3.5 py-2.5">
-                    <span className="w-4 shrink-0 text-right font-mono text-[11px] tabular-nums text-white/20">
-                      {index + 1}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[13px] text-white">{entry.username}</span>
-                    <MonoLabel className="shrink-0 text-white/25">{share.toFixed(1)}%</MonoLabel>
-                    <span
-                      className="w-16 shrink-0 text-right text-[13px] tabular-nums"
-                      style={{ color: ACCENTS.purple }}
-                    >
-                      {tickets}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </Panel>
-
-        <div className="space-y-3">
-          <Panel accent={status === "active" && !drawn ? "green" : "slate"} className="p-4">
-            {/* Whole card, not a cropped band — see app/raffles/page.tsx. */}
-            {raffle.prize_image_url ? (
-              <img
-                src={raffle.prize_image_url}
-                alt=""
-                className="mb-3 aspect-[8/5] w-full rounded-md border border-white/[0.08] object-contain"
-              />
-            ) : (
-              <div className="mb-3 flex aspect-[8/5] w-full items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.02]">
-                <Gift className="h-10 w-10 text-white/10" />
-              </div>
-            )}
-
-            <div className="flex items-baseline justify-between">
-              <MonoLabel className="text-white/30">Entry</MonoLabel>
-              <span className="text-[15px] font-semibold" style={{ color: isFree ? ACCENTS.green : ACCENTS.blue }}>
-                {isFree ? "Free" : `${points(ticketPrice)} points`}
-              </span>
-            </div>
-
-            {perUserCap !== null && (
-              <div className="mt-1.5 flex items-baseline justify-between">
-                <MonoLabel className="text-white/30">Your limit</MonoLabel>
-                <span className="text-[13px] tabular-nums text-white/60">
-                  {myTickets}/{perUserCap}
-                </span>
-              </div>
-            )}
-
-            {status === "active" && !drawn && (
-              <div className="mt-3 border-t border-white/[0.06] pt-3">
-                <RaffleCountdown endDate={raffle.end_date} />
-              </div>
-            )}
-
-            <div className="mt-3">
-              {drawn ? (
-                <p className="text-center text-[13px] text-white/30">This raffle has been drawn.</p>
-              ) : status !== "active" ? (
-                <p className="text-center text-[13px] text-white/30">
-                  {status === "upcoming" ? "Not open yet." : "Entries are closed."}
-                </p>
-              ) : soldOut ? (
-                <p className="text-center text-[13px]" style={{ color: ACCENTS.amber }}>
-                  Sold out.
-                </p>
-              ) : atMyCap ? (
-                <p className="text-center text-[13px]" style={{ color: ACCENTS.amber }}>
-                  You hold the maximum of {perUserCap} tickets.
-                </p>
-              ) : codeUserOnly && !isCodeUser ? (
-                <p
-                  className="flex items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-center text-[13px]"
-                  style={{ borderColor: `${ACCENTS.purple}44`, color: ACCENTS.purple }}
-                >
-                  <Lock className="h-3.5 w-3.5" /> Code Users only
-                </p>
-              ) : !userId ? (
-                <p className="text-center text-[13px] text-white/30">Sign in to enter.</p>
-              ) : (
-                <RaffleEntryButton
-                  raffleId={raffle.id}
-                  isFree={isFree}
-                  ticketPrice={ticketPrice}
-                  alreadyHolding={myTickets}
-                  perUserCap={perUserCap}
-                />
-              )}
-            </div>
-          </Panel>
-
-          <Panel className="space-y-2 p-3.5">
-            <Row label="Opens" value={formatDrawDate(raffle.start_date)} />
-            <Row label="Closes" value={formatDrawDate(raffle.end_date)} />
-            {raffle.draw_date && <Row label="Draw" value={formatDrawDate(raffle.draw_date)} />}
-          </Panel>
-        </div>
-      </div>
-      </PageBody>
-    </div>
-  )
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <MonoLabel className="text-white/30">{label}</MonoLabel>
-      <span className="text-[12px] text-white/60">{value}</span>
-    </div>
+    <RaffleDetailView
+      raffle={{
+        id: raffle.id,
+        title: raffle.title,
+        description: raffle.description ?? null,
+        prize_name: raffle.prize_name,
+        prize_value: raffle.prize_value == null ? null : Number(raffle.prize_value),
+        prize_image_url: raffle.prize_image_url ?? null,
+        start_date: raffle.start_date,
+        end_date: raffle.end_date,
+        draw_date: raffle.draw_date ?? null,
+        winner_username: raffle.winner_username ?? null,
+        winner_ticket_number: raffle.winner_ticket_number ?? null,
+      }}
+      status={status}
+      drawn={drawn}
+      isFree={isFree}
+      ticketPrice={ticketPrice}
+      allEntries={entries.map((entry) => ({
+        username: entry.username,
+        tickets_purchased: Number(entry.tickets_purchased) || 0,
+      }))}
+      leaderboard={leaderboard.map((entry) => ({
+        id: String(entry.id),
+        username: entry.username,
+        tickets: Number(entry.tickets_purchased) || 0,
+        mine: !!userId && entry.user_id === userId,
+      }))}
+      entrantCount={entries.length}
+      totalTickets={totalTickets}
+      totalCap={totalCap}
+      perUserCap={perUserCap}
+      myTickets={myTickets}
+      odds={odds}
+      soldOut={soldOut}
+      atMyCap={atMyCap}
+      codeUserOnly={codeUserOnly}
+      isCodeUser={isCodeUser}
+      signedIn={!!userId}
+    />
   )
 }

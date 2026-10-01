@@ -97,11 +97,11 @@ function Chips({ entry }: { entry: RaffleEntry }) {
  * where the frame is the thumbnail.
  */
 /** The artwork's own corners: ~51px on a 1600x1000 card, as percentages. */
-const ART_RADIUS = "rounded-[3.2%/5.1%]"
+export const ART_RADIUS = "rounded-[3.2%/5.1%]"
 /** Top corners on the card's curve, bottom corners the artwork's own. */
-const TOP_OF_CARD = "rounded-t-[23px] rounded-b-[3.2%_5.1%]"
+export const TOP_OF_CARD = "rounded-t-[23px] rounded-b-[3.2%_5.1%]"
 
-function PrizeImage({
+export function PrizeImage({
   src,
   className,
   inset = true,
