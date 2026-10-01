@@ -190,7 +190,7 @@ export function FinishedTournamentRow({ entry }: { entry: TournamentEntry }) {
   return (
     <Link
       href={`/tournaments/${tournament.id}`}
-      className="group grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-white/[0.05] px-4 py-3 transition-colors last:border-b-0 hover:bg-white/[0.025] sm:grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,14rem)_auto] sm:px-6"
+      className="group grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-white/[0.05] px-4 py-3 transition-colors last:border-b-0 hover:bg-white/[0.025] sm:grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,11rem)] sm:px-6 lg:grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,14rem)_auto]"
     >
       <ArtImage src={tournament.image_url} inset={false} icon={Swords} />
       <div className="min-w-0">
@@ -210,7 +210,7 @@ export function FinishedTournamentRow({ entry }: { entry: TournamentEntry }) {
           <MonoLabel className="text-white/35">No champion recorded</MonoLabel>
         )}
       </div>
-      <span className="hidden text-right sm:block">
+      <span className="hidden text-right lg:block">
         <MonoLabel className="text-white/35">{new Date(tournament.start_date).toLocaleDateString()}</MonoLabel>
       </span>
     </Link>

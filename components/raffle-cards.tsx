@@ -230,7 +230,7 @@ export function FinishedRow({ entry }: { entry: RaffleEntry }) {
   return (
     <Link
       href={`/raffles/${raffle.id}`}
-      className="group grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-white/[0.05] px-4 py-3 transition-colors last:border-b-0 hover:bg-white/[0.025] sm:grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,14rem)_auto] sm:px-6"
+      className="group grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-white/[0.05] px-4 py-3 transition-colors last:border-b-0 hover:bg-white/[0.025] sm:grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,11rem)] sm:px-6 lg:grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,14rem)_auto]"
     >
       <PrizeImage src={raffle.prize_image_url} inset={false} />
       <div className="min-w-0">
@@ -249,7 +249,7 @@ export function FinishedRow({ entry }: { entry: RaffleEntry }) {
           <MonoLabel className="text-white/35">Not drawn yet</MonoLabel>
         )}
       </div>
-      <span className="col-start-3 row-start-1 hidden text-right sm:col-start-auto sm:row-start-auto sm:block">
+      <span className="hidden text-right lg:block">
         <MonoLabel className="text-white/35">{formatDrawDate(raffle.end_date)}</MonoLabel>
       </span>
     </Link>
