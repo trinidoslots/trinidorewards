@@ -82,7 +82,7 @@ function Chips({ entry }: { entry: RaffleEntry }) {
  * corners rounded at ~51px with transparent pixels outside them, a 2px border
  * and a blue bar down the left. Set on a dark backing, those transparent
  * corners showed as dark notches along the bottom of every picture. So there
- * is no backing: the picture sits 1px in from the card's edge, in a frame of
+ * is no backing: the picture runs to the card's border, in a frame of
  * exactly its own 8:5 shape, clipped to exactly its own corner radius —
  * 51/1600 of the width by 51/1000 of the height, as a percentage radius so it
  * holds at any size — and the card shows through where the art is clear.
@@ -104,7 +104,7 @@ function PrizeImage({ src, className, inset = true }: { src: string | null; clas
       )}
     </div>
   )
-  return inset ? <div className={`p-px ${className ?? ""}`}>{frame}</div> : frame
+  return inset ? <div className={className}>{frame}</div> : frame
 }
 
 /** Tickets sold against the cap, when there is one. */
