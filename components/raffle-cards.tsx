@@ -76,20 +76,34 @@ function Chips({ entry }: { entry: RaffleEntry }) {
 }
 
 /**
- * The prize picture, whole. object-contain in an 8:5 frame, not a cropped
- * band: the bundled artwork is a designed card with the prize and its wording
- * laid out inside, and cropping cut the sides off what it was saying. The
- * placeholder keeps the frame, so a card without a picture is the same size.
+ * The prize picture, whole, set as a card of its own inside ours.
+ *
+ * The bundled artwork (public/raffles) is itself a finished card: 1600x1000,
+ * corners rounded at ~51px with transparent pixels outside them, a 2px border
+ * and a blue bar down the left. Set edge to edge on a dark backing, those
+ * transparent corners showed as dark notches along the bottom of every
+ * picture. So it sits inset, in a frame of exactly its own 8:5 shape, clipped
+ * to exactly its own corner radius — 51/1600 of the width by 51/1000 of the
+ * height, as a percentage radius so it holds at any size.
+ *
+ * object-contain, not cover: an uploaded picture of another shape is shown
+ * whole rather than cropped, as before. `inset={false}` is for thumbnails,
+ * where the frame is the thumbnail.
  */
-function PrizeImage({ src, className }: { src: string | null; className?: string }) {
-  return src ? (
-    // eslint-disable-next-line @next/next/no-img-element -- admin-uploaded, any host
-    <img src={src} alt="" className={`aspect-[8/5] w-full bg-black/40 object-contain ${className ?? ""}`} />
-  ) : (
-    <div className={`flex aspect-[8/5] w-full items-center justify-center bg-white/[0.02] ${className ?? ""}`}>
-      <Gift className="h-10 w-10 text-white/10" />
+function PrizeImage({ src, className, inset = true }: { src: string | null; className?: string; inset?: boolean }) {
+  const frame = (
+    <div className="relative aspect-[8/5] w-full overflow-hidden rounded-[3.2%/5.1%]">
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element -- admin-uploaded, any host
+        <img src={src} alt="" className="h-full w-full object-contain" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center border border-white/[0.06] bg-white/[0.03]">
+          <Gift className="h-10 w-10 text-white/15" />
+        </div>
+      )}
     </div>
   )
+  return inset ? <div className={`p-3 sm:p-4 ${className ?? ""}`}>{frame}</div> : frame
 }
 
 /** Tickets sold against the cap, when there is one. */
@@ -139,8 +153,8 @@ export function FeatureRaffle({ entry }: { entry: RaffleEntry }) {
         className="pointer-events-none absolute -right-24 -top-28 h-80 w-80 rounded-full opacity-25 blur-3xl transition-opacity duration-500 group-hover:opacity-40"
         style={{ backgroundColor: accent }}
       />
-      <div className="relative border-b border-white/[0.07] lg:border-b-0 lg:border-r">
-        <PrizeImage src={raffle.prize_image_url} className="h-full lg:aspect-auto lg:min-h-[340px]" />
+      <div className="relative flex items-center border-b border-white/[0.07] lg:border-b-0 lg:border-r">
+        <PrizeImage src={raffle.prize_image_url} className="w-full sm:p-6" />
       </div>
 
       <div className="relative flex flex-col gap-6 p-6 sm:p-8">
@@ -236,9 +250,7 @@ export function FinishedRow({ entry }: { entry: RaffleEntry }) {
       href={`/raffles/${raffle.id}`}
       className="group grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-4 border-b border-white/[0.05] px-4 py-3 transition-colors last:border-b-0 hover:bg-white/[0.025] sm:grid-cols-[5.5rem_minmax(0,1fr)_minmax(0,14rem)_auto] sm:px-6"
     >
-      <div className="overflow-hidden rounded-xl border border-white/[0.08]">
-        <PrizeImage src={raffle.prize_image_url} />
-      </div>
+      <PrizeImage src={raffle.prize_image_url} inset={false} />
       <div className="min-w-0">
         <p className="truncate text-[14.5px] font-semibold text-white">{raffle.prize_name}</p>
         <p className="mt-0.5 truncate text-[12.5px] text-white/40">
