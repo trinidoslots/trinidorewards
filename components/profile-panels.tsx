@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { CreditCard, Link2, Plus, Trash2, Trophy } from "lucide-react"
-import { ACCENTS, MonoLabel, Panel, PanelHeader, Tag } from "@/components/ui/panel"
+import { ACCENTS, MonoLabel, type Accent } from "@/components/ui/panel"
 import { sourceMeta, winValue } from "@/lib/wins"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { CRYPTOS, chainsFor, checkAddress, defaultChainFor, findChain, findCrypto, needsChain } from "@/lib/payout"
@@ -29,13 +29,54 @@ import { CRYPTOS, chainsFor, checkAddress, defaultChainFor, findChain, findCrypt
  */
 
 const fieldClass =
-  "h-9 w-full rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
+  "h-10 w-full rounded-md border border-white/[0.10] bg-black/40 px-3.5 text-[14px] text-white outline-none transition placeholder:text-white/30 hover:border-white/20 focus:border-white/30"
+const selectClass = "h-10! px-3.5! text-[14px]!"
+
+/**
+ * The profile's card: the page's panel surface with a short accent rule and
+ * a title, the same shape as the section headings elsewhere on the site.
+ */
+export function ProfileCard({
+  title,
+  accent = "blue",
+  right,
+  children,
+}: {
+  title: string
+  accent?: Accent
+  right?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
+      <header className="flex items-center gap-2.5 border-b border-white/[0.07] px-5 py-4">
+        <span className="h-[3px] w-5 rounded-full" style={{ backgroundColor: ACCENTS[accent] }} />
+        <h2 className="text-[15px] font-bold text-white">{title}</h2>
+        {right !== undefined && <div className="ml-auto">{right}</div>}
+      </header>
+      {children}
+    </section>
+  )
+}
+
+/** A status as a small pill in its colour. */
+export function StatusPill({ accent, children }: { accent: Accent; children: React.ReactNode }) {
+  const color = ACCENTS[accent]
+  return (
+    <span
+      className="inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-[11.5px] font-semibold"
+      style={{ borderColor: `${color}55`, backgroundColor: `${color}1a`, color }}
+    >
+      {children}
+    </span>
+  )
+}
 
 function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
   return (
     <div>
       <label htmlFor={htmlFor}>
-        <MonoLabel className="mb-1.5 block text-white/30">{label}</MonoLabel>
+        <MonoLabel className="mb-2 block text-white/45">{label}</MonoLabel>
       </label>
       {children}
     </div>
@@ -47,20 +88,21 @@ function AddButton({ busy, children, accent }: { busy: boolean; children: React.
     <button
       type="submit"
       disabled={busy}
-      className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md font-mono text-[11px] uppercase tracking-[0.12em] text-black transition disabled:cursor-not-allowed disabled:opacity-30"
+      className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md text-[13.5px] font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30"
       style={{ backgroundColor: accent }}
     >
-      <Plus className="h-3.5 w-3.5" />
+      <Plus className="h-4 w-4" />
       {busy ? "Saving…" : children}
     </button>
   )
 }
 
-function Empty({ icon, text }: { icon: React.ReactNode; text: string }) {
+export function Empty({ icon, text, note }: { icon: React.ReactNode; text: string; note?: string }) {
   return (
-    <div className="flex flex-col items-center gap-2 py-8">
+    <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
       {icon}
-      <p className="text-[13px] text-white/30">{text}</p>
+      <p className="text-[14px] font-semibold text-white/70">{text}</p>
+      {note && <p className="text-[13px] text-white/40">{note}</p>}
     </div>
   )
 }
@@ -116,12 +158,8 @@ export function ConnectedAccountsPanel() {
   }
 
   return (
-    <Panel accent="blue">
-      <PanelHeader
-        title="Casino accounts"
-        right={<MonoLabel className="text-white/25">{accounts.length}</MonoLabel>}
-      />
-      <form onSubmit={add} className="space-y-3 border-b border-white/[0.05] p-3.5">
+    <ProfileCard title="Casino accounts" accent="blue" right={<MonoLabel className="text-white/35">{accounts.length}</MonoLabel>}>
+      <form onSubmit={add} className="space-y-4 border-b border-white/[0.06] p-5">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Site" htmlFor="site">
             <input
@@ -153,14 +191,14 @@ export function ConnectedAccountsPanel() {
       </form>
 
       {accounts.length === 0 ? (
-        <Empty icon={<Link2 className="h-6 w-6 text-white/10" />} text="No accounts linked yet." />
+        <Empty icon={<Link2 className="h-7 w-7 text-white/15" />} text="No accounts linked yet" note="Add the usernames you play under, so wins can be matched to you." />
       ) : (
         <ul className="divide-y divide-white/[0.05]">
           {accounts.map((account) => (
-            <li key={account.id} className="flex items-center gap-3 px-3.5 py-2.5">
+            <li key={account.id} className="flex items-center gap-3 px-5 py-3">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium text-white">{account.username}</p>
-                <MonoLabel className="text-white/30">{account.site_name}</MonoLabel>
+                <p className="truncate text-[14px] font-semibold text-white">{account.username}</p>
+                <MonoLabel className="text-white/40">{account.site_name}</MonoLabel>
               </div>
               <button
                 type="button"
@@ -174,7 +212,7 @@ export function ConnectedAccountsPanel() {
           ))}
         </ul>
       )}
-    </Panel>
+    </ProfileCard>
   )
 }
 
@@ -260,17 +298,13 @@ export function PaymentMethodsPanel() {
   }
 
   return (
-    <Panel accent="green">
-      <PanelHeader
-        title="Crypto wallets"
-        accent="green"
-        right={<MonoLabel className="text-white/25">{methods.length}</MonoLabel>}
-      />
-      <form onSubmit={add} className="space-y-3 border-b border-white/[0.05] p-3.5">
+    <ProfileCard title="Crypto wallets" accent="green" right={<MonoLabel className="text-white/35">{methods.length}</MonoLabel>}>
+      <form onSubmit={add} className="space-y-4 border-b border-white/[0.06] p-5">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Coin" htmlFor="pm-crypto">
             <SelectMenu
               id="pm-crypto"
+              className={selectClass}
               aria-label="Coin"
               value={crypto}
               onChange={(next) => {
@@ -289,6 +323,7 @@ export function PaymentMethodsPanel() {
             <Field label="Network" htmlFor="pm-chain">
               <SelectMenu
                 id="pm-chain"
+                className={selectClass}
                 aria-label="Network"
                 value={chain}
                 onChange={setChain}
@@ -339,18 +374,18 @@ export function PaymentMethodsPanel() {
       </form>
 
       {methods.length === 0 ? (
-        <Empty icon={<CreditCard className="h-6 w-6 text-white/10" />} text="No wallet saved." />
+        <Empty icon={<CreditCard className="h-7 w-7 text-white/15" />} text="No wallet saved" note="Saved wallets can be picked at checkout in the store." />
       ) : (
         <ul className="divide-y divide-white/[0.05]">
           {methods.map((entry) => {
             const described = describeWallet(entry)
             return (
-            <li key={entry.id} className="flex items-center gap-3 px-3.5 py-2.5">
+            <li key={entry.id} className="flex items-center gap-3 px-5 py-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline gap-1.5">
                   <MonoLabel style={{ color: ACCENTS.green }}>{described.coin}</MonoLabel>
                   {described.network ? (
-                    <span className="text-[11px] text-white/30">{described.network}</span>
+                    <span className="text-[12px] text-white/40">{described.network}</span>
                   ) : (
                     // Saved before the network was recorded. Paying it out means
                     // guessing which chain, so it says so rather than looking
@@ -359,9 +394,9 @@ export function PaymentMethodsPanel() {
                       network missing — re-add it
                     </span>
                   )}
-                  {entry.is_primary && <Tag accent="blue">Primary</Tag>}
+                  {entry.is_primary && <StatusPill accent="blue">Primary</StatusPill>}
                 </div>
-                <p className="mt-0.5 truncate font-mono text-[12px] text-white/60">{entry.value}</p>
+                <p className="mt-1 truncate font-mono text-[13px] text-white/70">{entry.value}</p>
               </div>
               <button
                 type="button"
@@ -376,10 +411,10 @@ export function PaymentMethodsPanel() {
           })}
         </ul>
       )}
-      <p className="border-t border-white/[0.05] px-3.5 py-2 text-[11px] text-white/25">
+      <p className="border-t border-white/[0.06] px-5 py-3 text-[12px] text-white/40">
         Only you and the admin can see these — they are not readable from the site itself.
       </p>
-    </Panel>
+    </ProfileCard>
   )
 }
 
@@ -422,42 +457,47 @@ export function MyWinsPanel() {
     }
   }, [])
 
-  // Hidden entirely until there is something to show — an empty trophy case on
-  // every profile is just noise.
-  if (!loaded || wins.length === 0) return null
+  // It is a tab of its own now, so an empty one says so rather than leaving
+  // the tab blank. Until the list arrives, a placeholder of its shape.
+  if (!loaded) return <div className="h-48 animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.02]" />
 
   return (
-    <Panel accent="purple">
-      <PanelHeader
-        title="Your wins"
-        accent="purple"
-        right={<MonoLabel className="text-white/25">{wins.length}</MonoLabel>}
-      />
-      <ul className="divide-y divide-white/[0.05]">
+    <ProfileCard title="Your wins" accent="amber" right={<MonoLabel className="text-white/35">{wins.length}</MonoLabel>}>
+      {wins.length === 0 ? (
+        <Empty
+          icon={<Trophy className="h-7 w-7 text-white/15" />}
+          text="No wins yet"
+          note="Giveaways, raffles, tournaments and challenges you win show up here."
+        />
+      ) : (
+      <ul className="divide-y divide-white/[0.06]">
         {wins.map((win) => {
           const meta = sourceMeta(win.source)
           return (
-            <li key={win.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3.5 py-2.5">
-              <Trophy className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.amber }} />
+            <li key={win.id} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3.5">
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                style={{ backgroundColor: `${ACCENTS.amber}1f` }}
+              >
+                <Trophy className="h-4 w-4" style={{ color: ACCENTS.amber }} />
+              </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] text-white">{win.prize}</p>
-                <p className="truncate text-[11px] text-white/30">
-                  {[meta.label, win.source_ref].filter(Boolean).join(" · ")}
+                <p className="truncate text-[14px] font-semibold text-white">{win.prize}</p>
+                <p className="truncate text-[12px] text-white/40">
+                  {[meta.label, win.source_ref, new Date(win.created_at).toLocaleDateString()].filter(Boolean).join(" · ")}
                 </p>
               </div>
-              <Tag accent={win.status === "paid" ? "green" : "amber"}>
+              <StatusPill accent={win.status === "paid" ? "green" : "amber"}>
                 {win.status === "paid" ? "Paid out" : "On the way"}
-              </Tag>
-              <span className="w-24 shrink-0 text-right text-[13px] tabular-nums" style={{ color: ACCENTS.green }}>
+              </StatusPill>
+              <span className="w-24 shrink-0 text-right text-[15px] font-bold tabular-nums" style={{ color: ACCENTS.green }}>
                 {winValue(win)}
               </span>
-              <MonoLabel className="w-20 shrink-0 text-right text-white/20">
-                {new Date(win.created_at).toLocaleDateString()}
-              </MonoLabel>
             </li>
           )
         })}
       </ul>
-    </Panel>
+      )}
+    </ProfileCard>
   )
 }

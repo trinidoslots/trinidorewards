@@ -4,21 +4,27 @@ import Link from "next/link"
 import { Suspense, useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { usePathname, useSearchParams } from "next/navigation"
-import { Activity, Gift, Package, Settings, Swords, Target, Ticket, Trophy } from "lucide-react"
-import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag, type Accent } from "@/components/ui/panel"
-import { ConnectedAccountsPanel, MyWinsPanel, PaymentMethodsPanel } from "@/components/profile-panels"
+import { Activity, ArrowRight, Gift, Package, Settings, Swords, Target, Ticket, Trophy } from "lucide-react"
+import { ACCENTS, MonoLabel, type Accent } from "@/components/ui/panel"
+import {
+  ConnectedAccountsPanel,
+  Empty,
+  MyWinsPanel,
+  PaymentMethodsPanel,
+  ProfileCard,
+  StatusPill,
+} from "@/components/profile-panels"
+import { PageBody, PageHero, PageHeroSkeleton } from "@/components/page-hero"
 import { Swap } from "@/components/swap"
 import { TabSlide } from "@/components/tab-slide"
 import type { ActivityItem } from "@/app/api/profile/overview/route"
 
 /**
- * The player's own page, laid out like a player card: who they are and where
- * they stand at the top, then tabs.
+ * The player's own page.
  *
- * The reference layout has a level bar and Achievements / Friends tabs. This
- * site has no levels, achievements or friends, so those slots hold what it
- * does have: the bar shows how much of what you earned you still hold, and
- * the tabs are Wins, Redemptions and Settings.
+ * The site's page header carries who they are — avatar, name, rank, the
+ * numbers that sum them up — with their points in the panel on the right,
+ * where every other page puts the figure it is about. Tabs below.
  */
 
 type Redemption = { id: string; item_name: string; cost: number; status: string; created_at: string }
@@ -43,15 +49,16 @@ const TABS = [
   { id: "overview", label: "Overview" },
   { id: "stats", label: "Stats" },
   { id: "wins", label: "Wins" },
-  { id: "redemptions", label: "Redemptions" },
+  { id: "redemptions", label: "Purchases" },
   { id: "settings", label: "Settings" },
 ] as const
 type TabId = (typeof TABS)[number]["id"]
 
+const BLUE = ACCENTS.blue
 const points = (value: number) => Math.round(Number(value) || 0).toLocaleString("en-US")
 
 const date = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "numeric", year: "numeric" }) : "—"
+  iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "—"
 
 function statusAccent(status: string): Accent {
   if (status === "completed" || status === "approved") return "green"
@@ -60,11 +67,11 @@ function statusAccent(status: string): Accent {
 }
 
 const ACTIVITY_ICON: Record<ActivityItem["kind"], { icon: typeof Gift; accent: Accent }> = {
-  redemption: { icon: Package, accent: "amber" },
-  raffle: { icon: Ticket, accent: "purple" },
-  prediction: { icon: Target, accent: "blue" },
-  tournament: { icon: Swords, accent: "blue" },
-  win: { icon: Trophy, accent: "green" },
+  redemption: { icon: Package, accent: "pink" },
+  raffle: { icon: Ticket, accent: "green" },
+  prediction: { icon: Target, accent: "amber" },
+  tournament: { icon: Swords, accent: "purple" },
+  win: { icon: Trophy, accent: "amber" },
 }
 
 function ProfileView() {
@@ -73,7 +80,6 @@ function ProfileView() {
   const [data, setData] = useState<Overview | null>(null)
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
   const [loading, setLoading] = useState(true)
-  const [avatarBroken, setAvatarBroken] = useState(false)
 
   const requested = params.get("tab")
   const tab: TabId = TABS.some((entry) => entry.id === requested) ? (requested as TabId) : "overview"
@@ -113,255 +119,296 @@ function ProfileView() {
       {loading || !data ? (
         <ProfileLoading />
       ) : (
-        <div className="mx-auto max-w-[1240px] space-y-5 px-4 py-6 md:px-8">
-          <ProfileHeader data={data} avatarBroken={avatarBroken} onAvatarError={() => setAvatarBroken(true)} onSettings={() => setTab("settings")} />
+        <div>
+          <ProfileHero data={data} onSettings={() => setTab("settings")} />
 
-          <nav className="inline-flex flex-wrap gap-1 rounded-full border border-white/[0.08] bg-white/[0.02] p-1" aria-label="Profile sections">
-            {TABS.map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => setTab(entry.id)}
-                aria-current={tab === entry.id ? "page" : undefined}
-                className="relative rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors duration-300"
-                style={{ color: tab === entry.id ? "#fff" : "rgba(255,255,255,0.45)" }}
-              >
-                {/* One highlight that glides to the picked tab. */}
-                {tab === entry.id && (
-                  <motion.span
-                    layoutId="profile-tab"
-                    className="absolute inset-0 rounded-full bg-white/[0.09]"
-                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                  />
-                )}
-                <span className="relative">{entry.label}</span>
-              </button>
-            ))}
-          </nav>
+          <PageBody className="space-y-6">
+            <nav
+              className="inline-flex max-w-full flex-wrap gap-1 rounded-full border border-white/[0.10] bg-black/40 p-1"
+              aria-label="Profile sections"
+            >
+              {TABS.map((entry) => {
+                const active = tab === entry.id
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => setTab(entry.id)}
+                    aria-current={active ? "page" : undefined}
+                    className="relative rounded-full px-4 py-2 text-[13px] font-semibold transition-colors duration-200"
+                    style={{ color: active ? "#000" : "rgba(255,255,255,0.55)" }}
+                  >
+                    {/* One fill that glides to the picked tab. */}
+                    {active && (
+                      <motion.span
+                        layoutId="profile-tab"
+                        className="absolute inset-0 rounded-full"
+                        style={{ backgroundColor: BLUE }}
+                        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                      />
+                    )}
+                    <span className="relative">{entry.label}</span>
+                  </button>
+                )
+              })}
+            </nav>
 
-          {/* The same slide as the admin's user page: to a tab on the right,
-              the panel comes in from the right; to one on the left, from the left. */}
-          <TabSlide tab={tab} index={TABS.findIndex((entry) => entry.id === tab)}>
-            {tab === "overview" && <OverviewTab data={data} />}
-            {tab === "stats" && <StatsTab data={data} />}
-            {tab === "wins" && <MyWinsPanel />}
-            {tab === "redemptions" && <RedemptionsTab redemptions={redemptions} spent={data.spent.store} />}
-            {tab === "settings" && (
-              <div className="grid items-start gap-3 lg:grid-cols-2">
-                <ConnectedAccountsPanel />
-                <PaymentMethodsPanel />
-              </div>
-            )}
-          </TabSlide>
+            {/* The same slide as the admin's user page: to a tab on the right,
+                the panel comes in from the right; to one on the left, from the left. */}
+            <TabSlide tab={tab} index={TABS.findIndex((entry) => entry.id === tab)}>
+              {tab === "overview" && <OverviewTab data={data} />}
+              {tab === "stats" && <StatsTab data={data} />}
+              {tab === "wins" && <MyWinsPanel />}
+              {tab === "redemptions" && <PurchasesTab redemptions={redemptions} spent={data.spent.store} />}
+              {tab === "settings" && (
+                <div className="grid items-start gap-4 lg:grid-cols-2">
+                  <ConnectedAccountsPanel />
+                  <PaymentMethodsPanel />
+                </div>
+              )}
+            </TabSlide>
+          </PageBody>
         </div>
       )}
     </Swap>
   )
 }
 
-function ProfileHeader({
-  data,
-  avatarBroken,
-  onAvatarError,
-  onSettings,
-}: {
-  data: Overview
-  avatarBroken: boolean
-  onAvatarError: () => void
-  onSettings: () => void
-}) {
-  const { user } = data
-  // Where the reference has a level bar: of everything you have earned, how
-  // much you still hold. Earned is balance plus what went to the store and to
-  // raffles, the only two ways points leave.
-  const earned = user.points_balance + data.spent.total
-  const held = earned > 0 ? Math.min(100, (user.points_balance / earned) * 100) : 0
+/* -------------------------------------------------------------------------- */
+/*                                   Header                                   */
+/* -------------------------------------------------------------------------- */
 
-  return (
-    <Panel className="p-5 md:p-6">
-      <div className="flex flex-wrap items-center gap-5">
-        {user.avatar_url && !avatarBroken ? (
-          <img
-            src={user.avatar_url}
-            alt=""
-            className="h-20 w-20 shrink-0 rounded-full border-2 object-cover md:h-24 md:w-24"
-            style={{ borderColor: `${ACCENTS.blue}66` }}
-            onError={onAvatarError}
-          />
-        ) : (
-          <span
-            className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-3xl font-bold text-white md:h-24 md:w-24"
-            style={{ backgroundColor: `${ACCENTS.blue}33` }}
-          >
-            {user.username.slice(0, 1).toUpperCase()}
-          </span>
-        )}
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="truncate text-[26px] font-black uppercase italic tracking-tight text-white md:text-[32px]">
-              {user.username}
-            </h1>
-            <button
-              type="button"
-              onClick={onSettings}
-              className="flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 text-[12px] font-medium text-white/80 transition hover:bg-white/[0.08] hover:text-white"
-            >
-              <Settings className="h-3.5 w-3.5" /> Settings
-            </button>
-          </div>
-          <p className="mt-1 text-[13px] text-white/40">
-            @{user.username} <span className="mx-1.5 text-white/20">•</span> Rank #{data.rank.toLocaleString("en-US")}
-          </p>
-        </div>
-
-        <div className="flex gap-8 text-center">
-          <div>
-            <p className="text-[26px] font-bold tabular-nums text-white">{points(user.points_balance)}</p>
-            <MonoLabel className="text-white/35">Points</MonoLabel>
-          </div>
-          <div>
-            <p className="text-[26px] font-bold tabular-nums text-white">{data.counts.wins.toLocaleString("en-US")}</p>
-            <MonoLabel className="text-white/35">Wins</MonoLabel>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5 border-t border-white/[0.06] pt-4">
-        <div className="mb-2 flex items-center justify-between text-[12px] text-white/40">
-          <span>Balance</span>
-          <span className="tabular-nums">
-            {points(user.points_balance)} / {points(earned)} points kept
-          </span>
-          <span>Spent {points(data.spent.total)}</span>
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
-          <div className="h-full rounded-full transition-[width] duration-700" style={{ width: `${held}%`, backgroundColor: ACCENTS.blue }} />
-        </div>
-      </div>
-    </Panel>
+function Avatar({ user }: { user: Overview["user"] }) {
+  const [broken, setBroken] = useState(false)
+  return user.avatar_url && !broken ? (
+    // eslint-disable-next-line @next/next/no-img-element -- Kick avatar from their CDN
+    <img
+      src={user.avatar_url}
+      alt=""
+      onError={() => setBroken(true)}
+      className="h-20 w-20 rounded-xl border-2 object-cover md:h-24 md:w-24"
+      style={{ borderColor: `${BLUE}66`, boxShadow: `0 20px 50px -20px ${BLUE}` }}
+    />
+  ) : (
+    <span
+      className="flex h-20 w-20 items-center justify-center rounded-xl border-2 text-[34px] font-black text-white md:h-24 md:w-24"
+      style={{ borderColor: `${BLUE}66`, backgroundColor: `${BLUE}26` }}
+    >
+      {user.username.slice(0, 1).toUpperCase()}
+    </span>
   )
 }
 
-function OverviewTab({ data }: { data: Overview }) {
-  const tiles: { label: string; value: number; accent: Accent }[] = [
-    { label: "Predictions", value: data.counts.predictions, accent: "blue" },
-    { label: "Tournaments", value: data.counts.tournaments, accent: "amber" },
-    { label: "Raffles", value: data.counts.raffles, accent: "purple" },
-    { label: "Wins", value: data.counts.wins, accent: "green" },
+function ProfileHero({ data, onSettings }: { data: Overview; onSettings: () => void }) {
+  const { user } = data
+  const stats: [string, number][] = [
+    ["Wins", data.counts.wins],
+    ["Predictions", data.counts.predictions],
+    ["Tournaments", data.counts.tournaments],
+    ["Raffles", data.counts.raffles],
   ]
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[1fr_360px]">
-      <div className="space-y-4">
-        <Panel className="p-5">
-          <p className="mb-3 text-[15px] font-semibold text-white">Quick Stats</p>
-          <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-            {tiles.map((tile) => (
-              <StatTile key={tile.label} label={tile.label} value={tile.value.toLocaleString("en-US")} accent={tile.accent} />
-            ))}
+    <PageHero
+      accent="blue"
+      switcher={<Avatar user={user} />}
+      note={`Rank #${data.rank.toLocaleString("en-US")} · Member since ${date(user.created_at)}`}
+      title={user.username}
+      actions={
+        <>
+          <button
+            type="button"
+            onClick={onSettings}
+            className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/[0.04] px-4 py-2.5 text-[13.5px] font-semibold text-white transition hover:border-white/30 hover:bg-white/[0.08]"
+          >
+            <Settings className="h-4 w-4" /> Settings
+          </button>
+        </>
+      }
+      aside={<PointsPanel data={data} />}
+    >
+      <dl className="mt-8 grid max-w-xl grid-cols-4 gap-x-4">
+        {stats.map(([label, value]) => (
+          <div key={label} className="border-t border-white/[0.10] pt-3">
+            <dd className="text-[22px] font-black leading-none tabular-nums text-white">{value.toLocaleString("en-US")}</dd>
+            <dt className="mt-1.5">
+              <MonoLabel className="text-white/40">{label}</MonoLabel>
+            </dt>
           </div>
-        </Panel>
+        ))}
+      </dl>
+    </PageHero>
+  )
+}
 
-        <Panel className="p-5">
-          <p className="mb-3 text-[15px] font-semibold text-white">Recent Activity</p>
-          {data.activity.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-12 text-white/30">
-              <Activity className="h-7 w-7" />
-              <p className="text-[13px]">No recent activity</p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-white/[0.05]">
-              {data.activity.map((item) => {
-                const { icon: Icon, accent } = ACTIVITY_ICON[item.kind]
-                return (
-                  <li key={item.id} className="flex items-center gap-3 py-2.5">
-                    <span
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
-                      style={{ backgroundColor: `${ACCENTS[accent]}1f` }}
-                    >
-                      <Icon className="h-4 w-4" style={{ color: ACCENTS[accent] }} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] text-white">{item.title}</p>
-                      {item.detail && <p className="truncate text-[11px] text-white/35">{item.detail}</p>}
-                    </div>
-                    <span className="shrink-0 text-[11px] text-white/30">{date(item.at)}</span>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </Panel>
+/**
+ * The balance, and how much of what was ever earned is still held.
+ *
+ * Earned is balance plus what went to the store and to raffles, the only two
+ * ways points leave.
+ */
+function PointsPanel({ data }: { data: Overview }) {
+  const balance = data.user.points_balance
+  const earned = balance + data.spent.total
+  const held = earned > 0 ? Math.min(100, (balance / earned) * 100) : 0
+
+  return (
+    <div>
+      <MonoLabel style={{ color: BLUE }}>Your points</MonoLabel>
+      <p className="mt-3 flex items-baseline gap-2 leading-none">
+        <span className="text-[clamp(40px,5vw,56px)] font-black tabular-nums tracking-[-0.02em] text-white">{points(balance)}</span>
+        <span className="text-[15px] font-semibold text-white/45">pts</span>
+      </p>
+
+      <div className="mt-6 border-t border-white/[0.07] pt-5">
+        <div className="flex items-baseline justify-between gap-3 text-[12.5px]">
+          <span className="text-white/45">Still held of {points(earned)} earned</span>
+          <span className="font-semibold tabular-nums text-white">{Math.round(held)}%</span>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+          <div className="h-full rounded-full transition-[width] duration-700" style={{ width: `${held}%`, backgroundColor: BLUE }} />
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <span className="text-[12.5px] text-white/45">
+            Spent <span className="font-semibold tabular-nums text-white/80">{points(data.spent.total)}</span>
+          </span>
+          <Link
+            href="/store"
+            className="group inline-flex items-center gap-1.5 text-[13px] font-semibold text-white/75 transition hover:text-white"
+          >
+            Spend in the store
+            <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+          </Link>
+        </div>
       </div>
+    </div>
+  )
+}
 
-      <Panel className="p-5">
-        <p className="mb-3 text-[15px] font-semibold text-white">Member Info</p>
-        <dl className="space-y-3 text-[13px]">
+/* -------------------------------------------------------------------------- */
+/*                                    Tabs                                    */
+/* -------------------------------------------------------------------------- */
+
+function OverviewTab({ data }: { data: Overview }) {
+  return (
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <ProfileCard title="Recent activity" accent="blue">
+        {data.activity.length === 0 ? (
+          <Empty
+            icon={<Activity className="h-7 w-7 text-white/15" />}
+            text="No activity yet"
+            note="Predictions, raffle tickets, tournaments and purchases show up here."
+          />
+        ) : (
+          <ul className="divide-y divide-white/[0.06]">
+            {data.activity.map((item) => {
+              const { icon: Icon, accent } = ACTIVITY_ICON[item.kind]
+              return (
+                <li key={item.id} className="flex items-center gap-3.5 px-5 py-3">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: `${ACCENTS[accent]}1f` }}
+                  >
+                    <Icon className="h-4 w-4" style={{ color: ACCENTS[accent] }} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[14px] font-semibold text-white">{item.title}</p>
+                    {item.detail && <p className="truncate text-[12px] text-white/40">{item.detail}</p>}
+                  </div>
+                  <span className="shrink-0 text-[12px] tabular-nums text-white/40">{date(item.at)}</span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </ProfileCard>
+
+      <ProfileCard title="Member info" accent="slate">
+        <dl className="divide-y divide-white/[0.06]">
           {[
             ["Member since", date(data.user.created_at)],
             ["Last seen", date(data.user.last_seen)],
-            ["Predictions", data.counts.predictions.toLocaleString("en-US")],
+            ["Rank by points", `#${data.rank.toLocaleString("en-US")}`],
             ["Raffle tickets", data.counts.tickets.toLocaleString("en-US")],
-            ["Redemptions", data.counts.redemptions.toLocaleString("en-US")],
+            ["Purchases", data.counts.redemptions.toLocaleString("en-US")],
           ].map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between gap-3">
-              <dt className="text-white/45">{label}</dt>
+            <div key={label} className="flex items-center justify-between gap-3 px-5 py-3 text-[13.5px]">
+              <dt className="text-white/50">{label}</dt>
               <dd className="font-semibold tabular-nums text-white">{value}</dd>
             </div>
           ))}
         </dl>
-        <Link
-          href="/store"
-          className="mt-5 flex items-center justify-center gap-2 rounded-lg border border-white/[0.08] py-2 text-[12px] text-white/60 transition hover:bg-white/[0.04] hover:text-white"
-        >
-          <Gift className="h-3.5 w-3.5" /> Spend points in the store
-        </Link>
-      </Panel>
+      </ProfileCard>
+    </div>
+  )
+}
+
+function StatCard({ label, value, hint, accent }: { label: string; value: string; hint?: string; accent: Accent }) {
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12] p-5">
+      <span aria-hidden className="absolute inset-x-0 top-0 h-[2px]" style={{ backgroundColor: ACCENTS[accent] }} />
+      <MonoLabel style={{ color: ACCENTS[accent] }}>{label}</MonoLabel>
+      <p className="mt-3 text-[30px] font-black leading-none tabular-nums tracking-[-0.02em] text-white">{value}</p>
+      {hint && <p className="mt-2 text-[12.5px] text-white/40">{hint}</p>}
     </div>
   )
 }
 
 function StatsTab({ data }: { data: Overview }) {
   return (
-    <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-      <StatTile label="Points balance" value={points(data.user.points_balance)} accent="green" />
-      <StatTile label="Spent in store" value={points(data.spent.store)} accent="amber" hint={`${data.counts.redemptions} redemptions`} />
-      <StatTile label="Spent on raffles" value={points(data.spent.raffles)} accent="purple" hint={`${data.counts.tickets} tickets`} />
-      <StatTile label="Rank" value={`#${data.rank.toLocaleString("en-US")}`} accent="blue" hint="By points held" />
-      <StatTile label="Hunt predictions" value={data.counts.predictions.toLocaleString("en-US")} accent="blue" />
-      <StatTile label="Tournaments joined" value={data.counts.tournaments.toLocaleString("en-US")} accent="amber" />
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <StatCard label="Points balance" value={points(data.user.points_balance)} accent="blue" hint={`Rank #${data.rank.toLocaleString("en-US")} by points held`} />
+      <StatCard label="Spent in the store" value={points(data.spent.store)} accent="pink" hint={`${data.counts.redemptions} purchases`} />
+      <StatCard label="Spent on raffles" value={points(data.spent.raffles)} accent="green" hint={`${data.counts.tickets} tickets`} />
+      <StatCard label="Hunt predictions" value={data.counts.predictions.toLocaleString("en-US")} accent="amber" />
+      <StatCard label="Tournaments joined" value={data.counts.tournaments.toLocaleString("en-US")} accent="purple" />
+      <StatCard label="Wins" value={data.counts.wins.toLocaleString("en-US")} accent="green" />
     </div>
   )
 }
 
-function RedemptionsTab({ redemptions, spent }: { redemptions: Redemption[]; spent: number }) {
+function PurchasesTab({ redemptions, spent }: { redemptions: Redemption[]; spent: number }) {
   return (
-    <Panel accent="amber">
-      <PanelHeader title="Redemption history" accent="amber" right={<MonoLabel className="text-white/25">{points(spent)} spent</MonoLabel>} />
+    <ProfileCard
+      title="Store purchases"
+      accent="pink"
+      right={<MonoLabel className="text-white/35">{points(spent)} pts spent</MonoLabel>}
+    >
       {redemptions.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-12">
-          <Package className="h-7 w-7 text-white/10" />
-          <p className="text-[13px] text-white/30">Nothing redeemed yet.</p>
+        <div className="flex flex-col items-center px-6 pb-8">
+          <Empty icon={<Package className="h-7 w-7 text-white/15" />} text="Nothing bought yet" />
+          <Link
+            href="/store"
+            className="-mt-4 inline-flex h-10 items-center gap-2 rounded-md border border-white/15 bg-white/[0.04] px-4 text-[13.5px] font-semibold text-white transition hover:border-white/30"
+          >
+            Go to the store <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       ) : (
-        <ul className="divide-y divide-white/[0.05]">
+        <ul className="divide-y divide-white/[0.06]">
           {redemptions.map((redemption) => (
-            <li key={redemption.id} className="flex items-center gap-3 px-3.5 py-2.5">
-              <Package className="h-3.5 w-3.5 shrink-0 text-white/15" />
+            <li key={redemption.id} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-3.5">
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                style={{ backgroundColor: `${ACCENTS.pink}1f` }}
+              >
+                <Package className="h-4 w-4" style={{ color: ACCENTS.pink }} />
+              </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] text-white">{redemption.item_name}</p>
-                <p className="text-[11px] text-white/25">{date(redemption.created_at)}</p>
+                <p className="truncate text-[14px] font-semibold text-white">{redemption.item_name}</p>
+                <p className="text-[12px] text-white/40">{date(redemption.created_at)}</p>
               </div>
-              <Tag accent={statusAccent(redemption.status)}>{redemption.status}</Tag>
-              <span className="w-20 shrink-0 text-right text-[13px] tabular-nums" style={{ color: ACCENTS.amber }}>
-                {points(redemption.cost)}
+              <StatusPill accent={statusAccent(redemption.status)}>
+                {redemption.status.charAt(0).toUpperCase() + redemption.status.slice(1)}
+              </StatusPill>
+              <span className="w-24 shrink-0 text-right text-[15px] font-bold tabular-nums text-white">
+                {points(redemption.cost)} <span className="text-[12px] font-semibold text-white/40">pts</span>
               </span>
             </li>
           ))}
         </ul>
       )}
-    </Panel>
+    </ProfileCard>
   )
 }
 
@@ -371,25 +418,22 @@ function RedemptionsTab({ redemptions, spent }: { redemptions: Redemption[]; spe
  */
 function ProfileLoading() {
   return (
-    <div className="mx-auto max-w-[1240px] space-y-5 px-4 py-6 md:px-8">
-      <Ghost className="h-[190px]" />
-      <Ghost className="h-[42px] w-[440px] max-w-full rounded-full" />
-      <div className="grid items-start gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-4">
-          <Ghost className="h-[150px]" />
-          <Ghost className="h-[220px]" />
+    <div>
+      <PageHeroSkeleton accent="blue" panel />
+      <PageBody className="space-y-6">
+        <Ghost className="h-[42px] w-[460px] max-w-full rounded-full" />
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <Ghost className="h-[320px]" />
+          <Ghost className="h-[260px]" />
         </div>
-        <Ghost className="h-[260px]" />
-      </div>
+      </PageBody>
     </div>
   )
 }
 
-/** A panel-shaped placeholder. Pulses, so it reads as pending rather than empty. */
+/** A card-shaped placeholder. Pulses, so it reads as pending rather than empty. */
 function Ghost({ className }: { className?: string }) {
-  return (
-    <div className={`animate-pulse rounded-lg border border-white/[0.06] bg-white/[0.015] ${className ?? ""}`} aria-hidden="true" />
-  )
+  return <div className={`animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.02] ${className ?? ""}`} aria-hidden="true" />
 }
 
 export default function ProfilePage() {
