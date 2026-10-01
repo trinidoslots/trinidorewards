@@ -103,7 +103,9 @@ export function TournamentBracketBoard({
 
       {champion && (
         <section className="flex min-w-[200px] flex-col gap-3">
-          <div className="px-0.5">
+          {/* The same row as the round headings, so it is the same height and
+              the card below centres on the same line as the final. */}
+          <div className="flex items-baseline justify-between px-0.5">
             <MonoLabel style={{ color: GOLD }}>Champion</MonoLabel>
           </div>
           <div className="flex flex-1 flex-col justify-around">
