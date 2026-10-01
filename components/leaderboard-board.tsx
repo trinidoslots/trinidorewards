@@ -1,19 +1,17 @@
 "use client"
 
+import type React from "react"
 import { useEffect, useState } from "react"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { money, moneyExact, moneyParts, ordinal } from "@/lib/leaderboard-format"
 import { amountFor, metricLabel, type Metric } from "@/lib/leaderboard-metric"
 import { Swap } from "@/components/swap"
+import { Clock } from "@/components/landing/parts"
 
 /**
- * The board, laid out the way casino leaderboards are: a hero carrying the
- * pool, the top three as dealt cards, and the clock — then everyone else in a
- * plain table underneath.
- *
- * The three cards are the point of the shape. Stacked avatars read as a list
- * with bigger pictures; cards that lean in from either side read as a podium,
- * and the one facing you straight on is first.
+ * The board, in the landing page's language: a header with the board's name
+ * on the left and its pool and clock in a panel on the right, the top three as
+ * a podium of cards, then everyone else as rows in one panel.
  */
 
 export type RankedEntry = {
@@ -88,95 +86,72 @@ export function Avatar({
   )
 }
 
-/** One line inside a podium card: a quiet label on the left, the figure right. */
-function CardLine({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div className="flex items-center justify-between gap-2 rounded-md bg-black/30 px-2.5 py-1.5">
-      <MonoLabel className="text-white/30">{label}</MonoLabel>
-      <span
-        className="truncate text-[12.5px] font-semibold tabular-nums"
-        style={{ color: color ?? "rgba(255,255,255,0.8)" }}
-      >
-        {value}
-      </span>
-    </div>
-  )
-}
-
 /**
- * One of the three cards.
+ * One podium card.
  *
- * `lean` tilts the outer two towards the middle. First place gets no tilt, a
- * coloured 2px edge and a little more height — it faces you, the others are
- * turned slightly away.
+ * First is taller and carries a stronger wash; all three show the place's
+ * colour on the ring, the label and the prize. The large numeral behind is
+ * texture, outlined so it never competes with the name.
  */
-type Lean = "left" | "right" | "none"
-
-// Static class strings, because the tilt has to be a media query and an inline
-// style cannot be one. Applied from lg up only: stacked in a single column, a
-// tilted card is just a crooked card.
-const LEAN_CLASS: Record<Lean, string> = {
-  left: "lg:mt-8 lg:[transform:rotateY(8deg)]",
-  right: "lg:mt-8 lg:[transform:rotateY(-8deg)]",
-  none: "",
-}
-
-function PodiumCard({ entry, metric, lean }: { entry: RankedEntry; metric: Metric; lean: Lean }) {
-  const color = placeColor(entry.rank) ?? "rgba(255,255,255,0.2)"
+function PodiumCard({ entry, metric }: { entry: RankedEntry; metric: Metric }) {
+  const color = placeColor(entry.rank) ?? "rgba(255,255,255,0.4)"
   const first = entry.rank === 1
 
   return (
-    <div className={LEAN_CLASS[lean]}>
+    <div
+      // Stacked on a phone the order is 1, 2, 3; side by side it is the
+      // podium's own 2, 1, 3, with first raised in the middle.
+      className={`relative overflow-hidden rounded-3xl border bg-[#0E0E12] px-6 text-center ${
+        first ? "order-first pb-7 pt-9 sm:order-none sm:pb-9 sm:pt-12" : "pb-6 pt-7 sm:pb-7 sm:pt-8"
+      }`}
+      style={{ borderColor: first ? `${color}66` : "rgba(255,255,255,0.08)" }}
+    >
       <div
-        className="relative h-full overflow-hidden rounded-xl border bg-white/[0.022] px-5 pb-5 pt-6 text-center"
-        style={{ borderColor: first ? `${color}99` : "rgba(255,255,255,0.08)" }}
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-40"
+        style={{ background: `radial-gradient(ellipse at 50% 0%, ${color}${first ? "33" : "1f"}, transparent 70%)` }}
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -right-1 -top-5 select-none text-[120px] font-black leading-none text-transparent"
+        style={{ WebkitTextStroke: `1px ${color}26` }}
       >
-        {/* A wash of the place colour behind the avatar, so the card is tinted
-            without the border doing all the work. */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-28 opacity-[0.14]"
-          style={{ background: `radial-gradient(ellipse at 50% 0%, ${color}, transparent 70%)` }}
-        />
+        {entry.rank}
+      </span>
 
-        <div className="relative flex flex-col items-center">
-          <Avatar src={entry.avatar_url} name={entry.username} size={first ? 68 : 56} ring={color} />
+      <div className="relative flex flex-col items-center">
+        <Avatar src={entry.avatar_url} name={entry.username} size={first ? 84 : 68} ring={color} />
+        <MonoLabel className="mt-4 block" style={{ color }}>
+          {ordinal(entry.rank)} place
+        </MonoLabel>
+        <p className={`mt-2 w-full truncate font-bold text-white ${first ? "text-[20px]" : "text-[17px]"}`}>
+          {entry.username}
+        </p>
 
-          <MonoLabel className="mt-3 block" style={{ color }}>
-            {ordinal(entry.rank)} place
-          </MonoLabel>
+        <p className={`mt-5 font-black leading-none tabular-nums ${first ? "text-[36px]" : "text-[28px]"}`} style={{ color }}>
+          {entry.prize_amount > 0 ? money(entry.prize_amount) : "—"}
+        </p>
+        <MonoLabel className="mt-2 block text-white/35">Prize</MonoLabel>
 
-          <p className="mt-1.5 w-full truncate text-[15px] font-semibold text-white">{entry.username}</p>
-
-          <div className="mt-4 w-full space-y-1.5">
-            <CardLine label={metricLabel(metric)} value={moneyExact(amountFor(entry, metric))} />
-            <CardLine label="Reward" value={money(entry.prize_amount)} color={color} />
-          </div>
+        <div className="mt-5 w-full rounded-xl border border-white/[0.07] bg-black/30 px-3 py-2.5">
+          <p className="text-[15px] font-semibold tabular-nums text-white/85">{moneyExact(amountFor(entry, metric))}</p>
+          <MonoLabel className="mt-1 block text-white/30">{metricLabel(metric)}</MonoLabel>
         </div>
       </div>
     </div>
   )
 }
 
-/**
- * Second, first, third — left to right, the way a podium stands.
- *
- * Both the perspective and the tilt are `lg:` only — see LEAN_CLASS. On a
- * phone the three stack, and a tilted card in a single column is just a
- * crooked card.
- */
+/** Second, first, third — left to right, the way a podium stands. */
 export function Podium({ top, metric }: { top: RankedEntry[]; metric: Metric }) {
   const [first, second, third] = top
-  const order: { entry: RankedEntry; lean: Lean }[] = []
-  if (second) order.push({ entry: second, lean: "left" })
-  if (first) order.push({ entry: first, lean: "none" })
-  if (third) order.push({ entry: third, lean: "right" })
+  const order = [second, first, third].filter((entry): entry is RankedEntry => !!entry)
   if (order.length === 0) return null
 
   return (
-    <div className="mx-auto mt-9 grid max-w-3xl gap-4 sm:gap-5 lg:grid-cols-3 lg:[perspective:1600px]">
-      {order.map(({ entry, lean }) => (
-        <PodiumCard key={entry.id} entry={entry} metric={metric} lean={lean} />
+    <div className="grid gap-4 sm:grid-cols-3 sm:items-end">
+      {order.map((entry) => (
+        <PodiumCard key={entry.id} entry={entry} metric={metric} />
       ))}
     </div>
   )
@@ -184,54 +159,40 @@ export function Podium({ top, metric }: { top: RankedEntry[]; metric: Metric }) 
 
 export type Countdown = { days: number; hours: number; minutes: number; seconds: number; over: boolean }
 
-/** The clock, as four tiles. Zero-padded so the row does not twitch each second. */
-export function CountdownTiles({ left }: { left: Countdown }) {
-  const tiles: [string, number][] = [
-    ["Days", left.days],
-    ["Hrs", left.hours],
-    ["Mins", left.minutes],
-    ["Secs", left.seconds],
-  ]
-
-  return (
-    <div className="flex items-end justify-center gap-2.5">
-      {tiles.map(([label, value]) => (
-        <div key={label} className="text-center">
-          <MonoLabel className="mb-1.5 block text-white/30">{label}</MonoLabel>
-          <div className="flex h-12 w-14 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-[21px] font-semibold tabular-nums text-white sm:h-14 sm:w-16 sm:text-[24px]">
-            {String(Math.max(0, value)).padStart(2, "0")}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/** Fourth place down: one table row. */
-export function StandingRow({ entry, metric }: { entry: RankedEntry; metric: Metric }) {
-  const headline = moneyParts(amountFor(entry, metric))
+/** Fourth place down: one row. */
+export function StandingRow({ entry, metric, leader }: { entry: RankedEntry; metric: Metric; leader: number }) {
+  const amount = amountFor(entry, metric)
+  const headline = moneyParts(amount)
   const prize = moneyParts(entry.prize_amount)
+  // How far off the leader, as a bar under the name. Linear: this is a share
+  // of the same pot, and the gap is the point.
+  const share = leader > 0 ? Math.max(0, Math.min(1, amount / leader)) : 0
+  const paid = entry.prize_amount > 0
 
   return (
-    <tr className="border-b border-white/[0.04] text-[13px] transition hover:bg-white/[0.03] last:border-0">
-      <td className="py-2.5 pl-3.5 pr-2 font-mono text-[11.5px] tabular-nums text-white/30">
-        {ordinal(entry.rank)}
-      </td>
+    <li className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto_5.5rem] items-center gap-x-3 border-b border-white/[0.05] px-4 py-3 transition-colors last:border-b-0 hover:bg-white/[0.025] sm:grid-cols-[3.5rem_minmax(0,1fr)_8rem_7rem] sm:px-6">
+      <span className="font-mono text-[12px] tabular-nums text-white/35">{ordinal(entry.rank)}</span>
 
-      <td className="py-2.5 pr-2">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <Avatar src={entry.avatar_url} name={entry.username} size={28} />
-          <span className="min-w-0 truncate font-medium text-white">{entry.username}</span>
-        </div>
-      </td>
+      <span className="flex min-w-0 items-center gap-3">
+        <Avatar src={entry.avatar_url} name={entry.username} size={34} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[14px] font-semibold text-white">{entry.username}</span>
+          <span className="mt-1.5 block h-[3px] w-full max-w-[10rem] overflow-hidden rounded-full bg-white/[0.06]">
+            <span
+              className="block h-full rounded-full"
+              style={{ width: `${Math.max(2, share * 100)}%`, backgroundColor: paid ? ACCENTS.green : "rgba(255,255,255,0.25)" }}
+            />
+          </span>
+        </span>
+      </span>
 
-      <td className="py-2.5 pr-2 text-right tabular-nums text-white/75">
+      <span className="text-right text-[13.5px] tabular-nums text-white/75">
         {headline.whole}
         <span className="text-white/30">{headline.cents}</span>
-      </td>
+      </span>
 
-      <td className="py-2.5 pr-3.5 text-right tabular-nums">
-        {entry.prize_amount > 0 ? (
+      <span className="text-right text-[13.5px] font-semibold tabular-nums">
+        {paid ? (
           <span style={{ color: ACCENTS.green }}>
             {prize.whole}
             <span className="opacity-50">{prize.cents}</span>
@@ -239,62 +200,51 @@ export function StandingRow({ entry, metric }: { entry: RankedEntry; metric: Met
         ) : (
           <span className="text-white/15">—</span>
         )}
-      </td>
-    </tr>
+      </span>
+    </li>
   )
 }
 
-/** The table around those rows, with its own header and empty state. */
+/** The rows, in one panel, with the search and totals in its header. */
 export function StandingsTable({
   rows,
   metric,
   emptyNote,
+  leader,
+  toolbar,
 }: {
   rows: RankedEntry[]
   metric: Metric
   emptyNote: string
+  /** First place's amount, for the bars. */
+  leader: number
+  toolbar?: React.ReactNode
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.015]">
-      <table className="w-full table-auto border-collapse">
-        <thead>
-          <tr className="border-b border-white/[0.08]">
-            <th className="py-2.5 pl-3.5 pr-2 text-left font-normal">
-              <MonoLabel className="text-white/30">Place</MonoLabel>
-            </th>
-            <th className="py-2.5 pr-2 text-left font-normal">
-              <MonoLabel className="text-white/30">Player</MonoLabel>
-            </th>
-            <th className="py-2.5 pr-2 text-right font-normal">
-              <MonoLabel className="text-white/30">{metricLabel(metric)}</MonoLabel>
-            </th>
-            <th className="py-2.5 pr-3.5 text-right font-normal">
-              <MonoLabel className="text-white/30">Prize</MonoLabel>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr>
-              <td colSpan={4} className="py-14 text-center text-[13px] text-white/25">
-                {emptyNote}
-              </td>
-            </tr>
-          ) : (
-            rows.map((entry) => <StandingRow key={entry.id} entry={entry} metric={metric} />)
-          )}
-        </tbody>
-      </table>
+    <div className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12]">
+      {toolbar && <div className="border-b border-white/[0.07] px-4 py-4 sm:px-6">{toolbar}</div>}
+      <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto_5.5rem] gap-x-3 border-b border-white/[0.05] px-4 py-2.5 sm:grid-cols-[3.5rem_minmax(0,1fr)_8rem_7rem] sm:px-6">
+        <MonoLabel className="text-white/30">Place</MonoLabel>
+        <MonoLabel className="text-white/30">Player</MonoLabel>
+        <MonoLabel className="text-right text-white/30">{metricLabel(metric)}</MonoLabel>
+        <MonoLabel className="text-right text-white/30">Prize</MonoLabel>
+      </div>
+      {rows.length === 0 ? (
+        <p className="py-14 text-center text-[13px] text-white/30">{emptyNote}</p>
+      ) : (
+        <ol>
+          {rows.map((entry) => (
+            <StandingRow key={entry.id} entry={entry} metric={metric} leader={leader} />
+          ))}
+        </ol>
+      )}
     </div>
   )
 }
 
 /**
- * The hero: pool, title, board switch, podium, clock.
- *
- * Full-bleed with a curved bottom edge, the way these pages are built — the
- * curve is what separates the showpiece from the table without drawing a line
- * across the page.
+ * The header: board switch, title and dates on the left, the pool and the
+ * clock in a panel on the right, then the podium across the full width.
  */
 export function BoardHero({
   prizePool,
@@ -323,16 +273,28 @@ export function BoardHero({
   /** False while the board named by swapKey is still being fetched. */
   swapReady?: boolean
 }) {
+  const color = ACCENTS.amber
+  const long = title.length > 22
+
   return (
-    <section className="relative overflow-hidden rounded-b-[40px] border-b border-white/[0.06] bg-[#0E0E12] px-5 pb-12 pt-10 text-center sm:px-8 sm:pb-14">
-      {/* One wash behind the pool. Sits under everything and takes no clicks. */}
+    // data-no-reveal: like PageHero, this replaces the loading header in
+    // place and must not animate in a second time.
+    <section data-no-reveal className="relative w-full overflow-hidden border-b border-white/[0.06]">
       <div
         aria-hidden
-        className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[820px] max-w-none -translate-x-1/2 opacity-[0.10]"
-        style={{ background: `radial-gradient(ellipse at 50% 0%, ${ACCENTS.amber}, transparent 65%)` }}
+        className="pointer-events-none absolute inset-0"
+        style={{ background: `radial-gradient(900px 420px at 85% -20%, ${color}24, transparent 62%), #08080A` }}
+      />
+      <div
+        aria-hidden
+        className="hero-grid pointer-events-none absolute inset-0"
+        style={{
+          maskImage: "radial-gradient(ellipse 70% 70% at 70% 0%, #000 25%, transparent 75%)",
+          WebkitMaskImage: "radial-gradient(ellipse 70% 70% at 70% 0%, #000 25%, transparent 75%)",
+        }}
       />
 
-      <div className="relative mx-auto max-w-5xl">
+      <div className="relative mx-auto max-w-6xl px-5 pb-14 pt-10 lg:px-8 lg:pt-14">
         {/*
           The switcher sits above everything that changes, and outside the
           animation, because it is the control. It used to be inside: you
@@ -340,33 +302,86 @@ export function BoardHero({
           and slid upwards under your cursor. A control that leaves when you
           use it reads as a glitch, whatever the timing.
         */}
-        {switcher && <div className="mb-6 flex justify-center">{switcher}</div>}
+        {switcher && <div className="mb-7">{switcher}</div>}
 
         <Swap on={swapKey} ready={swapReady}>
-          <p
-            className="text-[44px] font-bold leading-none tracking-tight tabular-nums sm:text-[60px]"
-            style={{ color: ACCENTS.amber }}
-          >
-            {money(prizePool)}
-          </p>
-          <h1 className="mt-2 text-[17px] font-bold uppercase italic tracking-wide text-white sm:text-[22px]">
-            {title}
-          </h1>
-          {subtitle && <p className="mt-1.5 text-[12.5px] text-white/35">{subtitle}</p>}
-          <MonoLabel className="mt-2 block text-white/25">Ranked by {metricLabel(metric)}</MonoLabel>
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)] lg:items-end">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2.5">
+                <span className="h-[3px] w-6 rounded-full" style={{ backgroundColor: color }} />
+                <MonoLabel style={{ color }}>Leaderboard · ranked by {metricLabel(metric).toLowerCase()}</MonoLabel>
+              </div>
+              <h1
+                className={`mt-4 break-words font-black uppercase leading-[0.92] tracking-[-0.01em] text-white ${
+                  long ? "text-[clamp(30px,4.6vw,52px)]" : "text-[clamp(40px,6.4vw,76px)]"
+                }`}
+              >
+                {title}
+              </h1>
+              {subtitle && <p className="mt-4 max-w-xl text-[15px] leading-7 text-white/50">{subtitle}</p>}
+              <p className="mt-4 text-[12.5px] text-white/35">{range}</p>
+              {actions && <div className="mt-6 flex flex-wrap items-center gap-2.5">{actions}</div>}
+            </div>
 
-          {actions && <div className="mt-5 flex flex-wrap items-center justify-center gap-2">{actions}</div>}
-
-          <Podium top={podium} metric={metric} />
-
-          <div className="mt-10">
-            <MonoLabel className="mb-3 block text-white/30">
-              {countdown.over ? "Closed" : "Time remaining"}
-            </MonoLabel>
-            <CountdownTiles left={countdown} />
-            <p className="mt-3 text-[11.5px] text-white/25">{range}</p>
+            <div className="relative overflow-hidden rounded-3xl border border-white/[0.10] bg-[#0E0E12]/90 p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] backdrop-blur sm:p-7">
+              <div className="border-b border-white/[0.07] pb-6">
+                <MonoLabel style={{ color }}>Prize pool</MonoLabel>
+                <p className="mt-3 text-[clamp(40px,5vw,56px)] font-black leading-none tabular-nums tracking-[-0.02em] text-white">
+                  {money(prizePool)}
+                </p>
+              </div>
+              <div className="pt-6">
+                <MonoLabel className="mb-4 block text-white/45">{countdown.over ? "Closed" : "Ends in"}</MonoLabel>
+                <Clock left={countdown} accent={color} />
+              </div>
+            </div>
           </div>
+
+          {podium.length > 0 && (
+            <div className="mt-14">
+              <Podium top={podium} metric={metric} />
+            </div>
+          )}
         </Swap>
+      </div>
+    </section>
+  )
+}
+
+/**
+ * BoardHero's own shape with placeholders, for while the boards load.
+ *
+ * The loading state used to be a generic "Leaderboard" PageHero, swapped for
+ * the board's header the moment it arrived — a different title, a different
+ * layout, one header replaced by another. This keeps every edge where the
+ * real header will put it, so loading reads as the same header filling in.
+ */
+export function BoardHeroSkeleton() {
+  const color = ACCENTS.amber
+  return (
+    <section data-no-reveal className="relative w-full overflow-hidden border-b border-white/[0.06]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{ background: `radial-gradient(900px 420px at 85% -20%, ${color}24, transparent 62%), #08080A` }}
+      />
+      <div className="relative mx-auto max-w-6xl px-5 pb-14 pt-10 lg:px-8 lg:pt-14">
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)] lg:items-end">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <span className="h-[3px] w-6 rounded-full" style={{ backgroundColor: color }} />
+              <MonoLabel style={{ color }}>Leaderboard</MonoLabel>
+            </div>
+            <div className="mt-5 h-[clamp(36px,5.6vw,66px)] w-4/5 max-w-xl animate-pulse rounded-xl bg-white/[0.06]" />
+            <div className="mt-5 h-3.5 w-56 animate-pulse rounded bg-white/[0.05]" />
+          </div>
+          <div className="h-[268px] animate-pulse rounded-3xl border border-white/[0.08] bg-white/[0.03]" />
+        </div>
+        <div className="mt-14 grid gap-4 sm:grid-cols-3 sm:items-end">
+          <div className="h-[300px] animate-pulse rounded-3xl border border-white/[0.06] bg-white/[0.025]" />
+          <div className="order-first h-[340px] animate-pulse rounded-3xl border border-white/[0.06] bg-white/[0.03] sm:order-none" />
+          <div className="h-[300px] animate-pulse rounded-3xl border border-white/[0.06] bg-white/[0.025]" />
+        </div>
       </div>
     </section>
   )

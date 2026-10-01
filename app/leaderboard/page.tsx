@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Search, Trophy } from "lucide-react"
-import { MonoLabel } from "@/components/ui/panel"
+import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { createClient } from "@/lib/supabase/client"
 import { rankEntries } from "@/lib/leaderboard-payouts"
 import { DEFAULT_TIMEZONE, formatInZone, leaderboardStatus } from "@/lib/leaderboard-time"
 import { moneyExact } from "@/lib/leaderboard-format"
-import { BoardHero, StandingsTable, type RankedEntry } from "@/components/leaderboard-board"
+import { BoardHero, BoardHeroSkeleton, StandingsTable, type RankedEntry } from "@/components/leaderboard-board"
 import { Swap } from "@/components/swap"
 import { entryAmounts, metricLabel, readMetric } from "@/lib/leaderboard-metric"
 import { maskUsername } from "@/lib/leaderboard-mask"
@@ -267,6 +267,7 @@ export default function LeaderboardPage() {
   }, [entries, board, metric])
 
   const podium = ranked.slice(0, 3)
+  const leaderAmount = podium[0] ? (metric === "earned" ? podium[0].total_earned : podium[0].total_wagered) : 0
   const rest = ranked.slice(3)
   const totalWagered = ranked.reduce((sum, entry) => sum + entry.total_wagered, 0)
   const totalEarned = ranked.reduce((sum, entry) => sum + entry.total_earned, 0)
@@ -283,7 +284,7 @@ export default function LeaderboardPage() {
   if (loading) {
     return (
       <div>
-        <PageHero accent="amber" title="Leaderboard" subtitle="Loading the current board." />
+        <BoardHeroSkeleton />
       </div>
     )
   }
@@ -338,7 +339,7 @@ export default function LeaderboardPage() {
           // Several live boards become a segmented switch rather than a
           // dropdown: with two or three of them the choices are worth seeing.
           boards.length > 1 ? (
-            <div className="inline-flex flex-wrap justify-center gap-1 rounded-full border border-white/[0.08] bg-black/40 p-1">
+            <div className="inline-flex flex-wrap gap-1 rounded-full border border-white/[0.10] bg-black/40 p-1 backdrop-blur">
               {boards.map((entry) => {
                 const active = entry.id === selected
                 return (
@@ -346,11 +347,11 @@ export default function LeaderboardPage() {
                     key={entry.id}
                     type="button"
                     onClick={() => setSelected(entry.id)}
-                    className="rounded-full px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.1em] transition"
+                    className="rounded-full px-4 py-2 text-[13px] font-semibold transition"
                     style={
                       active
-                        ? { backgroundColor: "rgba(255,255,255,0.10)", color: "#fff" }
-                        : { color: "rgba(255,255,255,0.4)" }
+                        ? { backgroundColor: ACCENTS.amber, color: "#000" }
+                        : { color: "rgba(255,255,255,0.55)" }
                     }
                   >
                     {entry.title}
@@ -362,32 +363,33 @@ export default function LeaderboardPage() {
         }
       />
 
-      <div className="mx-auto mt-8 max-w-4xl space-y-3 px-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/25" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search players…"
-              aria-label="Search players"
-              className="h-9 w-full rounded-md border border-white/[0.10] bg-black/40 pl-9 pr-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
-            />
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            <Stat label="Players" value={ranked.length.toLocaleString("en-US")} />
-            <Stat
-              label={`Total ${metricLabel(metric).toLowerCase()}`}
-              value={moneyExact(metric === "earned" ? totalEarned : totalWagered)}
-            />
-          </div>
-        </div>
-
+      <section className="mx-auto max-w-6xl space-y-4 px-5 pt-12 lg:px-8">
         <Swap on={`${selected}:${metric}`} ready={loadedFor === selected}>
           <StandingsTable
             rows={filtered}
             metric={metric}
+            leader={leaderAmount}
+            toolbar={
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative min-w-[12rem] flex-1">
+                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search players…"
+                    aria-label="Search players"
+                    className="h-10 w-full rounded-xl border border-white/[0.10] bg-black/40 pl-10 pr-3 text-[14px] text-white outline-none transition placeholder:text-white/30 focus:border-white/25"
+                  />
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Stat label="Players" value={ranked.length.toLocaleString("en-US")} />
+                  <Stat
+                    label={`Total ${metricLabel(metric).toLowerCase()}`}
+                    value={moneyExact(metric === "earned" ? totalEarned : totalWagered)}
+                  />
+                </div>
+              </div>
+            }
             emptyNote={
               // A feed that refused says so. Reporting that as "no entries yet"
               // tells the visitor nobody is playing, which is a different and
@@ -403,8 +405,8 @@ export default function LeaderboardPage() {
           />
         </Swap>
 
-        <p className="text-center text-[11.5px] text-white/20">Wagers update as they come in</p>
-      </div>
+        <p className="text-center text-[12px] text-white/30">Wagers update as they come in</p>
+      </section>
     </div>
   )
 }
@@ -412,9 +414,9 @@ export default function LeaderboardPage() {
 /** A figure with its caption, sized to sit next to the search field. */
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 text-right">
-      <p className="text-[13px] font-semibold leading-none tabular-nums text-white">{value}</p>
-      <MonoLabel className="mt-1 block text-white/25">{label}</MonoLabel>
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-right">
+      <p className="text-[14px] font-bold leading-none tabular-nums text-white">{value}</p>
+      <MonoLabel className="mt-1.5 block text-white/35">{label}</MonoLabel>
     </div>
   )
 }
