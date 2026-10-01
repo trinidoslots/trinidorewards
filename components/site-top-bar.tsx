@@ -56,7 +56,7 @@ export function SiteTopBar() {
           --main-nav-width, collapsed or not), so the nav runs the full height
           beside it instead of being cut off under it. */}
       <header
-        className="fixed left-0 right-0 top-0 z-40 flex items-center gap-3 border-b border-white/[0.08] bg-[#0B0B0D]/95 px-3 backdrop-blur transition-[left] duration-300 ease-in-out md:left-[var(--main-nav-width,224px)] md:px-5"
+        className="fixed left-0 right-0 top-0 z-40 flex items-center gap-3 border-b border-white/[0.08] bg-[#0B0B0D]/95 px-3 backdrop-blur transition-[left] duration-[320ms] ease-[var(--nav-ease)] md:left-[var(--main-nav-width)] md:px-5"
         style={{ height: TOP_BAR_HEIGHT }}
       >
         <button

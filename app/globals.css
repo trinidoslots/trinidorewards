@@ -447,6 +447,64 @@
   }
 }
 
+/* ------------------------------------------------------------- Main nav */
+
+/*
+ * The left nav's two widths, switched by <html data-nav="collapsed">. The
+ * attribute is set by an inline script in app/layout.tsx before first paint,
+ * then by the toggle; the nav, the top bar and the page wrapper all read the
+ * variable, so all three move together on one curve.
+ */
+:root {
+  --main-nav-width: 232px;
+  --nav-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+:root[data-nav="collapsed"] {
+  --main-nav-width: 64px;
+}
+
+.nav-shell {
+  transition:
+    width 320ms var(--nav-ease),
+    transform 320ms var(--nav-ease);
+}
+
+/*
+ * Labels fade rather than unmount. Out quickly as the nav starts to close, so
+ * nothing is seen being clipped; in only once it has mostly opened, so nothing
+ * is seen squeezed.
+ */
+.nav-fade {
+  transition: opacity 180ms ease 140ms;
+}
+
+.nav-rule {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+@media (min-width: 768px) {
+  :root[data-nav="collapsed"] .nav-fade {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 90ms ease;
+  }
+
+  :root[data-nav="collapsed"] .nav-rule {
+    opacity: 1;
+    transition: opacity 180ms ease 140ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-shell,
+  .nav-fade,
+  .nav-rule {
+    transition: none;
+  }
+}
+
 /*
  * Admin pages a moderator may only look at (lib/admin-permissions.ts). The
  * shell sets this class on <body> — not on the page wrapper, so dialogs that

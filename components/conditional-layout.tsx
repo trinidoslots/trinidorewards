@@ -53,7 +53,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
 
   return (
     // pt-14 clears the fixed top bar, the same 56px it is tall.
-    <div className="min-h-screen pt-14 transition-[padding-left] duration-300 ease-in-out md:pl-[var(--main-nav-width,238px)]">
+    <div className="min-h-screen pt-14 transition-[padding-left] duration-[320ms] ease-[var(--nav-ease)] md:pl-[var(--main-nav-width)]">
       <AmbientBackground />
       <SiteTopBar />
       <MainNav />

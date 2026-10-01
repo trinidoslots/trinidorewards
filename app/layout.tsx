@@ -46,7 +46,19 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the script below may set data-nav on <html>
+    // before React hydrates, which is the point of it.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Applies a remembered collapsed nav before first paint, so it does
+            not load expanded and then snap shut. Same key as NAV_STORAGE_KEY
+            in components/main-nav.tsx. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem("main-nav")==="collapsed")document.documentElement.dataset.nav="collapsed"}catch(e){}`,
+          }}
+        />
+      </head>
       <body className={`${geistSans.className} ${inter.variable} bg-[#0B0B0D] antialiased`}>
         <NextTopLoader color="#22d3ee" height={2.5} shadow="0 0 10px rgba(34,211,238,0.6)" showSpinner={false} />
         <ConditionalLayout>{children}</ConditionalLayout>
