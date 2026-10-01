@@ -286,8 +286,6 @@ function RecordCard({
 function BonusRow({ hunt, position, next }: { hunt: HuntBonusRow; position: number; next: boolean }) {
   const multiplier = hunt.result && hunt.bet_size ? Number(hunt.result) / Number(hunt.bet_size) : null
   const pending = hunt.result === null
-  // A big hit should look like one: 100x and up is set bolder and brighter.
-  const big = multiplier !== null && multiplier >= 100
 
   return (
     <li
@@ -339,17 +337,44 @@ function BonusRow({ hunt, position, next }: { hunt: HuntBonusRow; position: numb
       </span>
 
       <span className="text-right">
-        <span
-          className={`tabular-nums ${big ? "text-[16px] font-black" : "text-[14px] font-bold"}`}
-          style={{ color: multiplier ? ACCENTS.amber : "rgba(255,255,255,0.3)", textShadow: big ? `0 0 18px ${ACCENTS.amber}66` : undefined }}
-        >
-          {multiplier ? `${multiplier.toFixed(2)}x` : "—"}
-        </span>
+        <MultiCell multiplier={multiplier} />
         {/* On a phone the result column is hidden, so it rides under the multi. */}
         <span className="block text-[11.5px] tabular-nums sm:hidden" style={{ color: pending ? "rgba(255,255,255,0.3)" : ACCENTS.green }}>
           {pending ? "Pending" : money(Number(hunt.result))}
         </span>
       </span>
     </li>
+  )
+}
+
+/**
+ * The multiplier, coloured by how big the hit is. Every tier is the same size
+ * and weight — a hit is read from its colour, so the column never shifts and
+ * nothing in the list jumps out by being larger than its neighbours.
+ *
+ *   under 10x   red      a weak hit
+ *   10x–99x     white    an ordinary hit
+ *   100x–499x   green    a big one
+ *   500x+       gold     the hits people clip
+ *
+ * The gold is brighter and yellower than the palette amber on purpose: amber
+ * already marks the bonus being opened next, and a 500x should not read as
+ * "next".
+ */
+const GOLD = "#F5C542"
+
+export function multiColor(multiplier: number): string {
+  if (multiplier >= 500) return GOLD
+  if (multiplier >= 100) return ACCENTS.green
+  if (multiplier >= 10) return "#FFFFFF"
+  return ACCENTS.red
+}
+
+function MultiCell({ multiplier }: { multiplier: number | null }) {
+  if (!multiplier) return <span className="text-[14px] font-bold tabular-nums text-white/30">—</span>
+  return (
+    <span className="text-[14px] font-bold tabular-nums" style={{ color: multiColor(multiplier) }}>
+      {multiplier.toFixed(2)}x
+    </span>
   )
 }
