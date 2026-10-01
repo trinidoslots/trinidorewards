@@ -65,7 +65,7 @@ export function Hero({
             <span className="text-[12.5px] text-white/60">No deposit needed to take part</span>
           </div>
 
-          <h1 className="mt-7 text-[clamp(52px,8.4vw,112px)] font-black uppercase leading-[0.86] tracking-[-0.045em] text-white">
+          <h1 className="mt-7 text-[clamp(52px,8.4vw,112px)] font-black uppercase leading-[0.88] tracking-[-0.015em] text-white">
             <span className="block">Watch.</span>
             <span className="block text-white/55">Play.</span>
             <span className="block" style={{ color: ACCENTS.green }}>

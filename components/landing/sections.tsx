@@ -483,7 +483,7 @@ export function KickBand() {
         <div className="relative flex flex-wrap items-end justify-between gap-8">
           <div className="max-w-xl">
             <MonoLabel style={{ color: KICK_GREEN }}>Live on Kick</MonoLabel>
-            <h2 className="mt-4 text-[clamp(30px,4.6vw,52px)] font-black uppercase leading-[0.92] tracking-[-0.03em] text-white">
+            <h2 className="mt-4 text-[clamp(30px,4.6vw,52px)] font-black uppercase leading-[0.92] tracking-[-0.01em] text-white">
               Giveaways happen
               <br />
               on stream.
