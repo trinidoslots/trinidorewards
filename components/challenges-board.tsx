@@ -33,7 +33,7 @@ const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1]
 const RED = ACCENTS.red
 
 const TABS: { id: Phase; label: string; empty: string; note: string }[] = [
-  { id: "active", label: "Live", empty: "No live challenges right now", note: "New ones are set on stream. Check back soon." },
+  { id: "active", label: "Live", empty: "No live challenges right now", note: "New challenges show up here as soon as they are set." },
   { id: "upcoming", label: "Upcoming", empty: "Nothing lined up yet", note: "Challenges show up here before they start." },
   { id: "completed", label: "Completed", empty: "No finished challenges yet", note: "Finished challenges and their winners land here." },
 ]
@@ -93,7 +93,7 @@ function targetColor(challenge: Pick<Challenge, "target_type" | "target_value">)
 const STEPS = [
   { title: "Play the slot", copy: "At the minimum bet or above, on Stake." },
   { title: "Hit the target", copy: "The multiplier or the win the card asks for." },
-  { title: "Claim it", copy: "Send the bet ID. It is checked, then paid." },
+  { title: "Claim it", copy: "Send the bet ID. It is checked before it counts." },
 ]
 
 /** Three short steps under the title, like the store's. */
