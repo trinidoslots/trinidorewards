@@ -121,13 +121,15 @@ export function HuntKpiBoard({
           {/* The one number a live hunt is watched for. */}
           <div className="min-w-[13rem] rounded-2xl border px-5 py-4" style={{ borderColor: `${ACCENTS.amber}44`, backgroundColor: `${ACCENTS.amber}0f` }}>
             <MonoLabel style={{ color: ACCENTS.amber }}>{done ? "Hunt complete" : "Break even"}</MonoLabel>
+            {/* Finished, break-even means nothing; what came back does. The
+                average multi is already in the strip below. */}
             <p className="mt-2 text-[34px] font-black leading-none tabular-nums" style={{ color: ACCENTS.amber }}>
-              {done ? `${averageMultiplier.toFixed(2)}x` : `${breakEven.toFixed(2)}x`}
+              {done
+                ? `${startingBalanceVal > 0 ? Math.round((totalWonVal / startingBalanceVal) * 100) : 0}%`
+                : `${breakEven.toFixed(2)}x`}
             </p>
             <p className="mt-2 text-[12.5px] text-white/45">
-              {done
-                ? "average multiplier"
-                : `average needed on the ${remainingCount} still to open`}
+              {done ? "of the starting balance returned" : `average needed on the ${remainingCount} still to open`}
             </p>
           </div>
         </div>
