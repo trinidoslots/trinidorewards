@@ -1,20 +1,21 @@
 "use client"
 
+import type React from "react"
 import { ACCENTS, MonoLabel, type Accent } from "@/components/ui/panel"
-import { CountdownTiles, type Countdown } from "@/components/leaderboard-board"
+import type { Countdown } from "@/components/leaderboard-board"
+import { Clock } from "@/components/landing/parts"
 
 /**
- * The band at the top of a page, taken from the leaderboard.
+ * The band at the top of a page, in the landing page's language.
  *
- * Every other page opened with the same small left-aligned line — a 24px
- * heading and a sentence — which gives a page no first beat at all. The
- * leaderboard's works because of three things: a dark band that runs the full
- * width and curves out of the page at the bottom, one figure set large enough
- * to be the reason you came, and everything centred so the eye starts in the
- * middle rather than at a margin.
+ * Left-aligned display title with an accent rule and label above it, the
+ * same accent as a wash in the top-right corner over the masked grid, and —
+ * when the page has one — the figure it is about and its countdown in a panel
+ * on the right. The landing hero and every section heading on it are built
+ * the same way, so moving from the home page into a section reads as going
+ * deeper into one site rather than into a different template.
  *
- * Only the wash colour changes between pages. That is what makes them read as
- * one site rather than as a template applied twice.
+ * Only the accent changes between pages.
  */
 export function PageHero({
   accent = "blue",
@@ -36,7 +37,7 @@ export function PageHero({
   figureLabel?: string
   title: string
   subtitle?: string | null
-  /** A quiet line under the title — what the page is ranked or sorted by. */
+  /** A short status above the title — "Live", "Next stream", "Drawn". */
   note?: string
   actions?: React.ReactNode
   /** A control. Sits above everything, because a control must not move. */
@@ -47,53 +48,78 @@ export function PageHero({
   children?: React.ReactNode
 }) {
   const color = ACCENTS[accent]
+  const hasPanel = figure !== undefined || !!countdown
+  // Raffle names and schedule dates arrive here as titles; a long one at full
+  // display size would wrap into four lines.
+  const long = title.length > 22
 
   return (
-    <section className="relative overflow-hidden rounded-b-[40px] border-b border-white/[0.06] bg-[#0E0E12] px-5 pb-12 pt-10 text-center sm:px-8 sm:pb-14">
-      {/* One wash behind the figure. Sits under everything and takes no clicks. */}
+    <section className="relative w-full overflow-hidden border-b border-white/[0.06]">
       <div
         aria-hidden
-        className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[820px] max-w-none -translate-x-1/2 opacity-[0.10]"
-        style={{ background: `radial-gradient(ellipse at 50% 0%, ${color}, transparent 65%)` }}
+        className="pointer-events-none absolute inset-0"
+        style={{ background: `radial-gradient(900px 420px at 85% -20%, ${color}24, transparent 62%), #08080A` }}
+      />
+      <div
+        aria-hidden
+        className="hero-grid pointer-events-none absolute inset-0"
+        style={{
+          maskImage: "radial-gradient(ellipse 70% 90% at 70% 0%, #000 25%, transparent 75%)",
+          WebkitMaskImage: "radial-gradient(ellipse 70% 90% at 70% 0%, #000 25%, transparent 75%)",
+        }}
       />
 
-      <div className="relative mx-auto max-w-5xl">
-        {switcher && <div className="mb-6 flex justify-center">{switcher}</div>}
+      <div
+        className={`relative mx-auto grid max-w-6xl gap-10 px-5 pb-12 pt-10 lg:px-8 lg:pb-16 lg:pt-14 ${
+          hasPanel ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)] lg:items-end" : ""
+        }`}
+      >
+        <div className="min-w-0">
+          {switcher && <div className="mb-7">{switcher}</div>}
 
-        {figure !== undefined && (
-          <p
-            className="text-[44px] font-bold leading-none tracking-tight tabular-nums sm:text-[60px]"
-            style={{ color }}
+          <div className="flex items-center gap-2.5">
+            <span className="h-[3px] w-6 rounded-full" style={{ backgroundColor: color }} />
+            <MonoLabel style={{ color }}>{note ?? "TrinidoRewards"}</MonoLabel>
+          </div>
+
+          <h1
+            className={`mt-4 break-words font-black uppercase leading-[0.92] tracking-[-0.01em] text-white ${
+              long ? "text-[clamp(30px,4.6vw,52px)]" : "text-[clamp(40px,6.4vw,76px)]"
+            }`}
           >
-            {figure}
-          </p>
-        )}
-        {figureLabel && <MonoLabel className="mt-2.5 block text-white/35">{figureLabel}</MonoLabel>}
+            {title}
+          </h1>
+          {subtitle && <p className="mt-4 max-w-xl text-[15px] leading-7 text-white/50">{subtitle}</p>}
 
-        <h1
-          className={`text-[17px] font-bold uppercase italic tracking-wide text-white sm:text-[22px] ${
-            figure !== undefined || figureLabel ? "mt-4" : ""
-          }`}
-        >
-          {title}
-        </h1>
-        {subtitle && <p className="mt-1.5 text-[12.5px] text-white/35">{subtitle}</p>}
-        {note && <MonoLabel className="mt-2 block text-white/25">{note}</MonoLabel>}
+          {actions && <div className="mt-6 flex flex-wrap items-center gap-2.5">{actions}</div>}
 
-        {actions && <div className="mt-5 flex flex-wrap items-center justify-center gap-2">{actions}</div>}
+          {children}
 
-        {children}
+          {!hasPanel && range && <p className="mt-5 text-[12.5px] text-white/35">{range}</p>}
+        </div>
 
-        {countdown && (
-          <div className="mt-10">
-            <MonoLabel className="mb-3 block text-white/30">
-              {countdown.over ? "Closed" : (countdownLabel ?? "Time remaining")}
-            </MonoLabel>
-            <CountdownTiles left={countdown} />
-            {range && <p className="mt-3 text-[11.5px] text-white/25">{range}</p>}
+        {hasPanel && (
+          <div className="relative overflow-hidden rounded-3xl border border-white/[0.10] bg-[#0E0E12]/90 p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] backdrop-blur sm:p-7">
+            {figure !== undefined && (
+              <div className={countdown ? "border-b border-white/[0.07] pb-6" : ""}>
+                <MonoLabel style={{ color }}>{figureLabel ?? "Total"}</MonoLabel>
+                <p className="mt-3 text-[clamp(40px,5vw,56px)] font-black leading-none tabular-nums tracking-[-0.02em] text-white">
+                  {figure}
+                </p>
+              </div>
+            )}
+            {countdown && (
+              <div className={figure !== undefined ? "pt-6" : ""}>
+                <MonoLabel className="mb-4 block text-white/45">
+                  {countdown.over ? "Closed" : (countdownLabel ?? "Time remaining")}
+                </MonoLabel>
+                <Clock left={countdown} accent={color} />
+                {range && <p className="mt-4 text-[12.5px] text-white/35">{range}</p>}
+              </div>
+            )}
+            {!countdown && range && <p className="mt-4 text-[12.5px] text-white/35">{range}</p>}
           </div>
         )}
-        {!countdown && range && <p className="mt-6 text-[11.5px] text-white/25">{range}</p>}
       </div>
     </section>
   )
@@ -107,5 +133,5 @@ export function PageBody({
   children: React.ReactNode
   className?: string
 }) {
-  return <div className={`mx-auto max-w-6xl px-5 py-8 lg:px-8 ${className ?? ""}`}>{children}</div>
+  return <div className={`mx-auto max-w-6xl px-5 py-10 lg:px-8 ${className ?? ""}`}>{children}</div>
 }
