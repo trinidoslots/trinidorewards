@@ -87,13 +87,33 @@ function Chips({ entry }: { entry: RaffleEntry }) {
  * 51/1600 of the width by 51/1000 of the height, as a percentage radius so it
  * holds at any size — and the card shows through where the art is clear.
  *
+ * Where the picture meets the card's rounded top, its top corners follow the
+ * card's curve instead (23px: the card's 24px less its 1px border). Two
+ * different curves meeting at one corner read as a mistake — the art's border
+ * and blue bar were cut off at an angle there. `frame` sets which corners.
+ *
  * object-contain, not cover: an uploaded picture of another shape is shown
  * whole rather than cropped, as before. `inset={false}` is for thumbnails,
  * where the frame is the thumbnail.
  */
-function PrizeImage({ src, className, inset = true }: { src: string | null; className?: string; inset?: boolean }) {
+/** The artwork's own corners: ~51px on a 1600x1000 card, as percentages. */
+const ART_RADIUS = "rounded-[3.2%/5.1%]"
+/** Top corners on the card's curve, bottom corners the artwork's own. */
+const TOP_OF_CARD = "rounded-t-[23px] rounded-b-[3.2%_5.1%]"
+
+function PrizeImage({
+  src,
+  className,
+  inset = true,
+  frame: shape = ART_RADIUS,
+}: {
+  src: string | null
+  className?: string
+  inset?: boolean
+  frame?: string
+}) {
   const frame = (
-    <div className="relative aspect-[8/5] w-full overflow-hidden rounded-[3.2%/5.1%]">
+    <div className={`relative aspect-[8/5] w-full overflow-hidden ${shape}`}>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element -- admin-uploaded, any host
         <img src={src} alt="" className="h-full w-full object-contain" />
@@ -155,7 +175,7 @@ export function FeatureRaffle({ entry }: { entry: RaffleEntry }) {
         style={{ backgroundColor: accent }}
       />
       <div className="relative flex items-center border-b border-white/[0.07] lg:border-b-0 lg:border-r">
-        <PrizeImage src={raffle.prize_image_url} className="w-full" />
+        <PrizeImage src={raffle.prize_image_url} className="w-full" frame={`${TOP_OF_CARD} lg:rounded-[3.2%/5.1%]`} />
       </div>
 
       <div className="relative flex flex-col gap-6 p-6 sm:p-8">
@@ -211,7 +231,7 @@ export function TicketCard({ entry }: { entry: RaffleEntry }) {
       href={`/raffles/${raffle.id}`}
       className="group relative flex flex-col overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12] transition duration-300 hover:-translate-y-1 hover:border-white/20"
     >
-      <PrizeImage src={raffle.prize_image_url} />
+      <PrizeImage src={raffle.prize_image_url} frame={TOP_OF_CARD} />
 
       <div className="flex flex-1 flex-col gap-4 p-5">
         <Chips entry={entry} />
