@@ -307,7 +307,7 @@ export function FinishedRow({ entry }: { entry: RaffleEntry }) {
   )
 }
 
-/** Nothing open: say so properly, and point at where new ones come from. */
+/** Nothing open: say so properly. */
 export function NoRafflesOpen() {
   return (
     <div className="relative overflow-hidden rounded-xl border border-dashed border-white/[0.12] bg-[#0E0E12] px-6 py-14 text-center sm:py-16">
@@ -325,7 +325,7 @@ export function NoRafflesOpen() {
         </span>
         <h3 className="mt-6 text-[24px] font-black uppercase leading-tight text-white">No raffles running</h3>
         <p className="mt-3 text-[14.5px] leading-relaxed text-white/50">
-          New draws are announced live on stream. Follow on Kick so you are there when the next one opens.
+          There is nothing to enter right now. New raffles show up here as soon as they open.
         </p>
         <div className="mt-7 flex justify-center">
           <KickButton />
