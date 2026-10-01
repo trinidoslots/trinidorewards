@@ -1,9 +1,11 @@
 "use client"
 
+import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Lock, Package, ShoppingCart } from "lucide-react"
-import { ACCENTS, MonoLabel, Panel, Tag } from "@/components/ui/panel"
+import { ACCENTS, type Accent } from "@/components/ui/panel"
+import { ArtImage } from "@/components/art-image"
 import { inStock, isUnlimited, stockLabel, type StoreItem } from "@/lib/store"
 import { StoreBuyDialog } from "@/components/store-buy-dialog"
 import type { PayoutDetails } from "@/lib/payout"
@@ -68,93 +70,116 @@ export function StoreItemCard({
     }
   }
 
+  const buyable = isLoggedIn && !locked && available && canAfford
+  // How close your balance is to the price, for the bar under it.
+  const progress = cost > 0 ? Math.min(100, (userPoints / cost) * 100) : 100
+
   return (
-    <Panel accent={available ? "blue" : "slate"} className="lift flex h-full flex-col overflow-hidden">
-      {/* The card images are 8:5 and carry their own rounded corners and dark
-          ground, so they are shown whole rather than cropped to a fixed height —
-          object-cover cut the amount and the logo off both ends. */}
-      {item.icon ? (
-        // eslint-disable-next-line @next/next/no-img-element -- a stored path, not a managed asset
-        <img src={item.icon} alt="" className="aspect-[8/5] w-full object-contain" />
-      ) : (
-        <div className="flex aspect-[8/5] w-full items-center justify-center bg-white/[0.02]">
-          <Package className="h-9 w-9 text-white/10" />
-        </div>
-      )}
+    // The wrapper is what the card measures its corners against: 3.2% of its
+    // width, the artwork's own corner radius (components/art-image.tsx).
+    <div className="@container flex">
+      <div className="relative flex w-full flex-col overflow-hidden rounded-[3.2cqw] border border-white/[0.08] bg-[#0E0E12] transition duration-300 hover:-translate-y-1 hover:border-white/20">
+        <ArtImage src={item.icon || null} icon={Package} />
 
-      <div className="flex flex-1 flex-col gap-2 p-3.5">
-        <div className="flex items-start gap-2">
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-[14px] font-semibold text-white">{item.name}</h3>
-            {item.category && <MonoLabel className="text-white/25">{item.category}</MonoLabel>}
-          </div>
-          {item.code_user_only && <Tag accent="purple">Code Users</Tag>}
-          <Tag accent={isUnlimited(item.quantity) ? "blue" : available ? "green" : "red"}>
-            {stockLabel(Number(item.quantity))}
-          </Tag>
-        </div>
-
-        {item.description && <p className="line-clamp-2 text-[12px] text-white/35">{item.description}</p>}
-
-        <div className="mt-auto space-y-2 border-t border-white/[0.06] pt-2.5">
-          <div className="flex items-baseline justify-between">
-            <MonoLabel className="text-white/25">Price</MonoLabel>
-            <span className="text-[15px] font-semibold tabular-nums" style={{ color: ACCENTS.blue }}>
-              {cost.toLocaleString("en-US")} pts
-            </span>
+        <div className="flex flex-1 flex-col gap-4 p-5">
+          <div className="flex flex-wrap gap-1.5">
+            <Chip accent={isUnlimited(item.quantity) ? "blue" : available ? "green" : "red"}>
+              {stockLabel(Number(item.quantity))}
+            </Chip>
+            {item.code_user_only && (
+              <Chip accent="purple">
+                <Lock className="h-2.5 w-2.5" /> Code Users
+              </Chip>
+            )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setPreviewing(true)}
-            disabled={busy || !isLoggedIn || locked || !available || !canAfford}
-            className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md font-mono text-[11px] uppercase tracking-[0.1em] transition disabled:cursor-not-allowed"
-            style={
-              locked
-                ? { border: `1px solid ${ACCENTS.purple}44`, color: ACCENTS.purple }
-                : isLoggedIn && available && canAfford
-                  ? { backgroundColor: ACCENTS.blue, color: "#0B0B0D" }
-                  : { border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.3)" }
-            }
-          >
-            {locked ? <Lock className="h-3.5 w-3.5" /> : <ShoppingCart className="h-3.5 w-3.5" />}
-            {busy
-              ? "Buying…"
-              : locked
-                ? "Code Users only"
-                : !isLoggedIn
-                ? "Sign in to buy"
-                : !available
-                  ? "Out of stock"
-                  : !canAfford
-                    ? `${short.toLocaleString("en-US")} points short`
-                    : "Buy"}
-          </button>
+          <div>
+            <h3 className="truncate text-[17px] font-bold text-white">{item.name}</h3>
+            {item.description && <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-white/45">{item.description}</p>}
+          </div>
 
-          {message && !previewing && (
-            <p
-              className="text-center text-[12px]"
-              style={{ color: message.tone === "ok" ? ACCENTS.green : ACCENTS.red }}
+          <div className="mt-auto space-y-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-[22px] font-black tabular-nums text-white">
+                {cost.toLocaleString("en-US")} <span className="text-[13px] font-semibold text-white/45">pts</span>
+              </span>
+              {isLoggedIn && !locked && available && (
+                <span className="text-[12px] font-semibold tabular-nums" style={{ color: canAfford ? ACCENTS.green : "rgba(255,255,255,0.45)" }}>
+                  {canAfford ? "You can afford it" : `${short.toLocaleString("en-US")} short`}
+                </span>
+              )}
+            </div>
+
+            {isLoggedIn && !locked && available && (
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${progress}%`, backgroundColor: canAfford ? ACCENTS.green : ACCENTS.pink }}
+                />
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setPreviewing(true)}
+              disabled={busy || !buyable}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md text-[14px] font-bold transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:hover:brightness-100 disabled:active:scale-100"
+              style={
+                locked
+                  ? { border: `1px solid ${ACCENTS.purple}55`, backgroundColor: `${ACCENTS.purple}14`, color: ACCENTS.purple }
+                  : buyable
+                    ? { backgroundColor: ACCENTS.green, color: "#000", boxShadow: `0 10px 30px -14px ${ACCENTS.green}` }
+                    : { border: "1px solid rgba(255,255,255,0.10)", backgroundColor: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.4)" }
+              }
             >
-              {message.text}
-            </p>
-          )}
-        </div>
-      </div>
+              {locked ? <Lock className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+              {busy
+                ? "Buying…"
+                : locked
+                  ? "Code Users only"
+                  : !isLoggedIn
+                    ? "Sign in to buy"
+                    : !available
+                      ? "Out of stock"
+                      : !canAfford
+                        ? `${short.toLocaleString("en-US")} points short`
+                        : "Buy"}
+            </button>
 
-      {previewing && (
-        <StoreBuyDialog
-          item={item}
-          userPoints={userPoints}
-          busy={busy}
-          error={message?.tone === "error" ? message.text : null}
-          onClose={() => {
-            setPreviewing(false)
-            setMessage(null)
-          }}
-          onConfirm={buy}
-        />
-      )}
-    </Panel>
+            {message && !previewing && (
+              <p className="text-center text-[13px]" style={{ color: message.tone === "ok" ? ACCENTS.green : ACCENTS.red }}>
+                {message.text}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {previewing && (
+          <StoreBuyDialog
+            item={item}
+            userPoints={userPoints}
+            busy={busy}
+            error={message?.tone === "error" ? message.text : null}
+            onClose={() => {
+              setPreviewing(false)
+              setMessage(null)
+            }}
+            onConfirm={buy}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Chip({ children, accent }: { children: React.ReactNode; accent: Accent }) {
+  const color = ACCENTS[accent]
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.1em]"
+      style={{ borderColor: `${color}55`, backgroundColor: `${color}26`, color }}
+    >
+      {children}
+    </span>
   )
 }

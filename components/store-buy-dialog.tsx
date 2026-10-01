@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import { AlertTriangle, Package, ShoppingCart, X } from "lucide-react"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
+import { ArtImage } from "@/components/art-image"
 import { FIELD_CLASS, SelectMenu, type SelectOption } from "@/components/ui/select-menu"
 import {
   CRYPTOS,
@@ -221,11 +222,13 @@ export function StoreBuyDialog({
         role="dialog"
         aria-label={`Buy ${item.name}`}
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-md overflow-hidden rounded-xl border border-white/[0.10] bg-[#0E0E11]"
+        className="w-full max-w-md overflow-hidden rounded-xl border border-white/[0.10] bg-[#0E0E12] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]"
       >
-        <header className="flex items-center gap-2 border-b border-white/[0.08] px-4 py-3">
-          <MonoLabel className="text-white/70">{step === "details" ? "Buy" : "Confirm"}</MonoLabel>
-          <span className="truncate text-[13px] text-white/40">{item.name}</span>
+        <header className="flex items-center gap-3 border-b border-white/[0.08] px-5 py-4">
+          <div className="min-w-0">
+            <MonoLabel style={{ color: ACCENTS.pink }}>{step === "details" ? "Buy" : "Confirm"}</MonoLabel>
+            <p className="mt-1 truncate text-[16px] font-bold text-white">{item.name}</p>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -237,29 +240,30 @@ export function StoreBuyDialog({
           </button>
         </header>
 
-        <div className="max-h-[70vh] space-y-4 overflow-y-auto p-4">
+        <div className="max-h-[70vh] space-y-4 overflow-y-auto p-5">
           {/* The preview: what is actually being bought. */}
-          <div className="overflow-hidden rounded-lg border border-white/[0.08] bg-black/30">
-            {item.icon ? (
-              // eslint-disable-next-line @next/next/no-img-element -- stored as a plain path
-              <img src={item.icon} alt="" className="aspect-[8/5] w-full object-contain" />
-            ) : (
-              <div className="flex aspect-[8/5] w-full items-center justify-center">
-                <Package className="h-8 w-8 text-white/10" />
-              </div>
-            )}
+          {/* The shared artwork frame (components/art-image.tsx), its corners
+              matched the way the store cards match theirs. */}
+          <div className="@container">
+            <div className="overflow-hidden rounded-[3.2cqw] border border-white/[0.08]">
+              <ArtImage src={item.icon || null} icon={Package} />
+            </div>
           </div>
 
-          <div className="flex items-baseline justify-between">
-            <MonoLabel className="text-white/30">Price</MonoLabel>
-            <span className="text-[15px] font-semibold tabular-nums" style={{ color: ACCENTS.blue }}>
-              {money(cost)} pts
-            </span>
-          </div>
-          <div className="flex items-baseline justify-between border-t border-white/[0.06] pt-2">
-            <MonoLabel className="text-white/30">Balance after</MonoLabel>
-            <span className="text-[13px] tabular-nums text-white/60">{money(userPoints - cost)} pts</span>
-          </div>
+          <dl className="grid grid-cols-2 divide-x divide-white/[0.07] rounded-lg border border-white/[0.07]">
+            <div className="px-4 py-3">
+              <dt>
+                <MonoLabel className="text-white/40">Price</MonoLabel>
+              </dt>
+              <dd className="mt-1 text-[18px] font-black tabular-nums text-white">{money(cost)} pts</dd>
+            </div>
+            <div className="px-4 py-3">
+              <dt>
+                <MonoLabel className="text-white/40">Balance after</MonoLabel>
+              </dt>
+              <dd className="mt-1 text-[18px] font-bold tabular-nums text-white/70">{money(userPoints - cost)} pts</dd>
+            </div>
+          </dl>
 
           {step === "details" ? (
             <Fields
@@ -305,12 +309,12 @@ export function StoreBuyDialog({
           {error && <Note tone="error">{error}</Note>}
         </div>
 
-        <footer className="flex justify-end gap-2 border-t border-white/[0.08] px-4 py-3">
+        <footer className="flex justify-end gap-2.5 border-t border-white/[0.08] px-5 py-4">
           <button
             type="button"
             onClick={() => (step === "confirm" ? setStep("details") : onClose())}
             disabled={busy}
-            className="inline-flex h-9 items-center rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white disabled:opacity-30"
+            className="inline-flex h-11 items-center rounded-md border border-white/15 bg-white/[0.04] px-4 text-[14px] font-semibold text-white/80 transition hover:border-white/30 hover:text-white disabled:opacity-30"
           >
             {step === "confirm" ? "Back" : "Cancel"}
           </button>
@@ -320,21 +324,21 @@ export function StoreBuyDialog({
               type="button"
               onClick={() => setStep("confirm")}
               disabled={!ready}
-              className="inline-flex h-9 items-center gap-2 rounded-md px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-black transition disabled:cursor-not-allowed disabled:opacity-30"
-              style={{ backgroundColor: ACCENTS.blue }}
+              className="inline-flex h-11 items-center gap-2 rounded-md px-5 text-[14px] font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-30"
+              style={{ backgroundColor: ACCENTS.green }}
             >
-              <ShoppingCart className="h-3.5 w-3.5" />
-              Buy
+              <ShoppingCart className="h-4 w-4" />
+              Continue
             </button>
           ) : (
             <button
               type="button"
               onClick={() => onConfirm(details)}
               disabled={busy}
-              className="inline-flex h-9 items-center gap-2 rounded-md px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-black transition disabled:cursor-not-allowed disabled:opacity-40"
-              style={{ backgroundColor: ACCENTS.green }}
+              className="inline-flex h-11 items-center gap-2 rounded-md px-5 text-[14px] font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ backgroundColor: ACCENTS.green, boxShadow: `0 10px 30px -14px ${ACCENTS.green}` }}
             >
-              <ShoppingCart className="h-3.5 w-3.5" />
+              <ShoppingCart className="h-4 w-4" />
               {busy ? "Buying…" : "Confirm to Buy"}
             </button>
           )}

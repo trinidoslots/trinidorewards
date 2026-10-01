@@ -1,12 +1,12 @@
 import Link from "next/link"
 import { Coins, Package, ShoppingBag } from "lucide-react"
-import { ACCENTS, MonoLabel, Panel, StatTile } from "@/components/ui/panel"
-import { cookies } from "next/headers"
+import { ACCENTS } from "@/components/ui/panel"
 import { createClient } from "@/lib/supabase/server"
 import { serviceClient } from "@/lib/supabase/service"
 import { StoreItemCard } from "@/components/store-item-card"
 import { inStock, isAvailable, type StoreItem } from "@/lib/store"
 import { PageBody, PageHero } from "@/components/page-hero"
+import { SectionHeading } from "@/components/landing/parts"
 import type { Metadata } from "next"
 import { getSiteSession } from "@/lib/site-session"
 
@@ -23,7 +23,6 @@ export const metadata: Metadata = {
  */
 export default async function StorePage() {
   const supabase = await createClient()
-  const cookieStore = await cookies()
   const session = await getSiteSession()
   const kickUserId = session ? { value: session.kickId } : undefined
   const isLoggedIn = !!kickUserId
@@ -51,11 +50,11 @@ export default async function StorePage() {
       <div>
         <PageHero accent="pink" title="Stream Store" subtitle="Turn points into rewards." />
         <PageBody>
-          <Panel accent="red" className="p-6 text-center">
-            <Package className="mx-auto h-8 w-8 text-white/15" />
-            <p className="mt-3 text-[14px] text-white">The store could not be loaded.</p>
-            <p className="mt-1 text-[12.5px] text-white/35">{error.message}</p>
-          </Panel>
+          <div className="rounded-xl border border-white/[0.08] bg-[#0E0E12] p-8 text-center">
+            <Package className="mx-auto h-8 w-8 text-white/20" />
+            <p className="mt-3 text-[15px] font-semibold text-white">The store could not be loaded.</p>
+            <p className="mt-1 text-[13px] text-white/45">Try again in a moment.</p>
+          </div>
         </PageBody>
       </div>
     )
@@ -63,68 +62,77 @@ export default async function StorePage() {
 
   const items = ((data ?? []) as StoreItem[]).filter(isAvailable)
   const categories = Array.from(new Set(items.map((item) => item.category || "Uncategorised")))
-  const affordable = items.filter(
-    (item) => inStock(item) && userPoints >= (Number(item.cost) || 0) && (!item.code_user_only || isCodeUser),
-  ).length
+  const canBuy = (item: StoreItem) =>
+    inStock(item) && userPoints >= (Number(item.cost) || 0) && (!item.code_user_only || isCodeUser)
 
   return (
     <div>
       <PageHero
         accent="pink"
         figure={isLoggedIn ? userPoints.toLocaleString("en-US") : undefined}
-        figureLabel={isLoggedIn ? "Your points" : undefined}
+        figureLabel="Your points"
         title="Stream Store"
         subtitle="Turn points into rewards."
+        note={items.length > 0 ? `${items.length} ${items.length === 1 ? "item" : "items"} listed` : "Restocking"}
         actions={
           isLoggedIn ? (
             <Link
               href="/profile"
-              className="inline-flex h-9 items-center gap-2 rounded-md border border-white/[0.10] px-3.5 transition hover:border-white/25"
+              className="group inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/[0.04] px-4 py-2.5 text-[13.5px] font-semibold text-white transition hover:border-white/30 hover:bg-white/[0.08]"
             >
-              <Coins className="h-3.5 w-3.5" style={{ color: ACCENTS.green }} />
-              <MonoLabel className="text-white/40">Your profile</MonoLabel>
+              <Coins className="h-4 w-4" style={{ color: ACCENTS.green }} />
+              Your profile
             </Link>
           ) : undefined
         }
       />
-      <PageBody className="space-y-4">
-
-      <div className="grid gap-2.5 sm:grid-cols-3">
-        <StatTile label="Items listed" value={items.length.toLocaleString("en-US")} />
-        <StatTile label="Categories" value={categories.length.toLocaleString("en-US")} accent="blue" />
-        <StatTile
-          label={isLoggedIn ? "You can afford" : "Sign in to buy"}
-          value={isLoggedIn ? affordable.toLocaleString("en-US") : "—"}
-          accent="green"
-        />
-      </div>
-
-      {items.length === 0 ? (
-        <Panel className="flex flex-col items-center gap-2 py-16">
-          <ShoppingBag className="h-8 w-8 text-white/10" />
-          <p className="text-[13px] text-white/30">Nothing in the store right now.</p>
-        </Panel>
-      ) : (
-        categories.map((category) => {
-          const inCategory = items.filter((item) => (item.category || "Uncategorised") === category)
-          return (
-            <section key={category} className="space-y-2.5">
-              <MonoLabel className="text-white/30">{category}</MonoLabel>
-              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {inCategory.map((item) => (
-                  <StoreItemCard
-                    key={item.id}
-                    item={item}
-                    userPoints={userPoints}
-                    isLoggedIn={isLoggedIn}
-                    isCodeUser={isCodeUser}
-                  />
-                ))}
-              </div>
-            </section>
-          )
-        })
-      )}
+      <PageBody className="space-y-16">
+        {items.length === 0 ? (
+          <div className="flex items-center gap-4 rounded-xl border border-dashed border-white/[0.12] bg-[#0E0E12] px-6 py-6">
+            <span
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border"
+              style={{ borderColor: `${ACCENTS.pink}44`, backgroundColor: `${ACCENTS.pink}14` }}
+            >
+              <ShoppingBag className="h-5 w-5" style={{ color: ACCENTS.pink }} />
+            </span>
+            <div>
+              <p className="text-[15px] font-semibold text-white">Nothing in the store right now</p>
+              <p className="mt-0.5 text-[13px] text-white/45">New rewards show up here as soon as they are listed.</p>
+            </div>
+          </div>
+        ) : (
+          categories.map((category) => {
+            const inCategory = items.filter((item) => (item.category || "Uncategorised") === category)
+            const affordable = inCategory.filter(canBuy).length
+            return (
+              <section key={category} className="space-y-6">
+                <SectionHeading
+                  eyebrow={`${inCategory.length} ${inCategory.length === 1 ? "item" : "items"}`}
+                  title={category}
+                  accent={ACCENTS.pink}
+                  right={
+                    isLoggedIn ? (
+                      <span className="text-[13px]" style={{ color: affordable > 0 ? ACCENTS.green : "rgba(255,255,255,0.45)" }}>
+                        {affordable > 0 ? `You can afford ${affordable}` : "Nothing affordable yet"}
+                      </span>
+                    ) : undefined
+                  }
+                />
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {inCategory.map((item) => (
+                    <StoreItemCard
+                      key={item.id}
+                      item={item}
+                      userPoints={userPoints}
+                      isLoggedIn={isLoggedIn}
+                      isCodeUser={isCodeUser}
+                    />
+                  ))}
+                </div>
+              </section>
+            )
+          })
+        )}
       </PageBody>
     </div>
   )
