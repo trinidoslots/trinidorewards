@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { createBrowserClient } from "@/lib/supabase/client"
-import { Card } from "@/components/ui/card"
 import { BracketVisualizer } from "@/components/bracket-visualizer"
 
 interface TournamentBracketViewProps {
@@ -40,25 +39,23 @@ export function TournamentBracketView({ tournamentId, maxParticipants }: Tournam
 
   if (loading) {
     return (
-      <Card className="bg-slate-800/50 border-slate-700/50 p-8 text-center">
-        <p className="text-slate-400">Loading tournament bracket...</p>
-      </Card>
+      <div className="h-40 animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.025]" />
     )
   }
 
   if (slots.length === 0) {
     return (
-      <Card className="bg-slate-800/50 border-slate-700/50 p-8 text-center">
-        <p className="text-slate-400">Tournament bracket is being prepared...</p>
-      </Card>
+      <div className="rounded-xl border border-dashed border-white/[0.12] bg-[#0E0E12] px-6 py-6 text-[14px] text-white/50">
+        The bracket is being prepared.
+      </div>
     )
   }
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700/50 p-6 space-y-4">
-      <div>
-        <h2 className="text-2xl font-bold text-white mb-2">Tournament Bracket</h2>
-        <p className="text-slate-400">Live bracket for {slots.length} participants</p>
+    <section className="space-y-4 rounded-xl border border-white/[0.08] bg-[#0E0E12] p-5 sm:p-6">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-white/70">Bracket</h2>
+        <p className="text-[12.5px] text-white/40">{slots.length} players</p>
       </div>
       <div className="overflow-x-auto">
         <BracketVisualizer
@@ -70,6 +67,6 @@ export function TournamentBracketView({ tournamentId, maxParticipants }: Tournam
           maxParticipants={maxParticipants}
         />
       </div>
-    </Card>
+    </section>
   )
 }

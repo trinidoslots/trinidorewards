@@ -1,8 +1,14 @@
-import Link from "next/link"
-import { Swords, Trophy, Users } from "lucide-react"
-import { ACCENTS, MonoLabel, Panel, StatTile, Tag } from "@/components/ui/panel"
+import { ACCENTS } from "@/components/ui/panel"
 import { createServerClient } from "@/lib/supabase/server"
 import { PageBody, PageHero } from "@/components/page-hero"
+import { SectionHeading } from "@/components/landing/parts"
+import {
+  FeatureTournament,
+  FinishedTournamentRow,
+  NothingRunning,
+  TournamentCard,
+  type TournamentEntry,
+} from "@/components/tournament-cards"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -42,8 +48,6 @@ type Tournament = {
   featured: boolean
 }
 
-const money = (value: number) => "$" + Math.round(Number(value) || 0).toLocaleString("en-US")
-
 async function fetchAll() {
   const supabase = await createServerClient()
 
@@ -75,7 +79,7 @@ function phaseOf(tournament: Tournament): "registration" | "running" | "finished
 export default async function TournamentsPage() {
   const { tournaments } = await fetchAll()
 
-  const rows = tournaments.map((tournament) => ({
+  const rows: TournamentEntry[] = tournaments.map((tournament) => ({
     tournament,
     players: Number(tournament.current_participants) || 0,
     phase: phaseOf(tournament),
@@ -87,136 +91,65 @@ export default async function TournamentsPage() {
 
   const totalPrize = tournaments.reduce((sum, tournament) => sum + (Number(tournament.prize_pool) || 0), 0)
 
+  const [featured, ...moreLive] = live
+
   return (
     <div>
       <PageHero
         accent="purple"
         title="Tournaments"
         subtitle="Bonus battles, bracket by bracket."
+        note={
+          live.length > 0
+            ? `${live.length} live now`
+            : open.length > 0
+              ? `${open.length} taking entries`
+              : "Between brackets"
+        }
+        figure={totalPrize > 0 ? `$${Math.round(totalPrize).toLocaleString("en-US")}` : undefined}
+        figureLabel="In prize pools"
       />
-      <PageBody className="space-y-4">
+      <PageBody className="space-y-16">
+        <section className="space-y-6">
+          <SectionHeading eyebrow="Live" title="Running now" accent={ACCENTS.green} />
+          {featured ? (
+            <>
+              <FeatureTournament entry={featured} />
+              {moreLive.length > 0 && (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {moreLive.map((entry) => (
+                    <TournamentCard key={entry.tournament.id} entry={entry} />
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <NothingRunning />
+          )}
+        </section>
 
-      <div className="grid gap-2.5 sm:grid-cols-3">
-        <StatTile label="Running now" value={live.length.toLocaleString()} accent="green" />
-        <StatTile label="Taking entries" value={open.length.toLocaleString()} accent="blue" />
-        <StatTile label="Prize pool listed" value={money(totalPrize)} accent="amber" />
-      </div>
+        {open.length > 0 && (
+          <section className="space-y-6">
+            <SectionHeading eyebrow="Sign-ups" title="Taking entries" accent={ACCENTS.blue} />
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {open.map((entry) => (
+                <TournamentCard key={entry.tournament.id} entry={entry} />
+              ))}
+            </div>
+          </section>
+        )}
 
-      <Section title="Running now" rows={live} empty="Nothing is being played right now." />
-      <Section title="Taking entries" rows={open} empty={null} />
-      <Section title="Finished" rows={done} empty={null} />
+        {done.length > 0 && (
+          <section className="space-y-6">
+            <SectionHeading eyebrow="Archive" title="Finished" accent={ACCENTS.slate} />
+            <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
+              {done.map((entry) => (
+                <FinishedTournamentRow key={entry.tournament.id} entry={entry} />
+              ))}
+            </div>
+          </section>
+        )}
       </PageBody>
     </div>
-  )
-}
-
-function Section({
-  title,
-  rows,
-  empty,
-}: {
-  title: string
-  rows: { tournament: Tournament; players: number; phase: string }[]
-  empty: string | null
-}) {
-  if (rows.length === 0 && !empty) return null
-
-  return (
-    <section className="space-y-2.5">
-      <MonoLabel className="text-white/30">{title}</MonoLabel>
-      {rows.length === 0 ? (
-        <Panel className="flex flex-col items-center gap-2 py-12">
-          <Swords className="h-7 w-7 text-white/10" />
-          <p className="text-[13px] text-white/30">{empty}</p>
-        </Panel>
-      ) : (
-        <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
-          {rows.map((row) => (
-            <TournamentCard key={row.tournament.id} {...row} />
-          ))}
-        </div>
-      )}
-    </section>
-  )
-}
-
-function TournamentCard({
-  tournament,
-  players,
-  phase,
-}: {
-  tournament: Tournament
-  players: number
-  phase: string
-}) {
-  const size = Number(tournament.bracket_size) || Number(tournament.max_participants) || 0
-  const filled = size > 0 ? Math.min(100, (players / size) * 100) : 0
-  const accent = phase === "running" ? "green" : phase === "registration" ? "blue" : "slate"
-
-  return (
-    <Link href={"/tournaments/" + tournament.id} className="block">
-      <Panel accent={accent} className="lift h-full overflow-hidden hover:border-white/20">
-        <div className="relative">
-          {/* Same frame as the store and raffle cards — see app/raffles/page.tsx. */}
-          {tournament.image_url ? (
-            <img src={tournament.image_url} alt="" className="aspect-[8/5] w-full object-contain" />
-          ) : (
-            <div className="flex aspect-[8/5] w-full items-center justify-center bg-white/[0.02]">
-              <Swords className="h-9 w-9 text-white/10" />
-            </div>
-          )}
-          <div className="absolute left-2 top-2 flex gap-1.5">
-            <Tag accent={accent}>{phase}</Tag>
-            {tournament.featured && <Tag accent="amber">Featured</Tag>}
-          </div>
-        </div>
-
-        <div className="space-y-2 p-3.5">
-          <div>
-            <h3 className="truncate text-[14px] font-semibold text-white">{tournament.title}</h3>
-            {tournament.description && (
-              <p className="line-clamp-2 text-[12px] text-white/35">{tournament.description}</p>
-            )}
-          </div>
-
-          {tournament.winner_username && (
-            <div className="flex items-center gap-1.5">
-              <Trophy className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.amber }} />
-              <span className="truncate text-[12.5px] text-white/70">{tournament.winner_username}</span>
-            </div>
-          )}
-
-          {size > 0 && (
-            <div>
-              <div className="flex items-baseline justify-between">
-                <MonoLabel className="text-white/25">
-                  {players} / {size} players
-                </MonoLabel>
-                <MonoLabel className="text-white/25">{Math.round(filled)}%</MonoLabel>
-              </div>
-              <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/[0.06]">
-                <div className="h-full rounded-full" style={{ width: filled + "%", backgroundColor: ACCENTS[accent] }} />
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center gap-3 border-t border-white/[0.06] pt-2">
-            <span className="flex items-center gap-1.5 text-[12px] text-white/40">
-              <Users className="h-3 w-3" />
-              {players}
-            </span>
-            {tournament.prize_pool ? (
-              <span className="ml-auto text-[13px] font-semibold" style={{ color: ACCENTS.amber }}>
-                {money(tournament.prize_pool)}
-              </span>
-            ) : (
-              <MonoLabel className="ml-auto text-white/20">
-                {new Date(tournament.start_date).toLocaleDateString()}
-              </MonoLabel>
-            )}
-          </div>
-        </div>
-      </Panel>
-    </Link>
   )
 }

@@ -139,3 +139,36 @@ export function PageBody({
 }) {
   return <div className={`mx-auto max-w-6xl px-5 py-10 lg:px-8 ${className ?? ""}`}>{children}</div>
 }
+
+/**
+ * PageHero's own shape with placeholders, for pages that load in the browser.
+ *
+ * A loading state that renders a real PageHero with a stand-in title ("Loading",
+ * or the section name) is replaced a moment later by one with the real title —
+ * one header swapped for another. This keeps the edges where the real header
+ * will put them, so loading reads as the same header filling in.
+ */
+export function PageHeroSkeleton({ accent = "blue", panel = false }: { accent?: Accent; panel?: boolean }) {
+  const color = ACCENTS[accent]
+  return (
+    <section data-no-reveal className="relative w-full overflow-hidden border-b border-white/[0.06]">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{ background: `radial-gradient(900px 420px at 85% -20%, ${color}24, transparent 62%), #08080A` }}
+      />
+      <div
+        className={`relative mx-auto grid max-w-6xl gap-10 px-5 pb-12 pt-10 lg:px-8 lg:pb-16 lg:pt-14 ${
+          panel ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)] lg:items-end" : ""
+        }`}
+      >
+        <div>
+          <span className="block h-[3px] w-6 rounded-full" style={{ backgroundColor: color }} />
+          <div className="mt-5 h-[clamp(36px,5.6vw,66px)] w-4/5 max-w-xl animate-pulse rounded-lg bg-white/[0.06]" />
+          <div className="mt-5 h-3.5 w-72 max-w-full animate-pulse rounded bg-white/[0.05]" />
+        </div>
+        {panel && <div className="h-[150px] animate-pulse rounded-xl border border-white/[0.08] bg-white/[0.03]" />}
+      </div>
+    </section>
+  )
+}
