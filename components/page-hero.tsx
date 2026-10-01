@@ -54,7 +54,11 @@ export function PageHero({
   const long = title.length > 22
 
   return (
-    <section className="relative w-full overflow-hidden border-b border-white/[0.06]">
+    // data-no-reveal: pages render this header in their loading state and
+    // again once loaded. Staged by <Reveal>, it animated in twice — once as
+    // the placeholder, once more when the real page replaced it. The page
+    // transition already brings it in; it should then stay put.
+    <section data-no-reveal className="relative w-full overflow-hidden border-b border-white/[0.06]">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"

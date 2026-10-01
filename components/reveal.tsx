@@ -19,6 +19,11 @@ const STAGGER_MS = 70
 /** Past this, a long page would stage its last section a second and a half in. */
 const MAX_STAGGER_MS = 420
 
+/** Elements that carry data-no-reveal are left exactly as they render. */
+function optedOut(node: Element): boolean {
+  return node instanceof HTMLElement && node.dataset.noReveal !== undefined
+}
+
 export function Reveal() {
   const pathname = usePathname()
 
@@ -50,8 +55,14 @@ export function Reveal() {
       // Descend past single-child wrappers: <main> holds the page transition,
       // which holds the page, so staging main's own children would stage the
       // whole page as one block and the effect would not be visible at all.
+      // Never into an opted-out element: a loading state that is just the
+      // page header would otherwise have the header's insides staged instead.
       let container: Element = main!
-      for (let depth = 0; depth < 4 && container.children.length === 1; depth++) {
+      for (
+        let depth = 0;
+        depth < 4 && container.children.length === 1 && !optedOut(container.children[0]);
+        depth++
+      ) {
         container = container.children[0]
       }
 
@@ -64,6 +75,14 @@ export function Reveal() {
       let index = 0
       for (const node of targets) {
         if (seen.has(node)) {
+          index++
+          continue
+        }
+        // Marked data-no-reveal: something that appears in a page's loading
+        // state and again once it has loaded (the page header). Staging it
+        // played its entrance twice.
+        if (optedOut(node)) {
+          seen.add(node)
           index++
           continue
         }
