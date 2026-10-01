@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { ChevronDown, Search } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, Search } from "lucide-react"
+import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { createClient } from "@/lib/supabase/client"
 import type { HuntKpis } from "@/lib/active-hunt"
 import { HuntKpiBoard, type HuntBonusRow } from "@/components/hunt-kpi-board"
@@ -16,6 +17,20 @@ const money = (value: number) => `$${value.toFixed(2)}`
 function formatDate(value: string | null) {
   if (!value) return "Unknown date"
   return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
+const control =
+  "inline-flex h-10 items-center justify-center rounded-md border border-white/[0.12] bg-white/[0.03] text-white/70 transition hover:border-white/30 hover:text-white disabled:pointer-events-none disabled:opacity-30"
+
+/** What the hunt paid against its starting balance, signed and coloured. */
+function Profit({ hunt }: { hunt: HuntKpis }) {
+  const diff = Number(hunt.total_won) - Number(hunt.starting_balance)
+  return (
+    <span className="font-semibold tabular-nums" style={{ color: diff >= 0 ? ACCENTS.green : ACCENTS.red }}>
+      {diff >= 0 ? "+" : "-"}
+      {money(Math.abs(diff))}
+    </span>
+  )
 }
 
 export function PreviousHuntsPanel() {
@@ -93,34 +108,79 @@ export function PreviousHuntsPanel() {
 
   const selectedHunt = endedHunts.find((h) => h.hunt_id === selectedHuntId) ?? null
 
+  const selectedIndex = endedHunts.findIndex((h) => h.hunt_id === selectedHuntId)
+  const step = (by: number) => {
+    const next = endedHunts[selectedIndex + by]
+    if (next) setSelectedHuntId(next.hunt_id)
+  }
+
   if (loading) {
-    return <div className="p-6 font-mono text-[11px] uppercase tracking-widest text-white/25">Loading hunt archive</div>
+    return (
+      <div className="space-y-5">
+        <div className="h-[104px] animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.025]" />
+        <div className="h-[420px] animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.02]" />
+      </div>
+    )
   }
 
   return (
     <>
-      <section className="mb-2.5 rounded-lg border border-white/[0.08] bg-white/[0.022] p-3.5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-[13px] text-white/60">
-              {selectedHunt ? (
-                <>
-                  Viewing <span className="text-white">{selectedHunt.streamer}</span>
-                  {selectedHunt.title ? <> · {selectedHunt.title}</> : null} · {formatDate(selectedHunt.ended_at ?? selectedHunt.created_at)}
-                </>
-              ) : (
-                "No completed hunts yet."
-              )}
-            </p>
+      <section className="mb-5 overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
+        <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <MonoLabel style={{ color: ACCENTS.blue }}>
+              {selectedHunt ? `Viewing · ${selectedIndex + 1} of ${endedHunts.length}` : "Hunt archive"}
+            </MonoLabel>
+            {selectedHunt ? (
+              <>
+                <p className="mt-2 truncate text-[20px] font-bold leading-tight text-white">
+                  {selectedHunt.streamer}
+                  {selectedHunt.title ? <span className="text-white/45"> · {selectedHunt.title}</span> : null}
+                </p>
+                <p className="mt-1 text-[13px] text-white/45">
+                  {formatDate(selectedHunt.ended_at ?? selectedHunt.created_at)} · {selectedHunt.total_bonuses} bonuses ·{" "}
+                  <Profit hunt={selectedHunt} />
+                </p>
+              </>
+            ) : (
+              <p className="mt-2 text-[15px] text-white/55">No completed hunts yet.</p>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={() => setListOpen((v) => !v)}
-            className="flex items-center justify-center gap-2 rounded-md border border-white/12 bg-white/[0.06] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12]"
-          >
-            {listOpen ? "Hide hunt list" : "Browse past hunts"}
-            <ChevronDown className={`h-4 w-4 transition-transform ${listOpen ? "rotate-180" : ""}`} />
-          </button>
+
+          {endedHunts.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => step(1)}
+                disabled={selectedIndex >= endedHunts.length - 1}
+                aria-label="Older hunt"
+                title="Older hunt"
+                className={`${control} w-10`}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => step(-1)}
+                disabled={selectedIndex <= 0}
+                aria-label="Newer hunt"
+                title="Newer hunt"
+                className={`${control} w-10`}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setListOpen((v) => !v)}
+                aria-expanded={listOpen}
+                className={`${control} flex-1 gap-2 px-4 text-[13.5px] font-semibold sm:flex-none`}
+                style={listOpen ? { borderColor: `${ACCENTS.blue}66`, color: "#fff" } : undefined}
+              >
+                {listOpen ? "Hide list" : "All past hunts"}
+                <ChevronDown className={`h-4 w-4 transition-transform ${listOpen ? "rotate-180" : ""}`} />
+              </button>
+            </div>
+          )}
         </div>
 
         <AnimatePresence initial={false}>
@@ -133,44 +193,43 @@ export function PreviousHuntsPanel() {
             transition={{ duration: 0.32, ease: EASE }}
             style={{ overflow: "hidden" }}
           >
-          <div className="mt-3 border-t border-white/[0.08] pt-3">
+          <div className="border-t border-white/[0.07] p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-1 rounded-md border border-white/[0.08] bg-black/30 p-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveStreamer("ALL")}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${activeStreamer === "ALL" ? "bg-white/[0.10] text-white" : "text-white/35 hover:text-white/75"}`}
-                >
-                  All
-                </button>
-                {streamers.map((streamer) => (
-                  <button
-                    key={streamer}
-                    type="button"
-                    onClick={() => setActiveStreamer(streamer)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${activeStreamer === streamer ? "bg-white/[0.10] text-white" : "text-white/35 hover:text-white/75"}`}
-                  >
-                    {streamer}
-                  </button>
-                ))}
-              </div>
-              <div className="relative w-full sm:max-w-xs">
-                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/25" />
+              {streamers.length > 1 && (
+                <div className="inline-flex flex-wrap gap-1 self-start rounded-full border border-white/[0.10] bg-black/40 p-1">
+                  {["ALL", ...streamers].map((streamer) => {
+                    const active = activeStreamer === streamer
+                    return (
+                      <button
+                        key={streamer}
+                        type="button"
+                        onClick={() => setActiveStreamer(streamer)}
+                        className="rounded-full px-4 py-1.5 text-[13px] font-semibold transition"
+                        style={active ? { backgroundColor: ACCENTS.blue, color: "#000" } : { color: "rgba(255,255,255,0.55)" }}
+                      >
+                        {streamer === "ALL" ? "All" : streamer}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              <div className="relative w-full sm:ml-auto sm:max-w-xs">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                 <input
                   aria-label="Search hunts"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search streamer or title"
-                  className="h-9 w-full rounded-md border border-white/10 bg-black/40 pl-9 pr-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
+                  placeholder="Search streamer or title…"
+                  className="h-10 w-full rounded-md border border-white/[0.10] bg-black/40 pl-10 pr-3 text-[14px] text-white outline-none transition placeholder:text-white/30 focus:border-white/25"
                 />
               </div>
             </div>
 
-            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white/25">
+            <MonoLabel className="mt-4 block text-white/35">
               {filteredHunts.length} ended hunt{filteredHunts.length === 1 ? "" : "s"}
-            </p>
+            </MonoLabel>
 
-            <div className="mt-2 max-h-80 overflow-y-auto pr-1">
+            <div className="mt-3 max-h-[26rem] overflow-y-auto pr-1">
               <AnimatePresence initial={false} mode="popLayout">
               {filteredHunts.length === 0 ? (
                 <motion.p
@@ -179,43 +238,60 @@ export function PreviousHuntsPanel() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2, ease: EASE }}
-                  className="rounded-md border border-dashed border-white/[0.10] px-4 py-8 text-center text-[12.5px] text-white/30"
+                  className="rounded-lg border border-dashed border-white/[0.10] px-4 py-8 text-center text-[13px] text-white/40"
                 >
                   No hunts match.
                 </motion.p>
               ) : (
-                filteredHunts.map((hunt) => (
-                  <motion.button
-                    key={hunt.hunt_id}
-                    layout="position"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                    transition={{ duration: 0.26, ease: EASE }}
-                    type="button"
-                    // The list stays open: picking a hunt used to close it,
-                    // so comparing two hunts meant reopening it every time.
-                    onClick={() => setSelectedHuntId(hunt.hunt_id)}
-                    aria-pressed={hunt.hunt_id === selectedHuntId}
-                    className={`mb-1.5 flex w-full items-center justify-between gap-4 rounded-lg border px-4 py-3 text-left text-sm transition-colors duration-200 ${
-                      hunt.hunt_id === selectedHuntId
-                        ? "border-[#5B8DEF]/40 bg-[#5B8DEF]/[0.08]"
-                        : "border-white/[0.08] bg-white/[0.022] hover:border-white/20 hover:bg-white/[0.05]"
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-[13px] text-white/85">
-                        {hunt.streamer}
-                        {hunt.title ? <span className="text-white/35"> · {hunt.title}</span> : null}
-                      </p>
-                      <p className="mt-0.5 font-mono text-[10px] text-white/25">{formatDate(hunt.ended_at ?? hunt.created_at)} · {hunt.total_bonuses} bonuses</p>
-                    </div>
-                    <p className={`shrink-0 font-semibold ${Number(hunt.total_won) - Number(hunt.starting_balance) >= 0 ? "text-[#46C48A]" : "text-[#E5484D]"}`}>
-                      {Number(hunt.total_won) - Number(hunt.starting_balance) >= 0 ? "+" : "-"}
-                      {money(Math.abs(Number(hunt.total_won) - Number(hunt.starting_balance)))}
-                    </p>
-                  </motion.button>
-                ))
+                filteredHunts.map((hunt) => {
+                  const active = hunt.hunt_id === selectedHuntId
+                  const date = new Date(hunt.ended_at ?? hunt.created_at)
+                  return (
+                    <motion.button
+                      key={hunt.hunt_id}
+                      layout="position"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                      transition={{ duration: 0.26, ease: EASE }}
+                      type="button"
+                      // The list stays open: picking a hunt used to close it,
+                      // so comparing two hunts meant reopening it every time.
+                      onClick={() => setSelectedHuntId(hunt.hunt_id)}
+                      aria-pressed={active}
+                      className="relative mb-2 flex w-full items-center gap-4 overflow-hidden rounded-lg border py-3 pl-4 pr-4 text-left transition-colors duration-200 hover:border-white/20 hover:bg-white/[0.04]"
+                      style={
+                        active
+                          ? { borderColor: `${ACCENTS.blue}66`, backgroundColor: `${ACCENTS.blue}12` }
+                          : { borderColor: "rgba(255,255,255,0.07)", backgroundColor: "rgba(255,255,255,0.015)" }
+                      }
+                    >
+                      {active && (
+                        <span aria-hidden className="absolute inset-y-0 left-0 w-[3px]" style={{ backgroundColor: ACCENTS.blue }} />
+                      )}
+                      <div className="flex w-11 shrink-0 flex-col items-center rounded-md border border-white/[0.08] bg-black/30 py-1.5">
+                        <MonoLabel className="text-white/40">
+                          {Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("en-US", { month: "short" })}
+                        </MonoLabel>
+                        <span className="mt-0.5 text-[17px] font-black leading-none tabular-nums text-white">
+                          {Number.isNaN(date.getTime()) ? "?" : date.getDate()}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[14px] font-semibold text-white">
+                          {hunt.streamer}
+                          {hunt.title ? <span className="font-normal text-white/45"> · {hunt.title}</span> : null}
+                        </p>
+                        <p className="mt-0.5 text-[12px] tabular-nums text-white/40">
+                          {date.getFullYear()} · {hunt.total_bonuses} bonuses
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[14px] font-bold tabular-nums">
+                        <Profit hunt={hunt} />
+                      </span>
+                    </motion.button>
+                  )
+                })
               )}
               </AnimatePresence>
             </div>
@@ -226,7 +302,7 @@ export function PreviousHuntsPanel() {
       </section>
 
       {!selectedHunt ? (
-        <div className="rounded-lg border border-dashed border-white/[0.10] p-12 text-center text-[12.5px] text-white/30">
+        <div className="rounded-xl border border-dashed border-white/[0.12] bg-[#0E0E12] p-12 text-center text-[13.5px] text-white/45">
           No completed hunts yet. Once a hunt ends, it will show up here.
         </div>
       ) : (
