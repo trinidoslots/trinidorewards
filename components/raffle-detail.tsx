@@ -5,7 +5,7 @@ import { PageBody, PageHero } from "@/components/page-hero"
 import { RaffleCountdown } from "@/components/raffle-countdown"
 import { RaffleLiveDraw } from "@/components/raffle-live-draw"
 import RaffleEntryButton from "@/components/raffle-entry-button"
-import { PrizeImage, TOP_OF_CARD } from "@/components/raffle-cards"
+import { PrizeImage } from "@/components/raffle-cards"
 import { formatDrawDate } from "@/lib/raffle-utils"
 
 /**
@@ -88,8 +88,11 @@ export function RaffleDetailView(props: RaffleDetailProps) {
           every entrant. Side by side, the entry panel spans both rows on the
           right and stays in view while the list scrolls.
         */}
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
-          <div className="min-w-0 space-y-6 lg:col-start-1 lg:row-start-1">
+        {/* raffle-detail-grid sets --raffle-radius, the artwork's own corner
+            radius at this width, which every panel here uses (globals.css). */}
+        <div className="raffle-detail-grid grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+          {/* No space-y: the draw area brings its own gap when it shows. */}
+          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
             <RaffleLiveDraw
               raffleId={raffle.id}
               endsAt={raffle.end_date}
@@ -117,8 +120,8 @@ export function RaffleDetailView(props: RaffleDetailProps) {
 function PrizeCard({ raffle, totalTickets, totalCap, entrantCount, isFree, ticketPrice }: RaffleDetailProps) {
   const filled = totalCap ? Math.min(100, (totalTickets / totalCap) * 100) : 0
   return (
-    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
-      <PrizeImage src={raffle.prize_image_url} frame={TOP_OF_CARD} />
+    <section className="overflow-hidden rounded-[var(--raffle-radius)] border border-white/[0.08] bg-[#0E0E12]">
+      <PrizeImage src={raffle.prize_image_url} />
       <div className="p-6 sm:p-7">
         <MonoLabel style={{ color: ACCENTS.amber }}>Prize</MonoLabel>
         <h2 className="mt-3 text-[clamp(26px,3.6vw,40px)] font-black uppercase leading-[0.95] text-white">
@@ -168,7 +171,7 @@ function Figure({ label, value, hint, color }: { label: string; value: string; h
 /** Who is in, most tickets first, with each one's share of the pot. */
 function Entrants({ leaderboard, entrantCount, totalTickets }: RaffleDetailProps) {
   return (
-    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
+    <section className="overflow-hidden rounded-[var(--raffle-radius)] border border-white/[0.08] bg-[#0E0E12]">
       <header className="flex items-center gap-2.5 border-b border-white/[0.07] px-5 py-4 sm:px-6">
         <Users className="h-4 w-4" style={{ color: ACCENTS.purple }} />
         <MonoLabel className="text-white/70">Entrants</MonoLabel>
@@ -232,7 +235,7 @@ function EntryPanel(props: RaffleDetailProps & { accent: string }) {
   const open = status === "active" && !drawn
 
   return (
-    <section className="relative overflow-hidden rounded-xl border border-white/[0.10] bg-[#0E0E12] p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]">
+    <section className="relative overflow-hidden rounded-[var(--raffle-radius)] border border-white/[0.10] bg-[#0E0E12] p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]">
       <div
         aria-hidden
         className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full opacity-20 blur-3xl"
@@ -322,7 +325,7 @@ function Dates({ raffle }: Pick<RaffleDetailProps, "raffle">) {
   ]
   if (raffle.draw_date) rows.push(["Draw", formatDrawDate(raffle.draw_date)])
   return (
-    <dl className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.08] bg-[#0E0E12] px-6">
+    <dl className="divide-y divide-white/[0.06] rounded-[var(--raffle-radius)] border border-white/[0.08] bg-[#0E0E12] px-6">
       {rows.map(([label, value]) => (
         <div key={label} className="flex items-baseline justify-between gap-3 py-3.5">
           <dt>

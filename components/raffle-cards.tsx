@@ -87,10 +87,10 @@ function Chips({ entry }: { entry: RaffleEntry }) {
  * 51/1600 of the width by 51/1000 of the height, as a percentage radius so it
  * holds at any size — and the card shows through where the art is clear.
  *
- * Where the picture meets the card's rounded top, its top corners follow the
- * card's curve instead (13px: the card's 14px less its 1px border). Two
- * different curves meeting at one corner read as a mistake — the art's border
- * and blue bar were cut off at an angle there. `frame` sets which corners.
+ * The cards around it take their corner radius from the same 3.2%, measured
+ * on themselves (container units, globals.css), so the card's corners and the
+ * picture's are one curve at any width. A fixed card radius matched only at
+ * one size: two different curves meeting at a corner read as a mistake.
  *
  * object-contain, not cover: an uploaded picture of another shape is shown
  * whole rather than cropped, as before. `inset={false}` is for thumbnails,
@@ -98,8 +98,6 @@ function Chips({ entry }: { entry: RaffleEntry }) {
  */
 /** The artwork's own corners: ~51px on a 1600x1000 card, as percentages. */
 export const ART_RADIUS = "rounded-[3.2%/5.1%]"
-/** Top corners on the card's curve, bottom corners the artwork's own. */
-export const TOP_OF_CARD = "rounded-t-[13px] rounded-b-[3.2%_5.1%]"
 
 export function PrizeImage({
   src,
@@ -165,9 +163,13 @@ export function FeatureRaffle({ entry }: { entry: RaffleEntry }) {
   const accent = ACCENTS.green
 
   return (
+    // The wrapper is what the card measures its corners against. Stacked,
+    // the picture is the card's full width, so 3.2% of it; side by side the
+    // picture is the 1.1 of 2.1 shares, so 3.2% of that.
+    <div className="@container">
     <Link
       href={`/raffles/${raffle.id}`}
-      className="group relative grid overflow-hidden rounded-xl border border-white/[0.10] bg-[#0E0E12] transition duration-300 hover:border-white/20 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]"
+      className="group relative grid overflow-hidden rounded-[3.2cqw] border border-white/[0.10] bg-[#0E0E12] transition duration-300 hover:border-white/20 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:rounded-[1.68cqw]"
     >
       <div
         aria-hidden
@@ -175,7 +177,7 @@ export function FeatureRaffle({ entry }: { entry: RaffleEntry }) {
         style={{ backgroundColor: accent }}
       />
       <div className="relative flex items-center border-b border-white/[0.07] lg:border-b-0 lg:border-r">
-        <PrizeImage src={raffle.prize_image_url} className="w-full" frame={`${TOP_OF_CARD} lg:rounded-[3.2%/5.1%]`} />
+        <PrizeImage src={raffle.prize_image_url} className="w-full" />
       </div>
 
       <div className="relative flex flex-col gap-6 p-6 sm:p-8">
@@ -214,6 +216,7 @@ export function FeatureRaffle({ entry }: { entry: RaffleEntry }) {
         </div>
       </div>
     </Link>
+    </div>
   )
 }
 
@@ -227,11 +230,14 @@ export function TicketCard({ entry }: { entry: RaffleEntry }) {
   const accent = ACCENTS[STATUS[status].accent]
 
   return (
+    // The wrapper is what the card measures its corners against: 3.2% of the
+    // card's width, the picture's own corner radius.
+    <div className="@container flex">
     <Link
       href={`/raffles/${raffle.id}`}
-      className="group relative flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12] transition duration-300 hover:-translate-y-1 hover:border-white/20"
+      className="group relative flex w-full flex-col overflow-hidden rounded-[3.2cqw] border border-white/[0.08] bg-[#0E0E12] transition duration-300 hover:-translate-y-1 hover:border-white/20"
     >
-      <PrizeImage src={raffle.prize_image_url} frame={TOP_OF_CARD} />
+      <PrizeImage src={raffle.prize_image_url} />
 
       <div className="flex flex-1 flex-col gap-4 p-5">
         <Chips entry={entry} />
@@ -260,6 +266,7 @@ export function TicketCard({ entry }: { entry: RaffleEntry }) {
         <Price raffle={raffle} />
       </div>
     </Link>
+    </div>
   )
 }
 

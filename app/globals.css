@@ -447,6 +447,30 @@
   }
 }
 
+/* ---------------------------------------------------- Raffle corners */
+
+/*
+ * The raffle artwork draws its own corners at 51/1600 of its width — 3.2% —
+ * so they grow with the picture: ~12px on a narrow ticket card, ~21px on the
+ * raffle page. Cards that hold a picture take their radius from the same
+ * 3.2%, in container units, so card and picture corners are one curve at any
+ * size.
+ *
+ * On the raffle page every panel uses that value, read off the picture
+ * column: the whole grid is the container, and from lg up the picture column
+ * is the grid less the 24rem entry column and the 1.5rem gap.
+ */
+.raffle-detail-grid {
+  container-type: inline-size;
+  --raffle-radius: 3.2cqw;
+}
+
+@media (min-width: 1024px) {
+  .raffle-detail-grid {
+    --raffle-radius: calc((100cqw - 25.5rem) * 0.032);
+  }
+}
+
 /* ---------------------------------------------------------- Podium */
 
 /*

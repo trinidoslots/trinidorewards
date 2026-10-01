@@ -127,6 +127,11 @@ export function RaffleLiveDraw({
     }
   }, [endsAt, check])
 
+  // Each stage carries its own gap underneath (pb-6) rather than the page
+  // spacing it: with nothing to show this renders an empty box, and a gap
+  // owned by the page still applied — pushing everything below it 24px out
+  // of line with the column beside it.
+  //
   // One stage at a time, handed over rather than swapped: mode="wait" lets the
   // outgoing stage finish leaving before the next arrives, and the layout
   // wrapper eases the height between a one-line notice and the reel instead of
@@ -137,8 +142,8 @@ export function RaffleLiveDraw({
     <AutoHeight>
       <AnimatePresence mode="wait" initial={false}>
         {stage === "rolling" && (
-          <motion.div key="rolling" {...ENTER}>
-            <div className="rounded-xl border border-white/[0.10] bg-[#0E0E12] p-4 sm:p-5">
+          <motion.div key="rolling" {...ENTER} className="pb-6">
+            <div className="rounded-[var(--raffle-radius,14px)] border border-white/[0.10] bg-[#0E0E12] p-4 sm:p-5">
               <RaffleDrawReel
                 pool={names.current}
                 winner={winner!}
@@ -149,9 +154,9 @@ export function RaffleLiveDraw({
         )}
 
         {stage === "winner" && (
-          <motion.div key="winner" {...ENTER}>
+          <motion.div key="winner" {...ENTER} className="pb-6">
             <div
-              className="relative flex items-center gap-5 overflow-hidden rounded-xl border p-5 sm:p-6"
+              className="relative flex items-center gap-5 overflow-hidden rounded-[var(--raffle-radius,14px)] border p-5 sm:p-6"
               style={{ borderColor: `${WIN}55`, background: `radial-gradient(600px 220px at 0% 0%, ${WIN}24, transparent 70%), #0E0E12` }}
             >
               <motion.span
@@ -179,8 +184,8 @@ export function RaffleLiveDraw({
 
         {/* Closed, no winner yet: say so rather than looking stuck. */}
         {stage === "waiting" && (
-          <motion.div key="waiting" {...ENTER}>
-            <div className="flex items-center gap-4 rounded-xl border border-white/[0.10] bg-[#0E0E12] p-5">
+          <motion.div key="waiting" {...ENTER} className="pb-6">
+            <div className="flex items-center gap-4 rounded-[var(--raffle-radius,14px)] border border-white/[0.10] bg-[#0E0E12] p-5">
               <span
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg"
                 style={{ backgroundColor: `${ACCENTS.blue}1a` }}
