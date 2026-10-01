@@ -22,12 +22,15 @@ export function StoreItemCard({
   userPoints,
   isLoggedIn,
   isCodeUser = false,
+  onSignIn,
 }: {
   item: StoreItem
   userPoints: number
   isLoggedIn: boolean
   /** The Code User rank. A Code-User-only item is shown to everyone, locked for the rest. */
   isCodeUser?: boolean
+  /** Signed out, the button opens the login instead of sitting disabled. */
+  onSignIn?: () => void
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
@@ -71,6 +74,7 @@ export function StoreItemCard({
   }
 
   const buyable = isLoggedIn && !locked && available && canAfford
+  const signIn = !isLoggedIn && !locked && available && !!onSignIn
   // How close your balance is to the price, for the bar under it.
   const progress = cost > 0 ? Math.min(100, (userPoints / cost) * 100) : 100
 
@@ -121,14 +125,16 @@ export function StoreItemCard({
 
             <button
               type="button"
-              onClick={() => setPreviewing(true)}
-              disabled={busy || !buyable}
+              onClick={() => (signIn ? onSignIn?.() : setPreviewing(true))}
+              disabled={busy || (!buyable && !signIn)}
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md text-[14px] font-bold transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:hover:brightness-100 disabled:active:scale-100"
               style={
                 locked
                   ? { border: `1px solid ${ACCENTS.purple}55`, backgroundColor: `${ACCENTS.purple}14`, color: ACCENTS.purple }
                   : buyable
                     ? { backgroundColor: ACCENTS.green, color: "#000", boxShadow: `0 10px 30px -14px ${ACCENTS.green}` }
+                    : signIn
+                      ? { border: "1px solid rgba(255,255,255,0.18)", backgroundColor: "rgba(255,255,255,0.06)", color: "#fff" }
                     : { border: "1px solid rgba(255,255,255,0.10)", backgroundColor: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.4)" }
               }
             >
@@ -137,10 +143,10 @@ export function StoreItemCard({
                 ? "Buying…"
                 : locked
                   ? "Code Users only"
-                  : !isLoggedIn
-                    ? "Sign in to buy"
-                    : !available
-                      ? "Out of stock"
+                  : !available
+                    ? "Out of stock"
+                    : !isLoggedIn
+                      ? "Sign in to buy"
                       : !canAfford
                         ? `${short.toLocaleString("en-US")} points short`
                         : "Buy"}

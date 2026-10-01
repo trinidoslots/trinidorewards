@@ -29,6 +29,7 @@ export function PageHero({
   countdown,
   countdownLabel,
   range,
+  aside,
   children,
 }: {
   accent?: Accent
@@ -45,10 +46,12 @@ export function PageHero({
   countdown?: Countdown
   countdownLabel?: string
   range?: string
+  /** Custom content for the right-hand panel, in place of a figure or countdown. */
+  aside?: React.ReactNode
   children?: React.ReactNode
 }) {
   const color = ACCENTS[accent]
-  const hasPanel = figure !== undefined || !!countdown
+  const hasPanel = figure !== undefined || !!countdown || !!aside
   // Raffle names and schedule dates arrive here as titles; a long one at full
   // display size would wrap into four lines.
   const long = title.length > 22
@@ -122,6 +125,7 @@ export function PageHero({
               </div>
             )}
             {!countdown && range && <p className="mt-4 text-[12.5px] text-white/35">{range}</p>}
+            {aside}
           </div>
         )}
       </div>
