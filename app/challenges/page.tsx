@@ -1,8 +1,7 @@
 import type { Metadata } from "next"
 import { Target } from "lucide-react"
-import { Panel } from "@/components/ui/panel"
 import { PageBody, PageHero } from "@/components/page-hero"
-import { ChallengesBoard, type BoardChallenge } from "@/components/challenges-board"
+import { ChallengeSteps, ChallengeSummary, ChallengesBoard, type BoardChallenge } from "@/components/challenges-board"
 import { createServerClient } from "@/lib/supabase/server"
 import { serviceClient } from "@/lib/supabase/service"
 import { getSiteSession } from "@/lib/site-session"
@@ -30,12 +29,13 @@ export default async function ChallengesPage() {
     console.error("[challenges] Could not load challenges:", error)
     return (
       <div>
-        <PageHero accent="purple" title="Challenges" subtitle="Hit the target, claim the prize." />
+        <PageHero accent="red" title="Challenges" subtitle="Hit the target on the slot, claim the prize." />
         <PageBody>
-          <Panel accent="red" className="p-6 text-center">
-            <Target className="mx-auto h-8 w-8 text-white/15" />
-            <p className="mt-3 text-[14px] text-white">Challenges could not be loaded.</p>
-          </Panel>
+          <div className="rounded-xl border border-white/[0.08] bg-[#0E0E12] p-8 text-center">
+            <Target className="mx-auto h-8 w-8 text-white/20" />
+            <p className="mt-3 text-[15px] font-semibold text-white">Challenges could not be loaded.</p>
+            <p className="mt-1 text-[13px] text-white/45">Try again in a moment.</p>
+          </div>
         </PageBody>
       </div>
     )
@@ -91,12 +91,14 @@ export default async function ChallengesPage() {
   return (
     <div>
       <PageHero
-        accent="purple"
-        figure={live || undefined}
-        figureLabel={live ? "Live now" : undefined}
+        accent="red"
+        note={live > 0 ? `${live} live now` : "Slot challenges"}
         title="Challenges"
-        subtitle="Hit the target on the slot, claim the prize."
-      />
+        subtitle="Hit the target on the slot, send the bet, collect the prize."
+        aside={<ChallengeSummary challenges={board} />}
+      >
+        <ChallengeSteps />
+      </PageHero>
       <PageBody>
         <ChallengesBoard challenges={board} signedIn={!!session} />
       </PageBody>

@@ -27,7 +27,7 @@ export function KickMark({ className }: { className?: string }) {
 const PERKS = [
   { icon: Gift, label: "Enter raffles", accent: ACCENTS.purple },
   { icon: Trophy, label: "Join tournaments", accent: ACCENTS.amber },
-  { icon: Target, label: "Complete challenges", accent: ACCENTS.blue },
+  { icon: Target, label: "Complete challenges", accent: ACCENTS.red },
   { icon: ShoppingBag, label: "Spend points in the store", accent: ACCENTS.pink },
 ]
 
