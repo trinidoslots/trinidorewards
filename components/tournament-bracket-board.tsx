@@ -45,7 +45,12 @@ export function TournamentBracketBoard({
           .sort((a, b) => a.match_number - b.match_number)
 
         return (
-          <section key={round} className="flex min-w-[250px] flex-1 flex-col justify-around gap-3">
+          // Heading on top, matches beneath in a body that every column shares
+          // the height of: the rounds stretch to the tallest, so spacing the
+          // matches around their body puts each one level with the middle of
+          // the pair that feeds it. The heading sits outside that body, or it
+          // would be spaced down with the matches.
+          <section key={round} className="flex min-w-[250px] flex-1 flex-col gap-3">
             <div className="flex items-baseline justify-between px-0.5">
               <MonoLabel className="text-white/55">{roundLabel(round, size)}</MonoLabel>
               <MonoLabel className="text-white/25">
@@ -53,6 +58,7 @@ export function TournamentBracketBoard({
               </MonoLabel>
             </div>
 
+            <div className="flex flex-1 flex-col justify-around gap-3">
             {inRound.map((match) => {
               const p1 = match.p1_id ? byId.get(match.p1_id) ?? null : null
               const p2 = match.p2_id ? byId.get(match.p2_id) ?? null : null
@@ -90,22 +96,25 @@ export function TournamentBracketBoard({
                 </article>
               )
             })}
+            </div>
           </section>
         )
       })}
 
       {champion && (
-        <section className="flex min-w-[200px] flex-col justify-around gap-3">
-          <MonoLabel className="px-0.5" style={{ color: GOLD }}>
-            Champion
-          </MonoLabel>
-          <div
-            className="flex flex-col items-center rounded-lg border px-4 py-5 text-center"
-            style={{ borderColor: `${GOLD}55`, background: `radial-gradient(ellipse at 50% 0%, ${GOLD}26, transparent 70%), #0E0E12` }}
-          >
-            <Crown className="h-7 w-7" style={{ color: GOLD }} />
-            <p className="mt-2 w-full truncate text-[16px] font-black text-white">{champion.username}</p>
-            <p className="mt-0.5 w-full truncate text-[12px] text-white/45">{champion.game_name ?? "No slot"}</p>
+        <section className="flex min-w-[200px] flex-col gap-3">
+          <div className="px-0.5">
+            <MonoLabel style={{ color: GOLD }}>Champion</MonoLabel>
+          </div>
+          <div className="flex flex-1 flex-col justify-around">
+            <div
+              className="flex flex-col items-center rounded-lg border px-4 py-5 text-center"
+              style={{ borderColor: `${GOLD}55`, background: `radial-gradient(ellipse at 50% 0%, ${GOLD}26, transparent 70%), #0E0E12` }}
+            >
+              <Crown className="h-7 w-7" style={{ color: GOLD }} />
+              <p className="mt-2 w-full truncate text-[16px] font-black text-white">{champion.username}</p>
+              <p className="mt-0.5 w-full truncate text-[12px] text-white/45">{champion.game_name ?? "No slot"}</p>
+            </div>
           </div>
         </section>
       )}
