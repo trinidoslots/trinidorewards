@@ -1,382 +1,533 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { createBrowserClient } from "@/lib/supabase/client"
-import { useToast } from "@/hooks/use-toast"
-import { Lock, Check, Gift, Clock, Sparkles } from "lucide-react"
-import { RewardRollAnimation } from "./reward-roll-animation"
+import type React from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
+import { AnimatePresence, motion } from "framer-motion"
+import { Check, Gift, Loader2, Lock, X } from "lucide-react"
+import { ACCENTS, MonoLabel } from "@/components/ui/panel"
+import { LiveDot } from "@/components/landing/parts"
+import { LoginModal } from "@/components/login-modal"
+import { PageBody, PageHero } from "@/components/page-hero"
+import { countdownTo } from "@/lib/schedule-week"
+import { DOORS, doorState, nextOpening, utcDay, type AdventClaim, type AdventReward, type DoorState } from "@/lib/advent"
 
-interface AdventReward {
-  id: string
-  day_number: number
-  title: string
-  description: string
-  icon: string
-  reward_type: string
-  reward_value: string
-  is_active: boolean
-  probability: number
-}
+/**
+ * The calendar: header, 24 doors, and the door you open.
+ *
+ * The calendar runs on GMT for everyone (lib/advent.ts). The date is still
+ * read in the browser, after it mounts, so the countdown ticks and the page
+ * does not render one moment on the server and hydrate at another; until
+ * then the doors show as closed, which outside December is what they are.
+ */
 
-interface AdventClaim {
-  day_number: number
-  claimed_at: string
-  reward_title?: string
-  reward_icon?: string
-}
+const RED = ACCENTS.red
+const GREEN = ACCENTS.green
+const GOLD = "#F5C542"
+const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1]
 
-interface Props {
+type Props = {
   rewardsByDay: Record<number, AdventReward[]>
   claims: AdventClaim[]
   userId: string | null
   username: string | null
+  /** Pretend it is this date. For local previews only. */
+  previewNow?: string
 }
 
-export function AdventCalendarClient({ rewardsByDay, claims, userId, username }: Props) {
-  const [selectedDay, setSelectedDay] = useState<number | null>(null)
-  const [claimedDays, setClaimedDays] = useState<Map<number, AdventClaim>>(
-    new Map(claims.map((c) => [c.day_number, c])),
-  )
-  const [timeUntilNext, setTimeUntilNext] = useState("")
-  const [isRolling, setIsRolling] = useState(false)
-  const [rollingRewards, setRollingRewards] = useState<AdventReward[]>([])
-  const [wonReward, setWonReward] = useState<AdventReward | null>(null)
-  const { toast } = useToast()
-  const supabase = createBrowserClient()
-
-  // Get current date info
-  const now = new Date()
-  const currentMonth = now.getMonth() // 0-11 (December = 11)
-  const currentDay = now.getDate() // 1-31
-  const currentYear = now.getFullYear()
-  const isDecember = currentMonth === 11
-
-  // Calculate time until next claimable day
+function useNow(previewNow?: string) {
+  const [now, setNow] = useState<Date | null>(null)
   useEffect(() => {
-    const updateTimer = () => {
-      const now = new Date()
-      const tomorrow = new Date(now)
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      tomorrow.setHours(0, 0, 0, 0)
+    const read = () => setNow(previewNow ? new Date(previewNow) : new Date())
+    read()
+    const timer = setInterval(read, 1000)
+    return () => clearInterval(timer)
+  }, [previewNow])
+  return now
+}
 
-      const diff = tomorrow.getTime() - now.getTime()
-      const hours = Math.floor(diff / (1000 * 60 * 60))
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+const monthDay = (day: number) => `${day} December`
 
-      setTimeUntilNext(`${hours}h ${minutes}m ${seconds}s`)
-    }
+export function AdventCalendarClient({ rewardsByDay, claims, userId, previewNow }: Props) {
+  const now = useNow(previewNow)
+  const [claimed, setClaimed] = useState<Map<number, AdventClaim>>(() => new Map(claims.map((c) => [c.day_number, c])))
+  const [openDay, setOpenDay] = useState<number | null>(null)
+  const [loginOpen, setLoginOpen] = useState(false)
 
-    updateTimer()
-    const interval = setInterval(updateTimer, 1000)
-    return () => clearInterval(interval)
+  const opening = now ? nextOpening(now) : null
+  const inSeason = now ? utcDay(now).month === 11 : false
+  const today = now ? utcDay(now).day : 0
+  const countdown = opening && now ? countdownTo(opening.toISOString(), now.getTime()) : undefined
+
+  const note = !now
+    ? "1 to 24 December"
+    : inSeason && today <= DOORS
+      ? `Door ${today} is open`
+      : inSeason
+        ? "That's a wrap for this year"
+        : "Opens 1 December"
+
+  const stateOf = (day: number): DoorState => (now ? doorState(day, claimed.has(day), now) : "locked")
+
+  return (
+    <>
+      <PageHero
+        accent="red"
+        note={note}
+        title="Advent Calendar"
+        subtitle="A door a day from 1 to 24 December. Open today's to win one of the rewards behind it."
+        figure={userId ? `${claimed.size}/${DOORS}` : undefined}
+        figureLabel="Doors you opened"
+        countdown={countdown && !countdown.over ? countdown : undefined}
+        countdownLabel={inSeason ? "Next door in" : "Opens in"}
+      />
+      <PageBody>
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+          {Array.from({ length: DOORS }, (_, index) => index + 1).map((day) => (
+            <Door
+              key={day}
+              day={day}
+              state={stateOf(day)}
+              claim={claimed.get(day)}
+              ready={now !== null}
+              onOpen={() => setOpenDay(day)}
+            />
+          ))}
+        </div>
+
+        <p className="mt-10 text-center text-[12px] text-white/35">
+          A new door opens every day at 00:00 GMT. Terms may apply. 18+ only.
+        </p>
+      </PageBody>
+
+      <DoorDialog
+        day={openDay}
+        state={openDay ? stateOf(openDay) : "locked"}
+        rewards={openDay ? (rewardsByDay[openDay] ?? []) : []}
+        claim={openDay ? claimed.get(openDay) : undefined}
+        signedIn={!!userId}
+        onClose={() => setOpenDay(null)}
+        onLogin={() => setLoginOpen(true)}
+        onClaimed={(claim) => setClaimed((current) => new Map(current).set(claim.day_number, claim))}
+      />
+      <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
+    </>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                    Door                                    */
+/* -------------------------------------------------------------------------- */
+
+function Door({
+  day,
+  state,
+  claim,
+  ready,
+  onOpen,
+}: {
+  day: number
+  state: DoorState
+  claim?: AdventClaim
+  ready: boolean
+  onOpen: () => void
+}) {
+  const finale = day === DOORS
+  const tone =
+    state === "today" ? RED : state === "claimed" ? GREEN : finale ? GOLD : "rgba(255,255,255,0.9)"
+  // Locked doors are not buttons: there is nothing to do with one yet.
+  const clickable = ready && state !== "locked"
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      disabled={!clickable}
+      title={state === "locked" ? `Opens ${monthDay(day)}` : undefined}
+      className={`group relative aspect-square overflow-hidden rounded-xl border p-3 text-left transition duration-300 ${
+        clickable ? "hover:-translate-y-1" : "cursor-default"
+      } ${state === "missed" ? "opacity-50" : ""}`}
+      style={{
+        backgroundColor: state === "claimed" ? `${GREEN}10` : "#0E0E12",
+        borderColor:
+          state === "today" ? `${RED}88` : state === "claimed" ? `${GREEN}44` : finale ? `${GOLD}44` : "rgba(255,255,255,0.08)",
+        boxShadow: state === "today" ? `0 0 0 1px ${RED}33, 0 24px 60px -24px ${RED}` : undefined,
+      }}
+    >
+      {/* Gift ribbon across the closed doors; gone once one is opened. */}
+      {state !== "claimed" && state !== "missed" && (
+        <>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-[62%] w-[10%]"
+            style={{ backgroundColor: state === "today" ? `${RED}33` : finale ? `${GOLD}14` : "rgba(255,255,255,0.03)" }}
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-[38%] h-[10%]"
+            style={{ backgroundColor: state === "today" ? `${RED}33` : finale ? `${GOLD}14` : "rgba(255,255,255,0.03)" }}
+          />
+        </>
+      )}
+
+      <div className="relative flex h-full flex-col justify-between">
+        <div className="flex items-start justify-between gap-1">
+          <MonoLabel style={{ color: state === "today" ? RED : "rgba(255,255,255,0.35)" }}>Dec</MonoLabel>
+          {state === "today" ? (
+            <LiveDot color={RED} size={8} />
+          ) : state === "claimed" ? (
+            <Check className="h-4 w-4" style={{ color: GREEN }} />
+          ) : state === "locked" ? (
+            <Lock className="h-3.5 w-3.5 text-white/25" />
+          ) : null}
+        </div>
+
+        {state === "claimed" ? (
+          <div className="min-w-0">
+            <span className="block text-[clamp(22px,4vw,30px)] leading-none">{claim?.reward_icon || "🎁"}</span>
+            <span className="mt-1.5 block truncate text-[11.5px] font-semibold text-white/80">{claim?.reward_title || "Opened"}</span>
+          </div>
+        ) : (
+          <div>
+            <span
+              className="block text-[clamp(30px,5vw,46px)] font-black leading-none tabular-nums tracking-[-0.03em]"
+              style={{ color: state === "locked" && !finale ? "rgba(255,255,255,0.3)" : tone }}
+            >
+              {day}
+            </span>
+            {state === "today" && (
+              <span className="mt-1.5 block text-[11.5px] font-bold uppercase tracking-[0.08em]" style={{ color: RED }}>
+                Open now
+              </span>
+            )}
+            {state === "missed" && <span className="mt-1.5 block text-[11.5px] font-semibold text-white/50">Missed</span>}
+          </div>
+        )}
+      </div>
+    </button>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                 Door dialog                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * What is behind a door, and opening it.
+ *
+ * The server picks the reward (/api/advent/claim); the reel only lands on what
+ * it picked. It runs a fixed number of steps that slow down towards the end,
+ * worked out before it starts — the old roll changed its own speed mid-run and
+ * restarted its count each time, so it could keep going and never land.
+ */
+function DoorDialog({
+  day,
+  state,
+  rewards,
+  claim,
+  signedIn,
+  onClose,
+  onLogin,
+  onClaimed,
+}: {
+  day: number | null
+  state: DoorState
+  rewards: AdventReward[]
+  claim?: AdventClaim
+  signedIn: boolean
+  onClose: () => void
+  onLogin: () => void
+  onClaimed: (claim: AdventClaim) => void
+}) {
+  const [mounted, setMounted] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [reel, setReel] = useState<{ index: number; done: boolean; won: AdventReward } | null>(null)
+  const timers = useRef<number[]>([])
+
+  useEffect(() => setMounted(true), [])
+
+  const clearTimers = useCallback(() => {
+    for (const timer of timers.current) window.clearTimeout(timer)
+    timers.current = []
   }, [])
 
-  const getDayStatus = (dayNumber: number) => {
-    if (!isDecember) return "locked"
-    if (claimedDays.has(dayNumber)) return "claimed"
-    if (dayNumber === currentDay) return "available"
-    if (dayNumber < currentDay) return "missed"
-    return "locked"
+  // Through a ref: the page re-renders every second for its clock and hands
+  // down a new onClose each time. As a dependency below, that reset the
+  // dialog every second — and wiped the reel mid-roll.
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+
+  // A different door (or none): start clean.
+  useEffect(() => {
+    setError(null)
+    setReel(null)
+    setBusy(false)
+    clearTimers()
+    if (day === null) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeRef.current()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [day, clearTimers])
+
+  useEffect(() => clearTimers, [clearTimers])
+
+  const sorted = [...rewards].sort((a, b) => Number(b.probability) - Number(a.probability))
+
+  function spin(won: AdventReward) {
+    const list = sorted.length > 0 ? sorted : [won]
+    const target = Math.max(0, list.findIndex((reward) => reward.id === won.id))
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    const steps = reduced || list.length === 1 ? 1 : 22 + list.length
+    const start = (((target - (steps - 1)) % list.length) + list.length) % list.length
+
+    let at = 0
+    for (let step = 0; step < steps; step++) {
+      // 55ms at the start, slowing to about 420ms on the last steps.
+      at += 55 + 365 * Math.pow(step / Math.max(1, steps - 1), 3)
+      const index = (start + step) % list.length
+      const last = step === steps - 1
+      timers.current.push(
+        window.setTimeout(() => {
+          setReel({ index, done: last, won: list[index] })
+        }, at),
+      )
+    }
+    setReel({ index: start, done: false, won: list[start] })
   }
 
-  const handleDayClick = (dayNumber: number) => {
-    const status = getDayStatus(dayNumber)
-
-    if (status === "locked") {
-      toast({
-        title: "Locked",
-        description: `This reward will be available on December ${dayNumber}`,
-        className: "bg-slate-800 text-white border-slate-700",
-      })
-      return
-    }
-
-    setSelectedDay(dayNumber)
-  }
-
-
-  const handleClaimReward = async () => {
-    if (!userId || !username || selectedDay === null) {
-      toast({
-        title: "Login Required",
-        description: "Please login to claim rewards",
-        variant: "destructive",
-      })
-      return
-    }
-
-    const status = getDayStatus(selectedDay)
-
-    if (status !== "available") {
-      toast({
-        title: "Cannot Claim",
-        description: status === "claimed" ? "You've already claimed this reward" : "This reward is no longer available",
-        variant: "destructive",
-      })
-      return
-    }
-
-    const dayRewards = rewardsByDay[selectedDay] || []
-    if (dayRewards.length === 0) return
-
-    // The server rolls the reward and records the claim (/api/advent/claim);
-    // this only plays the animation for what it decided. Rolling here and
-    // writing the result from the browser let anyone pick their own prize.
+  async function open() {
+    if (!day) return
+    setBusy(true)
+    setError(null)
     try {
       const response = await fetch("/api/advent/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ day_number: selectedDay }),
+        body: JSON.stringify({ day_number: day }),
       })
-      const payload = await response.json()
-      if (!response.ok) throw new Error(payload?.error || "Failed to claim reward")
-
-      const won = dayRewards.find((reward) => reward.id === payload.reward?.id) ?? (payload.reward as AdventReward)
-      setRollingRewards(dayRewards)
-      setWonReward(won)
-      setIsRolling(true)
-      setSelectedDay(null)
-    } catch (error: any) {
-      toast({
-        title: "Cannot Claim",
-        description: error.message || "Failed to claim reward",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleRollComplete = async () => {
-    if (!wonReward || !userId || !username) return
-
-    // Already recorded by the server before the animation started.
-    try {
-      setClaimedDays(
-        (prev) =>
-          new Map([
-            ...prev,
-            [
-              wonReward.day_number,
-              {
-                day_number: wonReward.day_number,
-                claimed_at: new Date().toISOString(),
-                reward_title: wonReward.title,
-                reward_icon: wonReward.icon,
-              },
-            ],
-          ]),
-      )
-
-      toast({
-        title: "Reward Claimed!",
-        description: `You've won: ${wonReward.title}`,
-        className: "bg-green-600 text-white",
-      })
-
-      setIsRolling(false)
-      setWonReward(null)
-      setRollingRewards([])
-    } catch (error: any) {
-      console.error("[v0] Error claiming reward:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to claim reward",
-        variant: "destructive",
-      })
-      setIsRolling(false)
-    }
-  }
-
-  // Get the first reward for display purposes (or claimed reward)
-  const getDisplayReward = (dayNumber: number) => {
-    const claim = claimedDays.get(dayNumber)
-    if (claim) {
-      return {
-        icon: claim.reward_icon || "🎁",
-        title: claim.reward_title || "Claimed",
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setError(payload?.error || "Could not open the door.")
+        return
       }
+      const won = (sorted.find((reward) => reward.id === payload.reward?.id) ?? payload.reward) as AdventReward
+      // Recorded now, not when the reel lands: the server has already saved
+      // it, and closing mid-roll must not leave the door looking unopened.
+      onClaimed({
+        day_number: day,
+        claimed_at: new Date().toISOString(),
+        reward_title: won.title,
+        reward_icon: won.icon,
+        reward_value: won.reward_value,
+      })
+      spin(won)
+    } catch {
+      setError("Could not reach the site. Check your connection and try again.")
+    } finally {
+      setBusy(false)
     }
-    const rewards = rewardsByDay[dayNumber] || []
-    return rewards[0] || { icon: "🎁", title: "Mystery" }
   }
 
-  return (
-    <>
-      {isRolling && wonReward && (
-        <RewardRollAnimation rewards={rollingRewards} wonReward={wonReward} onComplete={handleRollComplete} />
-      )}
+  if (!mounted) return null
 
-      <div className="text-center mb-12 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 via-green-500/10 to-red-500/10 blur-3xl -z-10" />
-        <p className="text-xl text-slate-300 font-medium">Unwrap a new surprise every day this December! 🎄</p>
-      </div>
+  const shown = reel ? (sorted.length > 0 ? sorted : [reel.won])[reel.index] ?? reel.won : null
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
-        {Array.from({ length: 24 }, (_, i) => i + 1).map((dayNumber) => {
-          const status = getDayStatus(dayNumber)
-          const displayReward = getDisplayReward(dayNumber)
-
-          return (
-            <Card
-              key={dayNumber}
-              onClick={() => handleDayClick(dayNumber)}
-              className={`
-                aspect-square flex flex-col items-center justify-center cursor-pointer
-                transition-all duration-500 relative overflow-hidden group
-                border-2
-                ${status === "locked" ? "opacity-60 cursor-not-allowed bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-slate-700" : ""}
-                ${status === "claimed" ? "bg-gradient-to-br from-emerald-900/40 via-green-800/30 to-emerald-900/40 border-emerald-600/60 shadow-[0_0_20px_rgba(16,185,129,0.3)]" : ""}
-                ${status === "available" ? "bg-gradient-to-br from-red-900/40 via-yellow-600/20 to-green-900/40 border-yellow-500 hover:border-yellow-400 hover:scale-110 hover:shadow-[0_0_40px_rgba(234,179,8,0.5)] hover:rotate-2" : ""}
-                ${status === "missed" ? "bg-gradient-to-br from-slate-900 via-red-900/20 to-slate-900 border-red-800/40" : ""}
-              `}
-            >
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-2 left-2 text-2xl">❄️</div>
-                <div className="absolute bottom-2 right-2 text-2xl">❄️</div>
-              </div>
-
-              {status === "locked" && (
-                <div className="absolute top-3 right-3 bg-slate-800/80 rounded-full p-1.5">
-                  <Lock className="w-4 h-4 text-slate-400" />
-                </div>
-              )}
-              {status === "claimed" && (
-                <div className="absolute top-3 right-3 bg-emerald-600/80 rounded-full p-1.5 animate-bounce">
-                  <Check className="w-5 h-5 text-white" />
-                </div>
-              )}
-
+  return createPortal(
+    <AnimatePresence>
+      {day !== null && (
+        <motion.div
+          key="door"
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !(reel && !reel.done)) onClose()
+          }}
+        >
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Door ${day}`}
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.98 }}
+            transition={{ duration: 0.28, ease: EASE }}
+            className="w-full max-w-md overflow-hidden rounded-xl border border-white/[0.10] bg-[#0E0E12] shadow-[0_40px_120px_-30px_rgba(0,0,0,0.95)]"
+          >
+            <div className="relative overflow-hidden border-b border-white/[0.07] px-6 pb-5 pt-6">
               <div
-                className={`text-5xl font-black mb-2 relative z-10 ${
-                  status === "available"
-                    ? "text-yellow-400 animate-pulse"
-                    : status === "claimed"
-                      ? "text-emerald-400"
-                      : status === "missed"
-                        ? "text-red-400"
-                        : "text-slate-500"
-                }`}
+                aria-hidden
+                className="pointer-events-none absolute inset-0"
+                style={{ background: `radial-gradient(380px 200px at 85% -30%, ${RED}26, transparent 65%)` }}
+              />
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                disabled={!!reel && !reel.done}
+                className="absolute right-4 top-4 rounded-md p-1.5 text-white/40 transition hover:bg-white/[0.06] hover:text-white disabled:opacity-0"
               >
-                {dayNumber}
+                <X className="h-4 w-4" />
+              </button>
+              <div className="relative">
+                <div className="flex items-center gap-2.5">
+                  <span className="h-[3px] w-6 rounded-full" style={{ backgroundColor: RED }} />
+                  <MonoLabel style={{ color: RED }}>{monthDay(day)}</MonoLabel>
+                </div>
+                <p className="mt-3 text-[30px] font-black uppercase leading-none tracking-[-0.01em] text-white">Door {day}</p>
               </div>
+            </div>
 
-              {status === "available" && (
-                <div className="absolute bottom-3 flex items-center gap-1 text-xs text-yellow-400 font-bold animate-pulse bg-yellow-500/20 px-3 py-1 rounded-full border border-yellow-500/50">
-                  <Sparkles className="w-3 h-3" />
-                  OPEN NOW
-                </div>
-              )}
+            <div className="px-6 py-6">
+              {reel && shown ? (
+                <Reel reward={shown} done={reel.done} onClose={onClose} />
+              ) : state === "claimed" && claim ? (
+                <Won icon={claim.reward_icon} title={claim.reward_title} value={claim.reward_value} note="You opened this door." />
+              ) : (
+                <>
+                  {sorted.length === 0 ? (
+                    <p className="text-[14px] text-white/50">Nothing is behind this door yet.</p>
+                  ) : (
+                    <>
+                      <MonoLabel className="block text-white/45">
+                        {sorted.length === 1 ? "Behind this door" : `One of ${sorted.length} rewards`}
+                      </MonoLabel>
+                      <ul className="mt-3 space-y-2">
+                        {sorted.map((reward) => (
+                          <li key={reward.id} className="rounded-lg border border-white/[0.07] bg-white/[0.02] px-3.5 py-2.5">
+                            <div className="flex items-center gap-3">
+                              <span className="text-[22px] leading-none">{reward.icon || "🎁"}</span>
+                              <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-white">{reward.title}</span>
+                              {sorted.length > 1 && (
+                                <span className="shrink-0 text-[13px] font-bold tabular-nums text-white/70">
+                                  {Number(reward.probability)}%
+                                </span>
+                              )}
+                            </div>
+                            {sorted.length > 1 && (
+                              <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{ width: `${Math.min(100, Number(reward.probability))}%`, backgroundColor: RED }}
+                                />
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
 
-              {status === "missed" && (
-                <div className="absolute bottom-3 text-xs text-red-400 font-semibold bg-red-900/30 px-3 py-1 rounded-full border border-red-700/50">
-                  MISSED
-                </div>
-              )}
+                  {error && (
+                    <p className="mt-4 text-[13px]" style={{ color: RED }}>
+                      {error}
+                    </p>
+                  )}
 
-              {status === "claimed" && (
-                <div className="absolute bottom-3 text-xs text-emerald-400 font-semibold bg-emerald-900/30 px-3 py-1 rounded-full border border-emerald-700/50">
-                  CLAIMED
-                </div>
+                  <div className="mt-5">
+                    {state === "today" && sorted.length > 0 ? (
+                      signedIn ? (
+                        <PrimaryButton onClick={open} disabled={busy}>
+                          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gift className="h-4 w-4" />}
+                          Open the door
+                        </PrimaryButton>
+                      ) : (
+                        <PrimaryButton onClick={onLogin}>Log in to open it</PrimaryButton>
+                      )
+                    ) : state === "missed" ? (
+                      <p className="text-[13.5px] text-white/50">This door closed at the end of {monthDay(day)}.</p>
+                    ) : null}
+                  </div>
+                </>
               )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
+  )
+}
 
-              {status === "available" && (
-                <div className="absolute inset-0 pointer-events-none">
-                  <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-yellow-400 rounded-full animate-ping" />
-                  <div className="absolute top-3/4 right-1/4 w-1 h-1 bg-yellow-400 rounded-full animate-ping delay-75" />
-                </div>
-              )}
-            </Card>
-          )
-        })}
+function PrimaryButton({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md text-[15px] font-bold text-black transition hover:brightness-110 active:scale-[0.99] disabled:opacity-50"
+      style={{ backgroundColor: RED, boxShadow: `0 12px 36px -14px ${RED}` }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function Reel({ reward, done, onClose }: { reward: AdventReward; done: boolean; onClose: () => void }) {
+  return (
+    <div className="text-center">
+      <div
+        className="relative mx-auto flex h-36 items-center justify-center overflow-hidden rounded-xl border"
+        style={{
+          borderColor: done ? `${GREEN}66` : "rgba(255,255,255,0.10)",
+          backgroundColor: done ? `${GREEN}12` : "rgba(255,255,255,0.02)",
+        }}
+      >
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={`${reward.id}-${done}`}
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -40, opacity: 0 }}
+            transition={{ duration: done ? 0.35 : 0.09, ease: EASE }}
+            className="px-4"
+          >
+            <span className="block text-[46px] leading-none">{reward.icon || "🎁"}</span>
+            <span className="mt-2 block truncate text-[16px] font-bold text-white">{reward.title}</span>
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      {isDecember && currentDay < 24 && (
-        <Card className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-yellow-500/50 p-8 text-center shadow-[0_0_30px_rgba(234,179,8,0.2)]">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Clock className="w-6 h-6 text-yellow-400 animate-spin" style={{ animationDuration: "3s" }} />
-            <h3 className="text-white font-bold text-xl">Next Reward Unlocks In</h3>
-            <Clock className="w-6 h-6 text-yellow-400 animate-spin" style={{ animationDuration: "3s" }} />
-          </div>
-          <p className="text-4xl font-black bg-gradient-to-r from-yellow-400 via-red-400 to-green-400 bg-clip-text text-transparent">
-            {timeUntilNext}
-          </p>
-          <p className="text-slate-400 mt-2 text-sm">Come back tomorrow for another surprise! 🎁</p>
-        </Card>
-      )}
-
-      <Dialog open={selectedDay !== null} onOpenChange={() => setSelectedDay(null)}>
-        <DialogContent className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-yellow-500/50 text-white max-w-md shadow-[0_0_50px_rgba(234,179,8,0.3)]">
-          <DialogHeader>
-            <DialogTitle className="text-3xl font-black text-center bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 bg-clip-text text-transparent flex items-center justify-center gap-2">
-              <Gift className="w-8 h-8 text-yellow-400" />
-              Day {selectedDay}
-              <Gift className="w-8 h-8 text-yellow-400" />
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="text-center py-8 relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 via-yellow-500/5 to-green-500/5 rounded-lg" />
-
-            {selectedDay && rewardsByDay[selectedDay] && (
-              <>
-                <h3 className="text-3xl font-black bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent mb-4 relative z-10">
-                  Mystery Reward!
-                </h3>
-                <p className="text-slate-300 mb-6 text-lg relative z-10">
-                  Click the button below to reveal your prize! ✨
-                </p>
-
-                {rewardsByDay[selectedDay].length > 1 && (
-                  <div className="mb-8 text-sm text-slate-400 bg-slate-800/50 rounded-lg p-4 border border-slate-700 relative z-10">
-                    <p className="mb-3 font-semibold text-slate-300">Possible Rewards:</p>
-                    <div className="space-y-2">
-                      {rewardsByDay[selectedDay].map((reward) => (
-                        <div
-                          key={reward.id}
-                          className="flex items-center justify-between text-sm bg-slate-900/50 rounded px-3 py-2"
-                        >
-                          <span className="flex items-center gap-2">
-                            <span className="text-2xl">{reward.icon}</span>
-                            <span className="text-slate-200">{reward.title}</span>
-                          </span>
-                          <span className="text-yellow-400 font-bold">{reward.probability}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {getDayStatus(selectedDay) === "available" && (
-                  <Button
-                    onClick={handleClaimReward}
-                    className="bg-gradient-to-r from-yellow-500 via-yellow-600 to-yellow-500 hover:from-yellow-600 hover:via-yellow-700 hover:to-yellow-600 text-slate-900 font-black text-xl px-10 py-7 rounded-xl shadow-[0_0_30px_rgba(234,179,8,0.5)] hover:shadow-[0_0_50px_rgba(234,179,8,0.7)] hover:scale-105 transition-all duration-300 relative z-10"
-                  >
-                    <Sparkles className="w-6 h-6 mr-2" />
-                    Roll for Reward
-                    <Sparkles className="w-6 h-6 ml-2" />
-                  </Button>
-                )}
-
-                {getDayStatus(selectedDay) === "claimed" && (
-                  <div className="text-emerald-400 font-bold text-xl flex items-center justify-center gap-3 bg-emerald-900/30 rounded-lg py-4 border border-emerald-700/50 relative z-10">
-                    <Check className="w-6 h-6" />
-                    Already Claimed Today!
-                  </div>
-                )}
-
-                {getDayStatus(selectedDay) === "missed" && (
-                  <div className="text-red-400 font-bold text-xl bg-red-900/30 rounded-lg py-4 border border-red-700/50 relative z-10">
-                    😢 Sadly you have missed this one
-                  </div>
-                )}
-              </>
+      <AnimatePresence>
+        {done && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: EASE }}>
+            <p className="mt-5 text-[20px] font-black uppercase" style={{ color: GREEN }}>
+              You won
+            </p>
+            {reward.reward_value && reward.reward_value !== reward.title && (
+              <p className="mt-1 text-[14px] text-white/60">{reward.reward_value}</p>
             )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-5 inline-flex h-11 items-center rounded-md border border-white/15 bg-white/[0.04] px-6 text-[14px] font-semibold text-white transition hover:border-white/30"
+            >
+              Done
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {!done && <p className="mt-4 text-[13px] text-white/45">Opening…</p>}
+    </div>
+  )
+}
+
+function Won({ icon, title, value, note }: { icon?: string | null; title?: string | null; value?: string | null; note: string }) {
+  return (
+    <div className="text-center">
+      <div
+        className="mx-auto flex h-36 flex-col items-center justify-center rounded-xl border"
+        style={{ borderColor: `${GREEN}55`, backgroundColor: `${GREEN}10` }}
+      >
+        <span className="text-[46px] leading-none">{icon || "🎁"}</span>
+        <span className="mt-2 text-[16px] font-bold text-white">{title || "Reward"}</span>
+      </div>
+      {value && value !== title && <p className="mt-4 text-[14px] text-white/60">{value}</p>}
+      <p className="mt-2 text-[13px] text-white/45">{note}</p>
+    </div>
   )
 }

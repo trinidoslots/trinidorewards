@@ -12,10 +12,9 @@ import { getSiteSession } from "@/lib/site-session"
  * checks who is asking (the signed session), that the door is today's, and
  * rolls the reward; the page only plays the animation for the result.
  *
- * "Today" is allowed a day either side of the server's UTC date, so a viewer
- * whose evening is already tomorrow in UTC (or still yesterday) is not locked
- * out of the door their own calendar shows. One claim per user and day is
- * the table's own unique constraint.
+ * "Today" is the GMT (UTC) date, the same for everyone — the page shows the
+ * calendar in GMT too (lib/advent.ts). One claim per user and day is the
+ * table's own unique constraint.
  */
 
 type Reward = {
@@ -52,7 +51,7 @@ export async function POST(request: Request) {
   }
 
   const now = new Date()
-  if (now.getUTCMonth() !== 11 || Math.abs(day - now.getUTCDate()) > 1) {
+  if (now.getUTCMonth() !== 11 || day !== now.getUTCDate()) {
     return NextResponse.json({ error: "That door is not open today." }, { status: 403 })
   }
 
