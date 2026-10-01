@@ -1,6 +1,6 @@
 import { Gift } from "lucide-react"
-import { Panel, StatTile } from "@/components/ui/panel"
-import { BonusCard, type Bonus } from "@/components/bonus-card"
+import { ACCENTS } from "@/components/ui/panel"
+import { BonusCatalog, BonusSpotlight, type Bonus } from "@/components/bonus-card"
 import { createServerClient } from "@/lib/supabase/server"
 import { PageBody, PageHero } from "@/components/page-hero"
 import type { Metadata } from "next"
@@ -33,46 +33,47 @@ async function fetchBonuses(): Promise<{ bonuses: Bonus[]; error: string | null 
 export default async function BonusesPage() {
   const { bonuses, error } = await fetchBonuses()
   const casinos = new Set(bonuses.map((bonus) => bonus.casino_name).filter(Boolean))
+  // Ordered featured-first, newest-first by the query, so this is the one to lead with.
+  const lead = bonuses[0]
 
   return (
     <div>
       <PageHero
         accent="amber"
-        figure={bonuses.length || undefined}
-        figureLabel={bonuses.length ? "Live offers" : undefined}
         title="Bonuses"
-        subtitle="Codes and offers worth using."
-        note={casinos.size ? `Across ${casinos.size} ${casinos.size === 1 ? "casino" : "casinos"}` : undefined}
+        subtitle="Codes and offers worth using. Copy the code, then claim it on the casino's site."
+        note={
+          bonuses.length > 0
+            ? `${bonuses.length} ${bonuses.length === 1 ? "offer" : "offers"}${
+                casinos.size ? ` · ${casinos.size} ${casinos.size === 1 ? "casino" : "casinos"}` : ""
+              }`
+            : "Bonuses"
+        }
+        aside={lead ? <BonusSpotlight bonus={lead} /> : undefined}
       />
-      <PageBody className="space-y-4">
-
-      {error ? (
-        <Panel accent="red" className="p-6 text-center">
-          <Gift className="mx-auto h-8 w-8 text-white/15" />
-          <p className="mt-3 text-[14px] text-white">Bonuses could not be loaded.</p>
-          <p className="mt-1 text-[12.5px] text-white/35">{error}</p>
-        </Panel>
-      ) : (
-        <>
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            <StatTile label="Offers live" value={bonuses.length.toLocaleString()} accent="green" />
-            <StatTile label="Casinos" value={casinos.size.toLocaleString()} accent="blue" />
+      <PageBody>
+        {error ? (
+          <div className="rounded-xl border border-white/[0.08] bg-[#0E0E12] p-8 text-center">
+            <Gift className="mx-auto h-8 w-8 text-white/20" />
+            <p className="mt-3 text-[15px] font-semibold text-white">Bonuses could not be loaded.</p>
+            <p className="mt-1 text-[13px] text-white/45">Try again in a moment.</p>
           </div>
-
-          {bonuses.length === 0 ? (
-            <Panel className="flex flex-col items-center gap-2 py-16">
-              <Gift className="h-8 w-8 text-white/10" />
-              <p className="text-[13px] text-white/30">No bonuses right now.</p>
-            </Panel>
-          ) : (
-            <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
-              {bonuses.map((bonus) => (
-                <BonusCard key={bonus.id} bonus={bonus} />
-              ))}
+        ) : bonuses.length === 0 ? (
+          <div className="flex items-center gap-4 rounded-xl border border-dashed border-white/[0.12] bg-[#0E0E12] px-6 py-6">
+            <span
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border"
+              style={{ borderColor: `${ACCENTS.amber}44`, backgroundColor: `${ACCENTS.amber}14` }}
+            >
+              <Gift className="h-5 w-5" style={{ color: ACCENTS.amber }} />
+            </span>
+            <div>
+              <p className="text-[15px] font-semibold text-white">No offers right now</p>
+              <p className="mt-0.5 text-[13px] text-white/45">New codes show up here as soon as they are added.</p>
             </div>
-          )}
-        </>
-      )}
+          </div>
+        ) : (
+          <BonusCatalog bonuses={bonuses} />
+        )}
       </PageBody>
     </div>
   )
