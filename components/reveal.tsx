@@ -67,6 +67,21 @@ export function Reveal() {
           index++
           continue
         }
+        // On a full load of a page behind a loading.tsx, the page streams in:
+        // its HTML is in the DOM, and painted, before React hydrates it.
+        // Staging it then is wrong twice over — the added class makes the
+        // markup disagree with what React renders (a hydration mismatch), and
+        // waiting for hydration would hide content that is already on screen
+        // and fade it back, a flash. So it is left as it arrived; the page
+        // transition still runs. React tags nodes it owns with __reactFiber$,
+        // which is how a streamed, not-yet-hydrated node is told apart. On a
+        // client navigation React inserts the page itself, so it has the key
+        // and is staged in the same frame, before anything paints.
+        if (!Object.keys(node).some((key) => key.startsWith("__reactFiber$"))) {
+          seen.add(node)
+          index++
+          continue
+        }
         seen.add(node)
         node.classList.add("reveal")
         node.style.setProperty("--reveal-delay", `${Math.min(index * STAGGER_MS, MAX_STAGGER_MS)}ms`)

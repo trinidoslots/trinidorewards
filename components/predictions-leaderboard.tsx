@@ -22,7 +22,37 @@ export function PredictionsLeaderboard({ huntId, isLoggedIn, currentUsername, pr
   const categoryIndex = categories.findIndex((item) => item.key === category)
 
   const load = async () => { const { data } = await supabase.from("hunt_predictions").select("*").eq("hunt_id", huntId).order("created_at", { ascending: false }); if (data) setPredictions(data) }
-  useEffect(() => { load(); const refreshStatus = async () => { const response = await fetch(`/api/admin/predictions?hunt_id=${encodeURIComponent(huntId)}`, { cache: "no-store" }); if (!response.ok) return; const payload = await response.json(); setWindow(payload.window ?? { status: "closed", opens_at: null, closes_at: null }); setResolved({ actual_highest_multi: payload.hunt?.best_multiplier ?? null, actual_final_balance: payload.hunt?.total_won == null ? null : Number(payload.hunt.total_won), actual_best_game: payload.hunt?.best_cash_win_game ?? null }) }; refreshStatus(); const statusTimer = globalThis.setInterval(() => { setClock(Date.now()); refreshStatus() }, 1000); const channel = supabase.channel(`public-predictions-${huntId}`).on("postgres_changes", { event: "*", schema: "public", table: "hunt_predictions", filter: `hunt_id=eq.${huntId}` }, load).subscribe(); return () => { globalThis.clearInterval(statusTimer); supabase.removeChannel(channel) } }, [huntId])
+  useEffect(() => {
+    // No hunt, nothing to predict: this used to poll a serverless function
+    // every second with hunt_id="" for as long as the page was open.
+    if (!huntId) return
+    load()
+    // The window status, from the server. Every three seconds rather than
+    // every one — it changes when an admin opens or closes predictions, and
+    // the countdown to closes_at runs off the local clock below, so a close
+    // still lands on time. One request at a time, and none from a hidden tab.
+    let inFlight = false
+    const refreshStatus = async () => {
+      if (inFlight || document.hidden) return
+      inFlight = true
+      try {
+        const response = await fetch(`/api/admin/predictions?hunt_id=${encodeURIComponent(huntId)}`, { cache: "no-store" })
+        if (!response.ok) return
+        const payload = await response.json()
+        setWindow(payload.window ?? { status: "closed", opens_at: null, closes_at: null })
+        setResolved({ actual_highest_multi: payload.hunt?.best_multiplier ?? null, actual_final_balance: payload.hunt?.total_won == null ? null : Number(payload.hunt.total_won), actual_best_game: payload.hunt?.best_cash_win_game ?? null })
+      } catch {
+        // A dropped poll is retried on the next one.
+      } finally {
+        inFlight = false
+      }
+    }
+    refreshStatus()
+    const clockTimer = globalThis.setInterval(() => setClock(Date.now()), 1000)
+    const statusTimer = globalThis.setInterval(refreshStatus, 3000)
+    const channel = supabase.channel(`public-predictions-${huntId}`).on("postgres_changes", { event: "*", schema: "public", table: "hunt_predictions", filter: `hunt_id=eq.${huntId}` }, load).subscribe()
+    return () => { globalThis.clearInterval(clockTimer); globalThis.clearInterval(statusTimer); supabase.removeChannel(channel) }
+  }, [huntId])
   useEffect(() => { const mine = predictions.find((prediction) => prediction.username === currentUsername); if (mine) setForm({ highest_multi: mine.predicted_max_multiplier?.toString() || "", best_game: mine.predicted_best_game || "", final_balance: mine.predicted_end_balance?.toString() || "" }) }, [predictions, currentUsername])
 
   const slots = Array.from(new Set(hunts.map((hunt) => hunt.game_name).filter(Boolean)))

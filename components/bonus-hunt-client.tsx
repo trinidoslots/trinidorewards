@@ -47,6 +47,26 @@ export function BonusHuntClient({
   const supabaseRef = useRef(createBrowserClient())
 
   useEffect(() => {
+    // Nothing to follow: an integrated hunt with no active row would poll
+    // three queries a second for an id of null.
+    if (huntSource !== "external" && !huntId) return
+
+    // One round at a time. At a one-second interval a slow connection would
+    // otherwise start the next round before the last one landed, and the
+    // requests pile up — on exactly the connections that can least afford it.
+    let inFlight = false
+    const tick = async () => {
+      // A background tab is not watching; it catches up on the next tick
+      // after it comes back.
+      if (inFlight || document.hidden) return
+      inFlight = true
+      try {
+        await fetchData()
+      } finally {
+        inFlight = false
+      }
+    }
+
     const fetchData = async () => {
       if (huntSource === "external") {
         try {
@@ -59,18 +79,19 @@ export function BonusHuntClient({
         return
       }
 
-      const { data: activeHunt } = await supabaseRef.current
-        .from("bonus_hunts")
-        .select("starting_balance")
-        .eq("id", huntId)
-        .maybeSingle()
+      // The three reads are independent, so they go out together: one round
+      // trip's wait per tick instead of three.
+      const [{ data: activeHunt }, { data, error }, { data: kpiRow, error: kpiError }] = await Promise.all([
+        supabaseRef.current.from("bonus_hunts").select("starting_balance").eq("id", huntId).maybeSingle(),
+        supabaseRef.current
+          .from("hunt_bonuses")
+          .select("id, game_name, provider, bet_size, result, created_at, is_super, image_url, position")
+          .eq("hunt_id", huntId)
+          .order("position", { ascending: true }),
+        supabaseRef.current.from("bonus_hunt_kpis").select("*").eq("hunt_id", huntId).maybeSingle(),
+      ])
       if (activeHunt) setStartingBalance(Number(activeHunt.starting_balance ?? 0))
 
-      const { data, error } = await supabaseRef.current
-        .from("hunt_bonuses")
-        .select("id, game_name, provider, bet_size, result, created_at, is_super, image_url, position")
-        .eq("hunt_id", huntId)
-        .order("position", { ascending: true })
       if (!error && data) {
         setAllHunts(
           data.map((bonus) => ({
@@ -80,16 +101,12 @@ export function BonusHuntClient({
           })) as BonusHunt[],
         )
       }
-
-      const { data: kpiRow, error: kpiError } = await supabaseRef.current
-        .from("bonus_hunt_kpis")
-        .select("*")
-        .eq("hunt_id", huntId)
-        .maybeSingle()
       if (!kpiError && kpiRow) setKpis(kpiRow as HuntKpis)
     }
-    fetchData()
-    const interval = setInterval(fetchData, huntSource === "external" ? 10_000 : 1_000)
+    // No fetch on mount: the server rendered this a moment ago with the same
+    // three reads, and repeating them immediately was pure duplicate load
+    // during the page's busiest second. The first tick refreshes it.
+    const interval = setInterval(tick, huntSource === "external" ? 10_000 : 1_000)
     return () => clearInterval(interval)
   }, [huntSource, huntId, initialStartingBalance])
 

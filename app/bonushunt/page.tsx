@@ -3,7 +3,6 @@ import { getActiveHunt } from "@/lib/active-hunt"
 import { BonusHuntClient, type HuntKpis } from "@/components/bonus-hunt-client"
 import { GuessTheBalancePanel } from "@/components/guess-the-balance-panel"
 import { getCurrentExternalHuntMapped } from "@/lib/bonushunt-api"
-import { cookies } from "next/headers"
 import { PreviousHuntsPanel } from "@/components/previous-hunts-panel"
 import { BonusHuntTabs } from "@/components/bonus-hunt-tabs"
 import { PageBody, PageHero } from "@/components/page-hero"
@@ -36,16 +35,19 @@ export default async function BonusHuntPage({ searchParams }: PageProps) {
   const activeTab = params.tab || "current"
 
   const supabase = await createClient()
-  const cookieStore = await cookies()
 
-  const username = (await getSiteSession())?.username
-  const isLoggedIn = !!username
-
-  const { data: huntSourceData } = await supabase
-    .from("settings")
-    .select("value")
-    .eq("key", "hunt_source")
-    .maybeSingle()
+  // Independent reads, so they go out together. This page used to make four
+  // database round trips one after the other before sending a byte — the
+  // source setting, then the active hunt, then its bonuses, then its KPIs —
+  // which is most of why it was the slowest page on the site. The active hunt
+  // is read even when the source turns out to be external; it is one cheap
+  // row, and waiting to find out would put a round trip back in the chain.
+  const [session, { data: huntSourceData }, activeHunt] = await Promise.all([
+    getSiteSession(),
+    supabase.from("settings").select("value").eq("key", "hunt_source").maybeSingle(),
+    getActiveHunt(supabase),
+  ])
+  const username = session?.username
 
   const huntSource = huntSourceData?.value === "external" ? "external" : "integrated"
 
@@ -66,23 +68,20 @@ export default async function BonusHuntPage({ searchParams }: PageProps) {
       allHunts = []
     }
   } else {
-    const activeHunt = await getActiveHunt(supabase)
     if (activeHunt) {
       activeStartingBalance = Number(activeHunt.starting_balance ?? 0)
-      const { data: bonuses, error: bonusError } = await supabase
-        .from("hunt_bonuses")
-        .select("id, game_name, provider, bet_size, result, created_at, is_super, image_url, position")
-        .eq("hunt_id", activeHunt.id)
-        .order("position", { ascending: true })
+      // Both keyed on the hunt and nothing else, so they also go together.
+      const [{ data: bonuses, error: bonusError }, { data: kpiRow, error: kpiError }] = await Promise.all([
+        supabase
+          .from("hunt_bonuses")
+          .select("id, game_name, provider, bet_size, result, created_at, is_super, image_url, position")
+          .eq("hunt_id", activeHunt.id)
+          .order("position", { ascending: true }),
+        supabase.from("bonus_hunt_kpis").select("*").eq("hunt_id", activeHunt.id).maybeSingle(),
+      ])
       if (bonusError) console.error("[v0] Error fetching hunt bonuses:", bonusError)
       allHunts = (bonuses || []).map((bonus) => ({ ...bonus, opening_balance: 0, starting_balance: activeHunt.starting_balance })) as BonusHunt[]
       externalHuntId = activeHunt.id
-
-      const { data: kpiRow, error: kpiError } = await supabase
-        .from("bonus_hunt_kpis")
-        .select("*")
-        .eq("hunt_id", activeHunt.id)
-        .maybeSingle()
       if (kpiError) console.error("[v0] Error fetching hunt kpis:", kpiError)
       initialKpis = (kpiRow as HuntKpis | null) ?? null
     }

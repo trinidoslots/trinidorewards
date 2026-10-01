@@ -19,10 +19,15 @@ const TABS = [
 
 export function BonusHuntTabs({ initialTab, currentContent, previousContent }: BonusHuntTabsProps) {
   const [tab, setTab] = useState<"current" | "previous">(initialTab)
+  // The previous-hunts panel mounts the first time it is opened, then stays.
+  // Mounting it up front meant every visit to the live hunt also loaded every
+  // ended hunt and the first one's bonuses, in a tab nobody had opened.
+  const [previousOpened, setPreviousOpened] = useState(initialTab === "previous")
 
   const switchTab = (next: "current" | "previous") => {
     if (next === tab) return
     setTab(next)
+    if (next === "previous") setPreviousOpened(true)
     const url = next === "current" ? "/bonushunt" : "/bonushunt?tab=previous"
     window.history.replaceState(null, "", url)
   }
@@ -58,14 +63,14 @@ export function BonusHuntTabs({ initialTab, currentContent, previousContent }: B
         )}
       </div>
 
-      {/* Both panels stay mounted — the previous-hunts panel fetches on mount,
-          and remounting it on every switch back would refetch. Swap replays
+      {/* Once opened, both panels stay mounted — the previous-hunts panel
+          fetches on mount, and remounting it on every switch back would refetch. Swap replays
           the entry animation and eases the height, which is the part that was
           missing: the fade was already running, but the container snapped
           between the two panels' heights in one frame and swallowed it. */}
       <Swap on={tab}>
         <div className={tab === "current" ? "block" : "hidden"}>{currentContent}</div>
-        <div className={tab === "previous" ? "block" : "hidden"}>{previousContent}</div>
+        <div className={tab === "previous" ? "block" : "hidden"}>{previousOpened ? previousContent : null}</div>
       </Swap>
     </>
   )
