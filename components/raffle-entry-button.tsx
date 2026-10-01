@@ -67,13 +67,13 @@ export default function RaffleEntryButton({
   return (
     <div className="space-y-3">
       {canPickMore && (
-        <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-black/30 p-1.5">
+        <div className="flex items-center gap-3 rounded-lg border border-white/[0.08] bg-black/30 p-1.5">
           <button
             type="button"
             aria-label="One fewer ticket"
             onClick={() => setTickets((current) => Math.max(1, current - 1))}
             disabled={tickets <= 1}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-white/70 transition hover:bg-white/[0.12] hover:text-white disabled:opacity-30"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-white/70 transition hover:bg-white/[0.12] hover:text-white disabled:opacity-30"
           >
             <Minus className="h-4 w-4" />
           </button>
@@ -86,7 +86,7 @@ export default function RaffleEntryButton({
             aria-label="One more ticket"
             onClick={() => setTickets((current) => Math.min(remaining, current + 1))}
             disabled={tickets >= remaining}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-white/70 transition hover:bg-white/[0.12] hover:text-white disabled:opacity-30"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-white/[0.06] text-white/70 transition hover:bg-white/[0.12] hover:text-white disabled:opacity-30"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -97,7 +97,7 @@ export default function RaffleEntryButton({
         type="button"
         onClick={enter}
         disabled={loading}
-        className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[15px] font-bold text-black transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
+        className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md text-[15px] font-bold text-black transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
         style={{ backgroundColor: ACCENTS.green, boxShadow: `0 10px 34px -14px ${ACCENTS.green}` }}
       >
         <Ticket className="h-[18px] w-[18px]" />

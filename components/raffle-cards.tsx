@@ -88,7 +88,7 @@ function Chips({ entry }: { entry: RaffleEntry }) {
  * holds at any size — and the card shows through where the art is clear.
  *
  * Where the picture meets the card's rounded top, its top corners follow the
- * card's curve instead (23px: the card's 24px less its 1px border). Two
+ * card's curve instead (13px: the card's 14px less its 1px border). Two
  * different curves meeting at one corner read as a mistake — the art's border
  * and blue bar were cut off at an angle there. `frame` sets which corners.
  *
@@ -99,7 +99,7 @@ function Chips({ entry }: { entry: RaffleEntry }) {
 /** The artwork's own corners: ~51px on a 1600x1000 card, as percentages. */
 export const ART_RADIUS = "rounded-[3.2%/5.1%]"
 /** Top corners on the card's curve, bottom corners the artwork's own. */
-export const TOP_OF_CARD = "rounded-t-[23px] rounded-b-[3.2%_5.1%]"
+export const TOP_OF_CARD = "rounded-t-[13px] rounded-b-[3.2%_5.1%]"
 
 export function PrizeImage({
   src,
@@ -167,7 +167,7 @@ export function FeatureRaffle({ entry }: { entry: RaffleEntry }) {
   return (
     <Link
       href={`/raffles/${raffle.id}`}
-      className="group relative grid overflow-hidden rounded-3xl border border-white/[0.10] bg-[#0E0E12] transition duration-300 hover:border-white/20 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]"
+      className="group relative grid overflow-hidden rounded-xl border border-white/[0.10] bg-[#0E0E12] transition duration-300 hover:border-white/20 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]"
     >
       <div
         aria-hidden
@@ -206,7 +206,7 @@ export function FeatureRaffle({ entry }: { entry: RaffleEntry }) {
           </span>
           <Price raffle={raffle} />
           <span
-            className="ml-auto inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[14px] font-bold text-black transition group-hover:brightness-110"
+            className="ml-auto inline-flex items-center gap-2 rounded-md px-5 py-2.5 text-[14px] font-bold text-black transition group-hover:brightness-110"
             style={{ backgroundColor: accent }}
           >
             Enter raffle <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
@@ -229,7 +229,7 @@ export function TicketCard({ entry }: { entry: RaffleEntry }) {
   return (
     <Link
       href={`/raffles/${raffle.id}`}
-      className="group relative flex flex-col overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12] transition duration-300 hover:-translate-y-1 hover:border-white/20"
+      className="group relative flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12] transition duration-300 hover:-translate-y-1 hover:border-white/20"
     >
       <PrizeImage src={raffle.prize_image_url} frame={TOP_OF_CARD} />
 
@@ -298,7 +298,7 @@ export function FinishedRow({ entry }: { entry: RaffleEntry }) {
 /** Nothing open: say so properly, and point at where new ones come from. */
 export function NoRafflesOpen() {
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-dashed border-white/[0.12] bg-[#0E0E12] px-6 py-14 text-center sm:py-16">
+    <div className="relative overflow-hidden rounded-xl border border-dashed border-white/[0.12] bg-[#0E0E12] px-6 py-14 text-center sm:py-16">
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-0 h-64 w-[34rem] -translate-x-1/2 rounded-full opacity-20 blur-3xl"
@@ -306,7 +306,7 @@ export function NoRafflesOpen() {
       />
       <div className="relative mx-auto max-w-md">
         <span
-          className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border"
+          className="mx-auto flex h-16 w-16 items-center justify-center rounded-lg border"
           style={{ borderColor: `${ACCENTS.green}44`, backgroundColor: `${ACCENTS.green}14` }}
         >
           <Ticket className="h-7 w-7" style={{ color: ACCENTS.green }} />

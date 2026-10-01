@@ -40,7 +40,7 @@ export function KickButton({ size = "md", label = "Watch on Kick" }: { size?: "m
       href={KICK_URL}
       target="_blank"
       rel="noopener noreferrer"
-      className={`group inline-flex items-center gap-2.5 rounded-xl font-bold text-black transition hover:brightness-110 active:scale-[0.98] ${
+      className={`group inline-flex items-center gap-2.5 rounded-md font-bold text-black transition hover:brightness-110 active:scale-[0.98] ${
         size === "lg" ? "px-7 py-4 text-[15px]" : "px-5 py-3 text-[14px]"
       }`}
       style={{ backgroundColor: KICK_GREEN, boxShadow: `0 10px 40px -12px ${KICK_GREEN}99` }}
@@ -69,7 +69,7 @@ export function Clock({ left, accent }: { left: Countdown; accent: string }) {
       {units.map(([value, label]) => (
         <div
           key={label}
-          className="rounded-xl border border-white/[0.08] bg-black/40 px-2 py-3 text-center"
+          className="rounded-md border border-white/[0.08] bg-black/40 px-2 py-3 text-center"
         >
           <p className="font-mono text-[28px] font-semibold leading-none tabular-nums text-white sm:text-[32px]">
             {String(value).padStart(2, "0")}

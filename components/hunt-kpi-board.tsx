@@ -92,7 +92,7 @@ export function HuntKpiBoard({
   return (
     <div className="flex flex-col gap-4">
       {/* --- scoreboard ------------------------------------------------------- */}
-      <section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12]">
+      <section className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
         <div
           aria-hidden
           className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full opacity-20 blur-3xl"
@@ -119,7 +119,7 @@ export function HuntKpiBoard({
           </div>
 
           {/* The one number a live hunt is watched for. */}
-          <div className="min-w-[13rem] rounded-2xl border px-5 py-4" style={{ borderColor: `${ACCENTS.amber}44`, backgroundColor: `${ACCENTS.amber}0f` }}>
+          <div className="min-w-[13rem] rounded-lg border px-5 py-4" style={{ borderColor: `${ACCENTS.amber}44`, backgroundColor: `${ACCENTS.amber}0f` }}>
             <MonoLabel style={{ color: ACCENTS.amber }}>{done ? "Hunt complete" : "Break even"}</MonoLabel>
             {/* Finished, break-even means nothing; what came back does. The
                 average multi is already in the strip below. */}
@@ -178,7 +178,7 @@ export function HuntKpiBoard({
 
       {/* --- the bonuses -------------------------------------------------------- */}
       <section className={sidePanel ? "grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start" : "grid gap-4"}>
-        <div className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12]">
+        <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
           <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/[0.07] px-5 py-4 sm:px-6">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ACCENTS.amber }} />
             <MonoLabel className="text-white/70">{tableEyebrow}</MonoLabel>
@@ -258,13 +258,13 @@ function RecordCard({
   image: string | null
 }) {
   return (
-    <div className="relative flex items-center gap-5 overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12] p-5 sm:p-6">
+    <div className="relative flex items-center gap-5 overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12] p-5 sm:p-6">
       <div
         aria-hidden
         className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full opacity-20 blur-3xl"
         style={{ backgroundColor: accent }}
       />
-      <span className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/[0.10] bg-black/40">
+      <span className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.10] bg-black/40">
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
           <img src={image} alt="" className="h-full w-full object-cover" />
@@ -299,7 +299,7 @@ function BonusRow({ hunt, position, next }: { hunt: HuntBonusRow; position: numb
       <span className="font-mono text-[12px] tabular-nums text-white/30">{String(position).padStart(2, "0")}</span>
 
       <span className="flex min-w-0 items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/[0.08] bg-black/40">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/[0.08] bg-black/40">
           {hunt.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
             <img src={hunt.image_url} alt="" loading="lazy" className="h-full w-full object-cover" />

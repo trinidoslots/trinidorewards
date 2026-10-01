@@ -138,7 +138,7 @@ export function RaffleLiveDraw({
       <AnimatePresence mode="wait" initial={false}>
         {stage === "rolling" && (
           <motion.div key="rolling" {...ENTER}>
-            <div className="rounded-3xl border border-white/[0.10] bg-[#0E0E12] p-4 sm:p-5">
+            <div className="rounded-xl border border-white/[0.10] bg-[#0E0E12] p-4 sm:p-5">
               <RaffleDrawReel
                 pool={names.current}
                 winner={winner!}
@@ -151,7 +151,7 @@ export function RaffleLiveDraw({
         {stage === "winner" && (
           <motion.div key="winner" {...ENTER}>
             <div
-              className="relative flex items-center gap-5 overflow-hidden rounded-3xl border p-5 sm:p-6"
+              className="relative flex items-center gap-5 overflow-hidden rounded-xl border p-5 sm:p-6"
               style={{ borderColor: `${WIN}55`, background: `radial-gradient(600px 220px at 0% 0%, ${WIN}24, transparent 70%), #0E0E12` }}
             >
               <motion.span
@@ -159,7 +159,7 @@ export function RaffleLiveDraw({
                 initial={{ scale: 0.6, rotate: -12 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: "spring", stiffness: 320, damping: 16 }}
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg"
                 style={{ backgroundColor: `${WIN}1f`, border: `1px solid ${WIN}55` }}
               >
                 <Trophy className="h-7 w-7" style={{ color: WIN }} />
@@ -180,9 +180,9 @@ export function RaffleLiveDraw({
         {/* Closed, no winner yet: say so rather than looking stuck. */}
         {stage === "waiting" && (
           <motion.div key="waiting" {...ENTER}>
-            <div className="flex items-center gap-4 rounded-3xl border border-white/[0.10] bg-[#0E0E12] p-5">
+            <div className="flex items-center gap-4 rounded-xl border border-white/[0.10] bg-[#0E0E12] p-5">
               <span
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg"
                 style={{ backgroundColor: `${ACCENTS.blue}1a` }}
               >
                 <Clock className="h-5 w-5 animate-pulse" style={{ color: ACCENTS.blue }} />

@@ -160,7 +160,7 @@ export default async function RafflesPage() {
         {past.length > 0 && (
           <section className="space-y-6">
             <SectionHeading eyebrow="Archive" title="Finished" accent={ACCENTS.slate} />
-            <div className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12]">
+            <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
               {past.map((entry) => (
                 <FinishedRow key={entry.raffle.id} entry={entry} />
               ))}

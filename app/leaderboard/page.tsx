@@ -294,7 +294,7 @@ export default function LeaderboardPage() {
       <div>
         <PageHero accent="amber" title="Leaderboard" />
         <PageBody className="max-w-3xl">
-          <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-8 text-center">
+          <div className="rounded-md border border-white/[0.08] bg-white/[0.02] p-8 text-center">
             <Trophy className="mx-auto h-8 w-8 text-white/15" />
             <p className="mt-3 text-[14px] text-white">{error}</p>
             <p className="mt-1 text-[12.5px] text-white/35">Try again in a moment.</p>
@@ -309,7 +309,7 @@ export default function LeaderboardPage() {
       <div>
         <PageHero accent="amber" title="Leaderboard" subtitle="Nothing running at the moment." />
         <PageBody className="max-w-3xl">
-          <div className="flex flex-col items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.02] py-16">
+          <div className="flex flex-col items-center gap-2 rounded-md border border-white/[0.08] bg-white/[0.02] py-16">
             <Trophy className="h-8 w-8 text-white/10" />
             <p className="text-[13px] text-white/30">Check back when the next board opens.</p>
           </div>
@@ -378,7 +378,7 @@ export default function LeaderboardPage() {
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="Search players…"
                     aria-label="Search players"
-                    className="h-10 w-full rounded-xl border border-white/[0.10] bg-black/40 pl-10 pr-3 text-[14px] text-white outline-none transition placeholder:text-white/30 focus:border-white/25"
+                    className="h-10 w-full rounded-md border border-white/[0.10] bg-black/40 pl-10 pr-3 text-[14px] text-white outline-none transition placeholder:text-white/30 focus:border-white/25"
                   />
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -414,7 +414,7 @@ export default function LeaderboardPage() {
 /** A figure with its caption, sized to sit next to the search field. */
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-right">
+    <div className="rounded-md border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-right">
       <p className="text-[14px] font-bold leading-none tabular-nums text-white">{value}</p>
       <MonoLabel className="mt-1.5 block text-white/35">{label}</MonoLabel>
     </div>

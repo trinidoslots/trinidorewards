@@ -26,12 +26,12 @@ export default function Loading() {
         </div>
         {/* The board's own shape: scoreboard, the two records, the list. */}
         <div className="space-y-4">
-          <div className="h-[260px] animate-pulse rounded-3xl border border-white/[0.06] bg-white/[0.025]" />
+          <div className="h-[260px] animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.025]" />
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="h-[118px] animate-pulse rounded-3xl border border-white/[0.06] bg-white/[0.025]" />
-            <div className="h-[118px] animate-pulse rounded-3xl border border-white/[0.06] bg-white/[0.025]" />
+            <div className="h-[118px] animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.025]" />
+            <div className="h-[118px] animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.025]" />
           </div>
-          <div className="h-[420px] animate-pulse rounded-3xl border border-white/[0.06] bg-white/[0.02]" />
+          <div className="h-[420px] animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.02]" />
         </div>
       </div>
     </div>

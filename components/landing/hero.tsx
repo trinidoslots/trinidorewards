@@ -83,7 +83,7 @@ export function Hero({
             {primary && (
               <Link
                 href={primary.href}
-                className="group inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-5 py-3 text-[14px] font-semibold text-white transition hover:border-white/30 hover:bg-white/[0.08]"
+                className="group inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/[0.04] px-5 py-3 text-[14px] font-semibold text-white transition hover:border-white/30 hover:bg-white/[0.08]"
               >
                 {primary.label}
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
@@ -151,10 +151,10 @@ function Console({ data, now, stream }: { data: LandingData; now: number; stream
       {/* A soft halo behind the panel so it sits on the page rather than in it. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -inset-6 rounded-[36px] opacity-60 blur-2xl"
+        className="pointer-events-none absolute -inset-6 rounded-[22px] opacity-60 blur-2xl"
         style={{ background: `radial-gradient(closest-side, ${stream.kind === "live" ? ACCENTS.red : ACCENTS.blue}22, transparent)` }}
       />
-      <div className="relative overflow-hidden rounded-3xl border border-white/[0.10] bg-[#0E0E12]/90 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] backdrop-blur">
+      <div className="relative overflow-hidden rounded-xl border border-white/[0.10] bg-[#0E0E12]/90 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] backdrop-blur">
         {/* --- the screen ----------------------------------------------------- */}
         <div className="border-b border-white/[0.07] p-6 sm:p-7">
           {stream.kind === "live" ? (

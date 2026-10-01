@@ -73,7 +73,7 @@ export function RaffleDetailView(props: RaffleDetailProps) {
         actions={
           <Link
             href="/raffles"
-            className="group inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2.5 text-[13.5px] font-semibold text-white transition hover:border-white/30 hover:bg-white/[0.08]"
+            className="group inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/[0.04] px-4 py-2.5 text-[13.5px] font-semibold text-white transition hover:border-white/30 hover:bg-white/[0.08]"
           >
             <ArrowLeft className="h-4 w-4 transition group-hover:-translate-x-0.5" />
             All raffles
@@ -117,7 +117,7 @@ export function RaffleDetailView(props: RaffleDetailProps) {
 function PrizeCard({ raffle, totalTickets, totalCap, entrantCount, isFree, ticketPrice }: RaffleDetailProps) {
   const filled = totalCap ? Math.min(100, (totalTickets / totalCap) * 100) : 0
   return (
-    <section className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12]">
+    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
       <PrizeImage src={raffle.prize_image_url} frame={TOP_OF_CARD} />
       <div className="p-6 sm:p-7">
         <MonoLabel style={{ color: ACCENTS.amber }}>Prize</MonoLabel>
@@ -125,7 +125,7 @@ function PrizeCard({ raffle, totalTickets, totalCap, entrantCount, isFree, ticke
           {raffle.prize_name}
         </h2>
 
-        <dl className="mt-6 grid grid-cols-3 divide-x divide-white/[0.07] rounded-2xl border border-white/[0.07]">
+        <dl className="mt-6 grid grid-cols-3 divide-x divide-white/[0.07] rounded-lg border border-white/[0.07]">
           <Figure label="Tickets sold" value={points(totalTickets)} hint={totalCap ? `of ${points(totalCap)}` : "No cap"} />
           <Figure label="Entrants" value={points(entrantCount)} />
           <Figure
@@ -168,7 +168,7 @@ function Figure({ label, value, hint, color }: { label: string; value: string; h
 /** Who is in, most tickets first, with each one's share of the pot. */
 function Entrants({ leaderboard, entrantCount, totalTickets }: RaffleDetailProps) {
   return (
-    <section className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12]">
+    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
       <header className="flex items-center gap-2.5 border-b border-white/[0.07] px-5 py-4 sm:px-6">
         <Users className="h-4 w-4" style={{ color: ACCENTS.purple }} />
         <MonoLabel className="text-white/70">Entrants</MonoLabel>
@@ -232,7 +232,7 @@ function EntryPanel(props: RaffleDetailProps & { accent: string }) {
   const open = status === "active" && !drawn
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-white/[0.10] bg-[#0E0E12] p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]">
+    <section className="relative overflow-hidden rounded-xl border border-white/[0.10] bg-[#0E0E12] p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]">
       <div
         aria-hidden
         className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full opacity-20 blur-3xl"
@@ -284,7 +284,7 @@ function EntryAction({
   myTickets,
 }: RaffleDetailProps) {
   const note = (text: string, color?: string) => (
-    <p className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-center text-[13.5px]" style={{ color: color ?? "rgba(255,255,255,0.5)" }}>
+    <p className="rounded-md border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-center text-[13.5px]" style={{ color: color ?? "rgba(255,255,255,0.5)" }}>
       {text}
     </p>
   )
@@ -296,7 +296,7 @@ function EntryAction({
   if (codeUserOnly && !isCodeUser)
     return (
       <p
-        className="flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-center text-[13.5px] font-semibold"
+        className="flex items-center justify-center gap-2 rounded-md border px-4 py-3 text-center text-[13.5px] font-semibold"
         style={{ borderColor: `${ACCENTS.purple}55`, backgroundColor: `${ACCENTS.purple}14`, color: ACCENTS.purple }}
       >
         <Lock className="h-4 w-4" /> Code Users only
@@ -322,7 +322,7 @@ function Dates({ raffle }: Pick<RaffleDetailProps, "raffle">) {
   ]
   if (raffle.draw_date) rows.push(["Draw", formatDrawDate(raffle.draw_date)])
   return (
-    <dl className="divide-y divide-white/[0.06] rounded-3xl border border-white/[0.08] bg-[#0E0E12] px-6">
+    <dl className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.08] bg-[#0E0E12] px-6">
       {rows.map(([label, value]) => (
         <div key={label} className="flex items-baseline justify-between gap-3 py-3.5">
           <dt>

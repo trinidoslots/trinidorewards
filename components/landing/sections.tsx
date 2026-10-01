@@ -119,7 +119,7 @@ function DeckCard({
   return (
     <Link
       href={href}
-      className={`group relative flex flex-col overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12] p-6 transition duration-300 hover:-translate-y-1 hover:border-white/20 sm:p-7 ${className ?? ""}`}
+      className={`group relative flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12] p-6 transition duration-300 hover:-translate-y-1 hover:border-white/20 sm:p-7 ${className ?? ""}`}
     >
       <div
         aria-hidden
@@ -227,7 +227,7 @@ function BoardCard({ board, now }: { board: LandingBoard; now: number }) {
             <div key={step.place} className="min-w-0 text-center">
               <p className="truncate px-1 text-[12.5px] font-semibold text-white/80">{step.name ?? "—"}</p>
               <div
-                className={`mt-2 flex items-start justify-center rounded-t-xl border border-b-0 pt-2 ${step.height}`}
+                className={`mt-2 flex items-start justify-center rounded-t-md border border-b-0 pt-2 ${step.height}`}
                 style={{
                   borderColor: step.place === 1 ? `${accent}66` : "rgba(255,255,255,0.08)",
                   background:
@@ -324,10 +324,10 @@ export function ComingUp({ entries }: { entries: ScheduleEntry[] }) {
             <Link
               key={entry.id}
               href="/schedule"
-              className="group flex gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 transition hover:border-white/20 hover:bg-white/[0.045]"
+              className="group flex gap-4 rounded-lg border border-white/[0.08] bg-white/[0.02] p-4 transition hover:border-white/20 hover:bg-white/[0.045]"
             >
               <div
-                className="flex w-14 shrink-0 flex-col items-center justify-center rounded-xl border py-2"
+                className="flex w-14 shrink-0 flex-col items-center justify-center rounded-md border py-2"
                 style={{ borderColor: `${color}44`, backgroundColor: `${color}12` }}
               >
                 <MonoLabel style={{ color }}>{date.toLocaleDateString("en-US", { weekday: "short" })}</MonoLabel>
@@ -441,7 +441,7 @@ export function HowItWorks() {
         {STEPS.map((step, index) => (
           <div
             key={step.title}
-            className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-transparent p-7"
+            className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-transparent p-7"
           >
             <span
               aria-hidden
@@ -451,7 +451,7 @@ export function HowItWorks() {
               {index + 1}
             </span>
             <span
-              className="relative flex h-10 w-10 items-center justify-center rounded-xl font-mono text-[14px] font-bold text-black"
+              className="relative flex h-10 w-10 items-center justify-center rounded-md font-mono text-[14px] font-bold text-black"
               style={{ backgroundColor: index === 2 ? ACCENTS.green : "rgba(255,255,255,0.85)" }}
             >
               {index + 1}
@@ -473,7 +473,7 @@ export function KickBand() {
   return (
     <section className="mx-auto max-w-6xl px-5 pb-6 pt-24 lg:px-8">
       <div
-        className="relative overflow-hidden rounded-[28px] border p-8 sm:p-12"
+        className="relative overflow-hidden rounded-xl border p-8 sm:p-12"
         style={{
           borderColor: `${KICK_GREEN}33`,
           background: `radial-gradient(700px 300px at 100% 0%, ${KICK_GREEN}22, transparent 65%), #0C0F0B`,

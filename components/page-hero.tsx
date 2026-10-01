@@ -103,7 +103,7 @@ export function PageHero({
         </div>
 
         {hasPanel && (
-          <div className="relative overflow-hidden rounded-3xl border border-white/[0.10] bg-[#0E0E12]/90 p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] backdrop-blur sm:p-7">
+          <div className="relative overflow-hidden rounded-xl border border-white/[0.10] bg-[#0E0E12]/90 p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] backdrop-blur sm:p-7">
             {figure !== undefined && (
               <div className={countdown ? "border-b border-white/[0.07] pb-6" : ""}>
                 <MonoLabel style={{ color }}>{figureLabel ?? "Total"}</MonoLabel>

@@ -112,7 +112,7 @@ function PodiumCard({ entry, metric, step }: { entry: RankedEntry; metric: Metri
     <div
       // Stacked on a phone the order is 1, 2, 3; side by side it is the
       // podium's own 2, 1, 3, with first raised in the middle.
-      className={`podium-card relative overflow-hidden rounded-3xl border bg-[#0E0E12] px-6 text-center ${
+      className={`podium-card relative overflow-hidden rounded-xl border bg-[#0E0E12] px-6 text-center ${
         first ? "podium-first order-first pb-7 pt-9 sm:order-none sm:pb-9 sm:pt-12" : "pb-6 pt-7 sm:pb-7 sm:pt-8"
       }`}
       style={{ ...motion, borderColor: first ? `${color}66` : "rgba(255,255,255,0.08)" }}
@@ -153,7 +153,7 @@ function PodiumCard({ entry, metric, step }: { entry: RankedEntry; metric: Metri
         </p>
         <MonoLabel className="mt-2 block text-white/35">Prize</MonoLabel>
 
-        <div className="mt-5 w-full rounded-xl border border-white/[0.07] bg-black/30 px-3 py-2.5">
+        <div className="mt-5 w-full rounded-md border border-white/[0.07] bg-black/30 px-3 py-2.5">
           <p className="text-[15px] font-semibold tabular-nums text-white/85">{moneyExact(amountFor(entry, metric))}</p>
           <MonoLabel className="mt-1 block text-white/30">{metricLabel(metric)}</MonoLabel>
         </div>
@@ -243,7 +243,7 @@ export function StandingsTable({
   toolbar?: React.ReactNode
 }) {
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12]">
+    <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
       {toolbar && <div className="border-b border-white/[0.07] px-4 py-4 sm:px-6">{toolbar}</div>}
       <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto_5.5rem] gap-x-3 border-b border-white/[0.05] px-4 py-2.5 sm:grid-cols-[3.5rem_minmax(0,1fr)_8rem_7rem] sm:px-6">
         <MonoLabel className="text-white/30">Place</MonoLabel>
@@ -345,7 +345,7 @@ export function BoardHero({
               {actions && <div className="mt-6 flex flex-wrap items-center gap-2.5">{actions}</div>}
             </div>
 
-            <div className="relative overflow-hidden rounded-3xl border border-white/[0.10] bg-[#0E0E12]/90 p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] backdrop-blur sm:p-7">
+            <div className="relative overflow-hidden rounded-xl border border-white/[0.10] bg-[#0E0E12]/90 p-6 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] backdrop-blur sm:p-7">
               <div className="border-b border-white/[0.07] pb-6">
                 <MonoLabel style={{ color }}>Prize pool</MonoLabel>
                 <p className="mt-3 text-[clamp(40px,5vw,56px)] font-black leading-none tabular-nums tracking-[-0.02em] text-white">
@@ -394,15 +394,15 @@ export function BoardHeroSkeleton() {
               <span className="h-[3px] w-6 rounded-full" style={{ backgroundColor: color }} />
               <MonoLabel style={{ color }}>Leaderboard</MonoLabel>
             </div>
-            <div className="mt-5 h-[clamp(36px,5.6vw,66px)] w-4/5 max-w-xl animate-pulse rounded-xl bg-white/[0.06]" />
+            <div className="mt-5 h-[clamp(36px,5.6vw,66px)] w-4/5 max-w-xl animate-pulse rounded-md bg-white/[0.06]" />
             <div className="mt-5 h-3.5 w-56 animate-pulse rounded bg-white/[0.05]" />
           </div>
-          <div className="h-[268px] animate-pulse rounded-3xl border border-white/[0.08] bg-white/[0.03]" />
+          <div className="h-[268px] animate-pulse rounded-xl border border-white/[0.08] bg-white/[0.03]" />
         </div>
         <div className="mt-14 grid gap-4 sm:grid-cols-3 sm:items-end">
-          <div className="h-[300px] animate-pulse rounded-3xl border border-white/[0.06] bg-white/[0.025]" />
-          <div className="order-first h-[340px] animate-pulse rounded-3xl border border-white/[0.06] bg-white/[0.03] sm:order-none" />
-          <div className="h-[300px] animate-pulse rounded-3xl border border-white/[0.06] bg-white/[0.025]" />
+          <div className="h-[300px] animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.025]" />
+          <div className="order-first h-[340px] animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.03] sm:order-none" />
+          <div className="h-[300px] animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.025]" />
         </div>
       </div>
     </section>
