@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import { AlertTriangle, Package, ShoppingCart, X } from "lucide-react"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { ArtImage } from "@/components/art-image"
-import { FIELD_CLASS, SelectMenu, type SelectOption } from "@/components/ui/select-menu"
+import { SelectMenu, type SelectOption } from "@/components/ui/select-menu"
 import {
   CRYPTOS,
   chainsFor,
@@ -349,10 +349,19 @@ export function StoreBuyDialog({
   )
 }
 
+/** The dialog's own field size; the admin forms keep the compact FIELD_CLASS. */
+const INPUT =
+  "h-11 w-full rounded-md border border-white/[0.10] bg-black/40 px-3.5 text-[14px] text-white outline-none transition placeholder:text-white/30 hover:border-white/20 focus:border-white/30"
+const SELECT = "h-11! px-3.5! text-[14px]!"
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <MonoLabel className="mb-2 block text-white/45">{children}</MonoLabel>
+}
+
 function Note({ tone, children }: { tone: "warn" | "muted" | "error"; children: React.ReactNode }) {
-  const color = tone === "warn" ? ACCENTS.amber : tone === "error" ? ACCENTS.red : "rgba(255,255,255,0.35)"
+  const color = tone === "warn" ? ACCENTS.amber : tone === "error" ? ACCENTS.red : "rgba(255,255,255,0.5)"
   return (
-    <p className="flex items-start gap-2 text-[12px] leading-relaxed" style={{ color }}>
+    <p className="flex items-start gap-2 text-[13px] leading-relaxed" style={{ color }}>
       {tone !== "muted" && <AlertTriangle className="mt-[2px] h-3.5 w-3.5 shrink-0" />}
       <span>{children}</span>
     </p>
@@ -406,15 +415,16 @@ function Fields({
   const chainOptions: SelectOption[] = chains.map((entry) => ({ value: entry.id, label: entry.label }))
 
   return (
-    <div className="space-y-3 border-t border-white/[0.06] pt-3">
-      <MonoLabel className="block text-white/30">{payoutMethodLabel(method)}</MonoLabel>
+    <div className="space-y-4 border-t border-white/[0.07] pt-4">
+      <p className="text-[14px] font-semibold text-white">{payoutMethodLabel(method)}</p>
 
       {method === "onsite_tip" ? (
         <>
           {accounts.length > 0 && (
             <div>
-              <MonoLabel className="mb-1.5 block text-white/30">Saved account</MonoLabel>
+              <FieldLabel>Saved account</FieldLabel>
               <SelectMenu
+                className={SELECT}
                 aria-label="Saved account"
                 value={pickedSaved}
                 onChange={onPickAccount}
@@ -431,12 +441,12 @@ function Fields({
           )}
 
           <div>
-            <MonoLabel className="mb-1.5 block text-white/30">Username</MonoLabel>
+            <FieldLabel>Username</FieldLabel>
             <input
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               placeholder="Your casino username"
-              className={FIELD_CLASS}
+              className={INPUT}
             />
           </div>
         </>
@@ -444,8 +454,9 @@ function Fields({
         <>
           {wallets.length > 0 && (
             <div>
-              <MonoLabel className="mb-1.5 block text-white/30">Saved wallet</MonoLabel>
+              <FieldLabel>Saved wallet</FieldLabel>
               <SelectMenu
+                className={SELECT}
                 aria-label="Saved wallet"
                 value={pickedSaved}
                 onChange={onPickWallet}
@@ -463,15 +474,16 @@ function Fields({
 
           <div className={chainNeeded ? "grid grid-cols-2 gap-3" : undefined}>
             <div>
-              <MonoLabel className="mb-1.5 block text-white/30">Coin</MonoLabel>
-              <SelectMenu aria-label="Coin" value={crypto} onChange={setCrypto} options={coinOptions} />
+              <FieldLabel>Coin</FieldLabel>
+              <SelectMenu className={SELECT} aria-label="Coin" value={crypto} onChange={setCrypto} options={coinOptions} />
             </div>
 
             {/* Only for coins that actually live on more than one network. */}
             {chainNeeded && (
               <div>
-                <MonoLabel className="mb-1.5 block text-white/30">Network</MonoLabel>
+                <FieldLabel>Network</FieldLabel>
                 <SelectMenu
+                  className={SELECT}
                   aria-label="Network"
                   value={chain}
                   onChange={setChain}
@@ -483,14 +495,14 @@ function Fields({
           </div>
 
           <div>
-            <MonoLabel className="mb-1.5 block text-white/30">Wallet address</MonoLabel>
+            <FieldLabel>Wallet address</FieldLabel>
             <input
               value={address}
               onChange={(event) => setAddress(event.target.value)}
               spellCheck={false}
               autoComplete="off"
               placeholder={`Your ${crypto} address`}
-              className={`${FIELD_CLASS} font-mono text-[12px]`}
+              className={`${INPUT} font-mono text-[13px]`}
             />
           </div>
         </>
@@ -517,15 +529,19 @@ function Summary({ details }: { details: PayoutDetails | null }) {
         ]
 
   return (
-    <div className="space-y-2 border-t border-white/[0.06] pt-3">
-      {rows.map((row) => (
-        <div key={row.label}>
-          <MonoLabel className="mb-1 block text-white/30">{row.label}</MonoLabel>
-          <p className={`break-all text-[13px] text-white/80 ${row.mono ? "font-mono text-[12px]" : ""}`}>
-            {row.value}
-          </p>
-        </div>
-      ))}
+    <div className="space-y-3">
+      <dl className="divide-y divide-white/[0.07] rounded-lg border border-white/[0.07]">
+        {rows.map((row) => (
+          <div key={row.label} className="px-4 py-3">
+            <dt>
+              <MonoLabel className="text-white/45">{row.label}</MonoLabel>
+            </dt>
+            <dd className={`mt-1 break-all text-white ${row.mono ? "font-mono text-[13px]" : "text-[14.5px] font-semibold"}`}>
+              {row.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
       <Note tone="muted">Check this carefully — a payout cannot be pulled back once it has been sent.</Note>
     </div>
   )
