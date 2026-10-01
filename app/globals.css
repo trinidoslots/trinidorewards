@@ -447,6 +447,102 @@
   }
 }
 
+/* ---------------------------------------------------------- Podium */
+
+/*
+ * The leaderboard podium counts down: third, second, first. Each card sets
+ * --podium-delay (its step) and --podium-color (its place). `both` holds the
+ * from-state until the delay is up, so a card waiting its turn is not seen
+ * sitting there first.
+ */
+@keyframes podium-in {
+  from {
+    opacity: 0;
+    transform: translateY(32px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The solid numeral drops in large, lands, then fades to leave the outline. */
+@keyframes podium-flash {
+  0% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  70% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes podium-numeral {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* First place, once, as it lands. */
+@keyframes podium-glow {
+  0% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  40% {
+    box-shadow: 0 0 70px -8px var(--podium-color);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.podium-card {
+  animation: podium-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--podium-delay, 0ms);
+}
+
+.podium-first {
+  animation:
+    podium-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both,
+    podium-glow 1400ms ease-out both;
+  animation-delay: var(--podium-delay, 0ms), calc(var(--podium-delay, 0ms) + 250ms);
+}
+
+.podium-flash {
+  transform-origin: 70% 40%;
+  animation: podium-flash 1100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--podium-delay, 0ms) + 120ms);
+}
+
+.podium-numeral {
+  animation: podium-numeral 500ms ease-out both;
+  animation-delay: calc(var(--podium-delay, 0ms) + 700ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .podium-card,
+  .podium-first,
+  .podium-numeral {
+    animation: none;
+  }
+
+  .podium-flash {
+    display: none;
+  }
+}
+
 /* ------------------------------------------------------------- Main nav */
 
 /*

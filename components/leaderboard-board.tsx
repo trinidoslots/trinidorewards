@@ -92,19 +92,30 @@ export function Avatar({
  * First is taller and carries a stronger wash; all three show the place's
  * colour on the ring, the label and the prize. The large numeral behind is
  * texture, outlined so it never competes with the name.
+ *
+ * The cards count down on arrival: third, then second, then first, each a
+ * beat apart (see .podium-* in globals.css). Each numeral arrives solid in
+ * the place colour and settles into the outline; first place glows once as
+ * it lands. `step` is the card's place in that sequence.
  */
-function PodiumCard({ entry, metric }: { entry: RankedEntry; metric: Metric }) {
+const PODIUM_STEP_MS = 420
+
+function PodiumCard({ entry, metric, step }: { entry: RankedEntry; metric: Metric; step: number }) {
   const color = placeColor(entry.rank) ?? "rgba(255,255,255,0.4)"
   const first = entry.rank === 1
+  const motion = {
+    ["--podium-delay" as string]: `${150 + step * PODIUM_STEP_MS}ms`,
+    ["--podium-color" as string]: color,
+  } as React.CSSProperties
 
   return (
     <div
       // Stacked on a phone the order is 1, 2, 3; side by side it is the
       // podium's own 2, 1, 3, with first raised in the middle.
-      className={`relative overflow-hidden rounded-3xl border bg-[#0E0E12] px-6 text-center ${
-        first ? "order-first pb-7 pt-9 sm:order-none sm:pb-9 sm:pt-12" : "pb-6 pt-7 sm:pb-7 sm:pt-8"
+      className={`podium-card relative overflow-hidden rounded-3xl border bg-[#0E0E12] px-6 text-center ${
+        first ? "podium-first order-first pb-7 pt-9 sm:order-none sm:pb-9 sm:pt-12" : "pb-6 pt-7 sm:pb-7 sm:pt-8"
       }`}
-      style={{ borderColor: first ? `${color}66` : "rgba(255,255,255,0.08)" }}
+      style={{ ...motion, borderColor: first ? `${color}66` : "rgba(255,255,255,0.08)" }}
     >
       <div
         aria-hidden
@@ -113,8 +124,17 @@ function PodiumCard({ entry, metric }: { entry: RankedEntry; metric: Metric }) {
       />
       <span
         aria-hidden
-        className="pointer-events-none absolute -right-1 -top-5 select-none text-[120px] font-black leading-none text-transparent"
+        className="podium-numeral pointer-events-none absolute -right-1 -top-5 select-none text-[120px] font-black leading-none text-transparent"
         style={{ WebkitTextStroke: `1px ${color}26` }}
+      >
+        {entry.rank}
+      </span>
+      {/* The same numeral, solid, for the arrival only: it lands and fades,
+          leaving the outline above in its place. */}
+      <span
+        aria-hidden
+        className="podium-flash pointer-events-none absolute -right-1 -top-5 select-none text-[120px] font-black leading-none"
+        style={{ color }}
       >
         {entry.rank}
       </span>
@@ -151,7 +171,9 @@ export function Podium({ top, metric }: { top: RankedEntry[]; metric: Metric }) 
   return (
     <div className="grid gap-4 sm:grid-cols-3 sm:items-end">
       {order.map((entry) => (
-        <PodiumCard key={entry.id} entry={entry} metric={metric} />
+        // Lowest place first: with three on the podium, third is step 0 and
+        // first is step 2; with two, second goes first.
+        <PodiumCard key={entry.id} entry={entry} metric={metric} step={top.length - entry.rank} />
       ))}
     </div>
   )
