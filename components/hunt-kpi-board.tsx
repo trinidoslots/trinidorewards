@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import { Crown, ImageIcon, Sparkles, TrendingUp } from "lucide-react"
 import type { HuntKpis } from "@/lib/active-hunt"
-import { ACCENTS, MonoLabel, Panel, PanelHeader } from "@/components/ui/panel"
+import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 
 export type HuntBonusRow = {
   id: string
@@ -22,12 +22,18 @@ type Props = {
   tableEyebrow?: string
 }
 
-const money = (value: number) => `$${value.toFixed(2)}`
+const money = (value: number) =>
+  `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 /**
- * Shared presentational KPI-card/table block used by both the live Bonus Hunt
- * page and the Past Hunts page, so they always render an identical layout off
- * the same `bonus_hunt_kpis` + `hunt_bonuses` data shape.
+ * The hunt board, shared by the live Bonus Hunt page and Previous hunts, so
+ * both always render the same layout off the same `bonus_hunt_kpis` +
+ * `hunt_bonuses` data shape.
+ *
+ * Three tiers, in the landing page's language: a scoreboard that leads with
+ * what the hunt has paid and what the rest of it has to do (break-even), the
+ * two records with their slots, and the bonus list. Every derived figure is
+ * computed exactly as before — only the presentation changed.
  */
 export function HuntKpiBoard({
   hunts,
@@ -46,7 +52,6 @@ export function HuntKpiBoard({
 
   const startingBalanceVal = usingKpis ? Number(kpis!.starting_balance) : fallbackStartingBalance
   const totalWonVal = usingKpis ? Number(kpis!.total_won) : totalWinsLocal
-  const openingBalance = 0
   const profitLoss = totalWonVal - startingBalanceVal
 
   const remainingStakes = remaining.reduce((sum, hunt) => sum + Number(hunt.bet_size), 0)
@@ -76,142 +81,273 @@ export function HuntKpiBoard({
   const bestCashWin = usingKpis ? Number(kpis!.best_cash_win) : highestWinLocal.value
   const bestCashWinGame = usingKpis ? kpis!.best_cash_win_game || "" : highestWinLocal.game
 
-  const figures: [string, string, string | undefined][] = [
-    ["Starting balance", money(startingBalanceVal), undefined],
-    ["Opening balance", money(openingBalance), undefined],
-    ["Total won", money(totalWonVal), ACCENTS.blue],
-    [
-      "P / L",
-      `${profitLoss >= 0 ? "+" : "−"}${money(Math.abs(profitLoss))}`,
-      profitLoss >= 0 ? ACCENTS.green : ACCENTS.red,
-    ],
-    ["Average multi", `${averageMultiplier.toFixed(2)}x`, undefined],
-    ["Break even", `${breakEven.toFixed(2)}x`, ACCENTS.amber],
-    ["Average bet", money(averageBet), undefined],
-    ["Remaining", `${remainingCount}`, ACCENTS.purple],
-  ]
+  const imageFor = (game: string) => hunts.find((hunt) => hunt.game_name === game && hunt.image_url)?.image_url ?? null
+  // The first unopened bonus in list order is the one being opened next.
+  const nextId = hunts.find((hunt) => hunt.result === null)?.id ?? null
+
+  const opened = completed.length
+  const percent = total ? Math.round((opened / total) * 100) : 0
+  const done = total > 0 && remainingCount === 0
 
   return (
-    <div className="flex flex-col gap-2.5">
-      {/* Figures lead the page — the numbers are what people come for */}
-      <section className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-        {figures.map(([label, value, color]) => (
-          <div key={label} className="rounded-lg border border-white/[0.08] bg-white/[0.022] px-4 py-3.5">
-            <p
-              className="text-[22px] font-semibold leading-none tabular-nums tracking-tight"
-              style={{ color: color ?? "#E7E7EA" }}
+    <div className="flex flex-col gap-4">
+      {/* --- scoreboard ------------------------------------------------------- */}
+      <section className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full opacity-20 blur-3xl"
+          style={{ backgroundColor: ACCENTS.amber }}
+        />
+        <div className="relative flex flex-wrap items-center gap-x-10 gap-y-7 p-6 sm:p-8">
+          <ProgressRing percent={percent} opened={opened} total={total} />
+
+          <div className="min-w-[15rem] flex-1">
+            <MonoLabel className="text-white/40">Total won</MonoLabel>
+            <p className="mt-2 text-[clamp(38px,5vw,60px)] font-black leading-none tabular-nums tracking-[-0.02em] text-white">
+              {money(totalWonVal)}
+            </p>
+            <p className="mt-3 text-[14px] text-white/45">
+              <span
+                className="font-semibold tabular-nums"
+                style={{ color: profitLoss >= 0 ? ACCENTS.green : ACCENTS.red }}
+              >
+                {profitLoss >= 0 ? "+" : "−"}
+                {money(Math.abs(profitLoss))}
+              </span>{" "}
+              against a {money(startingBalanceVal)} start
+            </p>
+          </div>
+
+          {/* The one number a live hunt is watched for. */}
+          <div className="min-w-[13rem] rounded-2xl border px-5 py-4" style={{ borderColor: `${ACCENTS.amber}44`, backgroundColor: `${ACCENTS.amber}0f` }}>
+            <MonoLabel style={{ color: ACCENTS.amber }}>{done ? "Hunt complete" : "Break even"}</MonoLabel>
+            <p className="mt-2 text-[34px] font-black leading-none tabular-nums" style={{ color: ACCENTS.amber }}>
+              {done ? `${averageMultiplier.toFixed(2)}x` : `${breakEven.toFixed(2)}x`}
+            </p>
+            <p className="mt-2 text-[12.5px] text-white/45">
+              {done
+                ? "average multiplier"
+                : `average needed on the ${remainingCount} still to open`}
+            </p>
+          </div>
+        </div>
+
+        <dl className="relative grid grid-cols-2 border-t border-white/[0.07] sm:grid-cols-4">
+          {[
+            ["Starting balance", money(startingBalanceVal)],
+            ["Average multi", `${averageMultiplier.toFixed(2)}x`],
+            ["Average bet", money(averageBet)],
+            ["Remaining", `${remainingCount}`],
+          ].map(([label, value], index) => (
+            <div
+              key={label}
+              className={`px-6 py-4 sm:px-8 ${index % 2 === 1 ? "border-l border-white/[0.07]" : ""} ${
+                index >= 2 ? "border-t border-white/[0.07] sm:border-t-0" : ""
+              } ${index === 2 ? "sm:border-l" : ""}`}
             >
-              {value}
-            </p>
-            <MonoLabel className="mt-2 block text-white/35">{label}</MonoLabel>
-          </div>
-        ))}
+              <dt>
+                <MonoLabel className="text-white/35">{label}</MonoLabel>
+              </dt>
+              <dd className="mt-1.5 text-[20px] font-bold tabular-nums text-white">{value}</dd>
+            </div>
+          ))}
+        </dl>
       </section>
 
-      {/* The two records worth calling out */}
-      <section className="grid gap-2.5 md:grid-cols-2">
-        <Panel accent="amber" className="flex items-center gap-3.5 p-4">
-          <span
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg"
-            style={{ color: ACCENTS.amber, backgroundColor: `${ACCENTS.amber}1a` }}
-          >
-            <TrendingUp className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <MonoLabel className="text-white/35">Best multiplier</MonoLabel>
-            <p className="mt-1 truncate text-[13px] text-white/70">{bestMultiplierGame || "Waiting for results"}</p>
-            <p className="text-[20px] font-semibold tabular-nums" style={{ color: ACCENTS.amber }}>
-              {bestMultiplier.toFixed(2)}x
-            </p>
-          </div>
-        </Panel>
-
-        <Panel accent="blue" className="flex items-center gap-3.5 p-4">
-          <span
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg"
-            style={{ color: ACCENTS.blue, backgroundColor: `${ACCENTS.blue}1a` }}
-          >
-            <Sparkles className="size-4" />
-          </span>
-          <div className="min-w-0">
-            <MonoLabel className="text-white/35">Best cash win</MonoLabel>
-            <p className="mt-1 truncate text-[13px] text-white/70">{bestCashWinGame || "Waiting for results"}</p>
-            <p className="text-[20px] font-semibold tabular-nums" style={{ color: ACCENTS.blue }}>
-              {money(bestCashWin)}
-            </p>
-          </div>
-        </Panel>
+      {/* --- records ---------------------------------------------------------- */}
+      <section className="grid gap-4 md:grid-cols-2">
+        <RecordCard
+          icon={TrendingUp}
+          accent={ACCENTS.amber}
+          label="Best multiplier"
+          value={`${bestMultiplier.toFixed(2)}x`}
+          game={bestMultiplierGame}
+          image={imageFor(bestMultiplierGame)}
+        />
+        <RecordCard
+          icon={Sparkles}
+          accent={ACCENTS.blue}
+          label="Best cash win"
+          value={money(bestCashWin)}
+          game={bestCashWinGame}
+          image={imageFor(bestCashWinGame)}
+        />
       </section>
 
-      <section
-        className={sidePanel ? "grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start" : "grid gap-2.5"}
-      >
-        <Panel className="flex flex-col overflow-hidden">
-          <PanelHeader title={tableEyebrow} right={<MonoLabel className="text-white/30">{tableTitle}</MonoLabel>} />
+      {/* --- the bonuses -------------------------------------------------------- */}
+      <section className={sidePanel ? "grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start" : "grid gap-4"}>
+        <div className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12]">
+          <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/[0.07] px-5 py-4 sm:px-6">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ACCENTS.amber }} />
+            <MonoLabel className="text-white/70">{tableEyebrow}</MonoLabel>
+            <span className="ml-auto truncate text-[12.5px] text-white/40">{tableTitle}</span>
+          </header>
 
           {hunts.length === 0 ? (
-            <p className="p-10 text-center text-[12.5px] text-white/30">
-              No bonuses yet. Bonuses will be added shortly.
-            </p>
+            <p className="p-12 text-center text-[13px] text-white/35">No bonuses yet. Bonuses will be added shortly.</p>
           ) : (
-            <div className="overflow-auto">
-              <table className="w-full min-w-[620px] border-collapse">
-                <thead className="sticky top-0 z-10 bg-[#0E0E11]">
-                  <tr className="border-b border-white/[0.08] text-left">
-                    {["Game", "Provider", "Bet", "Result", "Multi"].map((column) => (
-                      <th key={column} className="px-4 py-2.5 font-normal">
-                        <MonoLabel className="text-white/30">{column}</MonoLabel>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {hunts.map((hunt) => {
-                    const multiplier = hunt.result && hunt.bet_size ? Number(hunt.result) / Number(hunt.bet_size) : null
-                    const pending = hunt.result === null
-                    return (
-                      <tr
-                        key={hunt.id}
-                        className="border-b border-white/[0.05] text-[13px] transition hover:bg-white/[0.03]"
-                      >
-                        <td className="px-4 py-2.5 text-white/85">
-                          <span className="flex items-center gap-2.5">
-                            <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded border border-white/[0.08] bg-black/40">
-                              {hunt.image_url ? (
-                                // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
-                                <img
-                                  src={hunt.image_url || "/placeholder.svg"}
-                                  alt=""
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <ImageIcon className="size-3 text-white/20" />
-                              )}
-                            </span>
-                            {hunt.is_super && <Crown className="size-3.5 shrink-0" style={{ color: ACCENTS.amber }} />}
-                            <span className="truncate">{hunt.game_name}</span>
-                          </span>
-                        </td>
-                        <td className="text-white/35">{hunt.provider || "—"}</td>
-                        <td className="tabular-nums" style={{ color: ACCENTS.red }}>
-                          {money(Number(hunt.bet_size))}
-                        </td>
-                        <td className="tabular-nums" style={{ color: pending ? "rgba(255,255,255,0.25)" : ACCENTS.green }}>
-                          {pending ? "Pending" : money(Number(hunt.result))}
-                        </td>
-                        <td className="font-semibold tabular-nums" style={{ color: ACCENTS.amber }}>
-                          {multiplier ? `${multiplier.toFixed(2)}x` : "—"}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_6rem_7rem_5.5rem] gap-4 border-b border-white/[0.05] px-5 py-2.5 sm:grid sm:px-6">
+                {["#", "Slot", "Bet", "Result", "Multi"].map((column, index) => (
+                  <MonoLabel key={column} className={`text-white/30 ${index >= 2 ? "text-right" : ""}`}>
+                    {column}
+                  </MonoLabel>
+                ))}
+              </div>
+              <ol>
+                {hunts.map((hunt, index) => (
+                  <BonusRow key={hunt.id} hunt={hunt} position={index + 1} next={hunt.id === nextId} />
+                ))}
+              </ol>
+            </>
           )}
-        </Panel>
-        {sidePanel && <div className="h-[800px]">{sidePanel}</div>}
+        </div>
+        {sidePanel && <div className="h-[800px] lg:sticky lg:top-20">{sidePanel}</div>}
       </section>
     </div>
+  )
+}
+
+/** How many of the bonuses are open, as a ring with the count inside. */
+function ProgressRing({ percent, opened, total }: { percent: number; opened: number; total: number }) {
+  const radius = 54
+  const circumference = 2 * Math.PI * radius
+  return (
+    <div className="relative h-[136px] w-[136px] shrink-0">
+      <svg viewBox="0 0 136 136" className="h-full w-full -rotate-90" aria-hidden>
+        <circle cx="68" cy="68" r={radius} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="10" />
+        <circle
+          cx="68"
+          cy="68"
+          r={radius}
+          fill="none"
+          stroke={ACCENTS.amber}
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - percent / 100)}
+          style={{ transition: "stroke-dashoffset 900ms cubic-bezier(0.16,1,0.3,1)" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[28px] font-black leading-none tabular-nums text-white">
+          {opened}
+          <span className="text-[16px] text-white/35">/{total}</span>
+        </span>
+        <MonoLabel className="mt-1.5 text-white/40">opened</MonoLabel>
+      </div>
+    </div>
+  )
+}
+
+function RecordCard({
+  icon: Icon,
+  accent,
+  label,
+  value,
+  game,
+  image,
+}: {
+  icon: typeof TrendingUp
+  accent: string
+  label: string
+  value: string
+  game: string
+  image: string | null
+}) {
+  return (
+    <div className="relative flex items-center gap-5 overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0E0E12] p-5 sm:p-6">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full opacity-20 blur-3xl"
+        style={{ backgroundColor: accent }}
+      />
+      <span className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/[0.10] bg-black/40">
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
+          <img src={image} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <Icon className="h-6 w-6" style={{ color: accent }} />
+        )}
+      </span>
+      <div className="relative min-w-0">
+        <MonoLabel style={{ color: accent }}>{label}</MonoLabel>
+        <p className="mt-2 text-[30px] font-black leading-none tabular-nums" style={{ color: accent }}>
+          {value}
+        </p>
+        <p className="mt-2 truncate text-[13.5px] text-white/55">{game || "Waiting for results"}</p>
+      </div>
+    </div>
+  )
+}
+
+function BonusRow({ hunt, position, next }: { hunt: HuntBonusRow; position: number; next: boolean }) {
+  const multiplier = hunt.result && hunt.bet_size ? Number(hunt.result) / Number(hunt.bet_size) : null
+  const pending = hunt.result === null
+  // A big hit should look like one: 100x and up is set bolder and brighter.
+  const big = multiplier !== null && multiplier >= 100
+
+  return (
+    <li
+      className={`relative grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-x-4 border-b border-white/[0.05] px-5 py-3 transition-colors last:border-b-0 hover:bg-white/[0.025] sm:grid-cols-[2.5rem_minmax(0,1fr)_6rem_7rem_5.5rem] sm:px-6 ${
+        pending && !next ? "opacity-60" : ""
+      }`}
+      style={next ? { backgroundColor: `${ACCENTS.amber}0d` } : undefined}
+    >
+      {next && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px]" style={{ backgroundColor: ACCENTS.amber }} />}
+
+      <span className="font-mono text-[12px] tabular-nums text-white/30">{String(position).padStart(2, "0")}</span>
+
+      <span className="flex min-w-0 items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/[0.08] bg-black/40">
+          {hunt.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
+            <img src={hunt.image_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+          ) : (
+            <ImageIcon className="h-4 w-4 text-white/20" />
+          )}
+        </span>
+        <span className="min-w-0">
+          <span className="flex items-center gap-1.5">
+            {hunt.is_super && <Crown className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.amber }} />}
+            <span className="truncate text-[14px] font-semibold text-white/90">{hunt.game_name}</span>
+            {next && (
+              <span
+                className="shrink-0 rounded-full px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-black"
+                style={{ backgroundColor: ACCENTS.amber }}
+              >
+                Next
+              </span>
+            )}
+          </span>
+          <span className="mt-0.5 block truncate text-[12px] text-white/35">
+            {hunt.provider || "—"}
+            <span className="sm:hidden"> · {money(Number(hunt.bet_size))}</span>
+          </span>
+        </span>
+      </span>
+
+      <span className="hidden text-right text-[13.5px] tabular-nums text-white/55 sm:block">{money(Number(hunt.bet_size))}</span>
+
+      <span
+        className="hidden text-right text-[13.5px] font-medium tabular-nums sm:block"
+        style={{ color: pending ? "rgba(255,255,255,0.3)" : ACCENTS.green }}
+      >
+        {pending ? "Pending" : money(Number(hunt.result))}
+      </span>
+
+      <span className="text-right">
+        <span
+          className={`tabular-nums ${big ? "text-[16px] font-black" : "text-[14px] font-bold"}`}
+          style={{ color: multiplier ? ACCENTS.amber : "rgba(255,255,255,0.3)", textShadow: big ? `0 0 18px ${ACCENTS.amber}66` : undefined }}
+        >
+          {multiplier ? `${multiplier.toFixed(2)}x` : "—"}
+        </span>
+        {/* On a phone the result column is hidden, so it rides under the multi. */}
+        <span className="block text-[11.5px] tabular-nums sm:hidden" style={{ color: pending ? "rgba(255,255,255,0.3)" : ACCENTS.green }}>
+          {pending ? "Pending" : money(Number(hunt.result))}
+        </span>
+      </span>
+    </li>
   )
 }

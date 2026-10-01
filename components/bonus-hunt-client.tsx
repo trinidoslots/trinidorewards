@@ -3,10 +3,8 @@
 import { useEffect, useRef, useState } from "react"
 import { createBrowserClient } from "@/lib/supabase/client"
 import type { HuntKpis } from "@/lib/active-hunt"
-import { GamesProgressBar } from "@/components/games-progress-bar"
 import { PredictionsLeaderboard } from "@/components/predictions-leaderboard"
 import { HuntKpiBoard } from "@/components/hunt-kpi-board"
-import { MonoLabel, Panel } from "@/components/ui/panel"
 
 type BonusHunt = {
   id: string
@@ -112,30 +110,10 @@ export function BonusHuntClient({
 
   const hunts = allHunts
   const usingKpis = huntSource !== "external" && !!kpis
-  const completed = hunts.filter((hunt) => hunt.result !== null && hunt.result > 0)
-  const total = hunts.length
-  const progress = total ? Math.round((completed.length / total) * 100) : 0
-  const remainingCount = usingKpis ? kpis!.remaining : hunts.filter((hunt) => hunt.result === null || hunt.result === 0).length
 
   return (
-    <div className="flex flex-col gap-2.5">
-      {/* Progress only — the page header above already names the page, so a
-          second hero here was two titles stacked on one screen. */}
-      <Panel className="px-4 py-3.5">
-        <div className="flex items-baseline justify-between gap-4">
-          <MonoLabel className="text-white/35">Opened</MonoLabel>
-          <p className="text-[13px] tabular-nums text-white/45">
-            <span className="text-[20px] font-semibold text-white">{completed.length}</span>
-            <span className="text-white/30"> / {total}</span>
-          </p>
-        </div>
-        <GamesProgressBar completed={completed.length} total={total} />
-        <div className="mt-2.5 flex justify-between">
-          <MonoLabel className="text-white/25">{progress}% complete</MonoLabel>
-          <MonoLabel className="text-white/25">{remainingCount} left</MonoLabel>
-        </div>
-      </Panel>
-
+    <div className="flex flex-col gap-4">
+      {/* Progress lives in the board's scoreboard now, as its ring. */}
       <HuntKpiBoard
         hunts={hunts}
         kpis={usingKpis ? kpis : null}
