@@ -26,8 +26,12 @@ export const ORIGIN_HEADER = "x-origin-auth"
  * Neither needs the lock: /api/leaderboards/finalize checks CRON_SECRET itself,
  * and the GET on /api/raffles/draw only finishes raffles that are already
  * closed, which any visit to the raffles page does too.
+ *
+ * Kick's webhook is sent to the vercel.app address, not through Cloudflare:
+ * Bot Fight Mode challenges Kick's servers and cannot be skipped on the Free
+ * plan. Every delivery is RSA-signed by Kick and checked in the route.
  */
-const OPEN_PATHS = ["/api/leaderboards/finalize", "/api/raffles/draw", "/.well-known/"]
+const OPEN_PATHS = ["/api/leaderboards/finalize", "/api/raffles/draw", "/api/kick/webhook", "/.well-known/"]
 
 /** Same answer in the same time whatever was sent, without node:crypto (middleware may run on the edge). */
 function sameSecret(given: string, expected: string): boolean {

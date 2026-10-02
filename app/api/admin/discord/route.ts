@@ -1,6 +1,6 @@
 import { after } from "next/server"
 import { requireAdmin } from "@/lib/admin-guard"
-import { discordConfig, KICK_SLUG, SITE_URL } from "@/lib/discord/config"
+import { discordConfig, KICK_SLUG, KICK_WEBHOOK_URL, SITE_URL } from "@/lib/discord/config"
 import { discord } from "@/lib/discord/rest"
 import { registerCommands } from "@/lib/discord/commands"
 import { listSubscriptions, subscribeLiveEvents } from "@/lib/discord/kick"
@@ -31,7 +31,7 @@ export async function GET() {
     env,
     kickSlug: KICK_SLUG,
     interactionsUrl: `${SITE_URL}/api/discord/interactions`,
-    kickWebhookUrl: `${SITE_URL}/api/kick/webhook`,
+    kickWebhookUrl: KICK_WEBHOOK_URL,
   }
 
   if (envNames.every((name) => process.env[name])) {

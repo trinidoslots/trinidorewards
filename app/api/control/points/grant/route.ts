@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server"
+import { NextResponse, after } from "next/server"
 import { serviceClient } from "@/lib/supabase/service"
 import { clampWindowMinutes } from "@/lib/points-activity"
 import { bearerMatches } from "@/lib/bearer"
+import { botPointsGiven } from "@/lib/kick-bot/announce"
 
 /**
  * The same grant as /api/admin/points/grant, for a device with no browser.
@@ -87,6 +88,12 @@ export async function POST(request: Request) {
   const result = Array.isArray(data) ? data[0] : data
   if (!result) {
     return NextResponse.json({ error: "Grant returned no result" }, { status: 500 })
+  }
+
+  // The Stream Deck buttons land here, not in /api/admin/points/grant, so chat hears about it from here too.
+  if (!result.was_reused && result.granted_id) {
+    const grant = { grantId: String(result.granted_id), userCount: Number(result.granted_users) || 0, pointsEach, windowMinutes }
+    after(() => botPointsGiven(grant))
   }
 
   return NextResponse.json({

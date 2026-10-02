@@ -9,6 +9,15 @@
 
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://trinidorewards.com").replace(/\/$/, "")
 export const KICK_SLUG = process.env.KICK_SLUG || "trinidoslots"
+
+/**
+ * Where Kick delivers its events. The vercel.app address on purpose: on the
+ * Free plan Cloudflare's Bot Fight Mode challenges Kick's servers on the
+ * proxied domain, and that cannot be skipped by a rule. The route checks
+ * Kick's signature, and lib/origin-lock.ts lets this one path through.
+ */
+export const KICK_WEBHOOK_URL =
+  process.env.KICK_WEBHOOK_URL || "https://v0-bonus-hunt-page.vercel.app/api/kick/webhook"
 export const kickUrl = () => `https://kick.com/${KICK_SLUG}`
 
 export type DiscordConfig = {

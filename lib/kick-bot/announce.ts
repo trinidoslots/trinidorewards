@@ -19,6 +19,7 @@ export const BOT_EVENTS = [
   { id: "tournament.open", label: "Tournament opened" },
   { id: "tournament.winner", label: "Tournament winner" },
   { id: "points.given", label: "Points given to chat" },
+  { id: "promo.shown", label: "Promo code shown on stream" },
   { id: "predictions.open", label: "Predictions opened" },
   { id: "predictions.closed", label: "Predictions closed" },
   { id: "leaderboard.created", label: "Leaderboard started" },
@@ -127,6 +128,17 @@ export function botPointsGiven(grant: { grantId: string; userCount: number; poin
     if (grant.userCount <= 0) return null
     const people = grant.userCount === 1 ? "1 chatter" : `${grant.userCount.toLocaleString("en-US")} chatters`
     return `💰 ${grant.pointsEach.toLocaleString("en-US")} points each just went to ${people} active in the last ${grant.windowMinutes} min! Balance and store: ${SITE_URL}/store`
+  })
+}
+
+export function botPromoShown(promoId: string, shownAt: string) {
+  // Keyed on when it went on stream: showing the same code again later is news again.
+  return once("promo.shown", `promo-shown:${promoId}:${shownAt}`, async () => {
+    const { data: promo } = await serviceClient().from("promo_codes").select("*").eq("id", promoId).maybeSingle()
+    if (!promo?.show_on_stream) return null
+    const left = promo.max_uses ? Math.max(0, Number(promo.max_uses) - (Number(promo.uses_count) || 0)) : null
+    const limits = [left !== null ? `first ${left}` : null, promo.code_user_only ? "Code Users only" : null].filter(Boolean)
+    return `🎁 Promo code: ${promo.code} – ${Number(promo.points).toLocaleString("en-US")} points${limits.length ? ` (${limits.join(", ")})` : ""}. Redeem at ${SITE_URL}/redeem`
   })
 }
 

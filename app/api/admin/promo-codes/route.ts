@@ -1,6 +1,8 @@
 import { requireAdmin, requireStaff } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
+import { after } from "next/server"
 import { isValidCode, MAX_POINTS, normalizeCode, randomCode } from "@/lib/promo-codes"
+import { botPromoShown } from "@/lib/kick-bot/announce"
 
 /**
  * Promo codes, for /admin/promo-codes.
@@ -108,6 +110,12 @@ export async function PATCH(request: Request) {
   if (error) {
     console.error("[promo] update:", error)
     return Response.json({ error: "Could not update the code." }, { status: 500 })
+  }
+  // Put on stream: the Kick bot posts it in chat too.
+  const shown = data as { id?: string; shown_at?: string | null } | null
+  if (body.show_on_stream === true && shown?.id && shown.shown_at) {
+    const { id: promoId, shown_at: shownAt } = shown
+    after(() => botPromoShown(promoId, shownAt))
   }
   return Response.json({ code: data })
 }

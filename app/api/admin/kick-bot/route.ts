@@ -1,7 +1,7 @@
 import { after } from "next/server"
 import { requireAdmin, requireStaff } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
-import { KICK_SLUG, SITE_URL } from "@/lib/discord/config"
+import { KICK_SLUG, KICK_WEBHOOK_URL } from "@/lib/discord/config"
 import {
   botConnection,
   chatSubscriptions,
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
   const result: Record<string, unknown> = {
     app: credentials ? { configured: true, ownApp: credentials.ownApp } : { configured: false, ownApp: false },
     redirectUri: kickBotRedirectUri(origin),
-    webhookUrl: `${SITE_URL}/api/kick/webhook`,
+    webhookUrl: KICK_WEBHOOK_URL,
     channelSlug: KICK_SLUG,
     connection,
     events: { list: BOT_EVENTS, enabled: await botEvents() },
