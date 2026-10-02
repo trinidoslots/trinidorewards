@@ -56,7 +56,7 @@ export async function GET() {
     }
   }
 
-  const [ahead, predictions, tournaments, raffles, wins, redemptions] = await Promise.all([
+  const [ahead, predictions, tournaments, brackets, raffles, wins, redemptions] = await Promise.all([
     // Rank on points: everyone with more, plus one.
     settle(client.from("users").select("id", { count: "exact", head: true }).gt("points_balance", points)),
     settle(
@@ -73,6 +73,17 @@ export async function GET() {
         .select("id, slot_name, created_at", { count: "exact" })
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
+        .limit(10),
+    ),
+    // Bracket tournaments: players added in Admin > Tournaments, linked to the
+    // account they were picked from (scripts/087). Before 087 this fails and
+    // counts nothing.
+    settle(
+      client
+        .from("tournament_participants")
+        .select("id, game_name, joined_at, tournaments(title)", { count: "exact" })
+        .eq("user_id", userId)
+        .order("joined_at", { ascending: false })
         .limit(10),
     ),
     settle(
@@ -153,6 +164,13 @@ export async function GET() {
       detail: text(row.slot_name),
       at: String(row.created_at),
     })),
+    ...((brackets.data ?? []) as Row[]).map((row) => ({
+      id: `bracket-${row.id}`,
+      kind: "tournament" as const,
+      title: "Played in a tournament",
+      detail: text((row.tournaments as Row | null)?.title) ?? text(row.game_name),
+      at: String(row.joined_at),
+    })),
     ...((wins.data ?? []) as Row[]).map((row) => ({
       id: `win-${row.id}`,
       kind: "win" as const,
@@ -177,7 +195,9 @@ export async function GET() {
     rank: (ahead.count ?? 0) + 1,
     counts: {
       predictions: predictions.count ?? (predictions.data as Row[] | null)?.length ?? 0,
-      tournaments: tournaments.count ?? (tournaments.data as Row[] | null)?.length ?? 0,
+      tournaments:
+        (tournaments.count ?? (tournaments.data as Row[] | null)?.length ?? 0) +
+        (brackets.count ?? (brackets.data as Row[] | null)?.length ?? 0),
       raffles: raffleRows.length,
       tickets,
       wins: wins.count ?? (wins.data as Row[] | null)?.length ?? 0,

@@ -5,6 +5,7 @@ import { Check, Copy, Crown, Monitor, Play, Plus, RotateCcw, Swords, Trash2, Tro
 import { createBrowserClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile } from "@/components/ui/panel"
 import { SlotCombobox } from "@/components/admin/slot-combobox"
+import { UserCombobox, type UserPick } from "@/components/admin/user-combobox"
 import { TournamentBracketBoard } from "@/components/tournament-bracket-board"
 import { TournamentResultDialog } from "@/components/admin/tournament-result-dialog"
 import { RecordWinDialog, WinnerName } from "@/components/admin/record-win-dialog"
@@ -56,6 +57,8 @@ type Tournament = {
 
 const emptyForm = {
   username: "",
+  /** The site account the name was picked from; null for a name typed by hand. */
+  user: null as UserPick | null,
   buy_amount: "",
   casino: TOURNAMENT_CASINOS[0] as string,
   game_name: "",
@@ -259,20 +262,28 @@ export default function AdminTournamentsPage() {
       gameImage = seen?.image_url ?? null
     }
 
-    const { data, error } = await supabase
+    // Typed loosely: user_id is a column the generated types do not know yet (scripts/087).
+    const row: Record<string, unknown> = {
+      tournament_id: active.id,
+      username,
+      buy_amount: Number.parseFloat(form.buy_amount) || 0,
+      casino: form.casino || null,
+      game_name: gameName || null,
+      game_provider: form.game_provider,
+      game_image_url: gameImage,
+      is_super: form.is_super,
+    }
+    const columns = "id, username, buy_amount, casino, game_name, game_image_url, is_super, seed, joined_at"
+    let { data, error } = await supabase
       .from("tournament_participants")
-      .insert({
-        tournament_id: active.id,
-        username,
-        buy_amount: Number.parseFloat(form.buy_amount) || 0,
-        casino: form.casino || null,
-        game_name: gameName || null,
-        game_provider: form.game_provider,
-        game_image_url: gameImage,
-        is_super: form.is_super,
-      })
-      .select("id, username, buy_amount, casino, game_name, game_image_url, is_super, seed, joined_at")
+      .insert(form.user ? { ...row, user_id: form.user.id } : row)
+      .select(columns)
       .single()
+    // Before scripts/087 there is no user_id column: the player is still added, by name.
+    if (form.user && error && ["PGRST204", "42703"].includes((error as { code?: string }).code ?? "")) {
+      console.warn("[v0] tournament_participants.user_id missing (scripts/087); adding by name only")
+      ;({ data, error } = await supabase.from("tournament_participants").insert(row).select(columns).single())
+    }
 
     setBusy(null)
 
@@ -618,16 +629,14 @@ export default function AdminTournamentsPage() {
                   <form onSubmit={addParticipant} className="space-y-3 p-3">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Field label="Username" htmlFor="username">
-                        <div className="relative">
-                          <User className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/25" />
-                          <input
-                            id="username"
-                            value={form.username}
-                            onChange={(event) => setForm({ ...form, username: event.target.value })}
-                            placeholder="Username"
-                            className="h-9 w-full rounded-md border border-white/[0.10] bg-black/40 pl-9 pr-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
-                          />
-                        </div>
+                        <UserCombobox
+                          id="username"
+                          value={form.username}
+                          picked={form.user}
+                          casino={form.casino}
+                          placeholder="Search a user or type a name"
+                          onChange={(username, user) => setForm((current) => ({ ...current, username, user }))}
+                        />
                       </Field>
 
                       <Field label="Buy amount" htmlFor="buy_amount">
