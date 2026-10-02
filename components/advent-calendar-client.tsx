@@ -4,6 +4,7 @@ import type React from "react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion } from "framer-motion"
+import { MODAL_BACKDROP } from "@/lib/modal-backdrop"
 import { Check, Gift, Loader2, Lock, X } from "lucide-react"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { LiveDot } from "@/components/landing/parts"
@@ -340,11 +341,8 @@ function DoorDialog({
       {day !== null && (
         <motion.div
           key="door"
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+          {...MODAL_BACKDROP}
           onMouseDown={(event) => {
             if (event.target === event.currentTarget && !(reel && !reel.done)) onClose()
           }}

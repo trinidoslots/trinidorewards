@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { ArrowRight, Coins, Gift } from "lucide-react"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
@@ -10,6 +10,7 @@ import { KickMark, LoginModal } from "@/components/login-modal"
 import { SelectMenu } from "@/components/ui/select-menu"
 import { StoreItemCard } from "@/components/store-item-card"
 import { inStock, type StoreItem } from "@/lib/store"
+import { prefetchProfile } from "@/lib/profile-data"
 
 /**
  * The store's two interactive halves: the wallet in the header, and the
@@ -169,6 +170,14 @@ export function StoreCatalog({ items, ...viewer }: Viewer & { items: StoreItem[]
   const [sort, setSort] = useState<Sort>("price-asc")
   const [affordableOnly, setAffordableOnly] = useState(false)
   const [loginOpen, setLoginOpen] = useState(false)
+
+  // Saved casino usernames and wallets, fetched now so the buy dialog opens
+  // with them already filled in (components/store-buy-dialog.tsx).
+  useEffect(() => {
+    if (!viewer.isLoggedIn) return
+    void prefetchProfile("/api/profile/site-usernames").catch(() => {})
+    void prefetchProfile("/api/profile/payment-methods").catch(() => {})
+  }, [viewer.isLoggedIn])
 
   const categories = useMemo(() => {
     const counts = new Map<string, number>()

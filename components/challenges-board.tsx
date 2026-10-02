@@ -4,6 +4,7 @@ import type React from "react"
 import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion } from "framer-motion"
+import { MODAL_BACKDROP } from "@/lib/modal-backdrop"
 import { CheckCircle2, Clock, Gamepad2, Loader2, Search, Target, Trophy, X } from "lucide-react"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { SelectMenu } from "@/components/ui/select-menu"
@@ -578,11 +579,8 @@ function ClaimDialog({
       {challenge && (
         <motion.div
           key="claim"
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+          {...MODAL_BACKDROP}
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) onClose()
           }}

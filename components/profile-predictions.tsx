@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion } from "framer-motion"
+import { MODAL_BACKDROP } from "@/lib/modal-backdrop"
 import { ChevronRight, Crosshair, Target, Trophy, X } from "lucide-react"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { Empty, ProfileCard, StatusPill } from "@/components/profile-panels"
@@ -251,10 +252,8 @@ function ResultModal({ result, onClose }: { result: PredictionResult | null; onC
     <AnimatePresence>
       {result && (
         <motion.div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+          {...MODAL_BACKDROP}
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) onClose()
           }}

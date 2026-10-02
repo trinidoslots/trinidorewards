@@ -20,6 +20,7 @@ import {
   type PayoutMethod,
 } from "@/lib/payout"
 import type { StoreItem } from "@/lib/store"
+import { peekProfile, prefetchProfile } from "@/lib/profile-data"
 
 /**
  * The preview that opens on Buy.
@@ -96,60 +97,73 @@ export function StoreBuyDialog({
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose, busy])
 
-  // What the buyer already told us, on their profile.
+  // What the buyer already told us, on their profile. From the shared profile
+  // cache (lib/profile-data.ts), which the store fills as soon as a signed-in
+  // visitor opens it, so it is normally here before Buy is clicked. Applied in
+  // the same commit that first shows the dialog, so its first frame already
+  // has the saved account in it; before, the dialog opened on an empty field
+  // with "Enter your username" and then rearranged itself a moment later.
+  const endpoint =
+    method === "crypto" ? "/api/profile/payment-methods" : method === "onsite_tip" ? "/api/profile/site-usernames" : null
+  const [savedReady, setSavedReady] = useState(() => endpoint === null || peekProfile(endpoint) !== undefined)
+
   useEffect(() => {
-    if (method === null) return
+    if (!endpoint) return
     let cancelled = false
 
-    const load = async () => {
-      const endpoint =
-        method === "crypto" ? "/api/profile/payment-methods" : "/api/profile/site-usernames"
-      try {
-        const response = await fetch(endpoint, { cache: "no-store" })
-        if (!response.ok || cancelled) return
-        const payload = await response.json()
-
-        if (method === "crypto") {
-          const saved = (
-            (payload.methods ?? []) as {
-              id: string
-              method: string
-              label: string | null
-              crypto?: string | null
-              chain?: string | null
-              value: string
-            }[]
-          )
-            .filter((entry) => entry.method === "crypto")
-            .map((entry) => ({
-              id: entry.id,
-              label: entry.label,
-              crypto: entry.crypto ?? null,
-              chain: entry.chain ?? null,
-              value: entry.value,
-            }))
-          setWallets(saved)
-          if (saved.length > 0) applyWallet(saved[0])
-        } else {
-          const saved = (payload.accounts ?? []) as SavedAccount[]
-          setAccounts(saved)
-          if (saved.length > 0) {
-            setPickedSaved(saved[0].id)
-            setUsername(saved[0].username)
-          }
+    const apply = (payload: unknown) => {
+      if (cancelled || !payload) return
+      const body = payload as { methods?: unknown[]; accounts?: unknown[] }
+      if (method === "crypto") {
+        const saved = (
+          (body.methods ?? []) as {
+            id: string
+            method: string
+            label: string | null
+            crypto?: string | null
+            chain?: string | null
+            value: string
+          }[]
+        )
+          .filter((entry) => entry.method === "crypto")
+          .map((entry) => ({
+            id: entry.id,
+            label: entry.label,
+            crypto: entry.crypto ?? null,
+            chain: entry.chain ?? null,
+            value: entry.value,
+          }))
+        setWallets(saved)
+        if (saved.length > 0) applyWallet(saved[0])
+      } else {
+        const saved = (body.accounts ?? []) as SavedAccount[]
+        setAccounts(saved)
+        if (saved.length > 0) {
+          setPickedSaved(saved[0].id)
+          setUsername(saved[0].username)
         }
-      } catch {
-        // Not being able to offer saved details is not a reason to block a
-        // purchase — the fields still work by hand.
       }
     }
 
-    void load()
+    const cached = peekProfile(endpoint)
+    if (cached !== undefined) {
+      apply(cached)
+      setSavedReady(true)
+    } else {
+      // Not being able to offer saved details is not a reason to block a
+      // purchase: on a failure the fields simply work by hand.
+      prefetchProfile(endpoint)
+        .then(apply)
+        .catch(() => {})
+        .finally(() => {
+          if (!cancelled) setSavedReady(true)
+        })
+    }
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per dialog
-  }, [method])
+  }, [endpoint])
 
   function applyWallet(wallet: SavedWallet) {
     setPickedSaved(wallet.id)
@@ -200,7 +214,7 @@ export function StoreBuyDialog({
     }
   }, [method, username, crypto, chain, address, chainNeeded])
 
-  const ready = method === null || details !== null
+  const ready = (method === null || details !== null) && savedReady
 
   // Mounted into document.body rather than left where it is written.
   //
@@ -265,7 +279,13 @@ export function StoreBuyDialog({
             </div>
           </dl>
 
-          {step === "details" ? (
+          {step === "details" && !savedReady ? (
+            <div className="space-y-4 border-t border-white/[0.07] pt-4" aria-busy="true">
+              <div className="h-4 w-28 animate-pulse rounded bg-white/[0.06]" />
+              <div className="h-11 animate-pulse rounded-md bg-white/[0.04]" />
+              <div className="h-11 animate-pulse rounded-md bg-white/[0.04]" />
+            </div>
+          ) : step === "details" ? (
             <Fields
               method={method}
               username={username}
@@ -304,7 +324,7 @@ export function StoreBuyDialog({
             <Summary details={details} />
           )}
 
-          {problem && step === "details" && <Note tone="muted">{problem}</Note>}
+          {problem && step === "details" && savedReady && <Note tone="muted">{problem}</Note>}
           {warning && <Note tone="warn">{warning}</Note>}
           {error && <Note tone="error">{error}</Note>}
         </div>

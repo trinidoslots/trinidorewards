@@ -25,6 +25,11 @@ async function load(url: string): Promise<unknown> {
   return response.json()
 }
 
+/** What is already cached for this address, without fetching. Undefined when nothing is. */
+export function peekProfile(url: string): unknown {
+  return cache.has(url) ? cache.get(url) : undefined
+}
+
 /** Fetch now unless it is already here or on its way. */
 export function prefetchProfile(url: string): Promise<unknown> {
   if (cache.has(url)) return Promise.resolve(cache.get(url))

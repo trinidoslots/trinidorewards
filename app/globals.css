@@ -709,3 +709,30 @@ body.admin-view-only [data-admin-edit] {
   color: #fff;
   text-decoration-color: rgb(255 255 255 / 0.6);
 }
+
+/* Dialog backdrops (components/ui/dialog.tsx): the darkness and the blur
+   animate in together. Fading the layer's opacity instead left the page sharp
+   during the fade and snapped the blur on at the end. */
+@keyframes modal-overlay-in {
+  from {
+    background-color: rgb(0 0 0 / 0);
+    backdrop-filter: blur(0);
+    -webkit-backdrop-filter: blur(0);
+  }
+  to {
+    background-color: rgb(0 0 0 / 0.7);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+}
+.modal-overlay {
+  background-color: rgb(0 0 0 / 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.modal-overlay[data-state="open"] {
+  animation: modal-overlay-in 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.modal-overlay[data-state="closed"] {
+  animation: modal-overlay-in 180ms cubic-bezier(0.4, 0, 0.2, 1) reverse both;
+}
