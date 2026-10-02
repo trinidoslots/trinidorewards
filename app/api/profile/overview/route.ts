@@ -56,7 +56,7 @@ export async function GET() {
     }
   }
 
-  const [ahead, predictions, tournaments, brackets, raffles, wins, redemptions] = await Promise.all([
+  const [ahead, predictions, brackets, raffles, wins, redemptions] = await Promise.all([
     // Rank on points: everyone with more, plus one.
     settle(client.from("users").select("id", { count: "exact", head: true }).gt("points_balance", points)),
     settle(
@@ -72,17 +72,10 @@ export async function GET() {
         .order("created_at", { ascending: false })
         .limit(10),
     ),
-    settle(
-      client
-        .from("tournament_entries")
-        .select("id, slot_name, created_at", { count: "exact" })
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(10),
-    ),
-    // Bracket tournaments: players added in Admin > Tournaments, linked to the
-    // account they were picked from (scripts/087). Before 087 this fails and
-    // counts nothing.
+    // Tournaments: players added in Admin > Tournaments, linked to the account
+    // they were picked from (scripts/087). Before 087 this fails and counts
+    // nothing. (The old slot-betting tournament_entries table from scripts/024
+    // was never created in the live database; asking for it only logged errors.)
     settle(
       client
         .from("tournament_participants")
@@ -162,13 +155,6 @@ export async function GET() {
       detail: row.predicted_end_balance != null ? `$${Math.round(Number(row.predicted_end_balance)).toLocaleString("en-US")}` : null,
       at: String(row.created_at),
     })),
-    ...((tournaments.data ?? []) as Row[]).map((row) => ({
-      id: `tournament-${row.id}`,
-      kind: "tournament" as const,
-      title: "Joined a tournament",
-      detail: text(row.slot_name),
-      at: String(row.created_at),
-    })),
     ...((brackets.data ?? []) as Row[]).map((row) => ({
       id: `bracket-${row.id}`,
       kind: "tournament" as const,
@@ -200,9 +186,7 @@ export async function GET() {
     rank: (ahead.count ?? 0) + 1,
     counts: {
       predictions: predictions.count ?? (predictions.data as Row[] | null)?.length ?? 0,
-      tournaments:
-        (tournaments.count ?? (tournaments.data as Row[] | null)?.length ?? 0) +
-        (brackets.count ?? (brackets.data as Row[] | null)?.length ?? 0),
+      tournaments: brackets.count ?? (brackets.data as Row[] | null)?.length ?? 0,
       raffles: raffleRows.length,
       tickets,
       wins: wins.count ?? (wins.data as Row[] | null)?.length ?? 0,
