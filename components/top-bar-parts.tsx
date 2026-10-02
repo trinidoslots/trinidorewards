@@ -4,6 +4,8 @@ import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 import {
   Bell,
+  Check,
+  CheckCheck,
   ChevronDown,
   Coins,
   LayoutDashboard,
@@ -170,28 +172,37 @@ export function UserMenu({
   )
 }
 
-/** Where the bell remembers it was last opened. Per browser, and only a convenience. */
-const SEEN_KEY = "tr-notifications-seen-at"
+/**
+ * Read state kept in the browser, only while the account cannot hold it
+ * (before scripts/086). Same shape as the account's: a moment for "all", ids
+ * for single reads.
+ */
+const LOCAL_KEY = "tr-notifications-read"
+/** The bell's old "last opened" timestamp, from before read state existed. */
+const OLD_SEEN_KEY = "tr-notifications-seen-at"
 
-function readSeen(): number {
+type LocalReads = { before: number; ids: string[] }
+
+function readLocal(): LocalReads {
   try {
-    return Number(window.localStorage.getItem(SEEN_KEY)) || 0
+    const parsed = JSON.parse(window.localStorage.getItem(LOCAL_KEY) ?? "null") as LocalReads | null
+    return parsed && Array.isArray(parsed.ids) ? parsed : { before: 0, ids: [] }
   } catch {
-    return 0
+    return { before: 0, ids: [] }
   }
 }
 
-function writeSeen(value: number) {
+function writeLocal(value: LocalReads) {
   try {
-    window.localStorage.setItem(SEEN_KEY, String(value))
+    window.localStorage.setItem(LOCAL_KEY, JSON.stringify({ before: value.before, ids: value.ids.slice(-100) }))
   } catch {
-    // Private windows can refuse storage; the badge then just stays.
+    // Private windows can refuse storage; the dots then just come back on reload.
   }
 }
 
 const KIND_ICON = {
-  raffle_won: { icon: Trophy, accent: ACCENTS.purple },
-  redemption_submitted: { icon: Package, accent: ACCENTS.amber },
+  raffle_won: { icon: Trophy, accent: ACCENTS.green },
+  redemption_submitted: { icon: Package, accent: ACCENTS.pink },
   redemption_confirmed: { icon: PackageCheck, accent: ACCENTS.green },
 } as const
 
@@ -205,18 +216,30 @@ function ago(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" })
 }
 
-/** The bell: a raffle won, a redemption submitted or confirmed. */
+/**
+ * The bell: a raffle won, a store purchase submitted or confirmed.
+ *
+ * Read means read: selecting a notification marks that one, "Mark all as
+ * read" marks the rest, and nothing else does — opening or closing the menu
+ * used to mark everything, and every row was a link that left the page.
+ * Rows are not links any more; the menu stays open while you work through it.
+ */
 export function NotificationBell() {
   const [items, setItems] = useState<SiteNotification[]>([])
-  const [seenAt, setSeenAt] = useState(0)
   const [loaded, setLoaded] = useState(false)
+  /** False until the account can store read state (scripts/086); the browser keeps it meanwhile. */
+  const [stored, setStored] = useState(true)
+  /** Marked here before the server confirms, so a click shows at once. */
+  const [justRead, setJustRead] = useState<Set<string>>(() => new Set())
+  const [allReadAt, setAllReadAt] = useState(0)
 
   const load = useCallback(async () => {
     try {
       const response = await fetch("/api/notifications", { cache: "no-store" })
       if (!response.ok) return
-      const data = await response.json()
-      setItems((data?.notifications ?? []) as SiteNotification[])
+      const data = (await response.json()) as { notifications?: SiteNotification[]; stored?: boolean }
+      setItems(data.notifications ?? [])
+      setStored(data.stored !== false)
     } catch {
       // The bell staying as it was is the right failure.
     } finally {
@@ -225,7 +248,11 @@ export function NotificationBell() {
   }, [])
 
   useEffect(() => {
-    setSeenAt(readSeen())
+    try {
+      window.localStorage.removeItem(OLD_SEEN_KEY)
+    } catch {
+      // Nothing to clean up, or storage is refused.
+    }
     void load()
     // Often enough to catch a confirmation during a session, rarely enough to
     // be nothing to the server.
@@ -233,25 +260,49 @@ export function NotificationBell() {
     return () => clearInterval(poll)
   }, [load])
 
-  const unread = items.filter((item) => Date.parse(item.at) > seenAt).length
+  const local = stored ? null : readLocal()
+  const isRead = (item: SiteNotification) =>
+    item.read ||
+    justRead.has(item.id) ||
+    Date.parse(item.at) <= allReadAt ||
+    (local !== null && (Date.parse(item.at) <= local.before || local.ids.includes(item.id)))
 
-  const onOpenChange = (open: boolean) => {
-    if (open) {
-      void load()
+  const unread = items.filter((item) => !isRead(item)).length
+
+  async function markRead(item: SiteNotification) {
+    if (isRead(item)) return
+    setJustRead((current) => new Set(current).add(item.id))
+    if (!stored) {
+      const current = readLocal()
+      writeLocal({ before: current.before, ids: [...current.ids, item.id] })
       return
     }
-    // Marked read on close rather than open, so the dots are still there to
-    // see while the menu is up.
+    await fetch("/api/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "read", id: item.id }),
+    }).catch(() => null)
+  }
+
+  async function markAllRead() {
     const now = Date.now()
-    writeSeen(now)
-    setSeenAt(now)
+    setAllReadAt(now)
+    if (!stored) {
+      writeLocal({ before: now, ids: [] })
+      return
+    }
+    await fetch("/api/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "read_all" }),
+    }).catch(() => null)
   }
 
   return (
-    <DropdownMenu modal={false} onOpenChange={onOpenChange}>
+    <DropdownMenu modal={false} onOpenChange={(open) => open && void load()}>
       <DropdownMenuTrigger
         className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-white/60 outline-none transition hover:border-white/[0.16] hover:text-white data-[state=open]:border-white/[0.18] data-[state=open]:text-white"
-        aria-label={unread ? `Notifications, ${unread} new` : "Notifications"}
+        aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}
       >
         <Bell className="h-4 w-4" />
         {unread > 0 && (
@@ -264,39 +315,68 @@ export function NotificationBell() {
         )}
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" sideOffset={8} className={`${MENU_CLASS} w-[320px] p-0`}>
-        <div className="flex items-center justify-between border-b border-white/[0.08] px-3.5 py-2.5">
-          <span className="text-[13px] font-semibold text-white">Notifications</span>
-          {unread > 0 && <MonoLabel className="text-white/35">{unread} new</MonoLabel>}
+      <DropdownMenuContent align="end" sideOffset={8} className={`${MENU_CLASS} w-[340px] p-0`}>
+        <div className="flex items-center justify-between gap-3 border-b border-white/[0.08] px-3.5 py-2.5">
+          <span className="text-[13px] font-semibold text-white">
+            Notifications
+            {unread > 0 && <span className="ml-1.5 text-white/40">{unread}</span>}
+          </span>
+          {unread > 0 ? (
+            <button
+              type="button"
+              onClick={() => void markAllRead()}
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] font-semibold transition hover:bg-white/[0.06]"
+              style={{ color: ACCENTS.blue }}
+            >
+              <CheckCheck className="h-3.5 w-3.5" /> Mark all as read
+            </button>
+          ) : items.length > 0 ? (
+            <MonoLabel className="text-white/30">All read</MonoLabel>
+          ) : null}
         </div>
 
         {items.length === 0 ? (
           <p className="px-3.5 py-8 text-center text-[12px] text-white/35">
-            {loaded ? "Nothing yet. Raffle wins and redemptions show up here." : "Loading…"}
+            {loaded ? "Nothing yet. Raffle wins and store purchases show up here." : "Loading…"}
           </p>
         ) : (
-          <div className="max-h-[360px] overflow-y-auto p-1">
+          <div className="max-h-[380px] overflow-y-auto p-1">
             {items.map((item) => {
               const { icon: Icon, accent } = KIND_ICON[item.kind]
-              const fresh = Date.parse(item.at) > seenAt
+              const read = isRead(item)
               return (
-                <DropdownMenuItem key={item.id} asChild className={`${MENU_ITEM_CLASS} items-start`}>
-                  <Link href={item.href}>
+                <DropdownMenuItem
+                  key={item.id}
+                  // Selecting marks it read and keeps the menu open.
+                  onSelect={(event) => {
+                    event.preventDefault()
+                    void markRead(item)
+                  }}
+                  title={read ? undefined : "Mark as read"}
+                  className={`${MENU_ITEM_CLASS} group/item items-start ${read ? "cursor-default opacity-55" : ""}`}
+                >
+                  <span
+                    className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                    style={{ backgroundColor: `${accent}1f` }}
+                  >
+                    <Icon className="h-3.5 w-3.5" style={{ color: accent }} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5 text-[13px] font-medium text-white">
+                      {item.title}
+                      {!read && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: ACCENTS.blue }} />}
+                    </span>
+                    <span className="block truncate text-[12px] text-white/45">{item.body}</span>
+                    <span className="mt-0.5 block text-[11px] text-white/30">{ago(item.at)}</span>
+                  </span>
+                  {!read && (
                     <span
-                      className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-                      style={{ backgroundColor: `${accent}1f` }}
+                      aria-hidden
+                      className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/[0.10] text-white/40 transition group-hover/item:border-white/25 group-hover/item:text-white"
                     >
-                      <Icon className="h-3.5 w-3.5" style={{ color: accent }} />
+                      <Check className="h-3.5 w-3.5" />
                     </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5 text-[13px] font-medium text-white">
-                        {item.title}
-                        {fresh && <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ACCENTS.blue }} />}
-                      </span>
-                      <span className="block truncate text-[12px] text-white/45">{item.body}</span>
-                    </span>
-                    <span className="shrink-0 text-[11px] text-white/30">{ago(item.at)}</span>
-                  </Link>
+                  )}
                 </DropdownMenuItem>
               )
             })}
