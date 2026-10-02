@@ -8,6 +8,7 @@ import { Activity, ArrowRight, Gift, Package, Settings, Swords, Target, Ticket, 
 import { ACCENTS, MonoLabel, type Accent } from "@/components/ui/panel"
 import {
   ConnectedAccountsPanel,
+  ConnectionsPanel,
   Empty,
   MyWinsPanel,
   PaymentMethodsPanel,
@@ -161,9 +162,12 @@ function ProfileView() {
               {tab === "wins" && <MyWinsPanel />}
               {tab === "redemptions" && <PurchasesTab redemptions={redemptions} spent={data.spent.store} />}
               {tab === "settings" && (
-                <div className="grid items-start gap-4 lg:grid-cols-2">
-                  <ConnectedAccountsPanel />
-                  <PaymentMethodsPanel />
+                <div className="space-y-4">
+                  <ConnectionsPanel />
+                  <div className="grid items-start gap-4 lg:grid-cols-2">
+                    <ConnectedAccountsPanel />
+                    <PaymentMethodsPanel />
+                  </div>
                 </div>
               )}
             </TabSlide>

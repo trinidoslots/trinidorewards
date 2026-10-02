@@ -5,6 +5,7 @@ import { CreditCard, Link2, Plus, Trash2, Trophy } from "lucide-react"
 import { ACCENTS, MonoLabel, type Accent } from "@/components/ui/panel"
 import { sourceMeta, winValue } from "@/lib/wins"
 import { SelectMenu } from "@/components/ui/select-menu"
+import { DiscordMark } from "@/components/discord-mark"
 import { CRYPTOS, chainsFor, checkAddress, defaultChainFor, findChain, findCrypto, needsChain } from "@/lib/payout"
 
 /**
@@ -497,6 +498,150 @@ export function MyWinsPanel() {
           )
         })}
       </ul>
+      )}
+    </ProfileCard>
+  )
+}
+
+type Connections = {
+  kick: { username: string; avatar: string | null }
+  discord: { username: string | null; avatar: string | null; linkedAt: string | null } | null
+  discordAvailable: boolean
+}
+
+const KICK_GREEN = "#53FC18"
+const DISCORD_BLURPLE = "#5865F2"
+
+function ConnectionRow({
+  mark,
+  color,
+  name,
+  detail,
+  avatar,
+  action,
+}: {
+  mark: React.ReactNode
+  color: string
+  name: string
+  detail: string
+  avatar?: string | null
+  action: React.ReactNode
+}) {
+  return (
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4">
+      <span
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+        style={{ backgroundColor: `${color}1f`, color }}
+      >
+        {mark}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-semibold text-white">{name}</p>
+        <p className="mt-0.5 flex items-center gap-1.5 truncate text-[12.5px] text-white/45">
+          {avatar && (
+            // eslint-disable-next-line @next/next/no-img-element -- avatar from the provider's CDN
+            <img src={avatar} alt="" className="h-4 w-4 rounded-full object-cover" />
+          )}
+          {detail}
+        </p>
+      </div>
+      {action}
+    </li>
+  )
+}
+
+/**
+ * The accounts an account signs in with.
+ *
+ * Kick is what the account is — points, Botrix and the leaderboard hang off
+ * it — so it is listed but cannot be removed. Discord is a second way in,
+ * linked here and removable here.
+ */
+export function ConnectionsPanel() {
+  const [data, setData] = useState<Connections | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    const response = await fetch("/api/profile/connections", { cache: "no-store" })
+    if (!response.ok) return
+    setData((await response.json()) as Connections)
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  async function disconnect() {
+    setBusy(true)
+    setError(null)
+    const response = await fetch("/api/profile/connections?provider=discord", { method: "DELETE" })
+    setBusy(false)
+    if (!response.ok) {
+      setError("Could not disconnect Discord.")
+      return
+    }
+    await load()
+  }
+
+  const linked = data?.discord ?? null
+  const connectHref = `/auth/discord?mode=link&next=${encodeURIComponent("/profile?tab=settings")}`
+
+  return (
+    <ProfileCard title="Connections" accent="purple">
+      {!data ? (
+        <div className="h-[150px] animate-pulse bg-white/[0.015]" />
+      ) : (
+        <ul className="divide-y divide-white/[0.06]">
+          <ConnectionRow
+            mark={<span className="text-[15px] font-black">K</span>}
+            color={KICK_GREEN}
+            name="Kick"
+            detail={data.kick.username}
+            avatar={data.kick.avatar}
+            action={<StatusPill accent="green">Your account</StatusPill>}
+          />
+          <ConnectionRow
+            mark={<DiscordMark className="h-5 w-5" />}
+            color={DISCORD_BLURPLE}
+            name="Discord"
+            detail={
+              linked
+                ? `${linked.username ?? "Connected"} · sign in with it too`
+                : data.discordAvailable
+                  ? "Connect it to sign in with Discord as well"
+                  : "Not available yet"
+            }
+            avatar={linked?.avatar}
+            action={
+              linked ? (
+                <button
+                  type="button"
+                  onClick={disconnect}
+                  disabled={busy}
+                  className="inline-flex h-9 items-center rounded-md border border-white/[0.12] px-3.5 text-[13px] font-semibold text-white/70 transition hover:border-[#E5484D]/60 hover:text-[#E5484D] disabled:opacity-40"
+                >
+                  {busy ? "Disconnecting…" : "Disconnect"}
+                </button>
+              ) : data.discordAvailable ? (
+                <a
+                  href={connectHref}
+                  className="inline-flex h-9 items-center gap-2 rounded-md px-3.5 text-[13px] font-bold text-white transition hover:brightness-110"
+                  style={{ backgroundColor: DISCORD_BLURPLE }}
+                >
+                  <DiscordMark className="h-4 w-4" /> Connect Discord
+                </a>
+              ) : (
+                <StatusPill accent="slate">Soon</StatusPill>
+              )
+            }
+          />
+        </ul>
+      )}
+      {error && (
+        <p className="border-t border-white/[0.06] px-5 py-3 text-[12.5px]" style={{ color: ACCENTS.red }}>
+          {error}
+        </p>
       )}
     </ProfileCard>
   )

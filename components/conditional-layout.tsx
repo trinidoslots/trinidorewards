@@ -10,6 +10,7 @@ import { Footer } from "@/components/footer"
 import { AmbientBackground } from "@/components/ambient-background"
 import { PageTransition } from "@/components/page-transition"
 import { Reveal } from "@/components/reveal"
+import { AuthNotice } from "@/components/auth-notice"
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -65,6 +66,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
         <PageTransition>{children}</PageTransition>
       </main>
       <Reveal />
+      <AuthNotice />
       <Footer />
     </div>
   )

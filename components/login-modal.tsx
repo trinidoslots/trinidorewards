@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Gift, Loader2, ShoppingBag, Target, Trophy, X } from "lucide-react"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { startKickLogin } from "@/lib/kick-login"
+import { DiscordMark } from "@/components/discord-mark"
 
 interface LoginModalProps {
   open: boolean
@@ -25,8 +26,8 @@ export function KickMark({ className }: { className?: string }) {
 
 /** What signing in opens up, each in the accent its page uses. */
 const PERKS = [
-  { icon: Gift, label: "Enter raffles", accent: ACCENTS.purple },
-  { icon: Trophy, label: "Join tournaments", accent: ACCENTS.amber },
+  { icon: Gift, label: "Enter raffles", accent: ACCENTS.green },
+  { icon: Trophy, label: "Join tournaments", accent: ACCENTS.purple },
   { icon: Target, label: "Complete challenges", accent: ACCENTS.red },
   { icon: ShoppingBag, label: "Spend points in the store", accent: ACCENTS.pink },
 ]
@@ -37,6 +38,27 @@ const PERKS = [
  */
 export function LoginModal({ open, onOpenChange }: LoginModalProps) {
   const [isLoading, setIsLoading] = useState(false)
+  // Discord is offered once it is set up (DISCORD_CLIENT_SECRET); asked when the dialog opens.
+  const [discord, setDiscord] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    fetch("/api/auth/providers")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((providers) => {
+        if (!cancelled) setDiscord(providers?.discord === true)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [open])
+
+  const handleDiscordLogin = () => {
+    const next = window.location.pathname + window.location.search
+    window.location.href = `/auth/discord?mode=login&next=${encodeURIComponent(next)}`
+  }
 
   const handleKickLogin = async () => {
     setIsLoading(true)
@@ -107,6 +129,23 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
               </>
             )}
           </button>
+
+          {discord && (
+            <>
+              <button
+                type="button"
+                onClick={handleDiscordLogin}
+                className="mt-2.5 inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-md text-[15px] font-bold text-white transition hover:brightness-110 active:scale-[0.99]"
+                style={{ backgroundColor: "#5865F2" }}
+              >
+                <DiscordMark className="h-5 w-5" />
+                Continue with Discord
+              </button>
+              <p className="mt-2 text-center text-[12px] text-white/40">
+                Discord works once it is connected to your account in Profile → Settings.
+              </p>
+            </>
+          )}
 
           <MonoLabel className="mt-6 block text-white/40">Signed in, you can</MonoLabel>
           <ul className="mt-3 grid grid-cols-2 gap-2">
