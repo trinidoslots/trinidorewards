@@ -211,3 +211,52 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     admin: { is_admin: staff, rank: role, is_self: false, is_owner: false },
   })
 }
+
+/**
+ * Deletes a user and the data held about them (Privacy Policy, section 10).
+ *
+ * Admins only — requireAdmin turns moderators and Code Users away. The work is
+ * one database function (scripts/085_delete_user_data.sql), so it happens in a
+ * single transaction: what is theirs alone is deleted, shared history keeps
+ * its rows with the name replaced. Refused for your own account, the main
+ * admin, and any staff account (change the rank to Viewer first). The body
+ * has to repeat the username, so a stray request cannot delete anyone.
+ */
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
+
+  const { id } = await params
+  const body = (await request.json().catch(() => null)) as { confirm?: unknown } | null
+  const client = serviceClient()
+
+  const { data: user, error } = await client.from("users").select("id, username, kick_id").eq("id", id).maybeSingle()
+  if (error) return NextResponse.json({ error: "Could not load that user" }, { status: 500 })
+  if (!user) return NextResponse.json({ error: "No such user" }, { status: 404 })
+
+  if (user.id === auth.siteUserId) {
+    return NextResponse.json({ error: "You cannot delete your own account here." }, { status: 400 })
+  }
+  if ((await adminTag({ siteUserId: user.id, kickId: user.kick_id ? String(user.kick_id) : null }))?.isOwner) {
+    return NextResponse.json({ error: "This is the main admin, who cannot be deleted." }, { status: 400 })
+  }
+  if (typeof body?.confirm !== "string" || body.confirm.trim().toLowerCase() !== String(user.username).toLowerCase()) {
+    return NextResponse.json({ error: "Type the username exactly to confirm." }, { status: 400 })
+  }
+
+  const { data: result, error: deleteError } = await client.rpc("delete_user_data", { p_user_id: user.id })
+  if (deleteError) {
+    console.error("[admin] Could not delete user data:", deleteError)
+    // 42883: the function does not exist yet. P0001: refused on purpose (staff).
+    const message =
+      deleteError.code === "42883" || /delete_user_data/.test(deleteError.message ?? "")
+        ? "Run scripts/085_delete_user_data.sql in Supabase first."
+        : deleteError.code === "P0001"
+          ? deleteError.message
+          : "Could not delete this user. Nothing was changed."
+    return NextResponse.json({ error: message }, { status: deleteError.code === "P0001" ? 400 : 500 })
+  }
+
+  console.log(`[admin] ${auth.email} deleted user ${user.username} (${user.kick_id ?? "no kick"}):`, result)
+  return NextResponse.json({ ok: true, result })
+}

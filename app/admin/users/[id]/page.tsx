@@ -286,6 +286,12 @@ export default function AdminUserDetailPage() {
                 <AccountsPanel accounts={accounts} />
                 <PaymentsPanel payments={payments} />
               </div>
+              <DeleteUserPanel
+                user={user}
+                admin={admin}
+                unpaidPurchases={redemptions.filter((entry) => entry.status === "pending").length}
+                unpaidWins={wins.filter((win) => win.status !== "paid").length}
+              />
             </>
           )}
 
@@ -729,6 +735,138 @@ function WinsPanel({ wins }: { wins: WinLog[] }) {
           })}
         </ul>
       )}
+    </Panel>
+  )
+}
+
+/**
+ * Deleting the user and the data held about them, for deletion requests.
+ *
+ * Only ever rendered on this page, which only admins can load (the route
+ * behind it is requireAdmin), and refused again by the route itself. Staff
+ * accounts, the main admin and your own account get the reason instead of
+ * the button. Typing the username is the confirmation; unpaid purchases and
+ * wins are spelled out first, since deleting drops them.
+ */
+function DeleteUserPanel({
+  user,
+  admin,
+  unpaidPurchases,
+  unpaidWins,
+}: {
+  user: { id: string; username: string }
+  admin: AdminState
+  unpaidPurchases: number
+  unpaidWins: number
+}) {
+  const [open, setOpen] = useState(false)
+  const [typed, setTyped] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+
+  const blocked = admin.is_self
+    ? "This is your own account."
+    : admin.is_owner
+      ? "This is the main admin, who cannot be deleted."
+      : admin.is_admin
+        ? "This is a staff account. Change its rank to Viewer first."
+        : null
+  const matches = typed.trim().toLowerCase() === user.username.toLowerCase()
+
+  async function remove() {
+    setBusy(true)
+    setProblem(null)
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: typed }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setProblem(payload.error ?? "Could not delete this user.")
+        return
+      }
+      window.location.href = "/admin/users"
+    } catch {
+      setProblem("Could not reach the server. Nothing was changed.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Panel accent="red">
+      <PanelHeader title="Delete user and data" accent="red" />
+      <div className="space-y-3 p-4 text-[13px] leading-relaxed text-white/55">
+        <p>
+          For deletion requests. Removes the account, its Discord link, wallets, casino usernames, purchases and
+          payout details, raffle tickets, tournament entries, predictions, advent claims and chat activity. Wins,
+          points grants, challenge claims and raffle wins stay in the records as &quot;Deleted user&quot;. If they sign
+          in again later, they start a new, empty account.
+        </p>
+
+        {blocked ? (
+          <p className="text-white/40">{blocked}</p>
+        ) : !open ? (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex h-9 items-center rounded-md border px-3.5 text-[12.5px] font-semibold transition hover:bg-[#E5484D]/10"
+            style={{ borderColor: `${ACCENTS.red}66`, color: ACCENTS.red }}
+          >
+            Delete {user.username}…
+          </button>
+        ) : (
+          <div className="space-y-3 rounded-md border p-3.5" style={{ borderColor: `${ACCENTS.red}44`, backgroundColor: `${ACCENTS.red}0d` }}>
+            {(unpaidPurchases > 0 || unpaidWins > 0) && (
+              <p style={{ color: ACCENTS.amber }}>
+                Not paid out yet:{" "}
+                {[
+                  unpaidPurchases > 0 && `${unpaidPurchases} ${unpaidPurchases === 1 ? "purchase" : "purchases"}`,
+                  unpaidWins > 0 && `${unpaidWins} ${unpaidWins === 1 ? "win" : "wins"}`,
+                ]
+                  .filter(Boolean)
+                  .join(" and ")}
+                . Their payout details are deleted too, so settle them first if they are owed.
+              </p>
+            )}
+            <label className="block">
+              <MonoLabel className="mb-1.5 block text-white/45">Type {user.username} to confirm</MonoLabel>
+              <input
+                value={typed}
+                onChange={(event) => setTyped(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                className="h-9 w-full rounded-md border border-white/[0.12] bg-black/40 px-3 text-[13px] text-white outline-none focus:border-white/30"
+              />
+            </label>
+            {problem && <p style={{ color: ACCENTS.red }}>{problem}</p>}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={remove}
+                disabled={!matches || busy}
+                className="inline-flex h-9 items-center rounded-md px-3.5 text-[12.5px] font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                style={{ backgroundColor: ACCENTS.red }}
+              >
+                {busy ? "Deleting…" : "Delete permanently"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false)
+                  setTyped("")
+                  setProblem(null)
+                }}
+                className="inline-flex h-9 items-center rounded-md border border-white/[0.12] px-3.5 text-[12.5px] font-semibold text-white/60 transition hover:text-white"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </Panel>
   )
 }
