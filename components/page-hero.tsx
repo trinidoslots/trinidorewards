@@ -80,7 +80,7 @@ export function PageHero({
       />
 
       <div
-        className={`relative mx-auto grid ${wide ? "max-w-7xl" : "max-w-6xl"} gap-10 px-5 pb-12 pt-10 lg:px-8 lg:pb-16 lg:pt-14 ${
+        className={`relative mx-auto grid ${wide ? "max-w-[1520px]" : "max-w-6xl"} gap-10 px-5 pb-12 pt-10 lg:px-8 lg:pb-16 lg:pt-14 ${
           hasPanel ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)] lg:items-end" : ""
         }`}
       >
@@ -148,7 +148,7 @@ export function PageBody({
   wide?: boolean
 }) {
   return (
-    <div className={`mx-auto ${wide ? "max-w-7xl" : "max-w-6xl"} px-5 py-10 lg:px-8 ${className ?? ""}`}>{children}</div>
+    <div className={`mx-auto ${wide ? "max-w-[1520px]" : "max-w-6xl"} px-5 py-10 lg:px-8 ${className ?? ""}`}>{children}</div>
   )
 }
 
@@ -190,7 +190,7 @@ export function PageHeroSkeleton({
         style={{ background: `radial-gradient(900px 420px at 85% -20%, ${color}24, transparent 62%), #08080A` }}
       />
       <div
-        className={`relative mx-auto grid ${wide ? "max-w-7xl" : "max-w-6xl"} gap-10 px-5 pb-12 pt-10 lg:px-8 lg:pb-16 lg:pt-14 ${
+        className={`relative mx-auto grid ${wide ? "max-w-[1520px]" : "max-w-6xl"} gap-10 px-5 pb-12 pt-10 lg:px-8 lg:pb-16 lg:pt-14 ${
           panel ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)] lg:items-end" : ""
         }`}
       >
