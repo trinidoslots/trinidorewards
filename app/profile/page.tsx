@@ -80,6 +80,8 @@ function ProfileView() {
   const [data, setData] = useState<Overview | null>(null)
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
   const [loading, setLoading] = useState(true)
+  /** The placeholder, kept under the page while it fades in, then removed. */
+  const [placeholder, setPlaceholder] = useState(true)
 
   const requested = params.get("tab")
   const tab: TabId = TABS.some((entry) => entry.id === requested) ? (requested as TabId) : "overview"
@@ -115,18 +117,29 @@ function ProfileView() {
   }, [])
 
   return (
-    // No cross-fade between the two: the placeholder has the page's own shape,
-    // so the real content takes its place where it stands. A Swap here faded
-    // the placeholder out and then played the whole page's entry again.
-    <>
-      {loading || !data ? (
-        <ProfileLoading />
-      ) : (
-        <div>
+    // A cross-fade in place. The placeholder has the page's own shape, so the
+    // two are stacked in one grid cell and the page fades in over it; once it
+    // is fully in, the placeholder is taken away. Nothing moves and nothing
+    // replays. (A Swap here faded the placeholder out first and then played
+    // the page's whole entry again; a plain swap had no transition at all.)
+    <div className="grid grid-cols-1">
+      {(loading || !data || placeholder) && (
+        <div className="min-w-0" style={{ gridArea: "1 / 1" }} aria-hidden={!loading && !!data}>
+          <ProfileLoading />
+        </div>
+      )}
+      {!loading && data && (
+        <motion.div
+          style={{ gridArea: "1 / 1" }}
+          className="relative z-10 min-w-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+          onAnimationComplete={() => setPlaceholder(false)}
+        >
           <ProfileHero data={data} onSettings={() => setTab("settings")} />
 
-          {/* Below the header, a short fade only: no movement, nothing replayed. */}
-          <PageBody className="space-y-6 animate-in fade-in duration-300">
+          <PageBody className="space-y-6">
             <nav
               className="inline-flex max-w-full flex-wrap gap-1 rounded-full border border-white/[0.10] bg-black/40 p-1"
               aria-label="Profile sections"
@@ -175,9 +188,9 @@ function ProfileView() {
               )}
             </TabSlide>
           </PageBody>
-        </div>
+        </motion.div>
       )}
-    </>
+    </div>
   )
 }
 
