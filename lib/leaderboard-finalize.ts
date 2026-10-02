@@ -1,5 +1,6 @@
 import { rankEntries } from "@/lib/leaderboard-payouts"
 import { announceLeaderboardWinners } from "@/lib/discord/site"
+import { botLeaderboardWinners } from "@/lib/kick-bot/announce"
 import { entryAmounts, readMetric } from "@/lib/leaderboard-metric"
 
 /**
@@ -87,7 +88,9 @@ export async function finalizeLeaderboard(
 
   // The winners go to Discord the first time a board closes, not on a forced
   // re-freeze. Never throws, and posts each board once.
-  if (!board.finalized_at && !stampError && ranked.length > 0) await announceLeaderboardWinners(leaderboardId)
+  if (!board.finalized_at && !stampError && ranked.length > 0) {
+    await Promise.all([announceLeaderboardWinners(leaderboardId), botLeaderboardWinners(leaderboardId)])
+  }
 
   return { leaderboardId, title: board.title, entries: ranked.length, totalPrize }
 }

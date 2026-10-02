@@ -66,6 +66,19 @@ const emptyForm = {
   is_super: false,
 }
 
+/**
+ * Tells Kick chat (via the Kick bot) that a tournament opened or has a winner.
+ * Fire and forget: the server posts each one once and never fails the page.
+ */
+function announceToChat(kind: "tournament-open" | "tournament-winner", id: string) {
+  fetch("/api/admin/kick-bot", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "announce", kind, id }),
+    keepalive: true,
+  }).catch(() => {})
+}
+
 export default function AdminTournamentsPage() {
   const supabaseRef = useRef(createBrowserClient())
   const supabase = supabaseRef.current
@@ -196,6 +209,8 @@ export default function AdminTournamentsPage() {
         "id, title, bracket_size, bracket_status, started_at, finished_at, champion_participant_id, winner_username, created_at",
       )
       .single()
+
+    if (data) announceToChat("tournament-open", data.id)
 
     if (error || !data) {
       console.error("[v0] Could not create tournament:", error)
@@ -447,6 +462,7 @@ export default function AdminTournamentsPage() {
         })
         .eq("id", tournament.id)
       if (crownError) console.error("[v0] Could not record the champion:", crownError)
+      else announceToChat("tournament-winner", tournament.id)
       keepFinishedRef.current = tournament.id
       setChampionSeen(false)
     } else if (winnerChanged && tournament.bracket_status === "finished") {

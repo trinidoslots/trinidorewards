@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server"
+import { NextResponse, after } from "next/server"
 import { requireAdmin } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
 import { clampPointsEach, clampWindowMinutes } from "@/lib/points-activity"
+import { botPointsGiven } from "@/lib/kick-bot/announce"
 
 /**
  * Gives points to everyone who was in chat within the window.
@@ -53,6 +54,12 @@ export async function POST(request: Request) {
 
   if (!result) {
     return NextResponse.json({ error: "Grant returned no result" }, { status: 500 })
+  }
+
+  // Chat hears about it from the bot; a reused key was announced the first time.
+  if (!result.was_reused && result.granted_id) {
+    const grant = { grantId: String(result.granted_id), userCount: Number(result.granted_users) || 0, pointsEach, windowMinutes }
+    after(() => botPointsGiven(grant))
   }
 
   return NextResponse.json({

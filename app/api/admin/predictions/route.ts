@@ -1,6 +1,8 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { requireStaff } from "@/lib/admin-guard"
 import { getActiveHunt } from "@/lib/active-hunt"
+import { after } from "next/server"
+import { botPredictionsClosed, botPredictionsOpen } from "@/lib/kick-bot/announce"
 
 function serviceClient() {
   // The URL and key MUST come from the same Supabase project. Never mix a
@@ -62,11 +64,18 @@ export async function POST(request: Request) {
     const closes = new Date(now.getTime() + 5 * 60 * 1000)
     const { error } = await client.from("prediction_windows").upsert({ hunt_id: huntId, status: "open", opens_at: now.toISOString(), closes_at: closes.toISOString() }, { onConflict: "hunt_id" })
     if (error) return Response.json({ error: error.message }, { status: 500 })
+    after(() => botPredictionsOpen(huntId, now.toISOString(), closes.toISOString()))
     return Response.json({ success: true, closes_at: closes.toISOString() })
   }
   if (body.action === "close") {
-    const { error } = await client.from("prediction_windows").update({ status: "closed" }).eq("hunt_id", huntId)
+    const { data: closed, error } = await client
+      .from("prediction_windows")
+      .update({ status: "closed" })
+      .eq("hunt_id", huntId)
+      .select("opens_at")
+      .maybeSingle()
     if (error) return Response.json({ error: error.message }, { status: 500 })
+    if (closed?.opens_at) after(() => botPredictionsClosed(huntId, closed.opens_at))
     return Response.json({ success: true })
   }
   if (body.reset === true) {

@@ -1,5 +1,6 @@
 import { NextResponse, after } from "next/server"
 import { announceRaffleWinner } from "@/lib/discord/site"
+import { botRaffleWinner } from "@/lib/kick-bot/announce"
 import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/lib/admin-guard"
 import { serviceClient } from "@/lib/supabase/service"
@@ -139,9 +140,10 @@ async function drawOne(client: Client, raffleId: string, award = true) {
 
     if (raffle) await awardPrize(client, raffle, result.username)
 
-    // Winner to Discord once the response is out. A redraw is not announced:
-    // it corrects a draw rather than being a second one.
-    after(() => announceRaffleWinner(raffleId))
+    // Winner to Discord and Kick chat once the response is out. A redraw is not
+    // announced: it corrects a draw rather than being a second one. (The daily
+    // sweep below only tells Discord — a winner hours later is not chat news.)
+    after(() => Promise.all([announceRaffleWinner(raffleId), botRaffleWinner(raffleId)]))
   }
 
   return { result }

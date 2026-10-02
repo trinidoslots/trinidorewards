@@ -1,10 +1,13 @@
 import { claimOnce } from "@/lib/discord/state"
 import { handleMetadata, handleStatus, verifyKickRequest } from "@/lib/discord/kick"
+import { handleChatMessage } from "@/lib/kick-bot/chat"
 
 /**
- * Kick's event webhook — set as the Webhook URL of the site's Kick app. Kick
- * calls it when the stream starts, stops or changes title, and the Discord
- * live post follows. Requests are RSA-signed by Kick; unsigned ones are refused.
+ * Kick's event webhook — set as the Webhook URL of the site's Kick app (and of
+ * the bot's app, if it has its own). Kick calls it when the stream starts,
+ * stops or changes title, and the Discord live post follows; and for every
+ * chat message, which the Kick bot stores and answers (lib/kick-bot/chat.ts).
+ * Requests are RSA-signed by Kick; unsigned ones are refused.
  */
 
 export const dynamic = "force-dynamic"
@@ -27,6 +30,12 @@ export async function POST(request: Request) {
   const messageId = request.headers.get("kick-event-message-id")!
 
   try {
+    // Chat has its own duplicate check (the message id is the table's key);
+    // a claim row per chat line would fill discord_state for nothing.
+    if (type === "chat.message.sent") {
+      await handleChatMessage(JSON.parse(raw))
+      return Response.json({ ok: true })
+    }
     // Kick redelivers until it sees a 2xx; each message is handled once.
     if (!(await claimOnce(`kick-msg:${messageId}`))) return Response.json({ ok: true, duplicate: true })
     const event = JSON.parse(raw)

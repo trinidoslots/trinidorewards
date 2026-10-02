@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import {
+  Bot,
   Calendar,
   CalendarDays,
   ChevronDown,
@@ -137,6 +138,7 @@ export const NAV: Item[] = [
     ],
   },
   { kind: "link", href: "/admin/discord", label: "Discord", icon: MessageCircle },
+  { kind: "link", href: "/admin/kick-bot", label: "Kick Bot", icon: Bot },
   { kind: "link", href: "/admin/modules", label: "Modules", icon: Puzzle },
   { kind: "link", href: "/admin/extension", label: "Extension", icon: Database },
   { kind: "link", href: "/admin/settings", label: "Settings", icon: Settings },

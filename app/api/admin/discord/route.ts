@@ -6,6 +6,7 @@ import { registerCommands } from "@/lib/discord/commands"
 import { listSubscriptions, subscribeLiveEvents } from "@/lib/discord/kick"
 import { getIds, getLive } from "@/lib/discord/state"
 import { announceLeaderboardCreated, announceRaffleCreated } from "@/lib/discord/site"
+import { botLeaderboardCreated, botRaffleCreated } from "@/lib/kick-bot/announce"
 
 /**
  * The admin side of the Discord bot.
@@ -13,7 +14,8 @@ import { announceLeaderboardCreated, announceRaffleCreated } from "@/lib/discord
  * GET  — status for /admin/discord: what is configured, what is set up.
  * POST — { action: "register-commands" | "subscribe-kick" }, the two one-time
  *        setup steps; or { action: "announce", kind: "raffle" | "leaderboard", id }
- *        which the admin forms call after creating one.
+ *        which the admin forms call after creating one. The Kick bot posts the
+ *        same news in chat from here (lib/kick-bot/announce.ts).
  */
 
 export const dynamic = "force-dynamic"
@@ -67,8 +69,8 @@ export async function POST(request: Request) {
         const id = typeof body.id === "string" ? body.id : ""
         if (!id) return Response.json({ error: "id is required" }, { status: 400 })
         // After the response, so saving the form never waits on Discord.
-        if (body.kind === "raffle") after(() => announceRaffleCreated(id))
-        else if (body.kind === "leaderboard") after(() => announceLeaderboardCreated(id))
+        if (body.kind === "raffle") after(() => Promise.all([announceRaffleCreated(id), botRaffleCreated(id)]))
+        else if (body.kind === "leaderboard") after(() => Promise.all([announceLeaderboardCreated(id), botLeaderboardCreated(id)]))
         else return Response.json({ error: "Unknown kind" }, { status: 400 })
         return Response.json({ ok: true })
       }
