@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
 import { AuthShell, FormError } from "@/components/auth-shell"
 import { KickMark } from "@/components/login-modal"
+import { safeNext } from "@/lib/admin-host"
 import { startKickLogin } from "@/lib/kick-login"
 
 /** Kick's green, as on the site's own login dialog. */
@@ -28,7 +29,7 @@ function LoginForm() {
   // Only a path on this site survives the round-trip, never a URL someone put
   // in the query string. The callback checks this again.
   const nextParam = params.get("next")
-  const next = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : "/admin"
+  const next = safeNext(nextParam, "/admin")
 
   useEffect(() => {
     fetch("/api/auth/session", { cache: "no-store" })

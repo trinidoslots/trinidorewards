@@ -107,11 +107,20 @@ export function mainSiteHosts(siteUrl: string | undefined): string[] {
 /**
  * Only same-site paths survive the sign-in round-trip. "//evil.example" is a
  * protocol-relative URL, not a path, and is what an open redirect looks like.
+ *
+ * URL parsers drop tabs and newlines and read "\" as "/", so "/<tab>/evil.example"
+ * passes a prefix check and still lands on evil.example. Those characters are
+ * refused anywhere in the value, and the result must resolve to this origin.
  */
 export function safeNext(next: string | null | undefined, fallback = "/admin"): string {
   if (!next) return fallback
   if (!next.startsWith("/")) return fallback
+  if (/[\u0000-\u001f\u007f\\]/.test(next)) return fallback
   if (next.startsWith("//")) return fallback
-  if (next.startsWith("/\\")) return fallback
+  try {
+    if (new URL(next, "https://same.invalid").origin !== "https://same.invalid") return fallback
+  } catch {
+    return fallback
+  }
   return next
 }
