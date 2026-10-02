@@ -1,7 +1,13 @@
 import { updateSession } from "@/lib/supabase/middleware"
-import type { NextRequest } from "next/server"
+import { NextResponse, type NextRequest } from "next/server"
+import { ORIGIN_HEADER, passesOriginLock } from "@/lib/origin-lock"
 
 export async function middleware(request: NextRequest) {
+  // Only what came through Cloudflare (lib/origin-lock.ts). First, so a
+  // refused request costs nothing else.
+  if (!passesOriginLock(request.nextUrl.pathname, request.headers.get(ORIGIN_HEADER), process.env.ORIGIN_SECRET)) {
+    return new NextResponse("Forbidden", { status: 403 })
+  }
   return await updateSession(request)
 }
 
