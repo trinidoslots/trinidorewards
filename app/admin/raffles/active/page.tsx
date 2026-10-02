@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import Link from "next/link"
 import { Plus } from "lucide-react"
 import { ACCENTS, Panel } from "@/components/ui/panel"
@@ -61,7 +62,7 @@ export default function ActiveRafflesPage() {
       <RaffleHeader title="Active raffles" hint="Open now, and opening soon." loading={loading} onReload={reload}>
         {canEdit && (
         <Link
-          href="/admin/raffles/create"
+          href={adminHref("/admin/raffles/create")}
           className="inline-flex h-9 items-center gap-2 rounded-md px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-black transition"
           style={{ backgroundColor: ACCENTS.blue }}
         >

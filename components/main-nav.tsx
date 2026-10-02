@@ -1,5 +1,6 @@
 "use client"
 
+import { useInAdminPanel } from "@/lib/use-admin-pathname"
 import Link from "next/link"
 import type React from "react"
 import { useEffect, useState } from "react"
@@ -76,6 +77,7 @@ export const NAV_STORAGE_KEY = "main-nav"
  */
 export function MainNav() {
   const pathname = usePathname()
+  const inPanel = useInAdminPanel()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
@@ -116,7 +118,7 @@ export function MainNav() {
       .then(({ data }) => setModuleRows((data ?? []) as ModuleRow[]), () => {})
   }, [])
 
-  if (pathname?.startsWith("/admin") || pathname?.startsWith("/auth")) return null
+  if (inPanel || pathname?.startsWith("/auth")) return null
 
   const close = () => setMobileOpen(false)
 

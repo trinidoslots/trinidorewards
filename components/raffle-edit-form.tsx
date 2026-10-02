@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import type React from "react"
 
 import { useState } from "react"
@@ -66,11 +67,11 @@ export default function RaffleEditForm({ raffle }: { raffle: Raffle }) {
 
       alert("Raffle updated successfully!")
 
-      router.push("/admin/raffles/active")
+      router.push(adminHref("/admin/raffles/active"))
       router.refresh()
 
       setTimeout(() => {
-        window.location.href = "/admin/raffles/active"
+        window.location.href = adminHref("/admin/raffles/active")
       }, 100)
     } catch (error) {
       console.error("Error updating raffle:", error)

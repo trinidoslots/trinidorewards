@@ -1,3 +1,4 @@
+import { adminHref } from "@/lib/admin-host"
 import { redirect } from "next/navigation"
 import type { Metadata } from "next"
 
@@ -16,5 +17,5 @@ export const metadata: Metadata = {
  * looks like it works until someone opens it.
  */
 export default function LeaderboardsIndex() {
-  redirect("/admin/leaderboards/overview")
+  redirect(adminHref("/admin/leaderboards/overview"))
 }

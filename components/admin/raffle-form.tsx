@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Save } from "lucide-react"
@@ -182,7 +183,7 @@ export function RaffleForm({ raffleId, initial }: { raffleId?: string; initial?:
         keepalive: true,
       }).catch(() => {})
     }
-    router.push("/admin/raffles/active")
+    router.push(adminHref("/admin/raffles/active"))
     router.refresh()
   }
 
@@ -470,7 +471,7 @@ export function RaffleForm({ raffleId, initial }: { raffleId?: string; initial?:
       <div className="flex justify-end gap-2">
         <button
           type="button"
-          onClick={() => router.push("/admin/raffles/active")}
+          onClick={() => router.push(adminHref("/admin/raffles/active"))}
           className="inline-flex h-10 items-center rounded-md border border-white/[0.10] px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
         >
           Cancel

@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import {
@@ -129,7 +130,7 @@ function Loaded({ data }: { data: DashboardPayload }) {
             */}
             <div className="grid grid-cols-2 gap-px bg-white/[0.06]">
               {QUICK_LINKS.map(({ href, icon: Icon, label, copy }) => (
-                <Link key={href} href={href} className="group bg-[#0E0E11] px-3 py-3 transition hover:bg-white/[0.05]">
+                <Link key={href} href={adminHref(href)} className="group bg-[#0E0E11] px-3 py-3 transition hover:bg-white/[0.05]">
                   <Icon className="h-4 w-4 text-white/35 transition group-hover:text-white/70" />
                   <p className="mt-2 text-[12.5px] font-semibold text-white">{label}</p>
                   <p className="mt-0.5 text-[11px] leading-4 text-white/35">{copy}</p>
@@ -143,7 +144,7 @@ function Loaded({ data }: { data: DashboardPayload }) {
           <PanelHeader
             title="Active leaderboards"
             accent="purple"
-            right={<PanelLink href="/admin/leaderboards">Manage</PanelLink>}
+            right={<PanelLink href={adminHref("/admin/leaderboards")}>Manage</PanelLink>}
           />
           {data.leaderboards.length === 0 ? (
             <EmptyLine>No leaderboard is running.</EmptyLine>
@@ -162,15 +163,15 @@ function Loaded({ data }: { data: DashboardPayload }) {
             <QueueRow
               label="Store redemptions"
               count={data.queue.redemptions}
-              href="/admin/store/redemptions"
+              href={adminHref("/admin/store/redemptions")}
               accent="amber"
             />
-            <QueueRow label="Winners to pay" count={data.queue.wins} href="/admin/wins" accent="green" />
-            <QueueRow label="Raffles to draw" count={data.queue.raffles} href="/admin/raffles/draw" accent="blue" />
+            <QueueRow label="Winners to pay" count={data.queue.wins} href={adminHref("/admin/wins")} accent="green" />
+            <QueueRow label="Raffles to draw" count={data.queue.raffles} href={adminHref("/admin/raffles/draw")} accent="blue" />
             <QueueRow
               label="Leaderboards past their end"
               count={data.queue.leaderboards}
-              href="/admin/leaderboards"
+              href={adminHref("/admin/leaderboards")}
               accent="purple"
             />
           </ul>
@@ -182,7 +183,7 @@ function Loaded({ data }: { data: DashboardPayload }) {
           <PanelHeader
             title="Recent transactions"
             accent="green"
-            right={<PanelLink href="/admin/settings">Manage</PanelLink>}
+            right={<PanelLink href={adminHref("/admin/settings")}>Manage</PanelLink>}
           />
           <LedgerTotals totals={data.ledger.totals} />
           {data.ledger.recent.length === 0 ? (
@@ -240,7 +241,7 @@ function HuntPanel({ hunt }: { hunt: HuntSummary | null }) {
 
   return (
     <Panel>
-      <PanelHeader title="Current hunt" accent="blue" right={<PanelLink href="/admin/bonushunt">Manage</PanelLink>} />
+      <PanelHeader title="Current hunt" accent="blue" right={<PanelLink href={adminHref("/admin/bonushunt")}>Manage</PanelLink>} />
       {!hunt ? (
         <EmptyLine>No hunt running.</EmptyLine>
       ) : (

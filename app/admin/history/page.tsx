@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { ChevronDown, Crown, Gamepad2, History, Loader2, Pencil, Save, Search, Trash2, X } from "lucide-react"
@@ -139,7 +140,7 @@ export default function AdminHistoryPage() {
           <p className="mt-1 text-[13px] text-white/40">Every finished hunt – edit its details or delete it.</p>
         </div>
         <Link
-          href="/admin/bonushunt"
+          href={adminHref("/admin/bonushunt")}
           className="inline-flex h-9 items-center rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
         >
           Current hunt

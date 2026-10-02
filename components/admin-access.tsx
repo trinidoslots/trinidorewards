@@ -1,7 +1,7 @@
 "use client"
 
+import { useAdminPathname } from "@/lib/use-admin-pathname"
 import { createContext, useContext } from "react"
-import { usePathname } from "next/navigation"
 import { Eye } from "lucide-react"
 import { ACCENTS } from "@/components/ui/panel"
 import { accessFor, type Access, type StaffRole } from "@/lib/admin-permissions"
@@ -23,7 +23,7 @@ export function AdminAccessProvider({ role, children }: { role: StaffRole; child
 
 export function useAdminAccess(): { role: StaffRole; access: Access | null; canEdit: boolean } {
   const role = useContext(RoleContext)
-  const pathname = usePathname()
+  const pathname = useAdminPathname()
   const access = accessFor(role, pathname)
   return { role, access, canEdit: access === "edit" }
 }

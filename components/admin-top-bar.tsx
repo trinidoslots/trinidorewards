@@ -1,8 +1,10 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
+import { useAdminPathname } from "@/lib/use-admin-pathname"
 import Link from "next/link"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { usePathname, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Bell, ChevronRight, Eye, Home, Package, Search } from "lucide-react"
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import {
@@ -49,12 +51,12 @@ function pageFor(pathname: string): Page | null {
 }
 
 function Breadcrumb() {
-  const pathname = usePathname()
+  const pathname = useAdminPathname()
   const page = pageFor(pathname)
 
   return (
     <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[13px]">
-      <Link href="/admin" aria-label="Overview" className="text-white/40 transition hover:text-white">
+      <Link href={adminHref("/admin")} aria-label="Overview" className="text-white/40 transition hover:text-white">
         <Home className="h-4 w-4" />
       </Link>
       {page?.section && (
@@ -132,7 +134,7 @@ function PageSearch() {
                   value={`${page.section ?? ""} ${page.label}`}
                   onSelect={() => {
                     setOpen(false)
-                    router.push(page.href)
+                    router.push(adminHref(page.href))
                   }}
                   className="cursor-pointer rounded-md px-2.5 py-2 text-[13px] text-white/70 data-[selected=true]:bg-white/[0.06] data-[selected=true]:text-white"
                 >
@@ -249,7 +251,7 @@ function AdminBell() {
           <div className="p-1">
             {pending.map((row) => (
               <DropdownMenuItem key={row.id} asChild className={MENU_ITEM_CLASS}>
-                <Link href="/admin/store/redemptions">
+                <Link href={adminHref("/admin/store/redemptions")}>
                   <Package className="h-4 w-4" style={{ color: ACCENTS.amber }} />
                   <span className="min-w-0 flex-1 truncate">{row.item_name}</span>
                   <span className="shrink-0 text-[11px] text-white/30">
@@ -262,7 +264,7 @@ function AdminBell() {
         )}
         <div className="border-t border-white/[0.08] p-1">
           <DropdownMenuItem asChild className={MENU_ITEM_CLASS}>
-            <Link href="/admin/store/redemptions">Open redemptions</Link>
+            <Link href={adminHref("/admin/store/redemptions")}>Open redemptions</Link>
           </DropdownMenuItem>
         </div>
       </DropdownMenuContent>

@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
-import { adminHostRedirect, isAdminPath, mainSiteHosts, resolvePath, safeNext } from "@/lib/admin-host"
+import { adminHostCanonical, adminHostRedirect, isAdminPath, mainSiteHosts, resolvePath, safeNext } from "@/lib/admin-host"
 import { adminFromUser } from "@/lib/admin-auth"
 import { MODERATOR_HOME, accessFor } from "@/lib/admin-permissions"
 import { currentGate, gateRedirect } from "@/lib/site-gate"
@@ -24,6 +24,21 @@ export async function updateSession(request: NextRequest) {
     const target = new URL(moved)
     target.search = request.nextUrl.search
     return NextResponse.redirect(target)
+  }
+
+  // On the admin host itself, admin.trinidorewards.com/admin/users is
+  // /users: the panel links to the short form, and an old bookmark or a
+  // login's ?next=/admin/... lands there too.
+  const canonical = adminHostCanonical(
+    request.nextUrl.pathname,
+    request.headers.get("host"),
+    process.env.ADMIN_HOST,
+    process.env.ADMIN_HOST_REDIRECT === "true",
+  )
+  if (canonical) {
+    const url = request.nextUrl.clone()
+    url.pathname = canonical
+    return NextResponse.redirect(url)
   }
 
   // The session lookup is a network round-trip to Supabase's auth server, and

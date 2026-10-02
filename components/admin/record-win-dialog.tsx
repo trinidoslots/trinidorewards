@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { ExternalLink, Trophy, UserRound, X } from "lucide-react"
@@ -206,7 +207,7 @@ export function RecordWinDialog({
 
           {user && (
             <Link
-              href={`/admin/users/${user.id}`}
+              href={adminHref(`/admin/users/${user.id}`)}
               className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-white/[0.10] px-3 font-mono text-[10px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
             >
               Profile

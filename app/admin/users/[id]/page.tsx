@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import { useCallback, useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
@@ -340,7 +341,7 @@ export default function AdminUserDetailPage() {
 function BackLink() {
   return (
     <Link
-      href="/admin/users"
+      href={adminHref("/admin/users")}
       className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white/30 transition hover:text-white"
     >
       <ArrowLeft className="h-3 w-3" />
@@ -810,7 +811,7 @@ function DeleteUserPanel({
         setProblem(payload.error ?? "Could not delete this user.")
         return
       }
-      window.location.href = "/admin/users"
+      window.location.href = adminHref("/admin/users")
     } catch {
       setProblem("Could not reach the server. Nothing was changed.")
     } finally {

@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import type React from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
@@ -274,7 +275,7 @@ export default function AdminChallengesPage() {
         <StatTile label="Active" value={perTab("active").length} accent="green" />
         <StatTile label="Upcoming" value={perTab("upcoming").length} accent="blue" />
         <StatTile label="Ended" value={perTab("completed").length} accent="slate" />
-        <Link href="/admin/challenges/submissions" className="block transition hover:brightness-125">
+        <Link href={adminHref("/admin/challenges/submissions")} className="block transition hover:brightness-125">
           <StatTile label="Claims to review" value={pendingTotal} accent={pendingTotal > 0 ? "amber" : "slate"} />
         </Link>
       </div>
@@ -376,7 +377,7 @@ export default function AdminChallengesPage() {
                     <div className="flex items-center gap-1.5">
                       {count.pending > 0 && (
                         <Link
-                          href={`/admin/challenges/submissions?challenge=${challenge.id}`}
+                          href={adminHref(`/admin/challenges/submissions?challenge=${challenge.id}`)}
                           className="inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] transition hover:brightness-125"
                           style={{ color: ACCENTS.amber, borderColor: `${ACCENTS.amber}55`, backgroundColor: `${ACCENTS.amber}14` }}
                         >

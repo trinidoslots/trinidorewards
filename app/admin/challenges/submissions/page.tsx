@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
@@ -123,7 +124,7 @@ function Submissions() {
     <div className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Link href="/admin/challenges" className="mb-2 inline-flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-white/35 transition hover:text-white/70">
+          <Link href={adminHref("/admin/challenges")} className="mb-2 inline-flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-white/35 transition hover:text-white/70">
             <ArrowLeft className="h-3 w-3" />
             Challenges
           </Link>

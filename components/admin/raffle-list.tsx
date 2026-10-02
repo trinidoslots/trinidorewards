@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { Eye, EyeOff, Gift, Pencil, RefreshCw, Ticket, Trash2, Trophy, Users } from "lucide-react"
@@ -262,7 +263,7 @@ export function RaffleRows({
                   <Trophy className="m-1.5 h-3.5 w-3.5" style={{ color: ACCENTS.amber }} />
                 ) : (
                   <Link
-                    href={"/admin/raffles/edit/" + raffle.id}
+                    href={adminHref("/admin/raffles/edit/" + raffle.id)}
                     aria-label={"Edit " + raffle.title}
                     className="rounded p-1.5 text-white/25 transition hover:bg-white/[0.06] hover:text-white"
                   >

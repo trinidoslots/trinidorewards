@@ -1,5 +1,6 @@
 "use client"
 
+import { adminUrl } from "@/lib/admin-host"
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 import {
@@ -148,7 +149,7 @@ export function UserMenu({
             </DropdownMenuItem>
             {isAdmin && (
               <DropdownMenuItem asChild className={MENU_ITEM_CLASS}>
-                <Link href="/admin">
+                <Link href={adminUrl()}>
                   <LayoutDashboard className="h-4 w-4" /> Admin panel
                 </Link>
               </DropdownMenuItem>

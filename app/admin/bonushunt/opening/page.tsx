@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
@@ -207,7 +208,7 @@ export default function OpeningModePage() {
       is_opening: false,
     })
 
-    router.push("/admin/bonushunt")
+    router.push(adminHref("/admin/bonushunt"))
   }
 
   function selectBonusInOpening(index: number) {
@@ -270,7 +271,7 @@ export default function OpeningModePage() {
       className: "bg-green-600 text-white",
     })
 
-    router.push("/admin/bonushunt")
+    router.push(adminHref("/admin/bonushunt"))
   }
 
   async function resetHunt() {
@@ -315,7 +316,7 @@ export default function OpeningModePage() {
         className: "bg-green-600 text-white",
       })
 
-      router.push("/admin/bonushunt")
+      router.push(adminHref("/admin/bonushunt"))
     } catch (error) {
       console.error("[v0] Error resetting hunt:", error)
       toast({
@@ -359,7 +360,7 @@ export default function OpeningModePage() {
           {canStartHunts ? (
             <button
               type="button"
-              onClick={() => router.push("/admin/bonushunt")}
+              onClick={() => router.push(adminHref("/admin/bonushunt"))}
               className="mt-5 inline-flex h-10 items-center gap-2 rounded-md px-5 text-[13px] font-semibold text-black transition hover:brightness-110"
               style={{ backgroundColor: "#5B8DEF" }}
             >
@@ -486,7 +487,7 @@ export default function OpeningModePage() {
         {/* Back to hunt / hotkeys row */}
         <div className="mb-4 flex items-center justify-between">
           <button
-            onClick={() => router.push("/admin/bonushunt")}
+            onClick={() => router.push(adminHref("/admin/bonushunt"))}
             className="flex items-center gap-1.5 text-sm text-white/40 transition hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />

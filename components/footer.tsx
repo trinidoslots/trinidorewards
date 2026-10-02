@@ -1,5 +1,6 @@
 "use client"
 
+import { useInAdminPanel } from "@/lib/use-admin-pathname"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -28,6 +29,7 @@ const SOCIALS = [
 
 export function Footer() {
   const pathname = usePathname()
+  const inPanel = useInAdminPanel()
   const [mounted, setMounted] = useState(false)
   const [moduleRows, setModuleRows] = useState<ModuleRow[]>([])
 
@@ -51,7 +53,7 @@ export function Footer() {
   const columns = siteLinks.length ? [{ heading: "Site", links: siteLinks }, LEGAL] : [LEGAL]
 
   // Hide footer on admin and auth routes
-  if (pathname.startsWith("/admin") || pathname.startsWith("/auth")) {
+  if (inPanel || pathname.startsWith("/auth")) {
     return null
   }
 

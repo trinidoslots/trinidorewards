@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { Eye, EyeOff, Package, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react"
@@ -111,7 +112,7 @@ export default function AdminStorePage() {
         <div className="flex gap-2">
           {canEdit && (
           <Link
-            href="/admin/store/redemptions"
+            href={adminHref("/admin/store/redemptions")}
             className="inline-flex h-9 items-center rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
           >
             Redemptions
@@ -127,7 +128,7 @@ export default function AdminStorePage() {
           </button>
           {canEdit && (
           <Link
-            href="/admin/store/add"
+            href={adminHref("/admin/store/add")}
             className="inline-flex h-9 items-center gap-2 rounded-md px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-black transition"
             style={{ backgroundColor: ACCENTS.blue }}
           >
@@ -235,7 +236,7 @@ export default function AdminStorePage() {
                   {canEdit && (
                   <>
                   <Link
-                    href={`/admin/store/edit/${item.id}`}
+                    href={adminHref(`/admin/store/edit/${item.id}`)}
                     aria-label={`Edit ${item.name}`}
                     className="shrink-0 rounded p-1.5 text-white/25 transition hover:bg-white/[0.06] hover:text-white"
                   >

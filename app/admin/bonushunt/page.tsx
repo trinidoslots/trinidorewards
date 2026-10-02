@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import type React from "react"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -414,7 +415,7 @@ export default function AdminBonusHuntPage() {
             <p className="mt-1 text-[13px] text-white/40">No hunt is running. Start one to add bonuses.</p>
           </div>
           <Link
-            href="/admin/history"
+            href={adminHref("/admin/history")}
             className="inline-flex h-9 items-center gap-2 rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
           >
             <History className="h-3.5 w-3.5" /> History
@@ -539,7 +540,7 @@ export default function AdminBonusHuntPage() {
           </button>
           <button
             type="button"
-            onClick={() => router.push("/admin/bonushunt/opening")}
+            onClick={() => router.push(adminHref("/admin/bonushunt/opening"))}
             className="inline-flex h-9 items-center gap-2 rounded-md px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-black transition hover:brightness-110"
             style={{ backgroundColor: ACCENTS.blue }}
           >

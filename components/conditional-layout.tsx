@@ -1,5 +1,6 @@
 "use client"
 
+import { useInAdminPanel } from "@/lib/use-admin-pathname"
 import type React from "react"
 
 import { useEffect } from "react"
@@ -14,6 +15,7 @@ import { AuthNotice } from "@/components/auth-notice"
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const inPanel = useInAdminPanel()
 
   const isOBSPage =
     pathname === "/predictionobs" || pathname === "/random-slot" || pathname.startsWith("/obs/")
@@ -33,7 +35,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   //
   // The maintenance screen too: every link in the nav would only lead back to it.
   const isBarePage =
-    isOBSPage || pathname.startsWith("/admin") || pathname.startsWith("/auth") || pathname === "/maintenance"
+    isOBSPage || inPanel || pathname.startsWith("/auth") || pathname === "/maintenance"
 
   // OBS browser sources need a truly transparent page so the stream
   // compositor shows through. The root layout's <body> always carries

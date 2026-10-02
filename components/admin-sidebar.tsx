@@ -1,7 +1,8 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
+import { useAdminPathname } from "@/lib/use-admin-pathname"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import {
@@ -161,7 +162,7 @@ export default function AdminSidebar({
   onCollapse?: (collapsed: boolean) => void
   role?: StaffRole
 }) {
-  const pathname = usePathname()
+  const pathname = useAdminPathname()
   const nav = navFor(role)
   const viewOnly = (href: string) => accessFor(role, href) === "view"
   const [collapsed, setCollapsed] = useState(false)
@@ -220,7 +221,7 @@ export default function AdminSidebar({
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={adminHref(item.href)}
                 title={collapsed ? item.label : undefined}
                 className={cn(
                   "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] transition",
@@ -288,7 +289,7 @@ export default function AdminSidebar({
                     return (
                       <Link
                         key={child.href}
-                        href={child.href}
+                        href={adminHref(child.href)}
                         className={cn(
                           "flex items-center rounded-md px-2.5 py-1.5 text-[12px] transition",
                           active ? "bg-white/[0.07] text-white" : "text-white/40 hover:bg-white/[0.04] hover:text-white/75",

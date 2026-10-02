@@ -93,6 +93,65 @@ export function adminHostRedirect(
   return `https://${configured}${rest}`
 }
 
+/**
+ * On the admin host, the panel's own address for an /admin path, or null.
+ *
+ * admin.trinidorewards.com/admin/users and /users are the same page; the
+ * second is the one the panel links to, so the first is redirected to it and
+ * there is one address per page. Off unless the move is switched on
+ * (ADMIN_HOST_REDIRECT), and never on any other host.
+ */
+export function adminHostCanonical(
+  pathname: string,
+  hostHeader: string | null,
+  adminHost: string | undefined,
+  enabled: boolean,
+): string | null {
+  const configured = adminHost?.toLowerCase().trim()
+  if (!enabled || !configured || hostOf(hostHeader) !== configured) return null
+  if (!isAdminPath(pathname)) return null
+  return pathname === "/admin" ? "/" : pathname.slice("/admin".length)
+}
+
+/**
+ * Where the panel lives, for links: NEXT_PUBLIC_ADMIN_URL
+ * (https://admin.trinidorewards.com), or null while it is under /admin.
+ *
+ * Set for production only. A preview has no admin host of its own, so
+ * staging keeps every /admin link as it is.
+ */
+function adminBase(): string | null {
+  const value = process.env.NEXT_PUBLIC_ADMIN_URL?.trim().replace(/\/+$/, "")
+  return value || null
+}
+
+/**
+ * An /admin path as the panel links to it.
+ *
+ * Everything in the panel is written as /admin/..., the form the moderator
+ * rules and the sidebar use. With the admin host on, the prefix comes off at
+ * the link: "/admin/users" becomes "/users", "/admin" becomes "/". Anything
+ * that is not an /admin path comes back untouched, so wrapping twice is safe.
+ */
+export function adminHref(path: string): string {
+  if (!adminBase()) return path
+  const bare = path.split(/[?#]/)[0]
+  if (!isAdminPath(bare)) return path
+  const rest = path.slice("/admin".length)
+  return rest === "" || rest.startsWith("?") || rest.startsWith("#") ? `/${rest}` : rest
+}
+
+/** The panel's full address, for a link from the public site. */
+export function adminUrl(path = "/admin"): string {
+  const base = adminBase()
+  return base ? `${base}${adminHref(path)}` : path
+}
+
+/** The /admin path for an address in the panel; the reverse of adminHref. */
+export function panelPath(pathname: string): string {
+  return adminBase() ? adminPathFor(pathname) : pathname
+}
+
 /** The main site's hosts, from NEXT_PUBLIC_SITE_URL: the host and its www twin. */
 export function mainSiteHosts(siteUrl: string | undefined): string[] {
   try {

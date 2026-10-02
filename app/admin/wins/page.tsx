@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { Check, Plus, RefreshCw, Search, Trash2, Trophy, Undo2, UserRound } from "lucide-react"
@@ -207,7 +208,7 @@ export default function AdminWinsPage() {
                       {win.user_id ? (
                         <>
                           <Link
-                            href={`/admin/users/${win.user_id}`}
+                            href={adminHref(`/admin/users/${win.user_id}`)}
                             className="truncate text-[13px] font-medium text-white underline-offset-4 hover:underline"
                           >
                             {win.username}

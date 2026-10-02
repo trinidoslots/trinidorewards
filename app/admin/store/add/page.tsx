@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import type React from "react"
 
 import { createClient } from "@/lib/supabase/client"
@@ -73,7 +74,7 @@ export default function AddStoreItemPage() {
           description: "Run scripts/057_store_payout_details.sql in Supabase, then set it on the item.",
           className: "bg-amber-600 text-white",
         })
-        router.push("/admin/store")
+        router.push(adminHref("/admin/store"))
         setSubmitting(false)
         return
       }
@@ -92,7 +93,7 @@ export default function AddStoreItemPage() {
         description: "Item created successfully",
         className: "bg-green-600 text-white",
       })
-      router.push("/admin/store")
+      router.push(adminHref("/admin/store"))
     }
 
     setSubmitting(false)
@@ -101,7 +102,7 @@ export default function AddStoreItemPage() {
   return (
     <div className="min-h-screen bg-[#0B0B0D] p-6">
       <div className="max-w-4xl mx-auto">
-        <Link href="/admin/store">
+        <Link href={adminHref("/admin/store")}>
           <Button variant="ghost" className="text-white/40 hover:text-white mb-6">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Store
@@ -256,7 +257,7 @@ export default function AddStoreItemPage() {
               <Button type="submit" disabled={submitting} className="bg-[#5B8DEF] hover:bg-[#5B8DEF] flex-1">
                 {submitting ? "Creating..." : "Create Item"}
               </Button>
-              <Link href="/admin/store" className="flex-1">
+              <Link href={adminHref("/admin/store")} className="flex-1">
                 <Button type="button" variant="outline" className="w-full bg-transparent border-white/[0.12]">
                   Cancel
                 </Button>

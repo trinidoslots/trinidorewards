@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { ChevronRight, Coins, RefreshCw, Search, UserRound, X } from "lucide-react"
@@ -207,7 +208,7 @@ export default function AdminUsersPage() {
                   </div>
                 )}
 
-                <Link href={`/admin/users/${user.id}`} className="min-w-0 flex-1">
+                <Link href={adminHref(`/admin/users/${user.id}`)} className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-medium text-white">{user.username}</p>
                   <p className="text-[11px] text-white/25">
                     Joined {new Date(user.created_at).toLocaleDateString()}
@@ -244,7 +245,7 @@ export default function AdminUsersPage() {
                 </button>
 
                 <Link
-                  href={`/admin/users/${user.id}`}
+                  href={adminHref(`/admin/users/${user.id}`)}
                   aria-label={`Open ${user.username}`}
                   className="shrink-0 rounded p-1.5 text-white/20 transition group-hover:text-white"
                 >

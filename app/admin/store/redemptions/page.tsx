@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { RefreshCw } from "lucide-react"
@@ -128,7 +129,7 @@ export default function StoreRedemptionsPage() {
         </div>
         <div className="flex gap-2">
           <Link
-            href="/admin/store"
+            href={adminHref("/admin/store")}
             className="inline-flex h-9 items-center rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
           >
             Store

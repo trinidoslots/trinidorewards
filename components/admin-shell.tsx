@@ -1,10 +1,10 @@
 "use client"
 
+import { useAdminPathname } from "@/lib/use-admin-pathname"
 import type React from "react"
 import AdminSidebar from "@/components/admin-sidebar"
 import { AdminTopBar } from "@/components/admin-top-bar"
 import { useState, useEffect } from "react"
-import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
 import { AdminAccessProvider, ViewOnlyBanner } from "@/components/admin-access"
 import { accessFor, type StaffRole } from "@/lib/admin-permissions"
@@ -17,7 +17,7 @@ export function AdminShell({
   children: React.ReactNode
 }) {
   const [collapsed, setCollapsed] = useState(false)
-  const pathname = usePathname()
+  const pathname = useAdminPathname()
   const viewOnly = accessFor(role, pathname) === "view"
 
   // On <body>, so it reaches dialogs portalled out of the page too. See globals.css.

@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import { Fragment, useMemo } from "react"
 import Link from "next/link"
 import { Check, ChevronDown, Package, Search, Undo2, X } from "lucide-react"
@@ -251,7 +252,7 @@ export function RedemptionsList({
                       <td className="max-w-40 px-2 py-2">
                         {username ? (
                           <Link
-                            href={`/admin/users/${row.user_id}`}
+                            href={adminHref(`/admin/users/${row.user_id}`)}
                             className="block truncate text-[12.5px] text-white/80 underline-offset-4 hover:text-white hover:underline"
                           >
                             {username}

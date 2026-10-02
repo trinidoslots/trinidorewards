@@ -1,5 +1,6 @@
 "use client"
 
+import { adminHref } from "@/lib/admin-host"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
@@ -173,7 +174,7 @@ export function GiveawayRollDialog({
                 <div className="flex flex-wrap items-center gap-2">
                   {registered && (
                     <Link
-                      href={`/admin/users/${account.id}`}
+                      href={adminHref(`/admin/users/${account.id}`)}
                       target="_blank"
                       className="flex h-9 items-center gap-1.5 rounded-lg border border-white/[0.10] px-3 text-[13px] text-white/80 transition hover:bg-white/[0.05] hover:text-white"
                     >
