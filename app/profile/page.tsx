@@ -423,7 +423,33 @@ function PurchasesTab({ redemptions, spent }: { redemptions: Redemption[]; spent
 function ProfileLoading() {
   return (
     <div>
-      <PageHeroSkeleton accent="blue" panel />
+      <PageHeroSkeleton
+        accent="blue"
+        panel
+        subtitle={false}
+        top={<Bar className="h-20 w-20 rounded-xl md:h-24 md:w-24" />}
+        panelContent={
+          <>
+            <Bar className="h-3 w-24" />
+            <Bar className="mt-4 h-12 w-44" />
+            <div className="mt-6 border-t border-white/[0.07] pt-5">
+              <Bar className="h-3 w-full" />
+              <Bar className="mt-3 h-1.5 w-full rounded-full" />
+              <Bar className="mt-4 h-3 w-2/3" />
+            </div>
+          </>
+        }
+      >
+        <Bar className="mt-6 h-10 w-28 rounded-md" />
+        <div className="mt-8 grid max-w-xl grid-cols-4 gap-x-4">
+          {[0, 1, 2, 3].map((index) => (
+            <div key={index} className="border-t border-white/[0.10] pt-3">
+              <Bar className="h-5 w-10" />
+              <Bar className="mt-2 h-2.5 w-16" />
+            </div>
+          ))}
+        </div>
+      </PageHeroSkeleton>
       <PageBody className="space-y-6">
         <Ghost className="h-[42px] w-[460px] max-w-full rounded-full" />
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -433,6 +459,11 @@ function ProfileLoading() {
       </PageBody>
     </div>
   )
+}
+
+/** A line or block of placeholder inside the header. */
+function Bar({ className }: { className?: string }) {
+  return <div className={`animate-pulse rounded bg-white/[0.06] ${className ?? ""}`} aria-hidden="true" />
 }
 
 /** A card-shaped placeholder. Pulses, so it reads as pending rather than empty. */

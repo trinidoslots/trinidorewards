@@ -519,12 +519,12 @@
   }
 }
 
-/* First place, once, as it lands. */
+/* First place, once, as it lands: a slow swell and a slower fade. */
 @keyframes podium-glow {
   0% {
     box-shadow: 0 0 0 0 transparent;
   }
-  40% {
+  35% {
     box-shadow: 0 0 70px -8px var(--podium-color);
   }
   100% {
@@ -533,26 +533,26 @@
 }
 
 .podium-card {
-  animation: podium-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: podium-in 1100ms cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: var(--podium-delay, 0ms);
 }
 
 .podium-first {
   animation:
-    podium-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both,
-    podium-glow 1400ms ease-out both;
-  animation-delay: var(--podium-delay, 0ms), calc(var(--podium-delay, 0ms) + 250ms);
+    podium-in 1100ms cubic-bezier(0.16, 1, 0.3, 1) both,
+    podium-glow 3000ms ease-in-out both;
+  animation-delay: var(--podium-delay, 0ms), calc(var(--podium-delay, 0ms) + 400ms);
 }
 
 .podium-flash {
   transform-origin: 70% 40%;
-  animation: podium-flash 1100ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: calc(var(--podium-delay, 0ms) + 120ms);
+  animation: podium-flash 1700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--podium-delay, 0ms) + 200ms);
 }
 
 .podium-numeral {
-  animation: podium-numeral 500ms ease-out both;
-  animation-delay: calc(var(--podium-delay, 0ms) + 700ms);
+  animation: podium-numeral 800ms ease-out both;
+  animation-delay: calc(var(--podium-delay, 0ms) + 1100ms);
 }
 
 @media (prefers-reduced-motion: reduce) {

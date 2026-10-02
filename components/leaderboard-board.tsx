@@ -98,7 +98,7 @@ export function Avatar({
  * the place colour and settles into the outline; first place glows once as
  * it lands. `step` is the card's place in that sequence.
  */
-const PODIUM_STEP_MS = 420
+const PODIUM_STEP_MS = 650
 
 function PodiumCard({ entry, metric, step }: { entry: RankedEntry; metric: Metric; step: number }) {
   const color = placeColor(entry.rank) ?? "rgba(255,255,255,0.4)"

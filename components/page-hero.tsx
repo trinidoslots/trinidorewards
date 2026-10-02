@@ -152,7 +152,25 @@ export function PageBody({
  * one header swapped for another. This keeps the edges where the real header
  * will put them, so loading reads as the same header filling in.
  */
-export function PageHeroSkeleton({ accent = "blue", panel = false }: { accent?: Accent; panel?: boolean }) {
+export function PageHeroSkeleton({
+  accent = "blue",
+  panel = false,
+  top,
+  children,
+  panelContent,
+  subtitle = true,
+}: {
+  accent?: Accent
+  panel?: boolean
+  /** Placeholder for what the page puts above the title (the profile's avatar). */
+  top?: React.ReactNode
+  /** Placeholder for what the page puts under the subtitle (the profile's stats). */
+  children?: React.ReactNode
+  /** The panel's own placeholder shape, instead of one plain block. */
+  panelContent?: React.ReactNode
+  /** Off for a page whose header has no subtitle, so loading does not shift it. */
+  subtitle?: boolean
+}) {
   const color = ACCENTS[accent]
   return (
     <section data-no-reveal className="relative w-full overflow-hidden border-b border-white/[0.06]">
@@ -167,11 +185,18 @@ export function PageHeroSkeleton({ accent = "blue", panel = false }: { accent?: 
         }`}
       >
         <div>
+          {top && <div className="mb-7">{top}</div>}
           <span className="block h-[3px] w-6 rounded-full" style={{ backgroundColor: color }} />
           <div className="mt-5 h-[clamp(36px,5.6vw,66px)] w-4/5 max-w-xl animate-pulse rounded-lg bg-white/[0.06]" />
-          <div className="mt-5 h-3.5 w-72 max-w-full animate-pulse rounded bg-white/[0.05]" />
+          {subtitle && <div className="mt-5 h-3.5 w-72 max-w-full animate-pulse rounded bg-white/[0.05]" />}
+          {children}
         </div>
-        {panel && <div className="h-[150px] animate-pulse rounded-xl border border-white/[0.08] bg-white/[0.03]" />}
+        {panel &&
+          (panelContent ? (
+            <div className="rounded-xl border border-white/[0.10] bg-[#0E0E12]/90 p-6 sm:p-7">{panelContent}</div>
+          ) : (
+            <div className="h-[150px] animate-pulse rounded-xl border border-white/[0.08] bg-white/[0.03]" />
+          ))}
       </div>
     </section>
   )

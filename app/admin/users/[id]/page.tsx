@@ -151,11 +151,34 @@ export default function AdminUserDetailPage() {
     load()
   }, [load])
 
-  if (loading) {
+  // Only the first load: a reload after a change keeps the page in place.
+  if (loading && !data) {
     return (
-      <Panel className="py-16 text-center">
-        <MonoLabel className="text-white/25">Loading</MonoLabel>
-      </Panel>
+      <div className="space-y-4" aria-busy="true">
+        <BackLink />
+        <div className="grid items-start gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+          <Panel className="space-y-4 p-5">
+            <div className="flex items-center gap-3">
+              <span className="h-14 w-14 animate-pulse rounded-full bg-white/[0.06]" />
+              <div className="flex-1 space-y-2">
+                <span className="block h-4 w-2/3 animate-pulse rounded bg-white/[0.06]" />
+                <span className="block h-3 w-1/3 animate-pulse rounded bg-white/[0.05]" />
+              </div>
+            </div>
+            <span className="block h-16 animate-pulse rounded-md bg-white/[0.04]" />
+            <span className="block h-9 animate-pulse rounded-md bg-white/[0.04]" />
+          </Panel>
+          <div className="min-w-0 space-y-4">
+            <div className="flex gap-4 border-b border-white/[0.08] pb-3">
+              {[0, 1, 2, 3].map((index) => (
+                <span key={index} className="h-3 w-20 animate-pulse rounded bg-white/[0.06]" />
+              ))}
+            </div>
+            <Panel className="h-[190px] animate-pulse bg-white/[0.015]">{null}</Panel>
+            <Panel className="h-[150px] animate-pulse bg-white/[0.015]">{null}</Panel>
+          </div>
+        </div>
+      </div>
     )
   }
 
