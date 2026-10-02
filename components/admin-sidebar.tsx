@@ -72,7 +72,17 @@ export const NAV: Item[] = [
   },
   { kind: "link", href: "/admin/schedule", label: "Schedule", icon: CalendarDays },
   { kind: "link", href: "/admin/predictions", label: "Predictions", icon: Trophy },
-  { kind: "link", href: "/admin/giveaway", label: "Kick Giveaway", icon: Gift },
+  {
+    kind: "group",
+    id: "giveaway",
+    label: "Kick Giveaway",
+    icon: Gift,
+    match: "/admin/giveaway",
+    children: [
+      { href: "/admin/giveaway", label: "Giveaway" },
+      { href: "/admin/giveaway/points-raffle", label: "Points Raffle" },
+    ],
+  },
   { kind: "link", href: "/admin/bonuses", label: "Bonuses", icon: Gift },
   { kind: "link", href: "/admin/random", label: "Random", icon: Shuffle },
   { kind: "link", href: "/admin/advent-calendar", label: "Advent Calendar", icon: Calendar },

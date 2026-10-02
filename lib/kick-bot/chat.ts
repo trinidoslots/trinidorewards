@@ -7,6 +7,7 @@ import { moneyExact } from "@/lib/leaderboard-format"
 import { isModOrBroadcaster, type KickBadge } from "@/lib/kick-chat"
 import { KICK_BOT_USERNAME, botConnection, sendBotMessage } from "@/lib/kick-bot/client"
 import { botPredictionsClosed } from "@/lib/kick-bot/announce"
+import { drawPointsRaffle, enterPointsRaffle } from "@/lib/points-raffle"
 
 /**
  * One chat message from Kick's chat.message.sent webhook.
@@ -84,6 +85,17 @@ export async function handleChatMessage(event: ChatEvent): Promise<void> {
   }
 
   if (fromBot) return
+
+  // The points raffle (lib/points-raffle.ts): the keyword enters, and the
+  // first message after the time is up has it drawn.
+  const raffle = await enterPointsRaffle({ kickId, username, content, sentAt }).catch((problem) => {
+    console.error("[kick-bot] points raffle:", problem)
+    return { drawId: null }
+  })
+  if (raffle.drawId) {
+    const drawId = raffle.drawId
+    after(() => drawPointsRaffle(drawId).then(() => undefined).catch((problem) => console.error("[kick-bot] points raffle draw:", problem)))
+  }
 
   // Replies go out after the webhook has answered: Kick wants its 200 quickly.
   const command = content.trim().toLowerCase().split(/\s+/)[0]

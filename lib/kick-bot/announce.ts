@@ -20,6 +20,8 @@ export const BOT_EVENTS = [
   { id: "tournament.winner", label: "Tournament winner" },
   { id: "points.given", label: "Points given to chat" },
   { id: "promo.shown", label: "Promo code shown on stream" },
+  { id: "points_raffle.open", label: "Points raffle started" },
+  { id: "points_raffle.ended", label: "Points raffle winners" },
   { id: "predictions.open", label: "Predictions opened" },
   { id: "predictions.closed", label: "Predictions closed" },
   { id: "leaderboard.created", label: "Leaderboard started" },
@@ -139,6 +141,39 @@ export function botPromoShown(promoId: string, shownAt: string) {
     const left = promo.max_uses ? Math.max(0, Number(promo.max_uses) - (Number(promo.uses_count) || 0)) : null
     const limits = [left !== null ? `first ${left}` : null, promo.code_user_only ? "Code Users only" : null].filter(Boolean)
     return `🎁 Promo code: ${promo.code} – ${Number(promo.points).toLocaleString("en-US")} points${limits.length ? ` (${limits.join(", ")})` : ""}. Redeem at ${SITE_URL}/redeem`
+  })
+}
+
+export function botPointsRaffleOpen(raffleId: string) {
+  return once("points_raffle.open", `points-raffle-open:${raffleId}`, async () => {
+    const { data: raffle } = await serviceClient()
+      .from("points_raffles")
+      .select("keyword, points_each, winner_count, starts_at, ends_at, status")
+      .eq("id", raffleId)
+      .maybeSingle()
+    if (!raffle || raffle.status !== "open") return null
+    const minutes = Math.max(1, Math.round((Date.parse(raffle.ends_at) - Date.parse(raffle.starts_at)) / 60_000))
+    const winners = Number(raffle.winner_count) === 1 ? "1 winner gets" : `${raffle.winner_count} winners get`
+    return `🎉 Points raffle! Type ${raffle.keyword.trim()} in chat within ${minutes} min – ${winners} ${Number(raffle.points_each).toLocaleString("en-US")} points each. You need an account on ${SITE_URL} to win.`
+  })
+}
+
+export function botPointsRaffleEnded(raffleId: string) {
+  return once("points_raffle.ended", `points-raffle-ended:${raffleId}`, async () => {
+    const { data: raffle } = await serviceClient()
+      .from("points_raffles")
+      .select("keyword, points_each, status, winners, entry_count")
+      .eq("id", raffleId)
+      .maybeSingle()
+    if (!raffle || raffle.status !== "drawn") return null
+    const names = ((raffle.winners ?? []) as { username: string }[]).map((winner) => `@${winner.username}`)
+    if (names.length === 0) {
+      return Number(raffle.entry_count) > 0
+        ? `⏰ Points raffle over – nobody who entered has an account on ${SITE_URL} yet, so no winner this time.`
+        : `⏰ Points raffle over – nobody entered.`
+    }
+    const points = Number(raffle.points_each).toLocaleString("en-US")
+    return `🏆 Points raffle winners: ${names.join(", ")} – ${points} points each, already on your balance. GG!`
   })
 }
 
