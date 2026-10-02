@@ -11,8 +11,10 @@ export async function updateSession(request: NextRequest) {
   // so admin.trinidorewards.com/users is guarded exactly like /admin/users.
   const pathname = resolvePath(request.nextUrl.pathname, request.headers.get("host"), process.env.ADMIN_HOST)
 
-  // Once the admin host is the only way in, trinidorewards.com/admin/x goes to
-  // admin.trinidorewards.com/x (lib/admin-host.ts; opt-in).
+  // Once the admin host is the only way in (ADMIN_HOST_REDIRECT), /admin on the
+  // main site is a page that does not exist: a plain 404, not a redirect, so
+  // the public site does not point anyone at the panel. Nothing links there
+  // any more — the Admin link in the top bar goes to the admin host.
   const moved = adminHostRedirect(
     request.nextUrl.pathname,
     request.headers.get("host"),
@@ -21,9 +23,11 @@ export async function updateSession(request: NextRequest) {
     mainSiteHosts(process.env.NEXT_PUBLIC_SITE_URL),
   )
   if (moved) {
-    const target = new URL(moved)
-    target.search = request.nextUrl.search
-    return NextResponse.redirect(target)
+    // A path no route answers, so the site's own not-found page is shown.
+    const url = request.nextUrl.clone()
+    url.pathname = "/_admin-not-here"
+    url.search = ""
+    return NextResponse.rewrite(url, { status: 404 })
   }
 
   // On the admin host itself, admin.trinidorewards.com/admin/users is
