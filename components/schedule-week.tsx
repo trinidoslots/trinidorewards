@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react"
+import { useId, useState } from "react"
+import { ChevronDown, ChevronLeft, ChevronRight, Info, Plus, Trash2 } from "lucide-react"
 import { ACCENTS, MonoLabel, type Accent } from "@/components/ui/panel"
 import { LiveDot } from "@/components/landing/parts"
 import { DAY_MS, dayKey, isSameDay, localOffsetLabel, startOfWeek, weekDays, weekLabel } from "@/lib/schedule-week"
@@ -143,14 +144,19 @@ function Segment({
   entry,
   now,
   onRemove,
+  onEdit,
 }: {
   entry: ScheduleEntry
   now: number
   onRemove?: (entry: ScheduleEntry) => void
+  onEdit?: (entry: ScheduleEntry) => void
 }) {
   const accent = ACCENTS[accentOf(entry.color)]
   const state = entry.is_cancelled ? "cancelled" : stateOf(entry, now)
   const live = state === "live"
+  const info = entry.description?.trim() || null
+  const [open, setOpen] = useState(false)
+  const infoId = useId()
 
   const body = (
     <>
@@ -171,6 +177,7 @@ function Segment({
             type="button"
             onClick={(event) => {
               event.preventDefault()
+              event.stopPropagation()
               onRemove(entry)
             }}
             aria-label={`Remove ${entry.title}`}
@@ -188,6 +195,44 @@ function Segment({
         {entry.title || "Stream"}
       </p>
       {entry.category && <p className="mt-1 truncate text-[11.5px] text-white/40">{entry.category}</p>}
+      {info &&
+        (onEdit ? (
+          // The admin sees what is written; clicking the segment edits it.
+          <p className="mt-2 line-clamp-2 flex gap-1.5 text-[11.5px] leading-snug text-white/45">
+            <Info className="mt-px h-3 w-3 shrink-0" style={{ color: accent }} />
+            {info}
+          </p>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault()
+                setOpen((current) => !current)
+              }}
+              aria-expanded={open}
+              aria-controls={infoId}
+              className="mt-2 inline-flex items-center gap-1 rounded font-mono text-[10.5px] font-semibold uppercase tracking-[0.1em] text-white/45 transition hover:text-white"
+            >
+              <Info className="h-3 w-3" style={{ color: accent }} />
+              Info
+              <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+            </button>
+            {/* Rows from 0fr to 1fr: the text slides open at its own height. */}
+            <div
+              id={infoId}
+              className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
+                open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+              }`}
+            >
+              <div className="overflow-hidden">
+                <p className="mt-2 whitespace-pre-line border-t border-white/[0.07] pt-2 text-[12.5px] leading-relaxed text-white/65">
+                  {info}
+                </p>
+              </div>
+            </div>
+          </>
+        ))}
     </>
   )
 
@@ -199,9 +244,33 @@ function Segment({
     backgroundColor: live ? `${ACCENTS.green}14` : `${accent}0d`,
   }
 
+  if (onEdit) {
+    return (
+      <li>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => onEdit(entry)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault()
+              onEdit(entry)
+            }
+          }}
+          aria-label={`Edit ${entry.title}`}
+          className={`${className} cursor-pointer hover:brightness-125`}
+          style={style}
+        >
+          {body}
+        </div>
+      </li>
+    )
+  }
+
   return (
-    <li title={entry.description ?? undefined}>
-      {entry.url && !onRemove ? (
+    <li>
+      {/* A link card cannot hold the info toggle, so one with info stays a card. */}
+      {entry.url && !onRemove && !info ? (
         <a
           href={entry.url}
           target="_blank"
@@ -225,6 +294,7 @@ export function WeekGrid({
   now = Date.now(),
   onAdd,
   onRemove,
+  onEdit,
   onToggleDayOff,
 }: {
   days: DayGroup[]
@@ -233,6 +303,8 @@ export function WeekGrid({
   /** Admin only. Given, each column gets an add button. */
   onAdd?: (date: Date) => void
   onRemove?: (entry: ScheduleEntry) => void
+  /** Admin only. Given, clicking a segment opens it for editing. */
+  onEdit?: (entry: ScheduleEntry) => void
   onToggleDayOff?: (date: Date, off: boolean) => void
 }) {
   const today = new Date(now)
@@ -307,7 +379,7 @@ export function WeekGrid({
               ) : (
                 <ul className="space-y-2.5">
                   {day.entries.map((entry) => (
-                    <Segment key={entry.id} entry={entry} now={now} onRemove={onRemove} />
+                    <Segment key={entry.id} entry={entry} now={now} onRemove={onRemove} onEdit={onEdit} />
                   ))}
                 </ul>
               )}

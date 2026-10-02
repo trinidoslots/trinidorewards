@@ -7,7 +7,6 @@ import { ACCENTS, MonoLabel, Panel, StatTile } from "@/components/ui/panel"
 import { WeekGrid, WeekNav, groupWeek } from "@/components/schedule-week"
 import { addWeeks, SEGMENT_COLORS, startOfWeek } from "@/lib/schedule-week"
 import { SCHEDULE_CATEGORIES, stateOf, timeRange, type ScheduleEntry } from "@/lib/schedule"
-import { ScheduleInfoEditor } from "@/components/admin/schedule-info-editor"
 
 /**
  * The schedule, built the way it is read.
@@ -26,9 +25,13 @@ const field =
 const COLUMNS =
   "id, title, description, starts_at, ends_at, category, url, is_cancelled, color, is_day_off, sort_order"
 
-type Draft = { title: string; category: string; color: string; time: string; hours: string }
+type Draft = { title: string; category: string; color: string; time: string; hours: string; info: string }
 
-const emptyDraft: Draft = { title: "", category: "", color: "blue", time: "20:00", hours: "" }
+const emptyDraft: Draft = { title: "", category: "", color: "blue", time: "20:00", hours: "", info: "" }
+
+function clock(at: Date): string {
+  return `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`
+}
 
 export default function AdminSchedulePage() {
   const supabaseRef = useRef(createClient())
@@ -38,6 +41,8 @@ export default function AdminSchedulePage() {
   const [error, setError] = useState<string | null>(null)
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [adding, setAdding] = useState<Date | null>(null)
+  // Set when the dialog is changing an existing segment rather than adding one.
+  const [editing, setEditing] = useState<ScheduleEntry | null>(null)
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [busy, setBusy] = useState(false)
 
@@ -87,13 +92,31 @@ export default function AdminSchedulePage() {
     // does not need the time typed again.
     const existing = days.find((day) => day.date.getTime() === date.getTime())?.entries[0]
     const at = existing ? new Date(existing.starts_at) : null
-    setDraft({
-      ...emptyDraft,
-      time: at
-        ? `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`
-        : emptyDraft.time,
-    })
+    setDraft({ ...emptyDraft, time: at ? clock(at) : emptyDraft.time })
+    setEditing(null)
     setAdding(date)
+  }
+
+  function openEdit(entry: ScheduleEntry) {
+    const starts = new Date(entry.starts_at)
+    const length = entry.ends_at ? (Date.parse(entry.ends_at) - starts.getTime()) / 3_600_000 : null
+    setDraft({
+      title: entry.title,
+      category: entry.category ?? "",
+      color: entry.color ?? "blue",
+      time: clock(starts),
+      hours: length && length > 0 ? String(Math.round(length * 100) / 100) : "",
+      info: entry.description ?? "",
+    })
+    const day = new Date(starts)
+    day.setHours(0, 0, 0, 0)
+    setEditing(entry)
+    setAdding(day)
+  }
+
+  function closeDialog() {
+    setAdding(null)
+    setEditing(null)
   }
 
   async function save(event: React.FormEvent) {
@@ -116,28 +139,36 @@ export default function AdminSchedulePage() {
 
     const day = days.find((entry) => entry.date.getTime() === adding.getTime())
 
+    const fields = {
+      title: draft.title.trim(),
+      category: draft.category.trim() || null,
+      color: draft.color,
+      starts_at: starts.toISOString(),
+      ends_at: ends,
+      // Shown under the segment on the public schedule, behind an Info toggle.
+      description: draft.info.trim() || null,
+    }
+
     setBusy(true)
-    const { error: problem } = await supabaseRef.current.from("stream_schedule").insert([
-      {
-        title: draft.title.trim(),
-        category: draft.category.trim() || null,
-        color: draft.color,
-        starts_at: starts.toISOString(),
-        ends_at: ends,
-        // Appended to the day rather than inserted at the top: the order you
-        // add them in is the order you mean to play them.
-        sort_order: (day?.entries.length ?? 0) + 1,
-        is_day_off: false,
-      },
-    ])
+    const { error: problem } = editing
+      ? await supabaseRef.current.from("stream_schedule").update(fields).eq("id", editing.id)
+      : await supabaseRef.current.from("stream_schedule").insert([
+          {
+            ...fields,
+            // Appended to the day rather than inserted at the top: the order you
+            // add them in is the order you mean to play them.
+            sort_order: (day?.entries.length ?? 0) + 1,
+            is_day_off: false,
+          },
+        ])
     setBusy(false)
 
     if (problem) {
-      console.error("[v0] Could not add the segment:", problem)
-      setError(problem.message || "Could not add that")
+      console.error("[v0] Could not save the segment:", problem)
+      setError(problem.message || "Could not save that")
       return
     }
-    setAdding(null)
+    closeDialog()
     setDraft(emptyDraft)
     await load()
   }
@@ -226,8 +257,6 @@ export default function AdminSchedulePage() {
         />
       </div>
 
-      <ScheduleInfoEditor />
-
       <Panel className="space-y-3 p-4">
         <WeekNav weekStart={weekStart} onShift={(weeks) => setWeekStart((current) => addWeeks(current, weeks))} />
 
@@ -236,25 +265,25 @@ export default function AdminSchedulePage() {
             <MonoLabel className="text-white/25">Loading</MonoLabel>
           </div>
         ) : (
-          <WeekGrid days={days} onAdd={openAdd} onRemove={remove} onToggleDayOff={toggleDayOff} />
+          <WeekGrid days={days} onAdd={openAdd} onRemove={remove} onEdit={openEdit} onToggleDayOff={toggleDayOff} />
         )}
       </Panel>
 
       {adding && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4" onClick={() => setAdding(null)}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4" onClick={closeDialog}>
           <form
             onSubmit={save}
             onClick={(event) => event.stopPropagation()}
             className="w-full max-w-sm overflow-hidden rounded-lg border border-white/[0.10] bg-[#0E0E11]"
           >
             <header className="flex items-center gap-2 border-b border-white/[0.08] px-4 py-3">
-              <MonoLabel className="text-white/70">Add to</MonoLabel>
+              <MonoLabel className="text-white/70">{editing ? "Edit" : "Add to"}</MonoLabel>
               <span className="text-[13px] text-white/50">
                 {adding.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}
               </span>
               <button
                 type="button"
-                onClick={() => setAdding(null)}
+                onClick={closeDialog}
                 aria-label="Close"
                 className="ml-auto rounded p-1.5 text-white/30 transition hover:bg-white/[0.06] hover:text-white"
               >
@@ -315,6 +344,21 @@ export default function AdminSchedulePage() {
               </div>
 
               <div>
+                <div className="mb-1.5 flex items-baseline justify-between">
+                  <MonoLabel className="text-white/30">Info</MonoLabel>
+                  <span className="text-[11px] text-white/25">Viewers expand it on the schedule</span>
+                </div>
+                <textarea
+                  value={draft.info}
+                  onChange={(event) => setDraft({ ...draft, info: event.target.value })}
+                  placeholder="Optional — e.g. the buy-in, the rules, what to predict"
+                  rows={3}
+                  maxLength={600}
+                  className={`${field} h-auto! resize-y py-2 leading-relaxed`}
+                />
+              </div>
+
+              <div>
                 <MonoLabel className="mb-1.5 block text-white/30">Colour</MonoLabel>
                 <div className="flex gap-1.5">
                   {SEGMENT_COLORS.map((color) => {
@@ -345,7 +389,7 @@ export default function AdminSchedulePage() {
             <footer className="flex justify-end gap-2 border-t border-white/[0.08] px-4 py-3">
               <button
                 type="button"
-                onClick={() => setAdding(null)}
+                onClick={closeDialog}
                 className="inline-flex h-9 items-center rounded-md border border-white/[0.10] px-3.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white/50 transition hover:border-white/25 hover:text-white"
               >
                 Cancel
@@ -356,7 +400,7 @@ export default function AdminSchedulePage() {
                 className="inline-flex h-9 items-center rounded-md px-4 font-mono text-[11px] uppercase tracking-[0.1em] text-black transition disabled:opacity-30"
                 style={{ backgroundColor: ACCENTS.blue }}
               >
-                {busy ? "Saving…" : "Add"}
+                {busy ? "Saving…" : editing ? "Save" : "Add"}
               </button>
             </footer>
           </form>

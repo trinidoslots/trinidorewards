@@ -6,8 +6,6 @@ import { ACCENTS } from "@/components/ui/panel"
 import { createClient } from "@/lib/supabase/client"
 import { WeekControls, WeekGrid, WeekGridSkeleton, groupWeek, weekTitle, weeksFromNow } from "@/components/schedule-week"
 import { TabSlide } from "@/components/tab-slide"
-import { ScheduleInfoBox } from "@/components/schedule-info"
-import type { ScheduleInfo } from "@/lib/schedule-info"
 import { addWeeks, countdownTo, dayKey, weekLabel, startOfWeek } from "@/lib/schedule-week"
 import { ASSUMED_LENGTH_MS, stateOf, type ScheduleEntry } from "@/lib/schedule"
 import { PageBody, PageHero, PageHeroSkeleton } from "@/components/page-hero"
@@ -39,21 +37,6 @@ export default function SchedulePage() {
   const [now, setNow] = useState(() => Date.now())
   const weekKey = dayKey(weekStart)
   const known = useRef(new Set<string>())
-  const [info, setInfo] = useState<ScheduleInfo | null>(null)
-
-  // The info text from Admin > Schedule, if there is one.
-  useEffect(() => {
-    let cancelled = false
-    fetch("/api/schedule/info")
-      .then((response) => (response.ok ? response.json() : null))
-      .then((payload) => {
-        if (!cancelled) setInfo((payload?.info as ScheduleInfo | null) ?? null)
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -162,8 +145,6 @@ export default function SchedulePage() {
       )}
 
       <PageBody wide className="space-y-8">
-        {info && <ScheduleInfoBox info={info} />}
-
         <SectionHeading
           eyebrow={
             entries === undefined
