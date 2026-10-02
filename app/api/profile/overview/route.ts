@@ -63,7 +63,12 @@ export async function GET() {
       client
         .from("hunt_predictions")
         .select("id, predicted_end_balance, created_at", { count: "exact" })
-        .eq("user_id", userId)
+        // Theirs, and ones made under their name before they had an account.
+        .or(
+          username
+            ? `user_id.eq.${userId},and(user_id.is.null,username.ilike.${likeExact(username)})`
+            : `user_id.eq.${userId}`,
+        )
         .order("created_at", { ascending: false })
         .limit(10),
     ),

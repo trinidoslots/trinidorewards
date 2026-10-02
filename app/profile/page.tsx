@@ -16,6 +16,7 @@ import {
   StatusPill,
 } from "@/components/profile-panels"
 import { PageBody, PageHero, PageHeroSkeleton } from "@/components/page-hero"
+import { ProfilePredictions } from "@/components/profile-predictions"
 import { TabSlide } from "@/components/tab-slide"
 import type { ActivityItem } from "@/app/api/profile/overview/route"
 
@@ -48,6 +49,7 @@ type Overview = {
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "stats", label: "Stats" },
+  { id: "predictions", label: "Predictions" },
   { id: "wins", label: "Wins" },
   { id: "redemptions", label: "Purchases" },
   { id: "settings", label: "Settings" },
@@ -175,6 +177,7 @@ function ProfileView() {
             <TabSlide tab={tab} index={TABS.findIndex((entry) => entry.id === tab)}>
               {tab === "overview" && <OverviewTab data={data} />}
               {tab === "stats" && <StatsTab data={data} />}
+              {tab === "predictions" && <ProfilePredictions />}
               {tab === "wins" && <MyWinsPanel />}
               {tab === "redemptions" && <PurchasesTab redemptions={redemptions} spent={data.spent.store} />}
               {tab === "settings" && (
