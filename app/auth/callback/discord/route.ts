@@ -7,8 +7,8 @@ import {
   encodeSession,
   getSiteSession,
 } from "@/lib/site-session"
-import { endSupabaseSession } from "@/lib/admin-auth"
-import { safeNext } from "@/lib/admin-host"
+import { adminTag, endSupabaseSession, mintAdminSession } from "@/lib/admin-auth"
+import { isAdminPath, safeNext } from "@/lib/admin-host"
 import { withAuthError } from "@/lib/auth-errors"
 import {
   DISCORD_MODE_COOKIE,
@@ -23,9 +23,13 @@ import {
  *
  * Link: the signed-in account gets this Discord account, unless another
  * account already has it. Login: the account this Discord account is linked
- * to is signed in, with the same session cookie a Kick sign-in sets. It never
- * mints an admin session: the panel stays behind a Kick sign-in, which is
- * what its admin tag is checked against (lib/admin-auth.ts).
+ * to is signed in, with the same session cookie a Kick sign-in sets.
+ *
+ * Staff get their admin session here too, exactly as on a Kick sign-in
+ * (lib/admin-auth.ts). The tag is checked against the linked account's own
+ * on-site id and Kick id, read from the database, so Discord can only ever
+ * open the panel for the account it was linked to while signed in — never
+ * name one.
  */
 export async function GET(request: NextRequest) {
   const url = new URL(request.url)
@@ -87,7 +91,21 @@ export async function GET(request: NextRequest) {
   if (!user) return finish(withAuthError(next, "discord_unlinked"))
 
   const response = finish(next)
-  await endSupabaseSession(request, response)
+  const kickId = String(user.kick_id)
+  if (await adminTag({ siteUserId: user.id, kickId })) {
+    const minted = await mintAdminSession(request, response, {
+      kickId,
+      siteUserId: user.id,
+      username: user.username,
+      avatarUrl: user.avatar_url ?? null,
+    })
+    if (!minted && isAdminPath(next)) {
+      response.headers.set("location", new URL("/auth/login?error=admin_session", request.url).toString())
+    }
+  } else {
+    // Signing in as someone else must not leave the last admin's session behind.
+    await endSupabaseSession(request, response)
+  }
   response.cookies.set(
     SESSION_COOKIE,
     encodeSession({
