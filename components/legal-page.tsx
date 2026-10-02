@@ -18,6 +18,7 @@ export function LegalPage({
   subtitle,
   sections,
   other,
+  updated,
   children,
 }: {
   title: string
@@ -25,12 +26,15 @@ export function LegalPage({
   sections: LegalSection[]
   /** The other legal document, linked from the header. */
   other: { href: string; label: string }
+  /** When this version of the document was written, shown in the header. */
+  updated?: string
   children: React.ReactNode
 }) {
   return (
     <div>
       <PageHero accent="slate" note="Legal" title={title} subtitle={subtitle}>
         <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px]">
+          {updated && <span className="text-white/55">Last updated {updated}</span>}
           <span className="text-white/40">{sections.length} sections</span>
           <Link
             href={other.href}

@@ -31,6 +31,7 @@ export default function Page() {
       subtitle="What is collected, and what is not."
       sections={SECTIONS}
       other={{ href: "/terms", label: "Terms of service" }}
+      updated="2 October 2026"
     >
             {/* Introduction */}
             <section>
@@ -69,16 +70,30 @@ export default function Page() {
                 <strong>In Short:</strong> We collect personal information you provide voluntarily when you interact
                 with our Services.
               </p>
-              <p>This may include:</p>
+              <p>This includes:</p>
               <ul>
                 <li>
-                  <strong>Contact or authentication data</strong> you provide when registering, contacting us, or
-                  participating in activities on the Services.
+                  <strong>Your Kick account:</strong> when you sign in with Kick, we receive your Kick user ID, username
+                  and profile picture. We do not receive your email address or your Kick password.
                 </li>
                 <li>
-                  <strong>Social Media Login Data:</strong> If you register using a social media account (e.g.,
-                  Facebook, Twitter), we may receive profile information such as your name, email, friends list, and
-                  profile picture.
+                  <strong>Your Discord account, if you connect it:</strong> your Discord user ID, display name and
+                  avatar. We do not receive your email address, your servers or your messages.
+                </li>
+                <li>
+                  <strong>Details you add to your profile:</strong> usernames you hold on casino sites, and crypto wallet
+                  addresses (coin, network and address) for payouts.
+                </li>
+                <li>
+                  <strong>Your activity on the Services:</strong> your points balance and how it changed, store
+                  purchases and the payout details you enter for them, raffle tickets, bonus hunt predictions,
+                  tournament entries, challenge claims (including the bet ID you submit), advent calendar doors you
+                  open, and your wins and whether they have been paid out.
+                </li>
+                <li>
+                  <strong>Kick chat activity:</strong> during streams we record which Kick accounts chatted, when they
+                  last did, and how many messages they sent, so that points can be awarded for taking part. We do not
+                  store what the messages say.
                 </li>
               </ul>
               <p>
@@ -98,13 +113,13 @@ export default function Page() {
                   pages viewed, searches, usage timestamps, and errors.
                 </li>
                 <li>
-                  <strong>Location Data:</strong> Precise or imprecise information about your device's location (via
-                  GPS, IP, or other methods). You can disable location tracking, but some Service features may not
-                  function.
+                  <strong>Approximate location:</strong> the country or region your IP address points to, as seen by our
+                  hosting and security providers. We do not collect your precise location.
                 </li>
               </ul>
               <p>
-                Cookies and similar technologies may also be used for analytics and functionality purposes.
+                We count page views with Vercel Web Analytics, which does not use cookies and does not identify you
+                across other websites.
               </p>
             </section>
 
@@ -168,7 +183,17 @@ export default function Page() {
               </p>
               <ul>
                 <li>
-                  <strong>Vendors, consultants, and service providers</strong> who perform services on our behalf.
+                  <strong>Service providers</strong> who run parts of the Services for us: Supabase (our database),
+                  Vercel (hosting and page-view analytics) and Cloudflare (which every request to the website passes
+                  through, for security and speed).
+                </li>
+                <li>
+                  <strong>Kick and Discord</strong> when you sign in with them. We only receive the information
+                  described above from them; we do not send them anything about your activity here.
+                </li>
+                <li>
+                  <strong>Payouts:</strong> when you are paid out, the wallet address or casino username you gave us is
+                  used to send it.
                 </li>
                 <li>
                   <strong>Business transfers:</strong> In connection with mergers, sales, or acquisitions.
@@ -181,9 +206,26 @@ export default function Page() {
             <section>
               <h2 id="cookies-and-tracking-technologies">5. COOKIES AND TRACKING TECHNOLOGIES</h2>
               <p>
-                <strong>In Short:</strong> We may use cookies, web beacons, pixels, and similar technologies to collect
-                and store information. You can manage cookies through your browser settings. See our{" "}
-                <strong>Cookie Notice</strong> for details.
+                <strong>In Short:</strong> We only use cookies the Services need to work. We do not use advertising or
+                tracking cookies.
+              </p>
+              <ul>
+                <li>
+                  <strong>Sign-in cookie:</strong> keeps you signed in for up to seven days.
+                </li>
+                <li>
+                  <strong>Sign-in check cookies:</strong> short-lived cookies, kept for at most ten minutes, that protect
+                  the round trip to Kick or Discord when you sign in.
+                </li>
+                <li>
+                  <strong>Staff sign-in:</strong> a separate session cookie for the administration area, set only for
+                  staff accounts.
+                </li>
+              </ul>
+              <p>
+                Your browser's local storage also remembers a few display settings, such as whether the side menu is
+                collapsed. You can delete cookies and local storage in your browser settings at any time; you will then
+                be signed out.
               </p>
             </section>
 
@@ -191,12 +233,17 @@ export default function Page() {
             <section>
               <h2 id="social-logins">6. SOCIAL LOGINS</h2>
               <p>
-                <strong>In Short:</strong> If you register or log in using a social media account, we may receive
-                certain profile information from the social media provider.
+                <strong>In Short:</strong> You sign in with Kick, and can add Discord as a second way to sign in.
               </p>
               <p>
-                We use this information only for purposes described in this notice or clearly stated on the Services. We
-                are not responsible for how the social media provider uses your data.
+                Your account on the Services is your Kick account: your points, entries and wins belong to it. You can
+                connect a Discord account under Profile, Settings, Connections, and disconnect it there at any time;
+                disconnecting removes the Discord details we stored. A Discord account that is not connected cannot
+                be used to sign in or to create an account.
+              </p>
+              <p>
+                We use the information from Kick and Discord only for the purposes described in this notice. We are not
+                responsible for how Kick or Discord use your data.
               </p>
             </section>
 
@@ -220,6 +267,10 @@ export default function Page() {
                 <strong>In Short:</strong> We use organizational and technical measures to protect your information.
                 However, no system is completely secure, and transmission of data over the Internet is at your own risk.
               </p>
+              <p>
+                Your wallet addresses, casino usernames and payout details can only be read by you and the site's
+                administrators; they are not available to other visitors.
+              </p>
             </section>
 
             {/* Section 9 */}
@@ -240,21 +291,13 @@ export default function Page() {
               </p>
               <ul>
                 <li>
-                  <strong>Account information:</strong> You can review or update your information via your account
-                  settings. Requests for deletion will deactivate or remove your account from active databases.
+                  <strong>Account information:</strong> You can see and remove your casino usernames, wallet addresses
+                  and Discord connection yourself under Profile, Settings. Requests for deletion will deactivate or
+                  remove your account from active databases.
                 </li>
                 <li>
-                  <strong>Cookies and tracking:</strong> Manage browser settings or opt out of interest-based
-                  advertising{" "}
-                  <a
-                    href="http://www.aboutads.info/choices/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                   
-                  >
-                    here
-                  </a>
-                  .
+                  <strong>Cookies:</strong> We do not use advertising cookies, so there is no interest-based advertising
+                  to opt out of. You can delete our cookies in your browser settings at any time.
                 </li>
                 <li>
                   <strong>EU/UK/Canada users:</strong> You may request access, correction, erasure, restriction, or data
