@@ -51,7 +51,7 @@ export async function handleChatMessage(event: ChatEvent): Promise<void> {
   // The primary key is the duplicate check: Kick redelivers until it sees a 2xx,
   // and a message already here was handled the first time.
   const { data: inserted, error } = await client
-    .from("kick_chat_messages")
+    .from("kick_bot_chat")
     .upsert(
       {
         message_id: messageId.slice(0, 64),
@@ -64,7 +64,7 @@ export async function handleChatMessage(event: ChatEvent): Promise<void> {
       { onConflict: "message_id", ignoreDuplicates: true },
     )
     .select("message_id")
-  if (error) throw new Error(`kick_chat_messages: ${error.message} – has scripts/088 been run?`)
+  if (error) throw new Error(`kick_bot_chat: ${error.message} – has scripts/088 been run?`)
   if (!inserted?.length) return
 
   const fromBot = username.toLowerCase() === KICK_BOT_USERNAME
@@ -79,7 +79,7 @@ export async function handleChatMessage(event: ChatEvent): Promise<void> {
   if (Date.now() - lastPrune > PRUNE_EVERY_MS) {
     lastPrune = Date.now()
     const cutoff = new Date(Date.now() - KEEP_DAYS * 24 * 60 * 60 * 1000).toISOString()
-    const { error: pruneError } = await client.from("kick_chat_messages").delete().lt("sent_at", cutoff)
+    const { error: pruneError } = await client.from("kick_bot_chat").delete().lt("sent_at", cutoff)
     if (pruneError) console.error("[kick-bot] prune failed:", pruneError)
   }
 
@@ -101,7 +101,7 @@ export async function handleChatMessage(event: ChatEvent): Promise<void> {
 async function askedRecently(kickId: string | null, username: string, messageId: string): Promise<boolean> {
   const since = new Date(Date.now() - COMMAND_COOLDOWN_MS).toISOString()
   let query = serviceClient()
-    .from("kick_chat_messages")
+    .from("kick_bot_chat")
     .select("message_id", { count: "exact", head: true })
     .neq("message_id", messageId)
     .gte("sent_at", since)

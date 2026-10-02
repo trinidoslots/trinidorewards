@@ -6,10 +6,14 @@
 -- delivering the same message twice. Older rows are deleted by the webhook
 -- itself (lib/kick-bot/chat.ts), so the table stays small.
 --
+-- Not kick_chat_messages: a table by that name is already in the live database,
+-- left over from the removed chat webhook (see 056, 073), with other columns.
+-- It is left alone.
+--
 -- Service role only. Chat is public on Kick, but a week of it in one place is
 -- not something the anon key should be able to page through. Safe to re-run.
 
-CREATE TABLE IF NOT EXISTS public.kick_chat_messages (
+CREATE TABLE IF NOT EXISTS public.kick_bot_chat (
   message_id  text PRIMARY KEY,
   kick_id     text,
   username    text NOT NULL,
@@ -19,14 +23,14 @@ CREATE TABLE IF NOT EXISTS public.kick_chat_messages (
   received_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_kick_chat_messages_sent_at
-  ON public.kick_chat_messages (sent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_kick_bot_chat_sent_at
+  ON public.kick_bot_chat (sent_at DESC);
 
-CREATE INDEX IF NOT EXISTS idx_kick_chat_messages_sender
-  ON public.kick_chat_messages (kick_id, sent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_kick_bot_chat_sender
+  ON public.kick_bot_chat (kick_id, sent_at DESC);
 
-ALTER TABLE public.kick_chat_messages ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.kick_chat_messages FROM anon, authenticated;
+ALTER TABLE public.kick_bot_chat ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.kick_bot_chat FROM anon, authenticated;
 
 -- Verify: the table exists with RLS on.
-SELECT relname, relrowsecurity FROM pg_class WHERE relname = 'kick_chat_messages';
+SELECT relname, relrowsecurity FROM pg_class WHERE relname = 'kick_bot_chat';

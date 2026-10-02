@@ -52,14 +52,14 @@ export async function GET(request: Request) {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
   const [recent, today] = await Promise.all([
     client
-      .from("kick_chat_messages")
+      .from("kick_bot_chat")
       .select("message_id, username, content, is_mod, sent_at")
       .order("sent_at", { ascending: false })
       .limit(50),
-    client.from("kick_chat_messages").select("message_id", { count: "exact", head: true }).gte("sent_at", since),
+    client.from("kick_bot_chat").select("message_id", { count: "exact", head: true }).gte("sent_at", since),
   ])
   result.messages = recent.error
-    ? { ok: false, error: `${recent.error.message} – run scripts/088_kick_chat_messages.sql` }
+    ? { ok: false, error: `${recent.error.message} – run scripts/088_kick_bot_chat.sql` }
     : { ok: true, recent: recent.data ?? [], last24h: today.count ?? 0 }
 
   return Response.json(result)

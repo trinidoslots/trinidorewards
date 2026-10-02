@@ -182,7 +182,7 @@ export default function KickBotAdminPage() {
             <CopyField value={status.webhookUrl} />
           </Step>
 
-          <Step n={2} done={status.messages.ok} title="Database table (scripts/088_kick_chat_messages.sql)">
+          <Step n={2} done={status.messages.ok} title="Database table (scripts/088_kick_bot_chat.sql)">
             <p>Paste the script into the Supabase SQL editor and run it.</p>
             {!status.messages.ok && <p style={{ color: ACCENTS.red }}>{status.messages.error}</p>}
           </Step>
