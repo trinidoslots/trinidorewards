@@ -7,6 +7,7 @@ import { ACCENTS, MonoLabel, Panel, StatTile } from "@/components/ui/panel"
 import { WeekGrid, WeekNav, groupWeek } from "@/components/schedule-week"
 import { addWeeks, SEGMENT_COLORS, startOfWeek } from "@/lib/schedule-week"
 import { SCHEDULE_CATEGORIES, stateOf, timeRange, type ScheduleEntry } from "@/lib/schedule"
+import { ScheduleInfoEditor } from "@/components/admin/schedule-info-editor"
 
 /**
  * The schedule, built the way it is read.
@@ -224,6 +225,8 @@ export default function AdminSchedulePage() {
           hint={totals.next ? new Date(totals.next.starts_at).toLocaleDateString() : "Nothing scheduled"}
         />
       </div>
+
+      <ScheduleInfoEditor />
 
       <Panel className="space-y-3 p-4">
         <WeekNav weekStart={weekStart} onShift={(weeks) => setWeekStart((current) => addWeeks(current, weeks))} />

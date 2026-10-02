@@ -128,11 +128,11 @@ export function WeekNav({
 /** Seven placeholder columns in the grid's own shape, for the first load. */
 export function WeekGridSkeleton() {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 xl:gap-3.5">
       {Array.from({ length: 7 }, (_, index) => (
         <div
           key={index}
-          className="h-[76px] animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.025] sm:h-[150px] xl:h-[260px]"
+          className="h-[76px] animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.025] sm:h-[160px] xl:h-[300px]"
         />
       ))}
     </div>
@@ -191,7 +191,7 @@ function Segment({
     </>
   )
 
-  const className = `group/seg relative block overflow-hidden rounded-lg border py-2.5 pl-3.5 pr-2.5 transition ${
+  const className = `group/seg relative block overflow-hidden rounded-lg border py-3 pl-4 pr-3 transition ${
     state === "past" ? "opacity-45" : ""
   }`
   const style = {
@@ -240,7 +240,7 @@ export function WeekGrid({
   const purple = ACCENTS.purple
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 xl:gap-3.5">
       {days.map((day) => {
         const isToday = isSameDay(day.date, today)
         const isPast = !isToday && day.date.getTime() < today.getTime()
@@ -251,7 +251,7 @@ export function WeekGrid({
             // A row on phones (date on the left, streams beside it) so an
             // empty day costs one line rather than a tall empty card; a
             // column from sm up, where the week reads across.
-            className={`relative flex gap-4 overflow-hidden rounded-xl border bg-[#0E0E12] p-3 sm:flex-col sm:gap-3 xl:min-h-[260px] ${
+            className={`relative flex gap-4 overflow-hidden rounded-xl border bg-[#0E0E12] p-3.5 sm:flex-col sm:gap-3.5 xl:min-h-[300px] xl:p-4 ${
               isPast && quiet ? "opacity-60" : ""
             }`}
             style={{
@@ -305,7 +305,7 @@ export function WeekGrid({
                   <MonoLabel className="text-white/25">No stream</MonoLabel>
                 </div>
               ) : (
-                <ul className="space-y-2">
+                <ul className="space-y-2.5">
                   {day.entries.map((entry) => (
                     <Segment key={entry.id} entry={entry} now={now} onRemove={onRemove} />
                   ))}

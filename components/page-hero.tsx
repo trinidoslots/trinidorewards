@@ -30,6 +30,7 @@ export function PageHero({
   countdownLabel,
   range,
   aside,
+  wide = false,
   children,
 }: {
   accent?: Accent
@@ -48,6 +49,8 @@ export function PageHero({
   range?: string
   /** Custom content for the right-hand panel, in place of a figure or countdown. */
   aside?: React.ReactNode
+  /** The wider page width, for a page whose content needs it (the schedule's week). */
+  wide?: boolean
   children?: React.ReactNode
 }) {
   const color = ACCENTS[accent]
@@ -77,7 +80,7 @@ export function PageHero({
       />
 
       <div
-        className={`relative mx-auto grid max-w-6xl gap-10 px-5 pb-12 pt-10 lg:px-8 lg:pb-16 lg:pt-14 ${
+        className={`relative mx-auto grid ${wide ? "max-w-7xl" : "max-w-6xl"} gap-10 px-5 pb-12 pt-10 lg:px-8 lg:pb-16 lg:pt-14 ${
           hasPanel ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)] lg:items-end" : ""
         }`}
       >
@@ -137,11 +140,16 @@ export function PageHero({
 export function PageBody({
   children,
   className,
+  wide = false,
 }: {
   children: React.ReactNode
   className?: string
+  /** Matches PageHero's wide, so the two keep the same edges. */
+  wide?: boolean
 }) {
-  return <div className={`mx-auto max-w-6xl px-5 py-10 lg:px-8 ${className ?? ""}`}>{children}</div>
+  return (
+    <div className={`mx-auto ${wide ? "max-w-7xl" : "max-w-6xl"} px-5 py-10 lg:px-8 ${className ?? ""}`}>{children}</div>
+  )
 }
 
 /**
@@ -159,6 +167,7 @@ export function PageHeroSkeleton({
   children,
   panelContent,
   subtitle = true,
+  wide = false,
 }: {
   accent?: Accent
   panel?: boolean
@@ -170,6 +179,7 @@ export function PageHeroSkeleton({
   panelContent?: React.ReactNode
   /** Off for a page whose header has no subtitle, so loading does not shift it. */
   subtitle?: boolean
+  wide?: boolean
 }) {
   const color = ACCENTS[accent]
   return (
@@ -180,7 +190,7 @@ export function PageHeroSkeleton({
         style={{ background: `radial-gradient(900px 420px at 85% -20%, ${color}24, transparent 62%), #08080A` }}
       />
       <div
-        className={`relative mx-auto grid max-w-6xl gap-10 px-5 pb-12 pt-10 lg:px-8 lg:pb-16 lg:pt-14 ${
+        className={`relative mx-auto grid ${wide ? "max-w-7xl" : "max-w-6xl"} gap-10 px-5 pb-12 pt-10 lg:px-8 lg:pb-16 lg:pt-14 ${
           panel ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,25rem)] lg:items-end" : ""
         }`}
       >

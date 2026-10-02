@@ -16,7 +16,6 @@ import {
   StatusPill,
 } from "@/components/profile-panels"
 import { PageBody, PageHero, PageHeroSkeleton } from "@/components/page-hero"
-import { Swap } from "@/components/swap"
 import { TabSlide } from "@/components/tab-slide"
 import type { ActivityItem } from "@/app/api/profile/overview/route"
 
@@ -116,14 +115,18 @@ function ProfileView() {
   }, [])
 
   return (
-    <Swap on={loading ? "loading" : "profile"}>
+    // No cross-fade between the two: the placeholder has the page's own shape,
+    // so the real content takes its place where it stands. A Swap here faded
+    // the placeholder out and then played the whole page's entry again.
+    <>
       {loading || !data ? (
         <ProfileLoading />
       ) : (
         <div>
           <ProfileHero data={data} onSettings={() => setTab("settings")} />
 
-          <PageBody className="space-y-6">
+          {/* Below the header, a short fade only: no movement, nothing replayed. */}
+          <PageBody className="space-y-6 animate-in fade-in duration-300">
             <nav
               className="inline-flex max-w-full flex-wrap gap-1 rounded-full border border-white/[0.10] bg-black/40 p-1"
               aria-label="Profile sections"
@@ -174,7 +177,7 @@ function ProfileView() {
           </PageBody>
         </div>
       )}
-    </Swap>
+    </>
   )
 }
 

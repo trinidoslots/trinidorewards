@@ -4,7 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { CalendarDays } from "lucide-react"
 import { ACCENTS } from "@/components/ui/panel"
 import { createClient } from "@/lib/supabase/client"
-import { WeekControls, WeekGrid, WeekGridSkeleton, groupWeek, weekTitle } from "@/components/schedule-week"
+import { WeekControls, WeekGrid, WeekGridSkeleton, groupWeek, weekTitle, weeksFromNow } from "@/components/schedule-week"
+import { TabSlide } from "@/components/tab-slide"
+import { ScheduleInfoBox } from "@/components/schedule-info"
+import type { ScheduleInfo } from "@/lib/schedule-info"
 import { addWeeks, countdownTo, dayKey, weekLabel, startOfWeek } from "@/lib/schedule-week"
 import { ASSUMED_LENGTH_MS, stateOf, type ScheduleEntry } from "@/lib/schedule"
 import { PageBody, PageHero, PageHeroSkeleton } from "@/components/page-hero"
@@ -36,6 +39,21 @@ export default function SchedulePage() {
   const [now, setNow] = useState(() => Date.now())
   const weekKey = dayKey(weekStart)
   const known = useRef(new Set<string>())
+  const [info, setInfo] = useState<ScheduleInfo | null>(null)
+
+  // The info text from Admin > Schedule, if there is one.
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/schedule/info")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!cancelled) setInfo((payload?.info as ScheduleInfo | null) ?? null)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -108,9 +126,10 @@ export default function SchedulePage() {
   return (
     <div>
       {upcoming === null ? (
-        <PageHeroSkeleton accent="purple" panel />
+        <PageHeroSkeleton accent="purple" panel wide />
       ) : live ? (
         <PageHero
+          wide
           accent="green"
           note="Live now"
           title={live.title || "On air"}
@@ -122,6 +141,7 @@ export default function SchedulePage() {
         />
       ) : next ? (
         <PageHero
+          wide
           accent="purple"
           note="Next stream"
           title={next.title || "Stream"}
@@ -132,6 +152,7 @@ export default function SchedulePage() {
         />
       ) : (
         <PageHero
+          wide
           accent="purple"
           note="Schedule"
           title="Nothing announced"
@@ -140,7 +161,9 @@ export default function SchedulePage() {
         />
       )}
 
-      <PageBody className="space-y-8">
+      <PageBody wide className="space-y-8">
+        {info && <ScheduleInfoBox info={info} />}
+
         <SectionHeading
           eyebrow={
             entries === undefined
@@ -157,10 +180,10 @@ export default function SchedulePage() {
             <CalendarDays className="mx-auto h-8 w-8 text-white/20" />
             <p className="mt-3 text-[15px] font-semibold text-white">{error}</p>
           </div>
-        ) : entries === undefined ? (
-          <WeekGridSkeleton />
         ) : (
-          <WeekGrid days={days} now={now} />
+          <TabSlide tab={weekKey} index={weeksFromNow(weekStart)}>
+            {entries === undefined ? <WeekGridSkeleton /> : <WeekGrid days={days} now={now} />}
+          </TabSlide>
         )}
       </PageBody>
     </div>
