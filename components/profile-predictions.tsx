@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { ChevronRight, Crosshair, Target, Trophy, X } from "lucide-react"
 import { ACCENTS, MonoLabel } from "@/components/ui/panel"
 import { Empty, ProfileCard, StatusPill } from "@/components/profile-panels"
+import { useProfileData } from "@/lib/profile-data"
 import { multiColor } from "@/components/hunt-kpi-board"
 
 /**
@@ -69,25 +70,10 @@ function accuracyColor(share: number) {
 
 /** The tab as the profile mounts it: loads the predictions, then shows them. */
 export function ProfilePredictions() {
-  const [results, setResults] = useState<PredictionResult[] | null>(null)
-  const [failed, setFailed] = useState(false)
+  const { data, failed } = useProfileData<{ results: PredictionResult[] }>("/api/profile/predictions")
+  const results = data?.results ?? null
 
-  useEffect(() => {
-    let cancelled = false
-    fetch("/api/profile/predictions", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
-      .then((payload) => {
-        if (!cancelled) setResults((payload?.results ?? []) as PredictionResult[])
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  if (failed) {
+  if (failed && !results) {
     return (
       <ProfileCard title="Predictions" accent="amber">
         <Empty icon={<Target className="h-7 w-7 text-white/15" />} text="Your predictions could not be loaded" note="Try again in a moment." />

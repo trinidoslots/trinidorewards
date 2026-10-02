@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
+import { useProfileData } from "@/lib/profile-data"
 import { CreditCard, Link2, Plus, Trash2, Trophy } from "lucide-react"
 import { ACCENTS, MonoLabel, type Accent } from "@/components/ui/panel"
 import { sourceMeta, winValue } from "@/lib/wins"
@@ -111,22 +112,14 @@ export function Empty({ icon, text, note }: { icon: React.ReactNode; text: strin
 type Account = { id: string; site_name: string; username: string }
 
 export function ConnectedAccountsPanel() {
-  const [accounts, setAccounts] = useState<Account[]>([])
+  // On the shared profile cache (lib/profile-data.ts): no refetch on every tab switch.
+  const { data, reload: load } = useProfileData<{ accounts?: Account[] }>("/api/profile/site-usernames")
+  const accounts = data?.accounts ?? []
   const [site, setSite] = useState("")
   const [username, setUsername] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
-    const response = await fetch("/api/profile/site-usernames", { cache: "no-store" })
-    if (!response.ok) return
-    const payload = await response.json()
-    setAccounts((payload.accounts ?? []) as Account[])
-  }, [])
-
-  useEffect(() => {
-    load()
-  }, [load])
 
   async function add(event: React.FormEvent) {
     event.preventDefault()
@@ -155,7 +148,7 @@ export function ConnectedAccountsPanel() {
       setError("Could not remove that username")
       return
     }
-    setAccounts((current) => current.filter((entry) => entry.id !== id))
+    await load()
   }
 
   return (
@@ -243,7 +236,8 @@ function describeWallet(entry: Payment): { coin: string; network: string | null 
 }
 
 export function PaymentMethodsPanel() {
-  const [methods, setMethods] = useState<Payment[]>([])
+  const { data, reload: load } = useProfileData<{ methods?: Payment[] }>("/api/profile/payment-methods")
+  const methods = data?.methods ?? []
   const [crypto, setCrypto] = useState(CRYPTOS[0].code)
   const [chain, setChain] = useState(CRYPTOS[0].chains[0].id)
   const [value, setValue] = useState("")
@@ -257,16 +251,6 @@ export function PaymentMethodsPanel() {
   // letting someone past a caution they can read.
   const addressCheck = value.trim() ? checkAddress(crypto, chain, value.trim()) : null
 
-  const load = useCallback(async () => {
-    const response = await fetch("/api/profile/payment-methods", { cache: "no-store" })
-    if (!response.ok) return
-    const payload = await response.json()
-    setMethods((payload.methods ?? []) as Payment[])
-  }, [])
-
-  useEffect(() => {
-    load()
-  }, [load])
 
   async function add(event: React.FormEvent) {
     event.preventDefault()
@@ -295,7 +279,7 @@ export function PaymentMethodsPanel() {
       setError("Could not remove that payment method")
       return
     }
-    setMethods((current) => current.filter((entry) => entry.id !== id))
+    await load()
   }
 
   return (
@@ -437,26 +421,9 @@ type Win = {
  * before they ever signed in still shows up here.
  */
 export function MyWinsPanel() {
-  const [wins, setWins] = useState<Win[]>([])
-  const [loaded, setLoaded] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      const response = await fetch("/api/profile/wins", { cache: "no-store" })
-      if (!response.ok) {
-        if (!cancelled) setLoaded(true)
-        return
-      }
-      const payload = await response.json()
-      if (cancelled) return
-      setWins((payload.wins ?? []) as Win[])
-      setLoaded(true)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const { data, failed } = useProfileData<{ wins?: Win[] }>("/api/profile/wins")
+  const wins = data?.wins ?? []
+  const loaded = data !== null || failed
 
   // It is a tab of its own now, so an empty one says so rather than leaving
   // the tab blank. Until the list arrives, a placeholder of its shape.
@@ -558,19 +525,9 @@ function ConnectionRow({
  * linked here and removable here.
  */
 export function ConnectionsPanel() {
-  const [data, setData] = useState<Connections | null>(null)
+  const { data, reload: load } = useProfileData<Connections>("/api/profile/connections")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const load = useCallback(async () => {
-    const response = await fetch("/api/profile/connections", { cache: "no-store" })
-    if (!response.ok) return
-    setData((await response.json()) as Connections)
-  }, [])
-
-  useEffect(() => {
-    load()
-  }, [load])
 
   async function disconnect() {
     setBusy(true)

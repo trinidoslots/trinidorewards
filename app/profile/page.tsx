@@ -17,6 +17,8 @@ import {
 } from "@/components/profile-panels"
 import { PageBody, PageHero, PageHeroSkeleton } from "@/components/page-hero"
 import { ProfilePredictions } from "@/components/profile-predictions"
+import { ProfileTournaments } from "@/components/profile-tournaments"
+import { prefetchProfileTabs } from "@/lib/profile-data"
 import { TabSlide } from "@/components/tab-slide"
 import type { ActivityItem } from "@/app/api/profile/overview/route"
 
@@ -50,6 +52,7 @@ const TABS = [
   { id: "overview", label: "Overview" },
   { id: "stats", label: "Stats" },
   { id: "predictions", label: "Predictions" },
+  { id: "tournaments", label: "Tournaments" },
   { id: "wins", label: "Wins" },
   { id: "redemptions", label: "Purchases" },
   { id: "settings", label: "Settings" },
@@ -107,6 +110,9 @@ function ProfileView() {
         const overview = (await response.json()) as Overview
         if (cancelled || !overview?.user) return
         setData(overview)
+        // Every tab's data, fetched now in the background, so opening a tab
+        // shows it at once instead of a placeholder each time (lib/profile-data.ts).
+        prefetchProfileTabs()
         // From the server route: redemptions are not publicly readable (072).
         setRedemptions(overview.redemptions ?? [])
       } finally {
@@ -178,6 +184,7 @@ function ProfileView() {
               {tab === "overview" && <OverviewTab data={data} />}
               {tab === "stats" && <StatsTab data={data} />}
               {tab === "predictions" && <ProfilePredictions />}
+              {tab === "tournaments" && <ProfileTournaments />}
               {tab === "wins" && <MyWinsPanel />}
               {tab === "redemptions" && <PurchasesTab redemptions={redemptions} spent={data.spent.store} />}
               {tab === "settings" && (
