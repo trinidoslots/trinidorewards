@@ -20,7 +20,15 @@ import {
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/components/ui/panel"
-import { ONLY_ON_STAKE_BADGE, STAKE_EXCLUSIVES_SCRIPT, STAKE_EXPORT_SCRIPT, type Slot } from "@/lib/slots"
+import {
+  NEW_SLOT_HOURS,
+  ONLY_ON_STAKE_BADGE,
+  STAKE_EXCLUSIVES_SCRIPT,
+  STAKE_EXPORT_SCRIPT,
+  isNewSlot,
+  newSlotSince,
+  type Slot,
+} from "@/lib/slots"
 import { BADGE_GRADIENT, BADGE_TEXT } from "@/lib/now-playing"
 import { formatProvider } from "@/lib/providers"
 import { SlotSyncPanel } from "@/components/admin/slot-sync-panel"
@@ -41,7 +49,22 @@ const PAGE_SIZE = 50
 const field =
   "h-9 w-full rounded-md border border-white/[0.10] bg-black/40 px-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
 
-type Counts = { total: number | null; withArt: number | null; fromStake: number | null; exclusive: number | null }
+type Counts = {
+  total: number | null
+  withArt: number | null
+  fromStake: number | null
+  exclusive: number | null
+  /** Arrived through the import or the sync in the last NEW_SLOT_HOURS. */
+  fresh: number | null
+}
+
+const addedFormat = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Europe/Berlin",
+})
 
 /** The "Only on Stake" chip, in the colours the now-playing bar uses for it. */
 function OnlyOnStake() {
@@ -76,9 +99,10 @@ export default function SlotsPage() {
   const [supabase] = useState(() => createClient())
   const [rows, setRows] = useState<Slot[]>([])
   const [matchCount, setMatchCount] = useState(0)
-  const [counts, setCounts] = useState<Counts>({ total: null, withArt: null, fromStake: null, exclusive: null })
+  const [counts, setCounts] = useState<Counts>({ total: null, withArt: null, fromStake: null, exclusive: null, fresh: null })
   const [query, setQuery] = useState("")
   const [exclusiveOnly, setExclusiveOnly] = useState(false)
+  const [newOnly, setNewOnly] = useState(false)
   const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -94,11 +118,12 @@ export default function SlotsPage() {
 
   const loadCounts = useCallback(async () => {
     const head = { count: "exact" as const, head: true }
-    const [total, withArt, fromStake, exclusive] = await Promise.all([
+    const [total, withArt, fromStake, exclusive, fresh] = await Promise.all([
       supabase.from("slots").select("id", head),
       supabase.from("slots").select("id", head).not("image_url", "is", null),
       supabase.from("slots").select("id", head).eq("source", "stake"),
       supabase.from("slots").select("id", head).eq("only_on_stake", true),
+      supabase.from("slots").select("id", head).eq("source", "stake").gte("created_at", newSlotSince()),
     ])
     // These need scripts/077 and 078; before that they fail and read as "—".
     setCounts({
@@ -106,6 +131,7 @@ export default function SlotsPage() {
       withArt: withArt.error ? null : withArt.count ?? 0,
       fromStake: fromStake.error ? null : fromStake.count ?? 0,
       exclusive: exclusive.error ? null : exclusive.count ?? 0,
+      fresh: fresh.error ? null : fresh.count ?? 0,
     })
   }, [supabase])
 
@@ -118,6 +144,8 @@ export default function SlotsPage() {
       request = request.or(`game_name.ilike.${pattern},provider.ilike.${pattern}`)
     }
     if (exclusiveOnly) request = request.eq("only_on_stake", true)
+    // New: newest first, so the latest import or sync is at the top.
+    if (newOnly) request = request.eq("source", "stake").gte("created_at", newSlotSince()).order("created_at", { ascending: false })
     const { data, count, error: problem } = await request
       .order("game_name")
       .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1)
@@ -130,7 +158,7 @@ export default function SlotsPage() {
       setError(null)
     }
     setLoading(false)
-  }, [supabase, query, page, exclusiveOnly])
+  }, [supabase, query, page, exclusiveOnly, newOnly])
 
   useEffect(() => {
     loadCounts()
@@ -449,6 +477,31 @@ export default function SlotsPage() {
           >
             Only on Stake
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setNewOnly((current) => !current)
+              setPage(0)
+            }}
+            aria-pressed={newOnly}
+            title={`Added by the Stake import or the daily sync in the last ${NEW_SLOT_HOURS} hours`}
+            className="flex h-9 items-center gap-2 rounded-md border px-3 text-[12px] transition"
+            style={
+              newOnly
+                ? { borderColor: `${ACCENTS.green}77`, backgroundColor: `${ACCENTS.green}1a`, color: "#fff" }
+                : { borderColor: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.5)" }
+            }
+          >
+            New
+            {counts.fresh !== null && (
+              <span
+                className="rounded px-1.5 py-0.5 font-mono text-[10px] leading-none"
+                style={{ color: ACCENTS.green, backgroundColor: `${ACCENTS.green}1f` }}
+              >
+                {counts.fresh.toLocaleString()}
+              </span>
+            )}
+          </button>
           <MonoLabel className="text-white/25">{matchCount.toLocaleString()} slots</MonoLabel>
         </div>
 
@@ -460,7 +513,9 @@ export default function SlotsPage() {
           <div className="flex flex-col items-center gap-2 py-16">
             {query ? <Search className="h-7 w-7 text-white/10" /> : <FileJson className="h-7 w-7 text-white/10" />}
             <p className="text-[13px] text-white/30">
-              {query || exclusiveOnly
+              {newOnly && !query
+                ? `Nothing new in the last ${NEW_SLOT_HOURS} hours – new slots arrive with the daily sync or an import.`
+                : query || exclusiveOnly
                 ? exclusiveOnly && !query
                   ? "No slot is tagged Only on Stake yet – run the Only on Stake script above."
                   : "Nothing matches that search."
@@ -483,6 +538,11 @@ export default function SlotsPage() {
                   <p className="truncate text-[13px] text-white">{slot.game_name}</p>
                   <p className="truncate text-[11px] text-white/30">{formatProvider(slot.provider)}</p>
                 </div>
+                {isNewSlot(slot) && (
+                  <span title={slot.created_at ? `Added ${addedFormat.format(new Date(slot.created_at))}` : undefined}>
+                    <Tag accent="green">New</Tag>
+                  </span>
+                )}
                 {slot.only_on_stake && <OnlyOnStake />}
                 {slot.source === "stake" ? <Tag accent="amber">Stake</Tag> : <Tag accent="slate">Manual</Tag>}
                 <button

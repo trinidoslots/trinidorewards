@@ -20,6 +20,23 @@ export type Slot = {
   source: string | null
   /** In Stake's "Only on Stake" group (scripts/078). Absent before that ran. */
   only_on_stake?: boolean | null
+  /** When the row was first inserted. An upsert never touches it, so it is when the slot joined the catalogue. */
+  created_at?: string | null
+}
+
+/**
+ * How long a slot that arrived through the Stake import or the daily sync is
+ * marked "New" on /admin/slots. Slots typed in by hand are not marked: you
+ * already know about those.
+ */
+export const NEW_SLOT_HOURS = 72
+
+export function newSlotSince(now = Date.now()): string {
+  return new Date(now - NEW_SLOT_HOURS * 3_600_000).toISOString()
+}
+
+export function isNewSlot(slot: Pick<Slot, "source" | "created_at">, since = newSlotSince()): boolean {
+  return slot.source === "stake" && !!slot.created_at && slot.created_at >= since
 }
 
 /** One entry of the uploaded file. */

@@ -1,10 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Trinidorewards Hunt Tracker",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Add bonuses to the active Trinidorewards bonus hunt from Stake, Gamdom, Roobet, Shuffle, CSGO500, Gamba and more — by hand or automatically when a bonus triggers.",
   "minimum_chrome_version": "111",
-  "permissions": ["storage", "scripting"],
+  "permissions": [
+    "storage",
+    "scripting"
+  ],
   "host_permissions": [
     "https://trinidorewards.vercel.app/*",
     "https://trinidorewards.com/*"
@@ -42,8 +45,14 @@
         "https://*.yeet.com/*",
         "https://*.degen.com/*"
       ],
-      "js": ["config.js", "sites.js", "content.js"],
-      "css": ["content.css"],
+      "js": [
+        "config.js",
+        "sites.js",
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -62,7 +71,9 @@
         "https://*.relaxg.com/*",
         "https://*.qs-gaming.com/*"
       ],
-      "js": ["autotrack-injected.js"],
+      "js": [
+        "autotrack-injected.js"
+      ],
       "all_frames": true,
       "match_origin_as_fallback": true,
       "run_at": "document_start",
@@ -84,7 +95,10 @@
         "https://*.relaxg.com/*",
         "https://*.qs-gaming.com/*"
       ],
-      "js": ["config.js", "autotrack-bridge.js"],
+      "js": [
+        "config.js",
+        "autotrack-bridge.js"
+      ],
       "all_frames": true,
       "match_origin_as_fallback": true,
       "run_at": "document_start"
@@ -92,7 +106,12 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Trinidorewards Hunt Tracker"
+    "default_title": "Trinidorewards Hunt Tracker",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
   },
   "icons": {
     "16": "icon16.png",

@@ -51,6 +51,13 @@ export type ChangelogEntry = {
 
 export const EXTENSION_CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.1.1",
+    at: "2026-10-03T22:28:15+02:00",
+    kind: "extension",
+    title: "New icons",
+    changes: ["The TrinidoRewards T mark at 16, 48 and 128 px, also set as the toolbar icon."],
+  },
+  {
     at: "2026-10-03T21:01:17+02:00",
     kind: "site",
     title: "Origin lock bypass and a new admin page",
