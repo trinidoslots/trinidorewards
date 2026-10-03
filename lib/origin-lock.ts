@@ -39,6 +39,8 @@ export const ORIGIN_HEADER = "x-origin-auth"
 const OPEN_PATHS = [
   "/api/leaderboards/finalize",
   "/api/raffles/draw",
+  // Third daily cron: checks CRON_SECRET itself.
+  "/api/slots/sync",
   "/api/kick/webhook",
   "/api/extension/",
   "/.well-known/",

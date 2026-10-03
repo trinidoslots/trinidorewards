@@ -23,6 +23,7 @@ import { ACCENTS, MonoLabel, Panel, PanelHeader, StatTile, Tag } from "@/compone
 import { ONLY_ON_STAKE_BADGE, STAKE_EXCLUSIVES_SCRIPT, STAKE_EXPORT_SCRIPT, type Slot } from "@/lib/slots"
 import { BADGE_GRADIENT, BADGE_TEXT } from "@/lib/now-playing"
 import { formatProvider } from "@/lib/providers"
+import { SlotSyncPanel } from "@/components/admin/slot-sync-panel"
 
 /**
  * The slot catalogue: what the hunt form, the tournament form and the random
@@ -257,6 +258,13 @@ export default function SlotsPage() {
         <StatTile label="Imported from Stake" value={shown(counts.fromStake)} accent="amber" />
         <StatTile label="Only on Stake" value={shown(counts.exclusive)} accent="purple" />
       </div>
+
+      <SlotSyncPanel
+        onSynced={() => {
+          loadCounts()
+          loadPage()
+        }}
+      />
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <Panel accent="amber">
