@@ -125,9 +125,13 @@ export function MainNav() {
   return (
     <TooltipPrimitive.Provider delayDuration={0} skipDelayDuration={0}>
       {/* Full height, with the top bar starting at its right edge rather than
-          running over it. The logo and the account live in the top bar. */}
+          running over it. The logo and the account live in the top bar.
+          The right edge is an inset line, not a border: a border takes 1px
+          of the width, which left the collapsed nav 63px inside — 39px for
+          the 40px icon cells, so every icon sat half a pixel right of the
+          bar's centre and of its own highlight (visible at 125% scaling). */}
       <aside
-        className={`nav-shell fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col overflow-x-hidden border-r border-white/[0.08] bg-[#0B0B0D] md:w-[var(--main-nav-width)] md:translate-x-0 ${
+        className={`nav-shell fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col overflow-x-hidden bg-[#0B0B0D] shadow-[inset_-1px_0_0_rgba(255,255,255,0.08)] md:w-[var(--main-nav-width)] md:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >

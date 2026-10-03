@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { TransactionsPanel } from "@/components/admin/transactions-panel"
+import { FooterSocialsPanel } from "@/components/admin/footer-socials-panel"
 import { MonoLabel, Panel, PanelHeader } from "@/components/ui/panel"
 
 export default function SettingsPage() {
@@ -67,7 +68,7 @@ export default function SettingsPage() {
     <div className="space-y-5">
       <header>
         <h1 className="text-xl font-semibold tracking-tight text-white">Settings</h1>
-        <p className="mt-1 text-[13px] text-white/40">Money in and out, and the figure shown on the landing page.</p>
+        <p className="mt-1 text-[13px] text-white/40">Money in and out, the figure on the landing page, and the footer socials.</p>
       </header>
 
       {/* Transactions first — it is the panel that actually gets used daily. */}
@@ -98,6 +99,8 @@ export default function SettingsPage() {
           </button>
         </form>
       </Panel>
+
+      <FooterSocialsPanel />
     </div>
   )
 }
