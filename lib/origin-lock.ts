@@ -30,8 +30,19 @@ export const ORIGIN_HEADER = "x-origin-auth"
  * Kick's webhook is sent to the vercel.app address, not through Cloudflare:
  * Bot Fight Mode challenges Kick's servers and cannot be skipped on the Free
  * plan. Every delivery is RSA-signed by Kick and checked in the route.
+ *
+ * The Hunt Tracker extension calls /api/extension/* on the vercel.app address
+ * by default (Settings → Connection can switch it to the domain, where Bot
+ * Fight Mode may challenge a background fetch). Every route there requires
+ * the EXTENSION_API_KEY bearer token, so the lock would add nothing but a 403.
  */
-const OPEN_PATHS = ["/api/leaderboards/finalize", "/api/raffles/draw", "/api/kick/webhook", "/.well-known/"]
+const OPEN_PATHS = [
+  "/api/leaderboards/finalize",
+  "/api/raffles/draw",
+  "/api/kick/webhook",
+  "/api/extension/",
+  "/.well-known/",
+]
 
 /** Same answer in the same time whatever was sent, without node:crypto (middleware may run on the edge). */
 function sameSecret(given: string, expected: string): boolean {
