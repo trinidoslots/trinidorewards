@@ -145,6 +145,7 @@ export const NAV: Item[] = [
       { href: "/admin/obs/widget-settings", label: "Widget Settings" },
       { href: "/admin/obs/starting-soon", label: "Starting Soon" },
       { href: "/admin/obs/now-playing", label: "Now Playing" },
+      { href: "/admin/obs/sources", label: "OBS Sources" },
     ],
   },
   { kind: "link", href: "/admin/discord", label: "Discord", icon: MessageCircle },

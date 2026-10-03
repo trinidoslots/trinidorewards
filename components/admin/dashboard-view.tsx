@@ -7,8 +7,6 @@ import {
   ArrowDownLeft,
   ArrowRight,
   ArrowUpRight,
-  Check,
-  Copy,
   Gift,
   LayoutGrid,
   PlayCircle,
@@ -25,7 +23,6 @@ import {
   type HuntSummary,
   type LeaderboardSummary,
 } from "@/lib/admin-dashboard"
-import { siteUrl } from "@/lib/site-url"
 
 /**
  * The four places this panel gets opened for, and two more that earn their
@@ -43,15 +40,6 @@ const QUICK_LINKS = [
   { href: "/admin/modules", icon: LayoutGrid, label: "Modules", copy: "Turn sections on and off" },
   { href: "/admin/store/redemptions", icon: ShoppingBag, label: "Redemptions", copy: "Fulfil store orders" },
   { href: "/admin/users", icon: Users, label: "Users", copy: "Points, roles, usernames" },
-]
-
-const OBS_SOURCES = [
-  { path: "/obs/hunt", label: "Bonus hunt", size: "214×800" },
-  { path: "/obs/stream", label: "Stream column", size: "340×900" },
-  { path: "/obs/giveaway", label: "Giveaway only", size: "300×120" },
-  { path: "/deposits-withdrawals", label: "Transactions", size: "340×140" },
-  { path: "/obs/top-bar", label: "Top ticker", size: "1920×50" },
-  { path: "/obs/complete", label: "Everything, one source", size: "1920×1080" },
 ]
 
 /**
@@ -178,53 +166,42 @@ function Loaded({ data }: { data: DashboardPayload }) {
         </Panel>
       </div>
 
-      <div className="grid gap-2.5 lg:grid-cols-[1.4fr_1fr]">
-        <Panel>
-          <PanelHeader
-            title="Recent transactions"
-            accent="green"
-            right={<PanelLink href={adminHref("/admin/settings")}>Manage</PanelLink>}
-          />
-          <LedgerTotals totals={data.ledger.totals} />
-          {data.ledger.recent.length === 0 ? (
-            <EmptyLine>Nothing yet. Add a deposit or cashout in Settings.</EmptyLine>
-          ) : (
-            <ul className="divide-y divide-white/[0.06]">
-              {data.ledger.recent.map((transaction) => {
-                const isDeposit = transaction.kind === "deposit"
-                const color = isDeposit ? ACCENTS.red : ACCENTS.green
-                return (
-                  <li key={transaction.id} className="flex items-center gap-3 px-3.5 py-2.5">
-                    <span
-                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded"
-                      style={{ color, backgroundColor: `${color}1a` }}
-                    >
-                      {isDeposit ? <ArrowDownLeft className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}
-                    </span>
-                    <span className="w-24 shrink-0 text-[13px] font-semibold tabular-nums" style={{ color }}>
-                      {isDeposit ? "−" : "+"}
-                      {formatMoney(Number(transaction.amount))}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[12px] text-white/40">{transaction.note ?? ""}</span>
-                    <time className="shrink-0 font-mono text-[10px] tabular-nums text-white/25">
-                      {formatTransactionTime(transaction.created_at)}
-                    </time>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </Panel>
-
-        <Panel>
-          <PanelHeader title="OBS sources" accent="amber" />
+      <Panel>
+        <PanelHeader
+          title="Recent transactions"
+          accent="green"
+          right={<PanelLink href={adminHref("/admin/settings")}>Manage</PanelLink>}
+        />
+        <LedgerTotals totals={data.ledger.totals} />
+        {data.ledger.recent.length === 0 ? (
+          <EmptyLine>Nothing yet. Add a deposit or cashout in Settings.</EmptyLine>
+        ) : (
           <ul className="divide-y divide-white/[0.06]">
-            {OBS_SOURCES.map((source) => (
-              <ObsSourceRow key={source.path} {...source} />
-            ))}
+            {data.ledger.recent.map((transaction) => {
+              const isDeposit = transaction.kind === "deposit"
+              const color = isDeposit ? ACCENTS.red : ACCENTS.green
+              return (
+                <li key={transaction.id} className="flex items-center gap-3 px-3.5 py-2.5">
+                  <span
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded"
+                    style={{ color, backgroundColor: `${color}1a` }}
+                  >
+                    {isDeposit ? <ArrowDownLeft className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}
+                  </span>
+                  <span className="w-24 shrink-0 text-[13px] font-semibold tabular-nums" style={{ color }}>
+                    {isDeposit ? "−" : "+"}
+                    {formatMoney(Number(transaction.amount))}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-white/40">{transaction.note ?? ""}</span>
+                  <time className="shrink-0 font-mono text-[10px] tabular-nums text-white/25">
+                    {formatTransactionTime(transaction.created_at)}
+                  </time>
+                </li>
+              )
+            })}
           </ul>
-        </Panel>
-      </div>
+        )}
+      </Panel>
     </div>
   )
 }
@@ -414,37 +391,4 @@ function LoadingLine() {
 
 function EmptyLine({ children }: { children: React.ReactNode }) {
   return <p className="px-4 py-8 text-center text-[12px] text-white/30">{children}</p>
-}
-
-/** Copies the absolute URL, because OBS needs the full address, not the path. */
-function ObsSourceRow({ path, label, size }: { path: string; label: string; size: string }) {
-  const [copied, setCopied] = useState(false)
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(siteUrl(path))
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch {
-      // Clipboard can be blocked; the path is on screen either way.
-    }
-  }
-
-  return (
-    <li className="flex items-center gap-3 px-3.5 py-2.5">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[12.5px] text-white/80">{label}</p>
-        <p className="truncate font-mono text-[10px] text-white/25">{path}</p>
-      </div>
-      <MonoLabel className="shrink-0 text-white/25">{size}</MonoLabel>
-      <button
-        type="button"
-        onClick={copy}
-        aria-label={`Copy ${label} URL`}
-        className="shrink-0 rounded p-1.5 text-white/25 transition hover:bg-white/[0.06] hover:text-white/80"
-      >
-        {copied ? <Check className="h-3.5 w-3.5" style={{ color: ACCENTS.green }} /> : <Copy className="h-3.5 w-3.5" />}
-      </button>
-    </li>
-  )
 }

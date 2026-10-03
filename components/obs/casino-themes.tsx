@@ -28,8 +28,8 @@ import { CASINO_NAMES, isCasinoId, type CasinoId } from "@/lib/casinos"
  * notes in casino-strips.tsx. The others were sampled off screenshots of each
  * casino's game page: header tone, the bar under the game, the muted text in
  * that bar, and the toggle as the casino draws it. The logos in
- * public/casinos/ are cut out of the same screenshots. Dropping an official
- * transparent PNG in at the same path replaces one without touching code.
+ * public/casinos/ are the casinos' own artwork: SVGs, plus a transparent PNG
+ * for Shuffle.
  */
 
 /** An icon in the top strip, drawn at the size and colour it is given. */
@@ -189,7 +189,7 @@ const STAKE: CasinoTheme = {
 const GAMBA: CasinoTheme = {
   id: "gamba",
   name: CASINO_NAMES.gamba,
-  logo: { src: "/casinos/gamba-logo.png", height: 0.6 },
+  logo: { src: "/casinos/gamba-logo.svg", height: 0.66 },
   colors: {
     background: "#1C202C",
     topBackground: "#242937",
@@ -215,7 +215,7 @@ const GAMBA: CasinoTheme = {
 const GAMDOM: CasinoTheme = {
   id: "gamdom",
   name: CASINO_NAMES.gamdom,
-  logo: { src: "/casinos/gamdom-logo.png", height: 0.5 },
+  logo: { src: "/casinos/gamdom-logo.svg", height: 0.5 },
   colors: {
     // The header and the bar under the game are one tone on Gamdom.
     background: "#070D12",
@@ -241,7 +241,7 @@ const GAMDOM: CasinoTheme = {
 const ROOBET: CasinoTheme = {
   id: "roobet",
   name: CASINO_NAMES.roobet,
-  logo: { src: "/casinos/roobet-logo.png", height: 0.58 },
+  logo: { src: "/casinos/roobet-logo.svg", height: 0.66 },
   colors: {
     background: "#0A0B1D",
     topBackground: "#1A1939",
@@ -300,7 +300,7 @@ const SHUFFLE: CasinoTheme = {
 const CSGO500: CasinoTheme = {
   id: "csgo500",
   name: CASINO_NAMES.csgo500,
-  logo: { src: "/casinos/csgo500-logo.png", height: 0.62 },
+  logo: { src: "/casinos/csgo500-logo.svg", height: 0.62 },
   colors: {
     background: "#292731",
     topBackground: "#272231",
