@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Trinidorewards Hunt Tracker",
-  "version": "2.0.1",
-  "description": "Add bonuses to the active Trinidorewards bonus hunt from Stake, Gamdom, Roobet, Shuffle, CSGO500 and more — by hand or automatically when a bonus triggers.",
+  "version": "2.1.0",
+  "description": "Add bonuses to the active Trinidorewards bonus hunt from Stake, Gamdom, Roobet, Shuffle, CSGO500, Gamba and more — by hand or automatically when a bonus triggers.",
   "minimum_chrome_version": "111",
   "permissions": ["storage", "scripting"],
   "host_permissions": [
@@ -31,6 +31,7 @@
         "https://*.shuffle.com/*",
         "https://*.500.casino/*",
         "https://*.csgo500.com/*",
+        "https://*.gamba.com/*",
         "https://*.rainbet.com/*",
         "https://*.thrill.com/*",
         "https://*.duelbits.com/*",
@@ -63,6 +64,7 @@
       ],
       "js": ["autotrack-injected.js"],
       "all_frames": true,
+      "match_origin_as_fallback": true,
       "run_at": "document_start",
       "world": "MAIN"
     },
@@ -84,6 +86,7 @@
       ],
       "js": ["config.js", "autotrack-bridge.js"],
       "all_frames": true,
+      "match_origin_as_fallback": true,
       "run_at": "document_start"
     }
   ],

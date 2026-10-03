@@ -97,26 +97,43 @@
 
   // ===== Pragmatic Play =====
   // POST .../gs2c/ge/v3/gameService, urlencoded both ways.
-  //   request : action=doSpin&c=<coin>&l=<lines>...
-  //   response: rid=<round>&tw=...&fs=<free spin #>&fsmax=<count>&na=s|c|b
+  //   request : action=doSpin&c=<coin>&l=<lines>[&pur=0 on a bonus buy]
+  //   response: tw=...&fs=<free spin #>&fsmax=<count>&na=s|c|b
+  // Captured from Gates of Olympus (2026-10-03): the triggering response —
+  // natural or bought — carries fs=1&fsmax=15 and NO round id (rid), so
+  // nothing here may depend on one. Each later free spin counts fs up, so
+  // fs=1 is the trigger exactly once; a game reloaded mid-bonus resumes at
+  // fs>1 and is not counted again. Bonus games without free spins announce
+  // themselves with na=b instead.
   // The base bet is c * l from the REQUEST (with extra chance the response
   // reports more lines than were bet). doInit replays the last unfinished
-  // round on load, so only doSpin counts. Free spins share their trigger's
-  // rid, so the first response showing a free-spin or bonus state is the
-  // trigger.
+  // round on load, so only doSpin counts.
+
+  var pragmaticInBonus = false
+  var pragmaticTriggers = 0
 
   function readPragmatic(reqText, respText) {
     var req = parseParams(reqText)
+    if (req.action === "doCollect") {
+      pragmaticInBonus = false
+      return
+    }
     if (req.action !== "doSpin") return
     var resp = parseParams(respText)
 
     var c = num(req.c)
     var l = num(req.l)
     var value = c !== null && l !== null ? c * l : null
-    var inBonus = resp.fs !== undefined || resp.fsmax !== undefined || resp.na === "b"
+    var freeSpins = resp.fs !== undefined || resp.fsmax !== undefined
+    var inBonus = freeSpins || resp.na === "b"
+    var triggered = resp.fs === "1" || (resp.na === "b" && !pragmaticInBonus)
 
-    if (!inBonus) bet("pragmatic", value)
-    if (inBonus && resp.rid) bonus("pragmatic", resp.rid, value)
+    if (!inBonus && !req.pur) bet("pragmatic", value)
+    if (triggered && !pragmaticInBonus) {
+      pragmaticTriggers++
+      bonus("pragmatic", resp.rid || "t" + pragmaticTriggers + ":" + (resp.stime || Date.now()), value)
+    }
+    pragmaticInBonus = inBonus
   }
 
   // ===== Hacksaw / Backseat Gaming =====
@@ -308,6 +325,16 @@
     return null
   }
 
+  // Body as text, allowing for a Blob (read asynchronously).
+  function bodyText(body) {
+    try {
+      if (typeof Blob !== "undefined" && body instanceof Blob) return body.text().catch(function () { return null })
+    } catch (e) {
+      /* fall through */
+    }
+    return Promise.resolve(bodyToText(body))
+  }
+
   function xhrText(xhr) {
     var type = xhr.responseType
     try {
@@ -349,7 +376,7 @@
         // Read the request body before fetch consumes it.
         var bodyPromise
         try {
-          if (init && init.body !== undefined) bodyPromise = Promise.resolve(bodyToText(init.body))
+          if (init && init.body !== undefined) bodyPromise = bodyText(init.body)
           else if (input && typeof input.clone === "function") bodyPromise = input.clone().text().catch(function () { return null })
           else bodyPromise = Promise.resolve(null)
         } catch (e) {
@@ -387,10 +414,13 @@
       var xhr = this
       var reader = pick(xhr.__thtUrl || "")
       if (reader) {
-        var reqText = bodyToText(body)
+        var reqPromise = bodyText(body)
         xhr.addEventListener("load", function () {
           var text = xhrText(xhr)
-          if (text !== null) run(reader, reqText, text)
+          if (text === null) return
+          reqPromise.then(function (reqText) {
+            run(reader, reqText, text)
+          })
         })
       }
       return originalSend.apply(this, arguments)

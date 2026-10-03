@@ -79,7 +79,7 @@ function isNum(v) {
 
 // --- Main view ---------------------------------------------------------------
 
-const SUPPORTED_HINT = "Go to a supported site (Stake, Gamdom, Roobet, Shuffle, CSGO500, etc.) to add bonuses to this hunt."
+const SUPPORTED_HINT = "Go to a supported site (Stake, Gamdom, Roobet, Shuffle, CSGO500, Gamba, etc.) to add bonuses to this hunt."
 
 function setStatus(kind, text) {
   const el = $("status")

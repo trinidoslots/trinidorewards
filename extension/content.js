@@ -594,7 +594,18 @@
   const AUTO_DEDUPE_MS = 8000
   let lastAutoAddAt = 0
 
+  // One console line per report from a game frame, so "auto tracking did
+  // nothing" can be told apart from "the game frame never reported".
+  function logAuto(kind, data) {
+    try {
+      console.info(`[Hunt Tracker] ${kind} from ${data.provider}: ${data.bet == null ? "?" : data.bet}`)
+    } catch (err) {
+      /* console unavailable */
+    }
+  }
+
   function onAutoBet(data) {
+    logAuto("bet", data)
     if (!BonusTrackerState.settings.siteEnabled || !BonusTrackerState.settings.syncBet) return
     const bet = Number(data && data.bet)
     if (!bet || bet <= 0) return
@@ -604,6 +615,7 @@
   }
 
   function onAutoBonus(data, attempt) {
+    if (!attempt) logAuto("bonus trigger", data)
     const state = BonusTrackerState
     if (!state.settings.siteEnabled) return
 
@@ -686,6 +698,11 @@
   const BRAND_SVG =
     '<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="0.5" y="0.5" width="63" height="63" rx="14" fill="#121216" stroke="rgba(255,255,255,0.14)"/><rect x="14" y="18" width="26" height="7" rx="1.5" fill="#fff"/><rect x="23.5" y="18" width="7" height="28" rx="1.5" fill="#fff"/><circle cx="45" cy="21.5" r="4.5" fill="#5B8DEF"/></svg>'
 
+  // Drawn, not a text glyph: "▾" renders at a different size and baseline in
+  // every casino's font, and never sat centred in the button.
+  const CHEVRON_SVG =
+    '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+
   function buildPanel() {
     const panel = document.createElement("div")
     panel.className = "tht-panel tht-hidden"
@@ -755,7 +772,9 @@
     const arrowBtn = document.createElement("button")
     arrowBtn.type = "button"
     arrowBtn.className = "tht-arrow-btn"
-    arrowBtn.textContent = "▾"
+    arrowBtn.title = "More options"
+    arrowBtn.setAttribute("aria-label", "More options")
+    arrowBtn.innerHTML = CHEVRON_SVG
     btnWrap.append(mainBtn, arrowBtn)
 
     const panel = buildPanel()

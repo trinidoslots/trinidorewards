@@ -410,6 +410,53 @@
     },
   }
 
-  self.THT_SITES = [stake, gamdom, roobet, shuffle, csgo500, rainbet, thrill, duelbits, razed, winna, acebet, yeet, degen]
+  // --- Gamba --------------------------------------------------------------------
+  // Checked against the live site (2026-10-03). Game pages are
+  // /casino/games/<provider>/<game>; "gamba" as the provider is their own
+  // originals (dice, crash, ...), which are not bonus games. The page title
+  // reads "Sweet Bonanza 1000 by Pragmatic Play | Play Online at Gamba" and
+  // the info block has the name in an h3 next to the box art. Lobby tiles
+  // carry no name or alt text at all — only the link — so their name is the
+  // URL slug, which normalizes to the same letters as the title.
+
+  function gambaGamePath() {
+    const m = location.pathname.match(/^\/casino\/games\/([^/]+)\/([^/]+)/)
+    return m && m[1] !== "gamba" ? m : null
+  }
+
+  const gamba = {
+    id: "gamba",
+    name: "Gamba",
+    hosts: /(^|\.)gamba\.com$/,
+    getSlot() {
+      if (!gambaGamePath()) return null
+      const fromTitle = document.title.match(/^(.+?) by (.+?) \|/)
+      const h3 = document.querySelector("h3.text-lg.font-bold")
+      const name = (h3 && clean(h3.textContent)) || (fromTitle ? fromTitle[1] : "")
+      // The title's provider first: provider links also appear in the
+      // sidebar and footer, and the first one on the page is not always the
+      // game's.
+      const providerLink = document.querySelector(`a[href="/casino/provider/${gambaGamePath()[1]}"] span`)
+      const provider = (fromTitle ? fromTitle[2] : null) || (providerLink && clean(providerLink.textContent))
+      const result = slot(name, provider)
+      if (result && !result.imageUrl && h3) {
+        const art = h3.parentElement && h3.parentElement.parentElement && h3.parentElement.parentElement.querySelector("img")
+        if (art) result.imageUrl = art.currentSrc || art.getAttribute("src") || null
+      }
+      return result
+    },
+    cards() {
+      return cardsFrom(
+        'a[href^="/casino/games/"]',
+        (card) => {
+          const m = (card.getAttribute("href") || "").match(/^\/casino\/games\/([^/]+)\/([^/?#]+)/)
+          return m && m[1] !== "gamba" ? m[2].replace(/-/g, " ") : ""
+        },
+        (card, img) => img.parentElement,
+      )
+    },
+  }
+
+  self.THT_SITES = [stake, gamdom, roobet, shuffle, csgo500, gamba, rainbet, thrill, duelbits, razed, winna, acebet, yeet, degen]
   self.THT_normalize = normalize
 })()

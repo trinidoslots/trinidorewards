@@ -28,6 +28,7 @@ var CONFIG = {
     { id: "roobet", name: "Roobet" },
     { id: "shuffle", name: "Shuffle" },
     { id: "csgo500", name: "CSGO500" },
+    { id: "gamba", name: "Gamba" },
     { id: "rainbet", name: "Rainbet" },
     { id: "thrill", name: "Thrill" },
     { id: "duelbits", name: "Duelbits" },
