@@ -15,10 +15,16 @@
   if (!SITE) return
   const normalizeSlotName = self.THT_normalize
 
+  // A copy left over from before an extension update (see
+  // injectIntoOpenCasinoTabs in background.js) shuts itself down when it
+  // notices; clear whatever it left on the page so this copy starts clean.
+  document.querySelectorAll("#tht-widget-root, #tht-toast").forEach((el) => el.remove())
+
   let widgetRoot = null
   let widgetMode = null // "inline" | "float"
   let currentAnchor = null
   let betInputRef = null
+  let retired = false // set once this copy is cut off by an extension update
   let mainBtnRef = null
 
   // --- Safe chrome.* wrappers ------------------------------------------
@@ -220,7 +226,7 @@
   }
 
   function markBonusedSlots() {
-    if (!isExtensionValid() || !SITE.cards) return
+    if (retired || !isExtensionValid() || !SITE.cards) return
 
     let cards
     try {
@@ -549,7 +555,7 @@
   }
 
   function checkAutoSync(statusEl) {
-    if (!autoEnabled || !BonusTrackerState.settings.siteEnabled) return
+    if (retired || !autoEnabled || !BonusTrackerState.settings.siteEnabled) return
 
     const detected = getSlot()
     const slotName = detected ? detected.slotName : ""
@@ -863,6 +869,7 @@
   }
 
   function ensureWidget() {
+    if (retired) return
     const { siteEnabled, addBonus } = BonusTrackerState.settings
     if (!siteEnabled || !addBonus) {
       if (widgetRoot) removeWidget()
@@ -903,18 +910,34 @@
     updateDockLabel(detected)
   }
 
+  // The extension was reloaded or updated under this page: this copy can no
+  // longer reach it, so it stops and takes its widget with it instead of
+  // leaving buttons that silently do nothing. The new copy takes over.
+  function retireIfOrphaned() {
+    if (retired) return true
+    if (isExtensionValid()) return false
+    retired = true
+    clearInterval(tickTimer)
+    observer.disconnect()
+    if (widgetRoot && widgetRoot.isConnected) widgetRoot.remove()
+    widgetRoot = null
+    return true
+  }
+
   function tick() {
+    if (retireIfOrphaned()) return
     ensureWidget()
     checkAutoSync()
     markBonusedSlots()
   }
 
-  setInterval(tick, 1000)
+  const tickTimer = setInterval(tick, 1000)
 
   // Throttled: casino SPAs mutate constantly (live bet feeds, chat), and the
   // marks only need to keep up with what a person can see.
   let mutationTimer = null
-  new MutationObserver((mutations) => {
+  const observer = new MutationObserver((mutations) => {
+    if (retireIfOrphaned()) return
     // Ignore mutations caused by our own widget/toast updating themselves —
     // otherwise this loops (update widget -> observer -> update widget).
     const relevant = mutations.some((m) => {
@@ -929,7 +952,8 @@
       ensureWidget()
       markBonusedSlots()
     }, 200)
-  }).observe(document.body, { childList: true, subtree: true })
+  })
+  observer.observe(document.body, { childList: true, subtree: true })
 
   BonusTrackerState.subscribe(() => {
     ensureWidget()

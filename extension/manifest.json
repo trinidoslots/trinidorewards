@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Trinidorewards Hunt Tracker",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Add bonuses to the active Trinidorewards bonus hunt from Stake, Gamdom, Roobet, Shuffle, CSGO500 and more — by hand or automatically when a bonus triggers.",
   "minimum_chrome_version": "111",
-  "permissions": ["storage"],
+  "permissions": ["storage", "scripting"],
   "host_permissions": [
     "https://trinidorewards.vercel.app/*",
     "https://trinidorewards.com/*"

@@ -5,7 +5,10 @@
 // The API key no longer has to be pasted in here: open the extension popup →
 // Settings → Connection and save it there (stored in chrome.storage.local).
 // API_KEY below is only a fallback for builds that still ship a key in-file.
-const CONFIG = {
+// `var`, not `const`: background.js re-injects this file into casino tabs that
+// were already open when the extension was installed or updated, and a second
+// `const` in the same content-script world is a SyntaxError.
+var CONFIG = {
   BASE_URL: "https://trinidorewards.vercel.app",
   API_KEY: "PASTE_YOUR_EXTENSION_API_KEY_HERE",
 

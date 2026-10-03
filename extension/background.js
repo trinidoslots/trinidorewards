@@ -171,6 +171,28 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 })
 
+// Chrome only runs content scripts in pages loaded AFTER an install or
+// update. A casino tab left open through one keeps the previous copy's widget
+// on screen, cut off from the extension: buttons fail and now-playing
+// auto-update goes quiet until the tab is reloaded. So the new copy is put
+// into those tabs straight away; content.js clears out the stale one.
+async function injectIntoOpenCasinoTabs() {
+  const casino = chrome.runtime.getManifest().content_scripts[0]
+  const tabs = await chrome.tabs.query({ url: casino.matches }).catch(() => [])
+  for (const tab of tabs) {
+    if (tab.discarded || tab.status === "unloaded") continue
+    const target = { tabId: tab.id }
+    try {
+      await chrome.scripting.insertCSS({ target, files: casino.css })
+      await chrome.scripting.executeScript({ target, files: casino.js })
+    } catch (err) {
+      // Tab closed, navigating, or showing an error page — it gets the
+      // scripts normally on its next load.
+    }
+  }
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log("[Trinidorewards Hunt Tracker] installed")
+  injectIntoOpenCasinoTabs()
 })
