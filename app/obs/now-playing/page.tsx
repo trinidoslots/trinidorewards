@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { isPlaying } from "@/lib/now-playing"
 import { barHeight, placementFrom } from "@/lib/obs-placement"
 import { NowPlayingStrip, PREVIEW_ROW, useNowPlaying } from "@/components/obs/casino-strips"
+import { CasinoThemeProvider, casinoTheme } from "@/components/obs/casino-themes"
 
 /**
  * The slot currently being played, as the casino's own info bar, on its own.
@@ -20,6 +21,8 @@ import { NowPlayingStrip, PREVIEW_ROW, useNowPlaying } from "@/components/obs/ca
  *   ?align        top | middle | bottom
  *   ?preview=1    a sample game without touching what is saved
  *   ?art=1        the game's thumbnail
+ *   ?casino=gamba another casino's look (gamdom, roobet, shuffle, csgo500);
+ *                 Stake without it
  */
 
 /**
@@ -45,12 +48,14 @@ function NowPlaying() {
   if (!isPlaying(row)) return null
 
   return (
-    <div
-      className="relative h-screen w-full bg-transparent"
-      style={{ ["--h" as string]: barHeight(params, MAX_BAR_PX) }}
-    >
-      <NowPlayingStrip row={row} showArt={params.get("art") === "1"} style={placementFrom(params)} />
-    </div>
+    <CasinoThemeProvider theme={casinoTheme(params.get("casino"))}>
+      <div
+        className="relative h-screen w-full bg-transparent"
+        style={{ ["--h" as string]: barHeight(params, MAX_BAR_PX) }}
+      >
+        <NowPlayingStrip row={row} showArt={params.get("art") === "1"} style={placementFrom(params)} />
+      </div>
+    </CasinoThemeProvider>
   )
 }
 

@@ -18,6 +18,7 @@ import {
 import { ONLY_ON_STAKE_BADGE } from "@/lib/slots"
 import { formatProvider } from "@/lib/providers"
 import { siteUrl } from "@/lib/site-url"
+import { CASINO_IDS, CASINO_NAMES } from "@/lib/casinos"
 
 /**
  * What the /obs/now-playing bar is showing.
@@ -118,7 +119,8 @@ export default function NowPlayingAdmin() {
     setBehind(false)
     setSuggestions([])
   }, [])
-  const [copied, setCopied] = useState(false)
+  /** The URL last copied, so only its button says so. */
+  const [copied, setCopied] = useState<string | null>(null)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
 
   const load = useCallback(async () => {
@@ -305,11 +307,11 @@ export default function NowPlayingAdmin() {
 
   const obsUrl = siteUrl("/obs/now-playing")
 
-  const copyUrl = async () => {
+  const copyUrl = async (url: string) => {
     try {
-      await navigator.clipboard.writeText(obsUrl)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      await navigator.clipboard.writeText(url)
+      setCopied(url)
+      setTimeout(() => setCopied((current) => (current === url ? null : current)), 2000)
     } catch {
       setError("Could not reach the clipboard — copy the URL by hand.")
     }
@@ -614,11 +616,11 @@ export default function NowPlayingAdmin() {
             </code>
             <button
               type="button"
-              onClick={() => void copyUrl()}
+              onClick={() => void copyUrl(obsUrl)}
               className="flex items-center gap-1.5 rounded-md border border-white/[0.10] px-2.5 py-1.5 text-[12px] text-white/60 transition hover:border-white/20 hover:text-white"
             >
-              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? "Copied" : "Copy"}
+              {copied === obsUrl ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied === obsUrl ? "Copied" : "Copy"}
             </button>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -628,25 +630,49 @@ export default function NowPlayingAdmin() {
             <span className="text-[11px] text-white/30">the matching strip above the capture</span>
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <code
-              className="rounded-md border px-3 py-1.5 text-[12px]"
-              style={{ borderColor: `${ACCENTS.green}55`, backgroundColor: "rgba(0,0,0,0.4)", color: "#DDE7EC" }}
-            >
-              {obsUrl.replace("/now-playing", "/casino-frame")}
-            </code>
+          <div className="mt-4">
             <span className="text-[11px] text-white/45">
-              both strips and the side rails as one 1410×900 frame — set the source to that size
+              Casino frame — both strips and the side rails as one 1410×900 frame, one per casino. Set the source to
+              that size.
             </span>
+            <div className="mt-2 flex flex-col gap-1.5">
+              {CASINO_IDS.map((casino) => {
+                const url = siteUrl(`/obs/casino-frame/${casino}`)
+                return (
+                  <div key={casino} className="flex flex-wrap items-center gap-2">
+                    <span className="w-[72px] text-[12px] font-medium text-white/60">{CASINO_NAMES[casino]}</span>
+                    <code
+                      className="rounded-md border px-3 py-1.5 text-[12px]"
+                      style={{
+                        borderColor: `${ACCENTS.green}55`,
+                        backgroundColor: "rgba(0,0,0,0.4)",
+                        color: "#DDE7EC",
+                      }}
+                    >
+                      {url}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => void copyUrl(url)}
+                      className="flex items-center gap-1.5 rounded-md border border-white/[0.10] px-2 py-1.5 text-[12px] text-white/60 transition hover:border-white/20 hover:text-white"
+                      aria-label={`Copy the ${CASINO_NAMES[casino]} frame URL`}
+                    >
+                      {copied === url ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
           <p className="mt-3 text-[11px] leading-relaxed text-white/30">
-            Both take <code className="text-white/45">?x ?y ?w ?h</code> to place the strip inside the source,
-            or <code className="text-white/45">?align=top|middle|bottom</code>. Set the source to the size it
-            occupies on the canvas and never resize the box — a source rendered at half the width and
-            stretched is what makes an overlay look soft.{" "}
-            <code className="text-white/45">?preview=1</code> shows a sample without touching what is saved,
-            and <code className="text-white/45">?art=1</code> adds the thumbnail.
+            Both take <code className="text-white/45">?x ?y ?w ?h</code> to place the strip inside the source, or{" "}
+            <code className="text-white/45">?align=top|middle|bottom</code>. Set the source to the size it occupies on
+            the canvas and never resize the box — a source rendered at half the width and stretched is what makes an
+            overlay look soft. <code className="text-white/45">?preview=1</code> shows a sample without touching what is
+            saved, and <code className="text-white/45">?art=1</code> adds the thumbnail. The strips on their own take{" "}
+            <code className="text-white/45">?casino=gamba</code> (or gamdom, roobet, shuffle, csgo500) for another
+            casino&apos;s look.
           </p>
         </div>
       </Panel>
