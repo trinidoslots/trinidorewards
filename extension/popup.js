@@ -279,6 +279,32 @@ function renderLastAutoTrack(last) {
   el.textContent = `Last auto-added: ${last.slotName} · ${formatMoney(last.bet)}${provider ? " · " + provider.name : ""} · ${timeAgo(new Date(last.at).toISOString())}`
 }
 
+// What the extension can see of the game, so "auto tracking does nothing"
+// can be narrowed down: did the casino page have a game frame, and did any
+// game frame ever report a spin?
+function renderDiagnostics(frames, seen) {
+  const el = $("autotrack-diag")
+  const ago = (at) => timeAgo(new Date(at).toISOString())
+  const lines = []
+  if (seen && seen.at) {
+    const provider = CONFIG.PROVIDERS.find((p) => p.id === seen.provider)
+    lines.push(
+      `<div><span class="ok">●</span> Last game report: <b>${escapeHtml(provider ? provider.name : seen.provider)}</b> ${escapeHtml(seen.type)}${seen.bet ? " " + formatMoney(seen.bet) : ""} · ${ago(seen.at)} · ${escapeHtml(seen.host)}</div>`,
+    )
+  } else {
+    lines.push(`<div><span class="warn">●</span> No game has reported a spin yet.</div>`)
+  }
+  if (frames && frames.hosts && frames.hosts.length) {
+    lines.push(
+      `<div>Game frame on ${escapeHtml(frames.page)} (${escapeHtml(frames.slot || "game")}, ${ago(frames.at)}): <b>${frames.hosts.map(escapeHtml).join(", ")}</b></div>`,
+    )
+  }
+  if (frames && frames.hosts && frames.hosts.length && (!seen || seen.at < frames.at - 60000)) {
+    lines.push(`<div class="warn">If you spun in that game and nothing was reported, its frame is not reached — send the host above.</div>`)
+  }
+  el.innerHTML = lines.join("")
+}
+
 async function renderConnection(stored) {
   const select = $("base-url")
   select.innerHTML = ""
@@ -294,13 +320,22 @@ async function renderConnection(stored) {
 }
 
 async function renderSettings() {
-  const stored = await storageGet([...ALL_KEYS, ...CASINO_KEYS, "autotrack_last", "api_key", "base_url"])
+  const stored = await storageGet([
+    ...ALL_KEYS,
+    ...CASINO_KEYS,
+    "autotrack_last",
+    "autotrack_last_seen",
+    "tht_game_frames",
+    "api_key",
+    "base_url",
+  ])
   renderCasinos(stored)
   renderToggleList("provider-list", PROVIDER_SETTINGS, stored)
   renderToggleList("autotrack-extra", AUTOTRACK_EXTRA, stored)
   renderToggleList("general-list", GENERAL_SETTINGS, stored)
   renderToggleList("overlay-list", OVERLAY_SETTINGS, stored)
   renderLastAutoTrack(stored.autotrack_last)
+  renderDiagnostics(stored.tht_game_frames, stored.autotrack_last_seen)
   renderConnection(stored)
 }
 
@@ -353,7 +388,17 @@ $("version").textContent = `v${chrome.runtime.getManifest().version} · trinidor
 // The in-page menu can flip auto-update too; keep the open settings in step.
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local" || $("view-settings").hidden) return
-  if (changes.tht_now_playing_auto || changes.autotrack_last) renderSettings()
+  // Only the parts that changed: a full re-render would also reset the
+  // Connection fields while someone is typing in them.
+  if (changes.tht_now_playing_auto) {
+    storageGet(OVERLAY_SETTINGS.map((d) => d.key)).then((stored) => renderToggleList("overlay-list", OVERLAY_SETTINGS, stored))
+  }
+  if (changes.autotrack_last || changes.autotrack_last_seen || changes.tht_game_frames) {
+    storageGet(["autotrack_last", "autotrack_last_seen", "tht_game_frames"]).then((stored) => {
+      renderLastAutoTrack(stored.autotrack_last)
+      renderDiagnostics(stored.tht_game_frames, stored.autotrack_last_seen)
+    })
+  }
 })
 
 showView("main")

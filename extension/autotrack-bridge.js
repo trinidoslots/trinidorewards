@@ -75,6 +75,22 @@
     return
   }
 
+  // The last report from any game frame, for the popup's Auto Tracking
+  // section: proof the extension reached the game at all, and from which host.
+  var lastSeenWrite = 0
+  function noteSeen(data) {
+    var now = Date.now()
+    if (data.type !== "bonus" && now - lastSeenWrite < 5000) return
+    lastSeenWrite = now
+    try {
+      chrome.storage.local.set({
+        autotrack_last_seen: { provider: data.provider, type: data.type, bet: data.bet, host: location.hostname, at: now },
+      })
+    } catch (err) {
+      /* context invalidated */
+    }
+  }
+
   document.addEventListener("tht-autotrack", function (e) {
     var data
     try {
@@ -83,6 +99,7 @@
       return
     }
     if (!data || providerIds.indexOf(data.provider) === -1) return
+    noteSeen(data)
 
     if (data.type === "bonus") {
       if (!enabled[data.provider]) return

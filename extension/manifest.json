@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Trinidorewards Hunt Tracker",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "Add bonuses to the active Trinidorewards bonus hunt from Stake, Gamdom, Roobet, Shuffle, CSGO500, Gamba and more — by hand or automatically when a bonus triggers.",
   "minimum_chrome_version": "111",
   "permissions": [
@@ -78,6 +78,28 @@
       "match_origin_as_fallback": true,
       "run_at": "document_start",
       "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://*/gs2c/*"
+      ],
+      "js": [
+        "autotrack-injected.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://*/gs2c/*"
+      ],
+      "js": [
+        "config.js",
+        "autotrack-bridge.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_start"
     },
     {
       "matches": [

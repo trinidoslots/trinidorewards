@@ -51,6 +51,17 @@ export type ChangelogEntry = {
 
 export const EXTENSION_CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2.2.0",
+    at: "2026-10-03T22:58:35+02:00",
+    kind: "extension",
+    title: "Pragmatic on any domain, artwork everywhere, diagnostics",
+    changes: [
+      "Pragmatic game frames are matched by their /gs2c/ path on any domain, so a rotated real-money domain no longer leaves auto tracking blind. Chrome now lists access to all sites for that path.",
+      "Bonuses from casinos that do not show box art (everything but Stake) get the artwork from the slot catalogue or what now-playing remembers. Bonuses already in the hunt without a picture are filled in the next time one is added.",
+      "Settings → Auto Tracking shows the last spin a game reported and which game frame the casino tab has, so a frame the extension does not reach is visible by name.",
+    ],
+  },
+  {
     version: "2.1.1",
     at: "2026-10-03T22:28:15+02:00",
     kind: "extension",

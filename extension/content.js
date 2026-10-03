@@ -943,8 +943,37 @@
     return true
   }
 
+  // Which game frames this page has, for the popup's Auto Tracking section.
+  // An iframe's src is readable from here even when its content is not, so
+  // a provider host the extension does not cover shows up by name.
+  let lastFramesKey = ""
+  function noteGameFrames() {
+    if (!getSlot()) return
+    const hosts = []
+    for (const frame of document.querySelectorAll("iframe[src]")) {
+      try {
+        const url = new URL(frame.getAttribute("src"), location.href)
+        if (url.protocol === "https:" && url.hostname !== location.hostname && !hosts.includes(url.hostname)) {
+          hosts.push(url.hostname + (url.pathname.startsWith("/gs2c/") ? "/gs2c" : ""))
+        }
+      } catch (err) {
+        /* not a URL */
+      }
+    }
+    const key = hosts.join(",")
+    if (!key || key === lastFramesKey) return
+    lastFramesKey = key
+    safeStorageSet({ tht_game_frames: { page: location.hostname, slot: getSlot().slotName, hosts, at: Date.now() } })
+    try {
+      console.info("[Hunt Tracker] game frame(s) on this page:", hosts.join(", "))
+    } catch (err) {
+      /* console unavailable */
+    }
+  }
+
   function tick() {
     if (retireIfOrphaned()) return
+    noteGameFrames()
     ensureWidget()
     checkAutoSync()
     markBonusedSlots()

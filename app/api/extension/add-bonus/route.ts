@@ -1,7 +1,29 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse, after } from "next/server"
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 import { getActiveHunt } from "@/lib/active-hunt"
 import { bearerMatches } from "@/lib/bearer"
+import { readCatalogue, readSlotMeta } from "@/lib/slot-meta"
+
+type Db = ReturnType<typeof getServiceRoleClient>
+
+/**
+ * Artwork for a bonus the page could not supply one for. Stake's game page
+ * carries the box art the extension reads; most other casinos do not expose
+ * it in a usable way, so those bonuses arrived without a picture. The slot
+ * catalogue (Stake's artwork, kept current by the daily sync) and what
+ * slot_meta remembers from now-playing fill the gap. Never throws: a bonus
+ * without art is better than no bonus.
+ */
+async function artworkFor(supabase: Db, gameName: string): Promise<string | null> {
+  try {
+    const catalogue = await readCatalogue(supabase, gameName)
+    if (catalogue?.image_url) return catalogue.image_url
+    const meta = await readSlotMeta(supabase, gameName)
+    return meta?.image_url ?? null
+  } catch {
+    return null
+  }
+}
 
 // Service-role client: the Chrome extension authenticates with a static
 // bearer token (EXTENSION_API_KEY), not a Supabase session, so RLS-scoped
@@ -97,7 +119,7 @@ export async function POST(request: NextRequest) {
   const betSize = Number(body?.bet_size)
   const provider = typeof body?.provider === "string" && body.provider.trim() ? body.provider.trim() : null
   const isSuper = Boolean(body?.is_super)
-  const imageUrl = typeof body?.image_url === "string" && body.image_url.trim() ? body.image_url.trim() : null
+  const givenImage = typeof body?.image_url === "string" && body.image_url.trim() ? body.image_url.trim() : null
 
   if (!gameName) {
     return NextResponse.json({ error: "game_name is required" }, { status: 400 })
@@ -124,6 +146,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to add bonus" }, { status: 500 })
   }
 
+  const imageUrl = givenImage ?? (await artworkFor(supabase, gameName))
+
   const { data, error } = await supabase
     .from("hunt_bonuses")
     .insert({
@@ -143,7 +167,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to add bonus" }, { status: 500 })
   }
 
+  // Bonuses added before the artwork fallback existed get theirs too, after
+  // the response so adding a bonus is not held up by it.
+  after(() => fillMissingArtwork(supabase, hunt.id))
+
   return NextResponse.json({ success: true, bonus: data, hunt_id: hunt.id })
+}
+
+async function fillMissingArtwork(supabase: Db, huntId: string) {
+  const { data: rows } = await supabase
+    .from("hunt_bonuses")
+    .select("id, game_name")
+    .eq("hunt_id", huntId)
+    .is("image_url", null)
+    .limit(40)
+  for (const row of (rows ?? []) as { id: string; game_name: string }[]) {
+    const image = await artworkFor(supabase, row.game_name)
+    if (image) await supabase.from("hunt_bonuses").update({ image_url: image }).eq("id", row.id)
+  }
 }
 
 // DELETE: supports the extension's "Undo" action right after adding a bonus.
