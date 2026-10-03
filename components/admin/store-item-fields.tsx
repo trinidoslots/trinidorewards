@@ -1,7 +1,6 @@
 "use client"
 
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
+import { MonoLabel } from "@/components/ui/panel"
 import { PAYOUT_METHODS } from "@/lib/payout"
 import { STORE_IMAGE_GROUPS, isBundledImage } from "@/lib/store-images"
 import { SelectMenu } from "@/components/ui/select-menu"
@@ -26,9 +25,9 @@ export function PayoutMethodField({
 
   return (
     <div>
-      <Label htmlFor="payout_method" className="text-white/60">
-        Payout method
-      </Label>
+      <label htmlFor="payout_method">
+        <MonoLabel className="mb-1.5 block text-white/40">Payout method</MonoLabel>
+      </label>
       <SelectMenu
         id="payout_method"
         aria-label="Payout method"
@@ -39,7 +38,7 @@ export function PayoutMethodField({
           ...PAYOUT_METHODS.map((entry) => ({ value: entry.id, label: entry.label, hint: entry.hint })),
         ]}
       />
-      <p className="mt-1 text-xs text-white/40">
+      <p className="mt-1.5 text-[11px] text-white/35">
         {hint ?? "Buying is a single click — nothing is asked for."}
       </p>
     </div>
@@ -61,7 +60,7 @@ export function StoreImageField({
 }) {
   return (
     <div>
-      <Label className="text-white/60">Image</Label>
+      <MonoLabel className="block text-white/40">Image</MonoLabel>
 
       <div className="mt-2 space-y-3">
         {STORE_IMAGE_GROUPS.map((group) => (
@@ -93,10 +92,10 @@ export function StoreImageField({
         ))}
       </div>
 
-      <Input
+      <input
         value={isBundledImage(value) ? "" : value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-3 bg-white/[0.06] border-white/[0.10] text-white"
+        className="mt-3 h-9 w-full rounded-md border border-white/10 bg-black/40 px-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25"
         placeholder={isBundledImage(value) ? "Using the selected card above" : "…or paste an image URL"}
       />
     </div>

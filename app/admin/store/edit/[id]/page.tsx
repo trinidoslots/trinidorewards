@@ -4,16 +4,10 @@ import { adminHref } from "@/lib/admin-host"
 import type React from "react"
 
 import { createClient } from "@/lib/supabase/client"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { use, useEffect, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import { PayoutMethodField, StoreImageField } from "@/components/admin/store-item-fields"
-import { SelectMenu } from "@/components/ui/select-menu"
+import { EMPTY_STORE_ITEM, StoreItemForm, type StoreItemValues } from "@/components/admin/store-item-form"
 
 type StoreItem = {
   id: string
@@ -43,18 +37,7 @@ export default function EditStoreItemPage({ params }: { params: Promise<{ id: st
   const [item, setItem] = useState<StoreItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [formData, setFormData] = useState({
-    name: "",
-    cost: "",
-    quantity: "",
-    type: "Digital",
-    is_available: "true",
-    // Neither of these was editable before — an item's artwork could only ever
-    // be set at creation, and there was nowhere to change it afterwards.
-    icon: "",
-    payout_method: "",
-    code_user_only: false,
-  })
+  const [formData, setFormData] = useState<StoreItemValues>(EMPTY_STORE_ITEM)
   // Whether the row came back with the column at all (scripts/076). If not,
   // the flag is left out of the save rather than failing it.
   const [hasCodeUserColumn, setHasCodeUserColumn] = useState(false)
@@ -81,12 +64,17 @@ export default function EditStoreItemPage({ params }: { params: Promise<{ id: st
       setItem(data as StoreItem)
       setFormData({
         name: data.name,
+        // Category, description and the one-per-user rule were set at creation
+        // and could not be changed afterwards; the shared form edits them too.
+        category: data.category || "Regular",
+        description: data.description || "",
         cost: data.cost.toString(),
         quantity: data.quantity.toString(),
         type: data.type || "Digital",
-        is_available: data.is_available,
+        is_available: String(data.is_available) === "false" ? "false" : "true",
         icon: data.icon || "",
         payout_method: data.payout_method || "",
+        one_purchase_per_user: data.one_purchase_per_user === true,
         code_user_only: data.code_user_only === true,
       })
       setHasCodeUserColumn("code_user_only" in data)
@@ -100,6 +88,9 @@ export default function EditStoreItemPage({ params }: { params: Promise<{ id: st
 
     const patch = {
       name: formData.name,
+      category: formData.category || null,
+      description: formData.description || null,
+      one_purchase_per_user: formData.one_purchase_per_user,
       cost: Number.parseInt(formData.cost),
       quantity: Number.parseInt(formData.quantity),
       type: formData.type,
@@ -150,149 +141,13 @@ export default function EditStoreItemPage({ params }: { params: Promise<{ id: st
     setSubmitting(false)
   }
 
-  if (loading) {
+  if (loading || !item) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-white">Loading...</p>
-      </div>
+      <p className="py-16 text-center font-mono text-[11px] uppercase tracking-widest text-white/30">
+        {loading ? "Loading" : "Item not found"}
+      </p>
     )
   }
 
-  if (!item) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-white">Item not found</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen bg-[#0B0B0D] p-6">
-      <div className="max-w-2xl mx-auto">
-        <Link href={adminHref("/admin/store")}>
-          <Button variant="ghost" className="text-white/40 hover:text-white mb-6">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Store
-          </Button>
-        </Link>
-
-        <div className="bg-white/[0.03] backdrop-blur border border-white/[0.08] rounded-2xl p-8">
-          <h1 className="text-2xl font-bold text-white mb-6">Edit Store Item</h1>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="name" className="text-white/60">
-                Item Name
-              </Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-                className="bg-black/40 border-white/[0.10] text-white"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="cost" className="text-white/60">
-                Cost (Points)
-              </Label>
-              <Input
-                id="cost"
-                type="number"
-                value={formData.cost}
-                onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                required
-                className="bg-black/40 border-white/[0.10] text-white"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="type" className="text-white/60">
-                Type
-              </Label>
-              <SelectMenu
-                id="type"
-                aria-label="Type"
-                value={formData.type}
-                onChange={(value) => setFormData({ ...formData, type: value })}
-                options={[
-                    { value: "Digital", label: "Digital" },
-                    { value: "Physical", label: "Physical" },
-                    { value: "Service", label: "Service" },
-                    { value: "Bonus", label: "Bonus" },
-                    { value: "Other", label: "Other" },
-                  ]}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="quantity" className="text-white/60">
-                Quantity
-              </Label>
-              <Input
-                id="quantity"
-                type="number"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                required
-                className="bg-black/40 border-white/[0.10] text-white"
-              />
-              <p className="text-xs text-white/40 mt-1">Set to -1 for infinite quantity</p>
-            </div>
-
-            <div>
-              <Label htmlFor="is_available" className="text-white/60">
-                Status
-              </Label>
-              <SelectMenu
-                id="is_available"
-                aria-label="Status"
-                value={formData.is_available}
-                onChange={(value) => setFormData({ ...formData, is_available: value })}
-                options={[
-                  { value: "true", label: "Enabled" },
-                  { value: "false", label: "Disabled" },
-                ]}
-              />
-            </div>
-
-            <PayoutMethodField
-              value={formData.payout_method}
-              onChange={(value) => setFormData({ ...formData, payout_method: value })}
-            />
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="code_user_only"
-                checked={formData.code_user_only}
-                onChange={(e) => setFormData({ ...formData, code_user_only: e.target.checked })}
-                className="rounded border-white/[0.12]"
-              />
-              <Label htmlFor="code_user_only" className="text-white/60 cursor-pointer">
-                Code Users only <span className="text-white/30">– everyone else sees it locked</span>
-              </Label>
-            </div>
-
-            <StoreImageField
-              value={formData.icon}
-              onChange={(value) => setFormData({ ...formData, icon: value })}
-            />
-
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={submitting} className="bg-[#5B8DEF] hover:bg-[#5B8DEF] flex-1">
-                {submitting ? "Saving..." : "Save Changes"}
-              </Button>
-              <Link href={adminHref("/admin/store")} className="flex-1">
-                <Button type="button" variant="outline" className="w-full bg-transparent border-white/[0.12]">
-                  Cancel
-                </Button>
-              </Link>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  )
+  return <StoreItemForm mode="edit" values={formData} onChange={setFormData} onSubmit={handleSubmit} submitting={submitting} />
 }
