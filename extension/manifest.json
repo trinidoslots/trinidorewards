@@ -1,19 +1,90 @@
 {
   "manifest_version": 3,
   "name": "Trinidorewards Hunt Tracker",
-  "version": "1.0.0",
-  "description": "Add bonuses (game + bet size) to the active Trinidorewards bonus hunt directly from Stake.",
+  "version": "2.0.0",
+  "description": "Add bonuses to the active Trinidorewards bonus hunt from Stake, Gamdom, Roobet, Shuffle, CSGO500 and more — by hand or automatically when a bonus triggers.",
+  "minimum_chrome_version": "111",
   "permissions": ["storage"],
-  "host_permissions": ["https://stake.com/*", "https://*.stake.com/*", "https://trinidorewards.vercel.app/*"],
+  "host_permissions": [
+    "https://trinidorewards.vercel.app/*",
+    "https://trinidorewards.com/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://stake.com/*", "https://*.stake.com/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://*.stake.com/*",
+        "https://*.stake.bet/*",
+        "https://*.stake.games/*",
+        "https://*.stake.ac/*",
+        "https://*.stake.pet/*",
+        "https://*.stake.mba/*",
+        "https://*.stake.jp/*",
+        "https://*.stake.bz/*",
+        "https://*.stake.ceo/*",
+        "https://*.stake.krd/*",
+        "https://*.staketr.com/*",
+        "https://*.gamdom.com/*",
+        "https://*.roobet.com/*",
+        "https://*.shuffle.com/*",
+        "https://*.500.casino/*",
+        "https://*.csgo500.com/*",
+        "https://*.rainbet.com/*",
+        "https://*.thrill.com/*",
+        "https://*.duelbits.com/*",
+        "https://*.razed.com/*",
+        "https://*.razed2.com/*",
+        "https://*.winna.com/*",
+        "https://*.acebet.co/*",
+        "https://*.yeet.com/*",
+        "https://*.degen.com/*"
+      ],
+      "js": ["config.js", "sites.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.pragmaticplay.net/*",
+        "https://*.gcmlgxrmkp.net/*",
+        "https://*.yqrepcnlyj.net/*",
+        "https://*.clean-kazoo-75.net/*",
+        "https://*.qpidreoxcc.net/*",
+        "https://*.hacksawgaming.com/*",
+        "https://*.cloudfront.net/*",
+        "https://*.stake-engine.com/*",
+        "https://*.engine.io/*",
+        "https://*.massivestudios.io/*",
+        "https://*.sidetechnology.co/*",
+        "https://*.relaxg.com/*",
+        "https://*.qs-gaming.com/*"
+      ],
+      "js": ["autotrack-injected.js"],
+      "all_frames": true,
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://*.pragmaticplay.net/*",
+        "https://*.gcmlgxrmkp.net/*",
+        "https://*.yqrepcnlyj.net/*",
+        "https://*.clean-kazoo-75.net/*",
+        "https://*.qpidreoxcc.net/*",
+        "https://*.hacksawgaming.com/*",
+        "https://*.cloudfront.net/*",
+        "https://*.stake-engine.com/*",
+        "https://*.engine.io/*",
+        "https://*.massivestudios.io/*",
+        "https://*.sidetechnology.co/*",
+        "https://*.relaxg.com/*",
+        "https://*.qs-gaming.com/*"
+      ],
+      "js": ["config.js", "autotrack-bridge.js"],
+      "all_frames": true,
+      "run_at": "document_start"
     }
   ],
   "action": {

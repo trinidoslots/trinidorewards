@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
     payout: row.result,
     image_url: row.image_url,
     order: row.position,
+    created_at: row.created_at,
   }))
 
   // is_opening mirrors the `opening_state` singleton row (id=1) — the same

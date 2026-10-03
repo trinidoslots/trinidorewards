@@ -2,17 +2,46 @@
 // Doing the fetch here (rather than in content.js) keeps the request inside
 // an extension-privileged context, which is exempt from the page's CORS
 // restrictions as long as the target origin is declared in host_permissions.
+//
+// It is also the relay for auto tracking: a bonus trigger is seen inside the
+// game provider's iframe, but only the casino page around it knows the slot's
+// name, so triggers are forwarded to the tab's top frame.
 
 importScripts("config.js")
 
+// Site and key come from Settings → Connection; config.js is the fallback.
+async function getConnection() {
+  const stored = await chrome.storage.local.get(["api_key", "base_url"])
+  const allowed = CONFIG.SITE_OPTIONS.map((o) => o.url)
+  const baseUrl = allowed.includes(stored.base_url) ? stored.base_url : CONFIG.BASE_URL
+  let apiKey = (stored.api_key || "").trim()
+  if (!apiKey && CONFIG.API_KEY && !/^PASTE_/.test(CONFIG.API_KEY)) apiKey = CONFIG.API_KEY
+  return { baseUrl, apiKey }
+}
+
+async function api(path, init = {}) {
+  const { baseUrl, apiKey } = await getConnection()
+  if (!apiKey) return { ok: false, code: "no_key", data: { error: "Add your API key in Settings → Connection" } }
+  const res = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers: { ...(init.headers || {}), Authorization: `Bearer ${apiKey}` },
+  })
+  const data = await res.json().catch(() => ({}))
+  return { ok: res.ok, status: res.status, data }
+}
+
+function failure(result) {
+  if (result.code === "no_key") return { success: false, code: "no_key", error: result.data.error }
+  if (result.status === 401) return { success: false, error: "API key rejected (401)" }
+  if (result.status === 403) return { success: false, error: "Site refused the request (403)" }
+  return { success: false, error: result.data.error || `Request failed (${result.status})` }
+}
+
 async function addBonus({ gameName, provider, betSize, isSuperBonus, badgeLabel, imageUrl }) {
   try {
-    const res = await fetch(`${CONFIG.BASE_URL}/api/extension/add-bonus`, {
+    const result = await api("/api/extension/add-bonus", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${CONFIG.API_KEY}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         // game_name must stay the exact slot title — no quick-action label
         // gets appended to it, since the hunt-status matching (already
@@ -25,14 +54,8 @@ async function addBonus({ gameName, provider, betSize, isSuperBonus, badgeLabel,
         image_url: imageUrl || null,
       }),
     })
-
-    const data = await res.json().catch(() => ({}))
-
-    if (!res.ok) {
-      return { success: false, error: data.error || `Request failed (${res.status})` }
-    }
-
-    return { success: true, bonus: data.bonus }
+    if (!result.ok) return failure(result)
+    return { success: true, bonus: result.data.bonus }
   } catch (err) {
     return { success: false, error: "Network error — check your connection" }
   }
@@ -40,12 +63,8 @@ async function addBonus({ gameName, provider, betSize, isSuperBonus, badgeLabel,
 
 async function deleteBonus({ bonusId }) {
   try {
-    const res = await fetch(`${CONFIG.BASE_URL}/api/extension/add-bonus?id=${encodeURIComponent(bonusId)}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${CONFIG.API_KEY}` },
-    })
-    const data = await res.json().catch(() => ({}))
-    return { success: res.ok, error: data.error }
+    const result = await api(`/api/extension/add-bonus?id=${encodeURIComponent(bonusId)}`, { method: "DELETE" })
+    return result.ok ? { success: true } : failure(result)
   } catch (err) {
     return { success: false, error: "Network error — check your connection" }
   }
@@ -53,17 +72,10 @@ async function deleteBonus({ bonusId }) {
 
 async function fetchHuntStatus() {
   try {
-    const res = await fetch(`${CONFIG.BASE_URL}/api/extension/add-bonus`, {
-      headers: { Authorization: `Bearer ${CONFIG.API_KEY}` },
-      cache: "no-store",
-    })
-    const data = await res.json().catch(() => ({}))
+    const result = await api("/api/extension/add-bonus", { cache: "no-store" })
+    if (!result.ok) return failure(result)
 
-    if (!res.ok) {
-      return { success: false, error: data.error || `Request failed (${res.status})` }
-    }
-
-    const hunt = data.hunt || null
+    const hunt = result.data.hunt || null
     const rawBonuses = (hunt && (hunt.bonuses || hunt.active_bonuses || hunt.bonus_list)) || []
 
     const bonuses = rawBonuses.map((b) => ({
@@ -76,6 +88,7 @@ async function fetchHuntStatus() {
       isSuper: !!(b.is_super ?? b.isSuper ?? b.is_super_bonus),
       imageUrl: b.image_url || b.imageUrl || null,
       order: b.order ?? b.position ?? null,
+      createdAt: b.created_at || null,
     }))
 
     return {
@@ -83,6 +96,7 @@ async function fetchHuntStatus() {
       huntId: hunt ? hunt.id : null,
       streamer: hunt ? hunt.streamer : null,
       title: hunt ? hunt.title : null,
+      startingBalance: hunt ? hunt.starting_balance ?? null : null,
       isOpening: !!(hunt && (hunt.is_opening ?? hunt.status === "opening")),
       bonuses,
     }
@@ -91,15 +105,11 @@ async function fetchHuntStatus() {
   }
 }
 
-
 async function setNowPlaying({ slotName, provider, imageUrl, maxWin, badge }) {
   try {
-    const res = await fetch(`${CONFIG.BASE_URL}/api/extension/now-playing`, {
+    const result = await api("/api/extension/now-playing", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${CONFIG.API_KEY}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         slot_name: slotName,
         provider: provider || null,
@@ -108,14 +118,8 @@ async function setNowPlaying({ slotName, provider, imageUrl, maxWin, badge }) {
         badge: badge || null,
       }),
     })
-
-    const data = await res.json().catch(() => ({}))
-
-    if (!res.ok) {
-      return { success: false, error: data.error || `Request failed (${res.status})` }
-    }
-
-    return { success: true, nowPlaying: data.now_playing }
+    if (!result.ok) return failure(result)
+    return { success: true, nowPlaying: result.data.now_playing }
   } catch (err) {
     return { success: false, error: "Network error — check your connection" }
   }
@@ -123,39 +127,48 @@ async function setNowPlaying({ slotName, provider, imageUrl, maxWin, badge }) {
 
 async function clearNowPlaying() {
   try {
-    const res = await fetch(`${CONFIG.BASE_URL}/api/extension/now-playing`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${CONFIG.API_KEY}` },
-    })
-    const data = await res.json().catch(() => ({}))
-    return { success: res.ok, error: data.error }
+    const result = await api("/api/extension/now-playing", { method: "DELETE" })
+    return result.ok ? { success: true } : failure(result)
   } catch (err) {
     return { success: false, error: "Network error — check your connection" }
   }
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.action === "addBonus") {
-    addBonus(message.data).then(sendResponse)
-    return true
+// Provider iframe → the casino page in the same tab. frameId 0 is the top
+// frame, where content.js runs; the game frame is nested somewhere below it.
+function relayToTopFrame(sender, message) {
+  const tabId = sender.tab && sender.tab.id
+  if (tabId === undefined || tabId === null) return
+  chrome.tabs.sendMessage(tabId, message, { frameId: 0 }).catch(() => {
+    // No content script there: a casino the extension does not support, or
+    // one switched off in Settings. Nothing to do.
+  })
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  switch (message?.action) {
+    case "addBonus":
+      addBonus(message.data).then(sendResponse)
+      return true
+    case "deleteBonus":
+      deleteBonus(message.data).then(sendResponse)
+      return true
+    case "getHuntStatus":
+      fetchHuntStatus().then(sendResponse)
+      return true
+    case "setNowPlaying":
+      setNowPlaying(message.data).then(sendResponse)
+      return true
+    case "clearNowPlaying":
+      clearNowPlaying().then(sendResponse)
+      return true
+    case "autoTrackBonus":
+    case "autoTrackBet":
+      relayToTopFrame(sender, { action: message.action, data: message.data })
+      return false
+    default:
+      return false
   }
-  if (message?.action === "deleteBonus") {
-    deleteBonus(message.data).then(sendResponse)
-    return true
-  }
-  if (message?.action === "getHuntStatus") {
-    fetchHuntStatus().then(sendResponse)
-    return true
-  }
-  if (message?.action === "setNowPlaying") {
-    setNowPlaying(message.data).then(sendResponse)
-    return true
-  }
-  if (message?.action === "clearNowPlaying") {
-    clearNowPlaying().then(sendResponse)
-    return true
-  }
-  return false
 })
 
 chrome.runtime.onInstalled.addListener(() => {

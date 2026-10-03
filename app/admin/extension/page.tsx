@@ -23,7 +23,8 @@ const steps = [
   },
   {
     title: "Add your API key",
-    description: "Click the extension icon, paste your EXTENSION_API_KEY, and save. This authorizes bonus submissions.",
+    description:
+      "Click the extension icon, open Settings (gear) → Connection, paste your EXTENSION_API_KEY and save. This authorizes bonus submissions.",
   },
 ]
 
@@ -63,8 +64,9 @@ export default function AdminExtensionPage() {
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Hunt Tracker Extension</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-white/40">
-              Add bonuses to the active hunt directly from Stake&apos;s game page. The extension injects an &quot;+ Add
-              Bonus&quot; button next to the game info row and posts straight into your active hunt.
+              Add bonuses to the active hunt straight from the casino: Stake, Gamdom, Roobet, Shuffle, CSGO500,
+              Rainbet, Thrill, Duelbits and more. One click, or let auto tracking add each bonus the moment it
+              triggers. Everything can be switched on or off in the extension&apos;s settings.
             </p>
           </div>
           <Button onClick={handleDownload} disabled={downloading} className="bg-[#5B8DEF] text-[#0B0B0D] hover:bg-[#7FA8F5]">
@@ -117,8 +119,8 @@ export default function AdminExtensionPage() {
             <p className="mt-3 text-sm leading-6 text-white/60">
               The extension authenticates with your{" "}
               <code className="rounded bg-[#0B0B0D] px-1.5 py-0.5 font-mono text-amber-200">EXTENSION_API_KEY</code>{" "}
-              environment variable. Open the extension popup to paste it in — it&apos;s stored locally in Chrome and sent
-              as a Bearer token on every request.
+              environment variable. Paste it in the extension under Settings → Connection — it&apos;s stored locally in
+              Chrome and sent as a Bearer token on every request.
             </p>
           </div>
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.022] p-4">
@@ -127,8 +129,9 @@ export default function AdminExtensionPage() {
               <span className="text-xs uppercase tracking-wider">How it works</span>
             </div>
             <p className="mt-3 text-sm leading-6 text-white/60">
-              On Stake game pages, click &quot;+ Add Bonus&quot;, enter the bet size, and it posts the game name and bet
-              size straight to whichever hunt is currently active on your site.
+              On a game page, click &quot;+ Add Bonus&quot; (inline on Stake, a small dock elsewhere) and it posts the
+              game name and bet size to whichever hunt is active. With auto tracking on for a provider (Pragmatic,
+              Hacksaw, Stake Engine, Push, Relax, Quickspin) a triggered bonus is added by itself, at the bet you spun.
             </p>
           </div>
         </section>

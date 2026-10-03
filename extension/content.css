@@ -1,3 +1,9 @@
+/* Trinidorewards blue (the brand-mark dot). Declared on :root because the
+   game-tile marks live outside the widget. */
+:root {
+  --tht-accent: #5b8def;
+}
+
 #tht-widget-root {
   position: relative;
   display: inline-flex;
@@ -5,12 +11,11 @@
   gap: 7px;
   margin-left: 8px;
   vertical-align: middle;
-  font-family: "proxima-nova", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, ui-sans-serif, system-ui, sans-serif;
+  font-family: "Geist", "Inter", "proxima-nova", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, ui-sans-serif, system-ui, sans-serif;
   z-index: 40;
 }
 
-/* Bet size field — glassy dark box with a purple "$" prefix, matching the
-   tracker's currency-input look. The box (.tht-bet-wrap) carries the
+/* Bet size field — dark box with a blue "$" prefix. The box (.tht-bet-wrap) carries the
    border/background/focus styling; the input itself is transparent so the
    "$" and the number sit inside one shared control. */
 .tht-bet-wrap {
@@ -23,17 +28,17 @@
   padding: 0 10px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: rgba(30, 32, 45, 0.8);
+  background-color: rgba(11, 11, 13, 0.85);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .tht-bet-wrap:focus-within {
-  border-color: #9272ff;
-  box-shadow: 0 0 0 1px rgba(146, 114, 255, 0.3);
+  border-color: var(--tht-accent);
+  box-shadow: 0 0 0 1px rgba(91, 141, 239, 0.3);
 }
 
 .tht-bet-currency {
-  color: #9272ff;
+  color: var(--tht-accent);
   font-weight: 700;
   font-size: 13px;
   margin-right: 4px;
@@ -96,8 +101,8 @@
 
 .tht-main-btn,
 .tht-arrow-btn {
-  background: linear-gradient(135deg, #9272ff 0%, #7a5ce5 100%);
-  color: #fff;
+  background: var(--tht-accent);
+  color: #0b0b0d;
   border: none;
   cursor: pointer;
   transition: filter 0.2s ease;
@@ -107,7 +112,7 @@
   width: 119px;
   padding: 0 11px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   font-family: inherit;
   white-space: nowrap;
 }
@@ -165,7 +170,7 @@
   top: calc(100% + 6px);
   right: 0;
   width: 231px;
-  background: #1e202d;
+  background: #121216;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 11px;
@@ -180,7 +185,7 @@
 .tht-hint {
   font-size: 11px;
   font-weight: 700;
-  color: #9272ff;
+  color: var(--tht-accent);
   margin-bottom: 8px;
   min-height: 14px;
 }
@@ -193,14 +198,14 @@
   font-size: 12px;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(30, 32, 45, 0.8);
+  background: #0b0b0d;
   color: #fff;
 }
 
 .tht-input:focus {
   outline: none;
-  border-color: #9272ff;
-  box-shadow: 0 0 0 1px rgba(146, 114, 255, 0.3);
+  border-color: var(--tht-accent);
+  box-shadow: 0 0 0 1px rgba(91, 141, 239, 0.3);
 }
 
 .tht-menu-item {
@@ -214,7 +219,7 @@
 }
 
 .tht-menu-item:hover {
-  background: rgba(146, 114, 255, 0.2);
+  background: rgba(91, 141, 239, 0.16);
   color: #fff;
 }
 
@@ -256,8 +261,8 @@
 }
 
 .tht-actions [data-role="confirm"] {
-  background: linear-gradient(135deg, #9272ff 0%, #7a5ce5 100%);
-  color: #fff;
+  background: var(--tht-accent);
+  color: #0b0b0d;
 }
 
 .tht-actions [data-role="confirm"]:hover {
@@ -377,11 +382,11 @@
 
 /* Next-to-open highlight — shown only while the hunt is actively opening
    (BonusTrackerState.isOpening), on whichever unpaid bonus is first in
-   order. A pulsing purple ring keeps it clearly distinct from the static,
+   order. A pulsing blue ring keeps it clearly distinct from the static,
    desaturated "Already Bonused" look above, since this slot is about to be
    opened rather than already done. */
 .tht-next-opening {
-  outline: 2px solid #9272ff;
+  outline: 2px solid var(--tht-accent);
   outline-offset: -2px;
   border-radius: 6px;
   animation: tht-next-pulse 1.6s ease-in-out infinite;
@@ -390,10 +395,10 @@
 @keyframes tht-next-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(146, 114, 255, 0.55);
+    box-shadow: 0 0 0 0 rgba(91, 141, 239, 0.55);
   }
   50% {
-    box-shadow: 0 0 0 7px rgba(146, 114, 255, 0);
+    box-shadow: 0 0 0 7px rgba(91, 141, 239, 0);
   }
 }
 
@@ -404,7 +409,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  background: rgba(146, 114, 255, 0.95);
+  background: rgba(91, 141, 239, 0.95);
   color: #fff;
   padding: 3px 8px;
   border-radius: 5px;
@@ -421,4 +426,133 @@
 .tht-next-badge::before {
   content: "\25B6";
   font-size: 8px;
+}
+
+/* ---------- Floating dock ----------
+   Used on casinos without an inline spot (everything but Stake): the same
+   bet field + split button, pinned bottom-right on game pages. The brand
+   button collapses it to just the mark so it never covers the game. */
+#tht-widget-root.tht-float {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  margin: 0;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(18, 18, 22, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  z-index: 2147483000;
+  color: #f4f4f5;
+}
+
+.tht-dock-brand {
+  width: 37px;
+  height: 37px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 10px;
+  transition: transform 0.15s ease;
+}
+
+.tht-dock-brand:hover {
+  transform: scale(1.05);
+}
+
+.tht-dock-brand svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.tht-dock-body {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.tht-dock-slot {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 150px;
+  margin-right: 4px;
+  line-height: 1.25;
+}
+
+.tht-dock-slot span {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tht-dock-slot small {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#tht-widget-root.tht-collapsed {
+  padding: 5px;
+}
+
+#tht-widget-root.tht-collapsed .tht-dock-body,
+#tht-widget-root.tht-collapsed .tht-panel {
+  display: none;
+}
+
+/* Narrow windows: drop the game label so the controls still fit. */
+@media (max-width: 560px) {
+  .tht-dock-slot {
+    display: none;
+  }
+}
+
+/* The dock sits at the bottom of the screen, so its menu opens upward. */
+#tht-widget-root.tht-float .tht-panel {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+/* ---------- Toast ---------- */
+#tht-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translate(-50%, 16px);
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 11px 16px 11px 14px;
+  border-radius: 12px;
+  background: rgba(18, 18, 22, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 3px solid var(--tht-accent);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  color: #f4f4f5;
+  font: 600 13px/1.35 "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2147483647;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#tht-toast.tht-toast-show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+#tht-toast.tht-toast-success {
+  border-left-color: #4ade80;
+}
+
+#tht-toast.tht-toast-error {
+  border-left-color: #f87171;
 }
