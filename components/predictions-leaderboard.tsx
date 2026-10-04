@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ArrowRight, ChevronLeft, ChevronRight, ImageIcon, Lock, Sparkles, Trophy } from "lucide-react"
+import { ArrowRight, ImageIcon, Lock, Sparkles, Trophy } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { SelectMenu } from "@/components/ui/select-menu"
 
@@ -80,7 +80,6 @@ export function PredictionsLeaderboard({ huntId, isLoggedIn, currentUsername, pr
   const secondsLeft = windowOpen && closeTime ? Math.max(0, Math.ceil((closeTime - clock) / 1000)) : 0
   const mine = predictions.find((prediction) => prediction.username === currentUsername)
   const canSubmit = isLoggedIn && windowOpen
-  const goToCategory = (delta: number) => setCategory(categories[(categoryIndex + delta + categories.length) % categories.length].key)
 
   useEffect(() => {
     if (windowOpen && message.toLowerCase().startsWith("predictions are closed")) setMessage("")
@@ -91,95 +90,211 @@ export function PredictionsLeaderboard({ huntId, isLoggedIn, currentUsername, pr
 
   const submit = async (event: React.FormEvent) => { event.preventDefault(); if (!canSubmit) return setMessage("Predictions are closed for this round."); if (!form.final_balance || !form.highest_multi || !form.best_game) return setMessage("Complete all three picks first."); setSubmitting(true); const response = await fetch("/api/predict", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hunt_id: huntId, highest_multi: form.highest_multi, best_game: form.best_game, final_balance: form.final_balance }) }); const data = await response.json(); setMessage(response.ok ? "Prediction saved." : data.error || "Could not save prediction."); if (response.ok) await load(); setSubmitting(false) }
 
-  return <section className="flex h-full flex-col overflow-hidden rounded-lg border border-white/[0.08] bg-white/[0.022]">
-    <div className="shrink-0 border-b border-white/[0.08] px-4 py-3">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-[#5B8DEF]"><Sparkles className="h-4 w-4" /> Winners</div>
-          <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white/30">{categories[categoryIndex]?.short}</p>
-        </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <span className="font-mono text-[10px] tabular-nums text-white/30">{categoryIndex + 1} / {categories.length}</span>
-          <span className="flex items-center gap-1.5 font-mono text-[10px] text-white/25"><Lock className="h-3.5 w-3.5" /> {windowOpen ? `Open · ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : "Closed"}</span>
-        </div>
+  const accent = "#5B8DEF"
+  const countdown = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}`
+  const targetText =
+    actual == null
+      ? "Awaiting result"
+      : category === "ending_balance"
+        ? `$${Number(actual).toFixed(2)}`
+        : category === "highest_multi"
+          ? `${Number(actual).toFixed(2)}x`
+          : String(actual)
+
+  // The panel in the landing page's language: a bento frame, the bracketed
+  // label and a status pill, a pill switch for the three categories, the
+  // target in a dot-field panel, the top three, then your own pick.
+  return (
+    <section className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.035] to-white/[0.01] p-2">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-24 left-1/2 h-48 w-2/3 -translate-x-1/2 rounded-full opacity-20 blur-3xl"
+        style={{ backgroundColor: accent }}
+      />
+
+      <div className="relative flex items-center justify-between gap-3 px-3 pb-3 pt-2">
+        <span className="font-geist-mono flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-white/40">
+          <Sparkles className="h-3.5 w-3.5" style={{ color: accent }} />
+          Predictions
+        </span>
+        <span
+          className="font-geist-mono flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-[10px] uppercase tracking-[0.12em] tabular-nums"
+          style={
+            windowOpen
+              ? { borderColor: "#46C48A55", backgroundColor: "#46C48A14", color: "#46C48A" }
+              : { borderColor: "rgb(255 255 255 / 0.08)", color: "rgb(255 255 255 / 0.4)" }
+          }
+        >
+          {windowOpen ? (
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+          ) : (
+            <Lock className="h-3 w-3" />
+          )}
+          {windowOpen ? `Open · ${countdown}` : "Closed"}
+        </span>
       </div>
-    </div>
-    <div className="flex-1 p-5 sm:p-6">
-      <div key={category} className="prediction-category-transition mb-5 flex h-[132px] flex-col items-center justify-center rounded-xl border border-[#5B8DEF]/20 bg-[#5B8DEF]/[0.06] px-4 py-4 text-center">
-        <div className="flex items-center justify-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-[#5B8DEF]/70"><Trophy className="h-3.5 w-3.5" /> Target</div>
-        {category === "highest_win" && actual != null ? (
-          <div className="mt-3 flex items-center gap-3">
-            <span className="relative aspect-[180/236] w-11 shrink-0 overflow-hidden rounded-lg border border-[#5B8DEF]/20 bg-black/40">
-              {actualBestGameImage ? (
-                // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
-                <img src={actualBestGameImage || "/placeholder.svg"} alt={String(actual)} className="absolute inset-0 h-full w-full object-cover" />
-              ) : (
-                <ImageIcon className="absolute inset-0 m-auto h-5 w-5 text-white/20" />
-              )}
-            </span>
-            <p className="text-balance text-left text-[15px] font-semibold text-white">{actual}</p>
-          </div>
-        ) : (
-          <p className="mt-2 text-balance text-[18px] font-semibold text-[#5B8DEF] sm:text-[20px]">{actual == null ? "Awaiting result" : category === "ending_balance" ? `$${Number(actual).toFixed(2)}` : `${Number(actual).toFixed(2)}x`}</p>
-        )}
+
+      {/* The three categories as one pill switch, instead of arrows and dots. */}
+      <div className="relative mx-1 grid grid-cols-3 rounded-full border border-white/[0.08] bg-black/20 p-1">
+        {categories.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setCategory(item.key)}
+            className={`h-8 truncate rounded-full px-2 text-[12.5px] font-medium transition ${
+              item.key === category ? "bg-white text-black" : "text-white/45 hover:text-white"
+            }`}
+          >
+            {item.key === "ending_balance" ? "Balance" : item.key === "highest_multi" ? "Multi" : "Game"}
+          </button>
+        ))}
       </div>
-      <div key={`leaderboard-${category}`} className="prediction-leaderboard-transition space-y-2">
-        {noBestGameWinner ? <div className="flex items-center gap-3 rounded-lg border border-dashed border-white/[0.10] px-4 py-6 text-center">
-          <p className="w-full font-mono text-[10px] uppercase tracking-[0.12em] text-white/30">No winner this round</p>
-        </div> : [0, 1, 2].map((index) => {
-          const prediction = sorted[index]
-          if (!prediction) return <div key={index} className="flex items-center gap-3 rounded-lg border border-dashed border-white/[0.10] p-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.04] text-[11px] font-semibold text-white/25">{index + 1}</span><div className="h-4 flex-1" /></div>
-          const matched = isRowMatch(prediction, index)
-          return <div key={prediction.id} className={`flex items-center gap-3 rounded-lg border p-3 ${matched ? "border-[#5B8DEF]/25 bg-[#5B8DEF]/[0.06]" : "border-white/[0.08] bg-white/[0.022]"}`}>
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.07] text-[11px] font-semibold text-white/45">{index + 1}</span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] text-white/80">{prediction.username}</p>
-              <p className="mt-0.5 text-[11px] text-white/30">{subtext(prediction)}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <p className="text-[13px] font-semibold tabular-nums text-[#5B8DEF]">{rowValue(prediction)}</p>
-            </div>
-          </div>
-        })}
-      </div>
-      <div className="mt-5 flex items-center justify-between">
-        <button type="button" aria-label="Previous prediction category" onClick={() => goToCategory(-1)} className="rounded-md border border-white/[0.08] p-2 text-white/35 transition hover:border-white/20 hover:text-white"><ChevronLeft className="h-4 w-4" /></button>
-        <div className="flex items-center gap-1.5">{categories.map((item) => <button key={item.key} type="button" aria-label={`Show ${item.label}`} onClick={() => setCategory(item.key)} className={`h-1.5 rounded-full transition-all duration-200 ${item.key === category ? "w-6 bg-[#5B8DEF]" : "w-1.5 bg-white/15 hover:bg-white/30"}`} />)}</div>
-        <button type="button" aria-label="Next prediction category" onClick={() => goToCategory(1)} className="rounded-md border border-white/[0.08] p-2 text-white/35 transition hover:border-white/20 hover:text-white"><ChevronRight className="h-4 w-4" /></button>
-      </div>
-      <div className="mt-6 border-t border-white/[0.08] pt-4">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-white">Your prediction</p>
-          <span className="flex items-center gap-1.5 font-mono text-[10px] text-white/25"><Lock className="h-3.5 w-3.5" /> {windowOpen ? `Open · ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}` : "Closed"}</span>
-        </div>
-        {windowOpen ? <form onSubmit={submit} className="animate-in fade-in slide-in-from-bottom-2 space-y-2.5 duration-300">
-          <div className="grid grid-cols-2 gap-2">
-            <input disabled={!canSubmit} aria-label="Highest multiplier" type="number" step="0.01" placeholder="Peak multi" value={form.highest_multi} onChange={(e) => setForm({ ...form, highest_multi: e.target.value })} className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-[12.5px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25" />
-            <input disabled={!canSubmit} aria-label="Final balance" type="number" step="0.01" placeholder="Final balance" value={form.final_balance} onChange={(e) => setForm({ ...form, final_balance: e.target.value })} className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-[12.5px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25" />
-          </div>
-          <SelectMenu
-            disabled={!canSubmit}
-            aria-label="Best game"
-            placeholder="Select best game"
-            value={form.best_game}
-            onChange={(value) => setForm({ ...form, best_game: value })}
-            options={slots.map((slot) => ({ value: slot, label: slot }))}
+
+      <div className="relative flex flex-1 flex-col overflow-y-auto px-1 pt-3 [scrollbar-width:none]">
+        {/* The target: what the hunt actually came to, once it has. */}
+        <div
+          key={category}
+          className="prediction-category-transition lp-dots relative overflow-hidden rounded-xl border border-white/[0.06] bg-[#0d0d10] p-4"
+        >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{ background: `radial-gradient(70% 80% at 85% 0%, ${accent}24, transparent 70%)` }}
           />
-          <button type="submit" disabled={submitting || !canSubmit} className="flex w-full items-center justify-center gap-2 rounded-md border border-white/12 bg-white/[0.06] px-3 py-2.5 font-mono text-[11px] uppercase tracking-[0.1em] text-white transition hover:bg-white/[0.12] disabled:opacity-50">{submitting ? "Saving..." : mine ? "Update prediction" : "Lock in prediction"}<ArrowRight className="h-3.5 w-3.5" /></button>
-          {message && <p className="text-center text-[11px] text-white/40">{message}</p>}
-        </form> : <div className="animate-in fade-in flex flex-col items-center justify-center px-4 py-8 text-center duration-300">
-          <Lock className="h-6 w-6 text-white/30" />
-          <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white/45">Predictions are closed</p>
-          {mine ? <div className="mt-3 w-full rounded-md border border-[#5B8DEF]/20 bg-[#5B8DEF]/[0.05] p-3 text-left">
-            <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#5B8DEF]">Your saved prediction</p>
-            <div className="mt-2 grid grid-cols-3 gap-2 text-[12px] text-white/60">
-              <span>Peak: {mine.predicted_max_multiplier}x</span>
-              <span>Balance: ${mine.predicted_end_balance}</span>
-              <span>Game: {mine.predicted_best_game}</span>
+          <div className="relative">
+            <span className="font-geist-mono flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.14em]" style={{ color: accent }}>
+              <Trophy className="h-3 w-3" />
+              {categories[categoryIndex]?.label}
+            </span>
+            {category === "highest_win" && actual != null ? (
+              <div className="mt-3 flex items-center gap-3">
+                <span className="relative aspect-[180/236] w-10 shrink-0 overflow-hidden rounded-md border border-white/[0.10] bg-black/40">
+                  {actualBestGameImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
+                    <img src={actualBestGameImage} alt={String(actual)} className="absolute inset-0 h-full w-full object-cover" />
+                  ) : (
+                    <ImageIcon className="absolute inset-0 m-auto h-4 w-4 text-white/20" />
+                  )}
+                </span>
+                <p className="text-balance text-[16px] font-semibold leading-tight text-white">{actual}</p>
+              </div>
+            ) : (
+              <p
+                className={`mt-3 font-semibold leading-none tracking-[-0.03em] tabular-nums ${
+                  actual == null ? "text-[22px] text-white/45" : "text-[30px] text-white"
+                }`}
+              >
+                {targetText}
+              </p>
+            )}
+            <p className="mt-2 text-[12px] text-white/35">
+              {actual == null ? "Closest picks win when the hunt ends." : "Final result for this round."}
+            </p>
+          </div>
+        </div>
+
+        {/* The top three. */}
+        <div key={`leaderboard-${category}`} className="prediction-leaderboard-transition mt-3">
+          <p className="font-geist-mono mb-2 px-1 text-[10.5px] uppercase tracking-[0.14em] text-white/30">
+            {actual == null ? "Leading picks" : "Closest picks"}
+          </p>
+          {noBestGameWinner ? (
+            <div className="rounded-xl border border-dashed border-white/[0.10] px-4 py-6 text-center">
+              <p className="font-geist-mono text-[10.5px] uppercase tracking-[0.12em] text-white/30">No winner this round</p>
             </div>
-          </div> : <p className="mt-2 text-[12px] text-white/30">Predict once the hunt opens for a shot at the prize pool.</p>}
-        </div>}
+          ) : (
+            <ol className="overflow-hidden rounded-xl border border-white/[0.06] bg-black/20">
+              {[0, 1, 2].map((index) => {
+                const prediction = sorted[index]
+                if (!prediction) {
+                  return (
+                    <li key={index} className="flex h-[52px] items-center gap-3 border-b border-white/[0.05] px-3 last:border-b-0">
+                      <span className="font-geist-mono w-5 text-[11px] tabular-nums text-white/20">{String(index + 1).padStart(2, "0")}</span>
+                      <span className="text-[12.5px] text-white/20">Open spot</span>
+                    </li>
+                  )
+                }
+                const matched = isRowMatch(prediction, index)
+                return (
+                  <li
+                    key={prediction.id}
+                    className="flex h-[52px] items-center gap-3 border-b border-white/[0.05] px-3 last:border-b-0"
+                    style={matched ? { backgroundColor: `${accent}12` } : undefined}
+                  >
+                    <span className="font-geist-mono w-5 text-[11px] tabular-nums" style={{ color: index === 0 ? accent : "rgb(255 255 255 / 0.3)" }}>
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13.5px] text-white/85">{prediction.username}</p>
+                      <p className="truncate text-[11px] text-white/30">{subtext(prediction)}</p>
+                    </div>
+                    <p
+                      className="max-w-[45%] truncate text-right text-[13.5px] font-semibold tabular-nums"
+                      style={{ color: matched || index === 0 ? accent : "rgb(255 255 255 / 0.7)" }}
+                    >
+                      {rowValue(prediction)}
+                    </p>
+                  </li>
+                )
+              })}
+            </ol>
+          )}
+        </div>
+
+        {/* Your own pick. */}
+        <div className="mt-4 border-t border-white/[0.06] px-1 pb-2 pt-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-[14px] font-medium text-white">Your prediction</p>
+            {!isLoggedIn && <span className="text-[11.5px] text-white/35">Log in to take part</span>}
+          </div>
+          {windowOpen ? (
+            <form onSubmit={submit} className="animate-in fade-in slide-in-from-bottom-2 space-y-2 duration-300">
+              <div className="grid grid-cols-2 gap-2">
+                <input disabled={!canSubmit} aria-label="Highest multiplier" type="number" step="0.01" placeholder="Peak multi" value={form.highest_multi} onChange={(e) => setForm({ ...form, highest_multi: e.target.value })} className="h-10 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25" />
+                <input disabled={!canSubmit} aria-label="Final balance" type="number" step="0.01" placeholder="Final balance" value={form.final_balance} onChange={(e) => setForm({ ...form, final_balance: e.target.value })} className="h-10 w-full rounded-xl border border-white/10 bg-black/40 px-3 text-[13px] text-white outline-none transition placeholder:text-white/25 focus:border-white/25" />
+              </div>
+              <SelectMenu
+                disabled={!canSubmit}
+                aria-label="Best game"
+                placeholder="Select best game"
+                value={form.best_game}
+                onChange={(value) => setForm({ ...form, best_game: value })}
+                options={slots.map((slot) => ({ value: slot, label: slot }))}
+              />
+              <button type="submit" disabled={submitting || !canSubmit} className="flex h-10 w-full items-center justify-center gap-2 rounded-full bg-white px-4 text-[13.5px] font-medium text-black transition hover:bg-white/90 disabled:opacity-40">
+                {submitting ? "Saving..." : mine ? "Update prediction" : "Lock in prediction"}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+              {message && <p className="text-center text-[11.5px] text-white/45">{message}</p>}
+            </form>
+          ) : mine ? (
+            <div className="rounded-xl border p-3" style={{ borderColor: `${accent}33`, backgroundColor: `${accent}0d` }}>
+              <p className="font-geist-mono text-[10.5px] uppercase tracking-[0.14em]" style={{ color: accent }}>Your saved pick</p>
+              <dl className="mt-2.5 grid grid-cols-3 gap-2">
+                {[
+                  ["Balance", `$${mine.predicted_end_balance}`],
+                  ["Multi", `${mine.predicted_max_multiplier}x`],
+                  ["Game", mine.predicted_best_game],
+                ].map(([label, value]) => (
+                  <div key={label} className="min-w-0">
+                    <dt className="text-[10.5px] text-white/35">{label}</dt>
+                    <dd className="truncate text-[12.5px] font-medium tabular-nums text-white/80">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-xl border border-dashed border-white/[0.10] p-3.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.08] text-white/35">
+                <Lock className="h-3.5 w-3.5" />
+              </span>
+              <p className="text-[12.5px] leading-snug text-white/40">
+                Predictions open before the opening starts. Call the final balance for a shot at the prize.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
+  )
 }

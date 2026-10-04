@@ -5,7 +5,8 @@ import { GuessTheBalancePanel } from "@/components/guess-the-balance-panel"
 import { getCurrentExternalHuntMapped } from "@/lib/bonushunt-api"
 import { PreviousHuntsPanel } from "@/components/previous-hunts-panel"
 import { BonusHuntTabs } from "@/components/bonus-hunt-tabs"
-import { PageBody, PageHero } from "@/components/page-hero"
+import { PageIntro, PulseDot } from "@/components/ui/shell-kit"
+import { ACCENTS } from "@/components/ui/panel"
 import type { Metadata } from "next"
 import { getSiteSession } from "@/lib/site-session"
 
@@ -161,15 +162,23 @@ export default async function BonusHuntPage({ searchParams }: PageProps) {
 
   const hasActiveHunt = hunts.length > 0
 
+  const huntName = activeHunt?.title || externalHuntTitle
+
   return (
     <div>
-      <PageHero
-        accent="amber"
-        title="Bonus hunt"
-        subtitle="Every bonus as it is collected, the running numbers, and how far the remaining spins have to carry it."
-        note={hasActiveHunt ? "Live" : "Idle"}
+      <PageIntro
+        label="Bonus hunt"
+        title={hasActiveHunt ? `${huntName || "The live hunt"}.` : "The bonus hunt."}
+        muted={hasActiveHunt ? "Every bonus, as it opens." : "Nothing running right now."}
+        description="Every bonus as it is collected, the running numbers, and how far the remaining spins have to carry it."
+        right={
+          <span className="font-geist-mono inline-flex h-8 items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.02] px-3 text-[10.5px] uppercase tracking-[0.14em] text-white/55">
+            <PulseDot color={hasActiveHunt ? ACCENTS.amber : "rgb(255 255 255 / 0.3)"} pulse={hasActiveHunt} />
+            {hasActiveHunt ? "Live" : "Idle"}
+          </span>
+        }
       />
-      <PageBody className="max-w-7xl">
+      <div className="mx-auto max-w-6xl px-5 pb-16 sm:px-8">
       <BonusHuntTabs
         initialTab={activeTab === "previous" ? "previous" : "current"}
         currentContent={
@@ -194,7 +203,7 @@ export default async function BonusHuntPage({ searchParams }: PageProps) {
         }
         previousContent={<PreviousHuntsPanel />}
       />
-      </PageBody>
+      </div>
     </div>
   )
 }

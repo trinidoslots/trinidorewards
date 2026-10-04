@@ -3,7 +3,6 @@
 import type { ReactNode } from "react"
 import { useState } from "react"
 import { HuntRefreshButton } from "@/components/hunt-refresh-button"
-import { MonoLabel } from "@/components/ui/panel"
 import { Swap } from "@/components/swap"
 
 type BonusHuntTabsProps = {
@@ -34,30 +33,30 @@ export function BonusHuntTabs({ initialTab, currentContent, previousContent }: B
 
   return (
     <>
-      {/* An underline rail rather than a pill group — quieter, and it reads as
-          part of the page instead of a control floating on top of it. */}
-      <div className="mb-5 flex items-center gap-6 border-b border-white/[0.08]">
-        {TABS.map(({ id, label }) => {
-          const active = tab === id
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => switchTab(id)}
-              className={`-mb-px border-b px-0.5 pb-2.5 text-[13px] transition ${
-                active
-                  ? "border-[#5B8DEF] text-white"
-                  : "border-transparent text-white/35 hover:text-white/70"
-              }`}
-            >
-              {label}
-            </button>
-          )
-        })}
+      {/* A pill switch, as on the landing page's buttons: the active one
+          filled white, the other quiet. */}
+      <div className="mb-6 flex items-center gap-3">
+        <div className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.02] p-1">
+          {TABS.map(({ id, label }) => {
+            const active = tab === id
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => switchTab(id)}
+                className={`h-9 rounded-full px-4 text-[13.5px] font-medium transition ${
+                  active ? "bg-white text-black" : "text-white/50 hover:text-white"
+                }`}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
 
         {tab === "current" && (
-          <div className="ml-auto flex items-center gap-2.5 pb-2">
-            <MonoLabel className="hidden text-white/25 sm:block">Live data</MonoLabel>
+          <div className="ml-auto flex items-center gap-2.5">
+            <span className="font-geist-mono hidden text-[10.5px] uppercase tracking-[0.14em] text-white/30 sm:block">Live data</span>
             <HuntRefreshButton />
           </div>
         )}

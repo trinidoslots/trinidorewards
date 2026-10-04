@@ -1,7 +1,8 @@
 import type { ReactNode } from "react"
 import { Crown, ImageIcon, Sparkles, TrendingUp } from "lucide-react"
 import type { HuntKpis } from "@/lib/active-hunt"
-import { ACCENTS, MonoLabel } from "@/components/ui/panel"
+import { ACCENTS } from "@/components/ui/panel"
+import { BentoFrame, BracketLabel, CardFooter, DotPanel, PulseDot } from "@/components/ui/shell-kit"
 
 export type HuntBonusRow = {
   id: string
@@ -91,74 +92,79 @@ export function HuntKpiBoard({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* --- scoreboard ------------------------------------------------------- */}
-      <section className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-24 -top-32 h-80 w-80 rounded-full opacity-20 blur-3xl"
-          style={{ backgroundColor: ACCENTS.amber }}
-        />
-        <div className="relative flex flex-wrap items-center gap-x-10 gap-y-7 p-6 sm:p-8">
-          <ProgressRing percent={percent} opened={opened} total={total} />
-
-          <div className="min-w-[15rem] flex-1">
-            <MonoLabel className="text-white/40">Total won</MonoLabel>
-            <p className="mt-2 text-[clamp(38px,5vw,60px)] font-black leading-none tabular-nums tracking-[-0.02em] text-white">
-              {money(totalWonVal)}
-            </p>
-            <p className="mt-3 text-[14px] text-white/45">
-              <span
-                className="font-semibold tabular-nums"
-                style={{ color: profitLoss >= 0 ? ACCENTS.green : ACCENTS.red }}
-              >
-                {profitLoss >= 0 ? "+" : "−"}
-                {money(Math.abs(profitLoss))}
-              </span>{" "}
-              against a {money(startingBalanceVal)} start
-            </p>
-          </div>
-
-          {/* The one number a live hunt is watched for. */}
-          <div className="min-w-[13rem] rounded-lg border px-5 py-4" style={{ borderColor: `${ACCENTS.amber}44`, backgroundColor: `${ACCENTS.amber}0f` }}>
-            <MonoLabel style={{ color: ACCENTS.amber }}>{done ? "Hunt complete" : "Break even"}</MonoLabel>
-            {/* Finished, break-even means nothing; what came back does. The
-                average multi is already in the strip below. */}
-            <p className="mt-2 text-[34px] font-black leading-none tabular-nums" style={{ color: ACCENTS.amber }}>
-              {done
-                ? `${startingBalanceVal > 0 ? Math.round((totalWonVal / startingBalanceVal) * 100) : 0}%`
-                : `${breakEven.toFixed(2)}x`}
-            </p>
-            <p className="mt-2 text-[12.5px] text-white/45">
-              {done ? "of the starting balance returned" : `average needed on the ${remainingCount} still to open`}
-            </p>
-          </div>
-        </div>
-
-        <dl className="relative grid grid-cols-2 border-t border-white/[0.07] sm:grid-cols-4">
-          {[
-            ["Starting balance", money(startingBalanceVal)],
-            ["Average multi", `${averageMultiplier.toFixed(2)}x`],
-            ["Average bet", money(averageBet)],
-            ["Remaining", `${remainingCount}`],
-          ].map(([label, value], index) => (
-            <div
-              key={label}
-              className={`px-6 py-4 sm:px-8 ${index % 2 === 1 ? "border-l border-white/[0.07]" : ""} ${
-                index >= 2 ? "border-t border-white/[0.07] sm:border-t-0" : ""
-              } ${index === 2 ? "sm:border-l" : ""}`}
-            >
-              <dt>
-                <MonoLabel className="text-white/35">{label}</MonoLabel>
-              </dt>
-              <dd className="mt-1.5 text-[20px] font-bold tabular-nums text-white">{value}</dd>
+      {/* --- scoreboard: the totals over a matrix of every bonus ------------- */}
+      <BentoFrame glow={ACCENTS.amber} glowAlways>
+        <DotPanel glow={ACCENTS.amber} className="p-5 sm:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-x-10 gap-y-6">
+            <div className="min-w-0">
+              <BracketLabel style={{ color: ACCENTS.amber }}>Total won</BracketLabel>
+              <p className="mt-3 text-[clamp(40px,5.4vw,64px)] font-semibold leading-none tracking-[-0.045em] tabular-nums text-white">
+                {money(totalWonVal)}
+              </p>
+              <p className="mt-3 text-[14px] text-white/45">
+                <span className="font-medium tabular-nums" style={{ color: profitLoss >= 0 ? ACCENTS.green : ACCENTS.red }}>
+                  {profitLoss >= 0 ? "+" : "−"}
+                  {money(Math.abs(profitLoss))}
+                </span>{" "}
+                against a {money(startingBalanceVal)} start
+              </p>
             </div>
-          ))}
-        </dl>
-      </section>
+
+            {/* The one number a live hunt is watched for. Finished, break-even
+                means nothing; what came back does. */}
+            <div
+              className="min-w-[13rem] rounded-xl border px-5 py-4"
+              style={{ borderColor: `${ACCENTS.amber}40`, backgroundColor: `${ACCENTS.amber}0d` }}
+            >
+              <BracketLabel style={{ color: ACCENTS.amber }}>{done ? "Hunt complete" : "Break even"}</BracketLabel>
+              <p className="mt-2 text-[34px] font-semibold leading-none tracking-[-0.03em] tabular-nums" style={{ color: ACCENTS.amber }}>
+                {done
+                  ? `${startingBalanceVal > 0 ? Math.round((totalWonVal / startingBalanceVal) * 100) : 0}%`
+                  : `${breakEven.toFixed(2)}x`}
+              </p>
+              <p className="mt-2 text-[12.5px] text-white/45">
+                {done ? "of the starting balance returned" : `average needed on the ${remainingCount} still to open`}
+              </p>
+            </div>
+          </div>
+
+          {total > 0 && <BonusMatrix hunts={hunts} nextId={nextId} />}
+        </DotPanel>
+        <CardFooter
+          index="01"
+          label="Scoreboard"
+          status={
+            <>
+              <PulseDot color={ACCENTS.amber} pulse={!done && total > 0} />
+              {opened} of {total} opened · {percent}%
+            </>
+          }
+        />
+      </BentoFrame>
+
+      {/* --- the running figures ------------------------------------------- */}
+      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {[
+          ["Starting balance", money(startingBalanceVal)],
+          ["Average multi", `${averageMultiplier.toFixed(2)}x`],
+          ["Average bet", money(averageBet)],
+          ["Remaining", `${remainingCount}`],
+        ].map(([label, value]) => (
+          <BentoFrame key={label}>
+            <div className="px-3 py-3">
+              <dt>
+                <BracketLabel>{label}</BracketLabel>
+              </dt>
+              <dd className="mt-3 text-[24px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-white">{value}</dd>
+            </div>
+          </BentoFrame>
+        ))}
+      </dl>
 
       {/* --- records ---------------------------------------------------------- */}
       <section className="grid gap-4 md:grid-cols-2">
         <RecordCard
+          index="02"
           icon={TrendingUp}
           accent={ACCENTS.amber}
           label="Best multiplier"
@@ -167,6 +173,7 @@ export function HuntKpiBoard({
           image={imageFor(bestMultiplierGame)}
         />
         <RecordCard
+          index="03"
           icon={Sparkles}
           accent={ACCENTS.blue}
           label="Best cash win"
@@ -178,71 +185,102 @@ export function HuntKpiBoard({
 
       {/* --- the bonuses -------------------------------------------------------- */}
       <section className={sidePanel ? "grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start" : "grid gap-4"}>
-        <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
-          <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/[0.07] px-5 py-4 sm:px-6">
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: ACCENTS.amber }} />
-            <MonoLabel className="text-white/70">{tableEyebrow}</MonoLabel>
-            <span className="ml-auto truncate text-[12.5px] text-white/40">{tableTitle}</span>
-          </header>
+        <BentoFrame>
+          <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#0d0d10]">
+            <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-white/[0.06] px-4 py-3.5 sm:px-5">
+              <BracketLabel index="04">{tableEyebrow}</BracketLabel>
+              <span className="ml-auto truncate text-[12.5px] text-white/40">{tableTitle}</span>
+            </header>
 
-          {hunts.length === 0 ? (
-            <p className="p-12 text-center text-[13px] text-white/35">No bonuses yet. Bonuses will be added shortly.</p>
-          ) : (
-            <>
-              <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_6rem_7rem_5.5rem] gap-4 border-b border-white/[0.05] px-5 py-2.5 sm:grid sm:px-6">
-                {["#", "Slot", "Bet", "Result", "Multi"].map((column, index) => (
-                  <MonoLabel key={column} className={`text-white/30 ${index >= 2 ? "text-right" : ""}`}>
-                    {column}
-                  </MonoLabel>
-                ))}
-              </div>
-              <ol>
-                {hunts.map((hunt, index) => (
-                  <BonusRow key={hunt.id} hunt={hunt} position={index + 1} next={hunt.id === nextId} />
-                ))}
-              </ol>
-            </>
-          )}
-        </div>
-        {sidePanel && <div className="h-[800px] lg:sticky lg:top-20">{sidePanel}</div>}
+            {hunts.length === 0 ? (
+              <p className="p-12 text-center text-[13.5px] text-white/35">No bonuses yet. Bonuses will be added shortly.</p>
+            ) : (
+              <>
+                <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_6rem_7rem_5.5rem] gap-4 border-b border-white/[0.05] px-4 py-2.5 sm:grid sm:px-5">
+                  {["#", "Slot", "Bet", "Result", "Multi"].map((column, index) => (
+                    <BracketLabel key={column} className={`text-white/30 ${index >= 2 ? "justify-end" : ""}`}>
+                      {column}
+                    </BracketLabel>
+                  ))}
+                </div>
+                <ol>
+                  {hunts.map((hunt, index) => (
+                    <BonusRow key={hunt.id} hunt={hunt} position={index + 1} next={hunt.id === nextId} />
+                  ))}
+                </ol>
+              </>
+            )}
+          </div>
+        </BentoFrame>
+        {sidePanel && <div className="lg:sticky lg:top-20">{sidePanel}</div>}
       </section>
     </div>
   )
 }
 
-/** How many of the bonuses are open, as a ring with the count inside. */
-function ProgressRing({ percent, opened, total }: { percent: number; opened: number; total: number }) {
-  const radius = 54
-  const circumference = 2 * Math.PI * radius
+/**
+ * Every bonus as a cell, in list order: lit in its multiplier's colour once
+ * opened, an outline pulsing on the one being opened next, dim until then.
+ * The hunt read at a glance — how far in, and how well it is going.
+ */
+function BonusMatrix({ hunts, nextId }: { hunts: HuntBonusRow[]; nextId: string | null }) {
   return (
-    <div className="relative h-[136px] w-[136px] shrink-0">
-      <svg viewBox="0 0 136 136" className="h-full w-full -rotate-90" aria-hidden>
-        <circle cx="68" cy="68" r={radius} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="10" />
-        <circle
-          cx="68"
-          cy="68"
-          r={radius}
-          fill="none"
-          stroke={ACCENTS.amber}
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - percent / 100)}
-          style={{ transition: "stroke-dashoffset 900ms cubic-bezier(0.16,1,0.3,1)" }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-[28px] font-black leading-none tabular-nums text-white">
-          {opened}
-          <span className="text-[16px] text-white/35">/{total}</span>
+    <div className="mt-8">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(13px,1fr))] gap-1 sm:max-w-[640px]">
+        {hunts.map((hunt, index) => {
+          const pending = hunt.result === null
+          const multiplier = !pending && hunt.bet_size ? Number(hunt.result) / Number(hunt.bet_size) : 0
+          const color = pending ? null : multiplier > 0 ? multiColor(multiplier) : ACCENTS.red
+          const next = hunt.id === nextId
+          return (
+            <span
+              key={hunt.id}
+              title={`${index + 1}. ${hunt.game_name}${pending ? "" : ` · ${multiplier.toFixed(2)}x`}`}
+              className={`lp-cell aspect-square rounded-[3px] ${next ? "lp-cell-now" : ""}`}
+              style={{
+                animationDelay: `${index * 18}ms`,
+                // White at full strength glares next to the others; the
+                // ordinary hits sit a step back so the big ones read first.
+                backgroundColor: color
+                  ? multiplier <= 0
+                    ? `${color}40`
+                    : color === "#FFFFFF"
+                      ? "rgb(255 255 255 / 0.55)"
+                      : color
+                  : next
+                    ? `${ACCENTS.amber}30`
+                    : "rgb(255 255 255 / 0.05)",
+                border: next ? `1px solid ${ACCENTS.amber}` : "1px solid rgb(255 255 255 / 0.04)",
+                boxShadow: color && multiplier >= 100 ? `0 0 8px -1px ${color}` : undefined,
+              }}
+            />
+          )
+        })}
+      </div>
+      <div className="font-geist-mono mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10.5px] uppercase tracking-[0.12em] text-white/35">
+        {[
+          [ACCENTS.red, "Under 10x"],
+          ["rgb(255 255 255 / 0.55)", "10x+"],
+          [ACCENTS.green, "100x+"],
+          [GOLD, "500x+"],
+        ].map(([color, label]) => (
+          <span key={label} className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-[2px]" style={{ backgroundColor: color }} />
+            {label}
+          </span>
+        ))}
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-[2px] border" style={{ borderColor: ACCENTS.amber }} />
+          Next
         </span>
-        <MonoLabel className="mt-1.5 text-white/40">opened</MonoLabel>
       </div>
     </div>
   )
 }
 
+/** A record as a bento card: the slot's artwork and the figure, then its name. */
 function RecordCard({
+  index,
   icon: Icon,
   accent,
   label,
@@ -250,6 +288,7 @@ function RecordCard({
   game,
   image,
 }: {
+  index: string
   icon: typeof TrendingUp
   accent: string
   label: string
@@ -258,28 +297,27 @@ function RecordCard({
   image: string | null
 }) {
   return (
-    <div className="relative flex items-center gap-5 overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12] p-5 sm:p-6">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full opacity-20 blur-3xl"
-        style={{ backgroundColor: accent }}
-      />
-      <span className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.10] bg-black/40">
-        {image ? (
-          // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
-          <img src={image} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <Icon className="h-6 w-6" style={{ color: accent }} />
-        )}
-      </span>
-      <div className="relative min-w-0">
-        <MonoLabel style={{ color: accent }}>{label}</MonoLabel>
-        <p className="mt-2 text-[30px] font-black leading-none tabular-nums" style={{ color: accent }}>
-          {value}
-        </p>
-        <p className="mt-2 truncate text-[13.5px] text-white/55">{game || "Waiting for results"}</p>
-      </div>
-    </div>
+    <BentoFrame glow={accent}>
+      <DotPanel glow={accent} className="p-5">
+        <div className="flex items-center gap-5">
+          <span className="relative flex aspect-[180/236] w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.10] bg-black/40">
+            {image ? (
+              // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
+              <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <Icon className="h-6 w-6" style={{ color: accent }} />
+            )}
+          </span>
+          <div className="min-w-0">
+            <p className="text-[clamp(30px,3.4vw,40px)] font-semibold leading-none tracking-[-0.04em] tabular-nums" style={{ color: accent }}>
+              {value}
+            </p>
+            <p className="mt-2.5 truncate text-[14px] text-white/60">{game || "Waiting for results"}</p>
+          </div>
+        </div>
+      </DotPanel>
+      <CardFooter index={index} label={label} />
+    </BentoFrame>
   )
 }
 
@@ -289,17 +327,17 @@ function BonusRow({ hunt, position, next }: { hunt: HuntBonusRow; position: numb
 
   return (
     <li
-      className={`relative grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-x-4 border-b border-white/[0.05] px-5 py-3 transition-colors last:border-b-0 hover:bg-white/[0.025] sm:grid-cols-[2.5rem_minmax(0,1fr)_6rem_7rem_5.5rem] sm:px-6 ${
+      className={`relative grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-x-4 border-b border-white/[0.05] px-4 py-3 transition-colors last:border-b-0 hover:bg-white/[0.025] sm:grid-cols-[2.5rem_minmax(0,1fr)_6rem_7rem_5.5rem] sm:px-5 ${
         pending && !next ? "opacity-60" : ""
       }`}
-      style={next ? { backgroundColor: `${ACCENTS.amber}0d` } : undefined}
+      style={next ? { backgroundColor: `${ACCENTS.amber}0f` } : undefined}
     >
-      {next && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px]" style={{ backgroundColor: ACCENTS.amber }} />}
+      {next && <span aria-hidden className="absolute inset-y-2 left-0 w-[2px] rounded-full" style={{ backgroundColor: ACCENTS.amber }} />}
 
-      <span className="font-mono text-[12px] tabular-nums text-white/30">{String(position).padStart(2, "0")}</span>
+      <span className="font-geist-mono text-[11.5px] tabular-nums text-white/30">{String(position).padStart(2, "0")}</span>
 
       <span className="flex min-w-0 items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/[0.08] bg-black/40">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/[0.08] bg-black/40">
           {hunt.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable slot-thumbnail host
             <img src={hunt.image_url} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -310,11 +348,11 @@ function BonusRow({ hunt, position, next }: { hunt: HuntBonusRow; position: numb
         <span className="min-w-0">
           <span className="flex items-center gap-1.5">
             {hunt.is_super && <Crown className="h-3.5 w-3.5 shrink-0" style={{ color: ACCENTS.amber }} />}
-            <span className="truncate text-[14px] font-semibold text-white/90">{hunt.game_name}</span>
+            <span className="truncate text-[14px] font-medium text-white/90">{hunt.game_name}</span>
             {next && (
               <span
-                className="shrink-0 rounded-full px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-black"
-                style={{ backgroundColor: ACCENTS.amber }}
+                className="font-geist-mono shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-medium uppercase tracking-[0.12em]"
+                style={{ backgroundColor: `${ACCENTS.amber}24`, color: ACCENTS.amber }}
               >
                 Next
               </span>
@@ -371,9 +409,9 @@ export function multiColor(multiplier: number): string {
 }
 
 function MultiCell({ multiplier }: { multiplier: number | null }) {
-  if (!multiplier) return <span className="text-[14px] font-bold tabular-nums text-white/30">—</span>
+  if (!multiplier) return <span className="text-[14px] font-semibold tabular-nums text-white/30">—</span>
   return (
-    <span className="text-[14px] font-bold tabular-nums" style={{ color: multiColor(multiplier) }}>
+    <span className="text-[14px] font-semibold tabular-nums" style={{ color: multiColor(multiplier) }}>
       {multiplier.toFixed(2)}x
     </span>
   )

@@ -117,15 +117,15 @@ export function PreviousHuntsPanel() {
   if (loading) {
     return (
       <div className="space-y-5">
-        <div className="h-[104px] animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.025]" />
-        <div className="h-[420px] animate-pulse rounded-xl border border-white/[0.06] bg-white/[0.02]" />
+        <div className="h-[104px] animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.025]" />
+        <div className="h-[420px] animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.02]" />
       </div>
     )
   }
 
   return (
     <>
-      <section className="mb-5 overflow-hidden rounded-xl border border-white/[0.08] bg-[#0E0E12]">
+      <section className="mb-4 overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.035] to-white/[0.01]">
         <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
           <div className="min-w-0 flex-1">
             <MonoLabel style={{ color: ACCENTS.blue }}>
@@ -302,7 +302,7 @@ export function PreviousHuntsPanel() {
       </section>
 
       {!selectedHunt ? (
-        <div className="rounded-xl border border-dashed border-white/[0.12] bg-[#0E0E12] p-12 text-center text-[13.5px] text-white/45">
+        <div className="rounded-2xl border border-dashed border-white/[0.12] bg-white/[0.015] p-12 text-center text-[13.5px] text-white/45">
           No completed hunts yet. Once a hunt ends, it will show up here.
         </div>
       ) : (
