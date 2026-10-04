@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { ConditionalLayout } from "@/components/conditional-layout"
 
 const geistSans = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
 
 /**
  * The casino's own info bar, for /obs/now-playing only.
@@ -59,7 +59,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${geistSans.className} ${inter.variable} bg-[#0B0B0D] antialiased`}>
+      <body className={`${geistSans.className} ${geistMono.variable} ${inter.variable} bg-[#0B0B0D] antialiased`}>
         <NextTopLoader color="#22d3ee" height={2.5} shadow="0 0 10px rgba(34,211,238,0.6)" showSpinner={false} />
         <ConditionalLayout>{children}</ConditionalLayout>
         <Toaster />

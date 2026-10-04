@@ -1,234 +1,199 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, ArrowUpRight, Radio } from "lucide-react"
-import { ACCENTS, MonoLabel } from "@/components/ui/panel"
+import type React from "react"
+import { ArrowRight, ArrowUpRight, Play } from "lucide-react"
+import { ACCENTS } from "@/components/ui/panel"
 import { countdownTo } from "@/lib/schedule-week"
-import { money, moneyExact } from "@/lib/leaderboard-format"
-import { huntProgress } from "@/lib/landing"
-import type { StreamState } from "@/lib/schedule"
 import type { LandingData } from "@/hooks/use-landing-data"
-import { Clock, CountUp, KICK_URL, KickButton, LiveDot, shortLeft } from "@/components/landing/parts"
+import { CountUp, KICK_GREEN, KICK_URL } from "@/components/landing/parts"
 
 /**
- * The hero: a statement on the left, the on-air console on the right.
- *
- * The headline says what the site is for in three words instead of repeating
- * the name that is already in the top bar. The console is the part that
- * changes: on air, counting down to the next stream, or — between schedules —
- * simply what is running. It is the first thing on the page that is live, so
- * it is the first thing on the page that moves.
+ * The top of the landing page, in the same language as the rewards bento
+ * under it: the bracketed monospaced label, a headline in two tones, and on
+ * the right a card built exactly like a bento card — dot field, rounded
+ * frame, label row, round arrow — holding the one thing that changes most:
+ * when the stream is on, and who was paid out last.
  */
-
-export function Hero({
-  data,
-  now,
-  primary,
-}: {
-  data: LandingData
-  now: number
-  primary?: { href: string; label: string }
-}) {
-  const { stream, givenAway } = data
-  const live = stream.kind === "live"
-  // The one wash on the page, and it carries meaning: red while on air,
-  // the board blue otherwise.
-  const glow = live ? ACCENTS.red : ACCENTS.blue
-
+export function Hero({ data, now }: { data: LandingData; now: number }) {
   return (
-    <section className="relative w-full overflow-hidden border-b border-white/[0.06]">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: `radial-gradient(1100px 520px at 72% -10%, ${glow}26, transparent 60%), radial-gradient(800px 480px at 0% 110%, ${ACCENTS.green}14, transparent 60%), #08080A`,
-        }}
-      />
-      <div
-        aria-hidden
-        className="hero-grid pointer-events-none absolute inset-0"
-        style={{
-          maskImage: "radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 75%)",
-          WebkitMaskImage: "radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 75%)",
-        }}
-      />
+    <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-24 pt-16 sm:px-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-14 lg:pb-28 lg:pt-24">
+      <div>
+        <Label index="01">TrinidoRewards</Label>
 
-      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:px-8 lg:pb-28 lg:pt-24">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] py-1.5 pl-2 pr-3.5 backdrop-blur">
-            <span
-              className="rounded-full px-2 py-0.5 font-mono text-[9.5px] font-semibold uppercase tracking-[0.12em] text-black"
-              style={{ backgroundColor: ACCENTS.green }}
-            >
-              Free
-            </span>
-            <span className="text-[12.5px] text-white/60">No deposit needed to take part</span>
-          </div>
+        <h1 className="mt-6 text-[clamp(38px,4.4vw,56px)] font-semibold leading-[1.04] tracking-[-0.045em] text-white">
+          Rewards for watching.
+          <br />
+          <span className="text-white/40">Free to enter, every stream.</span>
+        </h1>
 
-          <h1 className="mt-7 text-[clamp(52px,8.4vw,112px)] font-black uppercase leading-[0.88] tracking-[-0.015em] text-white">
-            <span className="block">Watch.</span>
-            <span className="block text-white/55">Play.</span>
-            <span className="block" style={{ color: ACCENTS.green }}>
-              Get paid.
-            </span>
-          </h1>
+        <p className="mt-6 max-w-lg text-[16.5px] leading-[1.65] text-white/50">
+          Bonus hunts, leaderboards, raffles and tournaments for the TrinidoSlots community. No deposit needed.
+        </p>
 
-          <p className="mt-7 max-w-[30rem] text-[16px] leading-7 text-white/55">
-            Bonus hunts, leaderboards, raffles and tournaments for the TrinidoSlots community — running alongside
-            every stream, all free to enter.
-          </p>
-
-          <div className="mt-9 flex flex-wrap items-center gap-3">
-            <KickButton />
-            {primary && (
-              <Link
-                href={primary.href}
-                className="group inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/[0.04] px-5 py-3 text-[14px] font-semibold text-white transition hover:border-white/30 hover:bg-white/[0.08]"
-              >
-                {primary.label}
-                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-              </Link>
-            )}
-          </div>
-
-          {givenAway !== null && (
-            <div className="mt-12 flex items-center gap-5 border-t border-white/[0.08] pt-6">
-              <CountUp
-                value={givenAway}
-                className="text-[clamp(36px,4.6vw,52px)] font-black leading-none tabular-nums tracking-[-0.03em]"
-                style={{ color: ACCENTS.green }}
-              />
-              <p className="max-w-[9rem] text-[13px] leading-snug text-white/45">
-                given away to the community so far
-              </p>
-            </div>
-          )}
+        <div className="mt-9 flex flex-wrap items-center gap-3">
+          <a
+            href={KICK_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-[14.5px] font-medium text-black transition hover:bg-white/90 active:scale-[0.98]"
+          >
+            <Play className="h-3.5 w-3.5 fill-current" />
+            Watch on Kick
+          </a>
+          <Link
+            href="#now"
+            className="group inline-flex h-11 items-center gap-2 rounded-full border border-white/10 px-5 text-[14.5px] font-medium text-white/70 transition hover:border-white/25 hover:text-white"
+          >
+            See what&apos;s running
+            <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+          </Link>
         </div>
-
-        <Console data={data} now={now} stream={stream} />
       </div>
+
+      <StreamCard data={data} now={now} />
     </section>
   )
 }
 
-/** The panel beside the headline. */
-function Console({ data, now, stream }: { data: LandingData; now: number; stream: StreamState }) {
-  const { hunt, board, raffle } = data
-  const next = stream.kind === "next" ? countdownTo(stream.startsAt, now) : null
-  const progress = hunt ? huntProgress(hunt) : null
+/** "[ 01 ] TRINIDOREWARDS" — the same label the bento uses. */
+function Label({ index, children }: { index: string; children: React.ReactNode }) {
+  return (
+    <span className="font-geist-mono inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-white/40">
+      <span className="text-white/25">[ {index} ]</span>
+      {children}
+    </span>
+  )
+}
 
-  const rows: { href: string; label: string; accent: string; value: string; meta: string }[] = []
-  if (hunt && progress) {
-    rows.push({
-      href: "/bonushunt",
-      label: "Bonus hunt",
-      accent: ACCENTS.amber,
-      value: moneyExact(hunt.currentBalance),
-      meta: progress.label,
-    })
-  }
-  if (board) {
-    rows.push({
-      href: "/leaderboard",
-      label: "Leaderboard pool",
-      accent: ACCENTS.blue,
-      value: money(board.pool),
-      meta: `Ends in ${shortLeft(countdownTo(board.endsAt, now), "—")}`,
-    })
-  }
-  if (raffle) {
-    rows.push({
-      href: "/raffles",
-      label: "Raffle",
-      accent: ACCENTS.pink,
-      value: raffle.prize || raffle.title,
-      meta: `${raffle.tickets.toLocaleString("en-US")} ${raffle.tickets === 1 ? "ticket" : "tickets"} in`,
-    })
-  }
+/**
+ * The card beside the headline. Built like a bento card so the two blocks
+ * read as one page: the picture is the stream's state (on air, or counting
+ * down), with the latest payouts under it; the text row is the total given
+ * away and the way to Kick.
+ */
+function StreamCard({ data, now }: { data: LandingData; now: number }) {
+  const { stream, wins, givenAway } = data
+  const live = stream.kind === "live"
+  const next = stream.kind === "next" ? countdownTo(stream.startsAt, now) : null
+  const upcoming = next !== null && !next.over
+  const color = live ? ACCENTS.red : KICK_GREEN
+  const title = live || upcoming ? (stream as { title: string }).title : null
 
   return (
-    <div className="relative">
-      {/* A soft halo behind the panel so it sits on the page rather than in it. */}
+    <a
+      href={KICK_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.035] to-white/[0.01] p-2 transition duration-300 hover:border-white/[0.18]"
+    >
       <div
         aria-hidden
-        className="pointer-events-none absolute -inset-6 rounded-[22px] opacity-60 blur-2xl"
-        style={{ background: `radial-gradient(closest-side, ${stream.kind === "live" ? ACCENTS.red : ACCENTS.blue}22, transparent)` }}
+        className="pointer-events-none absolute -top-24 left-1/2 h-48 w-2/3 -translate-x-1/2 rounded-full opacity-25 blur-3xl transition-opacity duration-500 group-hover:opacity-45"
+        style={{ backgroundColor: color }}
       />
-      <div className="relative overflow-hidden rounded-xl border border-white/[0.10] bg-[#0E0E12]/90 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] backdrop-blur">
-        {/* --- the screen ----------------------------------------------------- */}
-        <div className="border-b border-white/[0.07] p-6 sm:p-7">
-          {stream.kind === "live" ? (
-            <>
-              <div className="flex items-center gap-2.5">
-                <LiveDot color={ACCENTS.red} size={10} />
-                <MonoLabel style={{ color: ACCENTS.red }}>On air now</MonoLabel>
-              </div>
-              <p className="mt-4 text-[clamp(24px,3vw,32px)] font-black leading-tight tracking-tight text-white">
-                {stream.title}
-              </p>
-              <a
-                href={KICK_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-white/70 transition hover:text-white"
-              >
-                Join the stream <ArrowUpRight className="h-3.5 w-3.5" />
-              </a>
-            </>
-          ) : next && !next.over ? (
-            <>
-              <div className="flex items-center gap-2.5">
-                <Radio className="h-4 w-4" style={{ color: ACCENTS.blue }} />
-                <MonoLabel style={{ color: ACCENTS.blue }}>Next stream</MonoLabel>
-                <span className="ml-auto truncate text-[12.5px] text-white/45">
-                  {stream.kind === "next" ? stream.title : ""}
-                </span>
-              </div>
-              <div className="mt-5">
-                <Clock left={next} accent={ACCENTS.blue} />
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center gap-2.5">
-                <Radio className="h-4 w-4 text-white/40" />
-                <MonoLabel className="text-white/45">Off air</MonoLabel>
-              </div>
-              <p className="mt-4 text-[24px] font-black leading-tight tracking-tight text-white">
-                Follow on Kick to catch the next one.
-              </p>
-            </>
+
+      {/* The picture: the stream's state, then the latest payouts. */}
+      <div className="lp-dots relative overflow-hidden rounded-xl border border-white/[0.06] bg-[#0d0d10] p-5 sm:p-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{ background: `radial-gradient(70% 80% at 85% 0%, ${color}24, transparent 70%)` }}
+        />
+        <div className="relative">
+          <div className="flex items-center justify-between gap-3">
+            <span
+              className="font-geist-mono flex items-center gap-2 text-[10.5px] font-medium uppercase tracking-[0.14em]"
+              style={{ color }}
+            >
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inset-0 animate-ping rounded-full opacity-70" style={{ backgroundColor: color }} />
+                <span className="relative h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+              </span>
+              {live ? "On air now" : upcoming ? "Next stream" : "On Kick"}
+            </span>
+            {title && (
+              <span className="font-geist-mono truncate rounded-md bg-black/40 px-2 py-1 text-[10.5px] text-white/50">
+                {title}
+              </span>
+            )}
+          </div>
+
+          <p className="mt-5 text-[clamp(36px,4.4vw,52px)] font-semibold leading-none tracking-[-0.04em] tabular-nums text-white">
+            {live ? "Live now" : upcoming && next ? <Countdown left={next} /> : "Follow along"}
+          </p>
+          <p className="mt-2 text-[13.5px] text-white/45">
+            {live
+              ? "Join the stream to take part."
+              : upcoming
+                ? "Until the stream starts."
+                : "Streams are announced on the schedule."}
+          </p>
+
+          {wins.length > 0 && (
+            <div className="mt-7">
+              <span className="font-geist-mono text-[10.5px] uppercase tracking-[0.14em] text-white/35">
+                Paid out recently
+              </span>
+              <ul className="mt-3 space-y-1.5">
+                {wins.slice(0, 3).map((win) => (
+                  <li
+                    key={win.id}
+                    className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-black/30 px-3 py-2 text-[13px]"
+                  >
+                    <span className="truncate text-white/70">{win.username}</span>
+                    <span className="font-medium tabular-nums" style={{ color: KICK_GREEN }}>
+                      {win.prize}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
-
-        {/* --- what is running ------------------------------------------------ */}
-        {rows.length > 0 ? (
-          <ul>
-            {rows.map((row) => (
-              <li key={row.href} className="border-b border-white/[0.06] last:border-b-0">
-                <Link
-                  href={row.href}
-                  className="group flex items-center gap-4 px-6 py-4 transition hover:bg-white/[0.035] sm:px-7"
-                >
-                  <span className="h-9 w-[3px] shrink-0 rounded-full" style={{ backgroundColor: row.accent }} />
-                  <div className="min-w-0 flex-1">
-                    <MonoLabel style={{ color: row.accent }}>{row.label}</MonoLabel>
-                    <p className="mt-1.5 truncate text-[22px] font-bold leading-none tabular-nums text-white">
-                      {row.value}
-                    </p>
-                  </div>
-                  <span className="hidden shrink-0 text-right text-[12px] text-white/40 sm:block">{row.meta}</span>
-                  <ArrowUpRight className="h-4 w-4 shrink-0 text-white/25 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-white/80" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="px-7 py-6 text-[13px] leading-6 text-white/40">
-            Hunts, boards and raffles show up here the moment they open.
-          </p>
-        )}
       </div>
-    </div>
+
+      {/* The text row, as on every bento card. */}
+      <div className="relative px-3 pb-3 pt-4">
+        <div className="flex items-center gap-2.5">
+          <Label index="00">Kick</Label>
+          {givenAway !== null && (
+            <span className="font-geist-mono ml-auto flex items-center gap-1.5 text-[10.5px] tabular-nums text-white/45">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: KICK_GREEN }} />
+              <CountUp value={givenAway} /> given away
+            </span>
+          )}
+        </div>
+        <div className="mt-3 flex items-start justify-between gap-4">
+          <p className="max-w-sm text-[15px] leading-[23px] text-white/55">
+            <span className="font-medium text-white">Watch the stream.</span> Being there is the whole entry — keywords,
+            giveaways and winners all happen live.
+          </p>
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 text-white/50 transition group-hover:border-white/30 group-hover:bg-white group-hover:text-black">
+            <ArrowUpRight className="h-4 w-4" />
+          </span>
+        </div>
+      </div>
+    </a>
+  )
+}
+
+/** "05h 22m 53s", padded so it does not change width as it ticks; days in front once there are any. */
+function Countdown({ left }: { left: { days: number; hours: number; minutes: number; seconds: number } }) {
+  const units: [number, string][] = [
+    ...(left.days > 0 ? ([[left.days, "d"]] as [number, string][]) : []),
+    [left.hours, "h"],
+    [left.minutes, "m"],
+    ...(left.days > 0 ? [] : ([[left.seconds, "s"]] as [number, string][])),
+  ]
+  return (
+    <span className="inline-flex items-baseline gap-3">
+      {units.map(([value, unit]) => (
+        <span key={unit}>
+          {String(value).padStart(2, "0")}
+          <span className="ml-0.5 text-[0.45em] font-medium text-white/35">{unit}</span>
+        </span>
+      ))}
+    </span>
   )
 }
